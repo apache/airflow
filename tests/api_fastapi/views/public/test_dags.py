@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import pendulum
 import pytest
 
 from airflow.models.dag import DagModel
@@ -34,8 +35,10 @@ DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
 DAG2_DISPLAY_NAME = "display2"
+DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
+UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
 @provide_session
@@ -74,7 +77,8 @@ def _create_deactivated_paused_dag(session=None):
 
 
 @pytest.fixture(autouse=True)
-def setup(dag_maker) -> None:
+@provide_session
+def setup(dag_maker, session=None) -> None:
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -96,15 +100,18 @@ def setup(dag_maker) -> None:
         DAG2_ID,
         dag_display_name=DAG2_DISPLAY_NAME,
         schedule=None,
-        start_date=datetime(
-            2021,
-            6,
-            15,
-        ),
+        start_date=DAG2_START_DATE,
+        doc_md="details",
+        params={"foo": 1},
+        max_active_tasks=16,
+        max_active_runs=16,
     ):
         EmptyOperator(task_id=TASK_ID)
 
     dag_maker.dagbag.sync_to_db()
+    dag_maker.dag_model.has_task_concurrency_limits = True
+    session.merge(dag_maker.dag_model)
+    session.commit()
     _create_deactivated_paused_dag()
 
 
@@ -225,3 +232,73 @@ def test_patch_dags(test_client, query_params, body, expected_status_code, expec
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
         paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
         assert paused_dag_ids == expected_paused_ids
+
+
+@pytest.mark.parametrize(
+    "query_params, dag_id, expected_status_code, dag_display_name, start_date",
+    [
+        ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
+        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, DAG2_START_DATE),
+    ],
+)
+def test_dag_details(test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date):
+    response = test_client.get(f"/public/dags/{dag_id}/details", params=query_params)
+    assert response.status_code == expected_status_code
+    if expected_status_code != 200:
+        return
+
+    # Match expected and actual responses below.
+    res_json = response.json()
+    last_parsed = res_json["last_parsed"]
+    last_parsed_time = res_json["last_parsed_time"]
+    file_token = res_json["file_token"]
+    expected = {
+        "catchup": True,
+        "concurrency": 16,
+        "dag_id": dag_id,
+        "dag_display_name": dag_display_name,
+        "dag_run_timeout": None,
+        "dataset_expression": None,
+        "default_view": "grid",
+        "description": None,
+        "doc_md": "details",
+        "end_date": None,
+        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "file_token": file_token,
+        "has_import_errors": False,
+        "has_task_concurrency_limits": True,
+        "is_active": True,
+        "is_paused": False,
+        "is_paused_upon_creation": None,
+        "last_expired": None,
+        "last_parsed": last_parsed,
+        "last_parsed_time": last_parsed_time,
+        "last_pickled": None,
+        "max_active_runs": 16,
+        "max_active_tasks": 16,
+        "max_consecutive_failed_dag_runs": 0,
+        "next_dagrun": None,
+        "next_dagrun_create_after": None,
+        "next_dagrun_data_interval_end": None,
+        "next_dagrun_data_interval_start": None,
+        "orientation": "LR",
+        "owners": ["airflow"],
+        "params": {
+            "foo": {
+                "__class": "airflow.models.param.Param",
+                "description": None,
+                "schema": {},
+                "value": 1,
+            }
+        },
+        "pickle_id": None,
+        "render_template_as_native_obj": False,
+        "timetable_summary": None,
+        "scheduler_lock": None,
+        "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
+        "tags": [],
+        "template_search_path": None,
+        "timetable_description": "Never, external triggers only",
+        "timezone": UTC_JSON_REPR,
+    }
+    assert res_json == expected

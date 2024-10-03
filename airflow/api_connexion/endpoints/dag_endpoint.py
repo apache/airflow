@@ -70,6 +70,7 @@ def get_dag(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag_details(
