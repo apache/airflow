@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -78,6 +79,10 @@ def init_views(app) -> None:
     dev_mode = os.environ.get("DEV_MODE", False) == "true"
 
     directory = "./airflow/ui/dev" if dev_mode else "./airflow/ui/dist"
+
+    # During python tests or when the backend is run without having the frontend build
+    # those directories might not exist. App should not fail initializing in those scenarios.
+    Path(directory).mkdir(exist_ok=True)
 
     templates = Jinja2Templates(directory=directory)
 
