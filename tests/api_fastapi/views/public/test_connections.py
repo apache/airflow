@@ -95,7 +95,6 @@ class TestGetConnection(TestConnectionEndpoint):
         connection = session.query(Connection).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
-        # breakpoint()
         response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
