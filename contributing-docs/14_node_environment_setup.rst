@@ -93,16 +93,6 @@ Copy the example environment
 
     cp .env.example .env.local
 
-If you run into CORS issues, you may need to add some variables to your Breeze config, ``files/airflow-breeze-config/variables.env``:
-
-.. code-block:: bash
-
-    export AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS="Origin, Access-Control-Request-Method"
-    export AIRFLOW__API__ACCESS_CONTROL_ALLOW_METHODS="*"
-    export AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGINS="http://localhost:28080,http://localhost:8080"
-
-
-
 DEPRECATED Airflow WWW
 ----------------------
 

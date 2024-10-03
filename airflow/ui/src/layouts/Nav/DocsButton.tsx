@@ -38,7 +38,7 @@ const links = [
     title: "GitHub Repo",
   },
   {
-    href: `${import.meta.env.VITE_FASTAPI_URL}/docs`,
+    href: `/docs`,
     title: "REST API Reference",
   },
 ];
