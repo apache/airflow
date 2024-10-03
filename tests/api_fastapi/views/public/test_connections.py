@@ -90,6 +90,7 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"extra_key": "extra_value"}'
 
+    @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
         connection = session.query(Connection).first()
@@ -100,4 +101,4 @@ class TestGetConnection(TestConnectionEndpoint):
         body = response.json()
         assert body["conn_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
-        assert body["extra"] == '{"password": "****"}'
+        assert body["extra"] == '{"password": "***"}'
