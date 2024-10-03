@@ -21,7 +21,7 @@ import React from "react";
 import { isEmpty } from "lodash";
 import { TbApi } from "react-icons/tb";
 
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import {
   Box,
   Flex,
@@ -43,7 +43,7 @@ import SourceTaskInstance from "./SourceTaskInstance";
 import TriggeredDagRuns from "./TriggeredDagRuns";
 
 type CardProps = {
-  datasetEvent: DatasetEvent;
+  assetEvent: AssetEvent;
   showSource?: boolean;
   showTriggeredDagRuns?: boolean;
 };
@@ -51,7 +51,7 @@ type CardProps = {
 const datasetsUrl = getMetaValue("datasets_url");
 
 const DatasetEventCard = ({
-  datasetEvent,
+  assetEvent,
   showSource = true,
   showTriggeredDagRuns = true,
 }: CardProps) => {
@@ -60,14 +60,16 @@ const DatasetEventCard = ({
   const selectedUri = decodeURIComponent(searchParams.get("uri") || "");
   const containerRef = useContainerRef();
 
-  const { from_rest_api: fromRestApi, ...extra } =
-    datasetEvent?.extra as Record<string, string>;
+  const { from_rest_api: fromRestApi, ...extra } = assetEvent?.extra as Record<
+    string,
+    string
+  >;
 
   return (
     <Box>
       <Grid
         templateColumns="repeat(4, 1fr)"
-        key={`${datasetEvent.datasetId}-${datasetEvent.timestamp}`}
+        key={`${assetEvent.datasetId}-${assetEvent.timestamp}`}
         _hover={{ bg: "gray.50" }}
         transition="background-color 0.2s"
         p={2}
@@ -76,22 +78,21 @@ const DatasetEventCard = ({
         borderStyle="solid"
       >
         <GridItem colSpan={2}>
-          <Time dateTime={datasetEvent.timestamp} />
+          <Time dateTime={assetEvent.timestamp} />
           <Flex alignItems="center">
             <HiDatabase size="16px" />
-            {datasetEvent.datasetUri &&
-            datasetEvent.datasetUri !== selectedUri ? (
+            {assetEvent.datasetUri && assetEvent.datasetUri !== selectedUri ? (
               <Link
                 color="blue.600"
                 ml={2}
                 href={`${datasetsUrl}?uri=${encodeURIComponent(
-                  datasetEvent.datasetUri
+                  assetEvent.datasetUri
                 )}`}
               >
-                {datasetEvent.datasetUri}
+                {assetEvent.datasetUri}
               </Link>
             ) : (
-              <Text ml={2}>{datasetEvent.datasetUri}</Text>
+              <Text ml={2}>{assetEvent.datasetUri}</Text>
             )}
           </Flex>
         </GridItem>
@@ -111,17 +112,17 @@ const DatasetEventCard = ({
                   </Box>
                 </Tooltip>
               )}
-              {!!datasetEvent.sourceTaskId && (
-                <SourceTaskInstance datasetEvent={datasetEvent} />
+              {!!assetEvent.sourceTaskId && (
+                <SourceTaskInstance assetEvent={assetEvent} />
               )}
             </>
           )}
         </GridItem>
         <GridItem>
-          {showTriggeredDagRuns && !!datasetEvent?.createdDagruns?.length && (
+          {showTriggeredDagRuns && !!assetEvent?.createdDagruns?.length && (
             <>
               Triggered Dag Runs:
-              <TriggeredDagRuns createdDagRuns={datasetEvent?.createdDagruns} />
+              <TriggeredDagRuns createdDagRuns={assetEvent?.createdDagruns} />
             </>
           )}
         </GridItem>

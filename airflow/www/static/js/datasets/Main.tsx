@@ -42,18 +42,18 @@ import { MdEvent, MdAccountTree, MdDetails, MdPlayArrow } from "react-icons/md";
 import Time from "src/components/Time";
 import BreadcrumbText from "src/components/BreadcrumbText";
 import { useOffsetTop } from "src/utils";
-import { useDatasetDependencies } from "src/api";
+import { useAssetDependencies } from "src/api";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 
-import DatasetEvents from "./DatasetEvents";
-import DatasetsList from "./DatasetsList";
-import DatasetDetails from "./DatasetDetails";
+import AssetEvents from "./AssetEvents";
+import AssetsList from "./AssetsList";
+import AssetDetails from "./AssetDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
 import SearchBar from "./SearchBar";
-import CreateDatasetEventModal from "./CreateDatasetEvent";
+import CreateAssetEventModal from "./CreateAssetEvent";
 
 const DATASET_URI_PARAM = "uri";
 const DAG_ID_PARAM = "dag_id";
@@ -92,7 +92,7 @@ const Datasets = () => {
   const offsetTop = useOffsetTop(contentRef);
   const height = `calc(100vh - ${offsetTop + 100}px)`;
 
-  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
+  const { data: datasetDependencies, isLoading } = useAssetDependencies();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { isOpen, onToggle, onClose } = useDisclosure();
@@ -240,12 +240,12 @@ const Datasets = () => {
         <TabPanels>
           {!selectedUri && (
             <TabPanel>
-              <DatasetEvents />
+              <AssetEvents />
             </TabPanel>
           )}
           {!!selectedUri && (
             <TabPanel>
-              <DatasetDetails uri={selectedUri} />
+              <AssetDetails uri={selectedUri} />
             </TabPanel>
           )}
           <TabPanel>
@@ -275,13 +275,13 @@ const Datasets = () => {
           </TabPanel>
           {!selectedUri && (
             <TabPanel>
-              <DatasetsList onSelect={onSelect} />
+              <AssetsList onSelect={onSelect} />
             </TabPanel>
           )}
         </TabPanels>
       </Tabs>
       {selectedUri && (
-        <CreateDatasetEventModal
+        <CreateAssetEventModal
           isOpen={isOpen}
           onClose={onClose}
           uri={selectedUri}

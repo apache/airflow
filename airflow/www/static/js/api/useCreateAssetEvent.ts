@@ -18,32 +18,35 @@
  */
 
 import axios, { AxiosResponse } from "axios";
-import { useQuery } from "react-query";
+import { useMutation, useQueryClient } from "react-query";
 
 import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
+import useErrorToast from "src/utils/useErrorToast";
 
 interface Props {
-  dagIds?: string[];
-  enabled?: boolean;
+  datasetId?: number;
+  uri?: string;
 }
 
-export default function useDatasets({ dagIds, enabled = true }: Props) {
-  return useQuery(
-    ["datasets", dagIds],
-    () => {
-      const datasetsUrl = getMetaValue("datasets_api");
-      const dagIdsParam =
-        dagIds && dagIds.length ? { dag_ids: dagIds.join(",") } : {};
+const createAssetUrl = getMetaValue("create_asset_event_api");
 
-      return axios.get<AxiosResponse, API.DatasetCollection>(datasetsUrl, {
-        params: {
-          ...dagIdsParam,
-        },
-      });
-    },
+export default function useCreateAssetEvent({ datasetId, uri }: Props) {
+  const queryClient = useQueryClient();
+  const errorToast = useErrorToast();
+
+  return useMutation(
+    ["createAssetEvent", uri],
+    (extra?: API.AssetEvent["extra"]) =>
+      axios.post<AxiosResponse, API.CreateAssetEventVariables>(createAssetUrl, {
+        asset_uri: uri,
+        extra: extra || {},
+      }),
     {
-      enabled,
+      onSuccess: () => {
+        queryClient.invalidateQueries(["datasets-events", datasetId]);
+      },
+      onError: (error: Error) => errorToast({ error }),
     }
   );
 }

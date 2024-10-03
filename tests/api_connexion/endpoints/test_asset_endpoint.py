@@ -61,7 +61,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")
 
 
-class TestDatasetEndpoint:
+class TestAssetEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)
@@ -75,7 +75,7 @@ class TestDatasetEndpoint:
         clear_db_assets()
         clear_db_runs()
 
-    def _create_dataset(self, session):
+    def _create_asset(self, session):
         asset_model = AssetModel(
             id=1,
             uri="s3://bucket/key",
@@ -88,14 +88,14 @@ class TestDatasetEndpoint:
         return asset_model
 
 
-class TestGetDatasetEndpoint(TestDatasetEndpoint):
+class TestGetAssetEndpoint(TestAssetEndpoint):
     def test_should_respond_200(self, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         assert session.query(AssetModel).count() == 1
 
         with assert_queries_count(6):
             response = self.client.get(
-                f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+                f"/api/v1/assets/{urllib.parse.quote('s3://bucket/key', safe='')}",
                 environ_overrides={"REMOTE_USER": "test"},
             )
         assert response.status_code == 200
@@ -112,7 +112,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
 
     def test_should_respond_404(self):
         response = self.client.get(
-            f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+            f"/api/v1/assets/{urllib.parse.quote('s3://bucket/key', safe='')}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
@@ -124,12 +124,12 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):
-        self._create_dataset(session)
-        response = self.client.get(f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}")
+        self._create_asset(session)
+        response = self.client.get(f"/api/v1/assets/{urllib.parse.quote('s3://bucket/key', safe='')}")
         assert_401(response)
 
 
-class TestGetDatasets(TestDatasetEndpoint):
+class TestGetAssets(TestAssetEndpoint):
     def test_should_respond_200(self, session):
         assets = [
             AssetModel(
@@ -146,12 +146,12 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(AssetModel).count() == 2
 
         with assert_queries_count(10):
-            response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("/api/v1/assets", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
@@ -191,7 +191,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(AssetModel).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
@@ -212,71 +212,71 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(AssetModel).count() == 2
 
-        response = self.client.get("/api/v1/datasets")
+        response = self.client.get("/api/v1/assets")
 
         assert_401(response)
 
     @pytest.mark.parametrize(
-        "url, expected_datasets",
+        "url, expected_assets",
         [
-            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
-            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_dataset_bucket_/key"}),
+            ("api/v1/assets?uri_pattern=s3", {"s3://folder/key"}),
+            ("api/v1/assets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
-                "api/v1/datasets?uri_pattern=dataset",
-                {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
+                "api/v1/assets?uri_pattern=asset",
+                {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
             ),
             (
-                "api/v1/datasets?uri_pattern=",
+                "api/v1/assets?uri_pattern=",
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
-                    "somescheme://dataset/key",
-                    "wasb://some_dataset_bucket_/key",
+                    "somescheme://asset/key",
+                    "wasb://some_asset_bucket_/key",
                 },
             ),
         ],
     )
     @provide_session
-    def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
+    def test_filter_assets_by_uri_pattern_works(self, url, expected_assets, session):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
-        asset3 = AssetModel("somescheme://dataset/key")
-        asset4 = AssetModel("wasb://some_dataset_bucket_/key")
+        asset3 = AssetModel("somescheme://asset/key")
+        asset4 = AssetModel("wasb://some_asset_bucket_/key")
         session.add_all([asset1, asset2, asset3, asset4])
         session.commit()
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
-        assert expected_datasets == dataset_urls
+        asset_urls = {asset["uri"] for asset in response.json["assets"]}
+        assert expected_assets == asset_urls
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
-    def test_filter_datasets_by_dag_ids_works(self, dag_ids, expected_num, session):
+    def test_filter_assets_by_dag_ids_works(self, dag_ids, expected_num, session):
         session.query(DagModel).delete()
         session.commit()
         dag1 = DagModel(dag_id="dag1")
         dag2 = DagModel(dag_id="dag2")
         dag3 = DagModel(dag_id="dag3")
-        dataset1 = AssetModel("s3://folder/key")
-        dataset2 = AssetModel("gcp://bucket/key")
-        dataset3 = AssetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
-        session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        asset1 = AssetModel("s3://folder/key")
+        asset2 = AssetModel("gcp://bucket/key")
+        asset3 = AssetModel("somescheme://asset/key")
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=asset3)
+        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
-            f"/api/v1/datasets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/assets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         response_data = response.json
-        assert len(response_data["datasets"]) == expected_num
+        assert len(response_data["assets"]) == expected_num
 
     @pytest.mark.parametrize(
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
-    def test_filter_datasets_by_dag_ids_and_uri_pattern_works(
+    def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, dag_ids, uri_pattern, expected_num, session
     ):
         session.query(DagModel).delete()
@@ -286,37 +286,37 @@ class TestGetDatasets(TestDatasetEndpoint):
         dag3 = DagModel(dag_id="dag3")
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
-        asset3 = AssetModel("somescheme://dataset/key")
+        asset3 = AssetModel("somescheme://asset/key")
         dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=asset1)
         dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=asset2)
         task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=asset3)
         session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
-            f"/api/v1/datasets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
+            f"/api/v1/assets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         response_data = response.json
-        assert len(response_data["datasets"]) == expected_num
+        assert len(response_data["assets"]) == expected_num
 
 
-class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
+class TestGetAssetsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_dataset_uris",
+        "url, expected_asset_uris",
         [
             # Limit test data
-            ("/api/v1/datasets?limit=1", ["s3://bucket/key/1"]),
-            ("/api/v1/datasets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
+            ("/api/v1/assets?limit=1", ["s3://bucket/key/1"]),
+            ("/api/v1/assets?limit=100", [f"s3://bucket/key/{i}" for i in range(1, 101)]),
             # Offset test data
-            ("/api/v1/datasets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
-            ("/api/v1/datasets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+            ("/api/v1/assets?offset=1", [f"s3://bucket/key/{i}" for i in range(2, 102)]),
+            ("/api/v1/assets?offset=3", [f"s3://bucket/key/{i}" for i in range(4, 104)]),
             # Limit and offset test data
-            ("/api/v1/datasets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
+            ("/api/v1/assets?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
     @provide_session
-    def test_limit_and_offset(self, url, expected_dataset_uris, session):
+    def test_limit_and_offset(self, url, expected_asset_uris, session):
         assets = [
             AssetModel(
                 uri=f"s3://bucket/key/{i}",
@@ -332,8 +332,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
-        assert dataset_uris == expected_dataset_uris
+        asset_uris = [asset["uri"] for asset in response.json["assets"]]
+        assert asset_uris == expected_asset_uris
 
     def test_should_respect_page_size_limit_default(self, session):
         assets = [
@@ -348,10 +348,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(assets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/assets", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 100
+        assert len(response.json["assets"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -367,15 +367,15 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(assets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/assets?limit=180", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 150
+        assert len(response.json["assets"]) == 150
 
 
-class TestGetDatasetEvents(TestDatasetEndpoint):
+class TestGetAssetEvents(TestAssetEndpoint):
     def test_should_respond_200(self, session):
-        d = self._create_dataset(session)
+        d = self._create_asset(session)
         common = {
             "dataset_id": 1,
             "extra": {"foo": "bar"},
@@ -391,12 +391,12 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.commit()
         assert session.query(AssetEvent).count() == 2
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 1,
                     "timestamp": self.default_time,
@@ -416,7 +416,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     @pytest.mark.parametrize(
         "attr, value",
         [
-            ("dataset_id", "2"),
+            ("asset_id", "2"),
             ("source_dag_id", "dag2"),
             ("source_task_id", "task2"),
             ("source_run_id", "run2"),
@@ -454,13 +454,13 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert session.query(AssetEvent).count() == 3
 
         response = self.client.get(
-            f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
+            f"/api/v1/assets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 2,
                     "dataset_id": 2,
@@ -478,7 +478,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         }
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         events = [
             AssetEvent(
                 dataset_id=1,
@@ -496,7 +496,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert session.query(AssetEvent).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
@@ -504,11 +504,11 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert response.json["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
-        response = self.client.get("/api/v1/datasets/events")
+        response = self.client.get("/api/v1/assets/events")
         assert_401(response)
 
     def test_includes_created_dagrun(self, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         event = AssetEvent(
             id=1,
             dataset_id=1,
@@ -533,12 +533,12 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         event.created_dagruns.append(dagrun)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 1,
                     "dataset_id": 1,
@@ -567,7 +567,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         }
 
 
-class TestPostDatasetEvents(TestDatasetEndpoint):
+class TestPostAssetEvents(TestAssetEndpoint):
     @pytest.fixture
     def time_freezer(self) -> Generator:
         freezer = time_machine.travel(self.default_time, tick=False)
@@ -579,10 +579,10 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
 
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, session):
-        self._create_dataset(session)
-        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
+        self._create_asset(session)
+        event_payload = {"asset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
@@ -590,7 +590,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         assert response_data == {
             "id": ANY,
             "created_dagruns": [],
-            "dataset_uri": event_payload["dataset_uri"],
+            "dataset_uri": event_payload["asset_uri"],
             "dataset_id": ANY,
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
@@ -602,17 +602,17 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         _check_last_log(
             session,
             dag_id=None,
-            event="api.create_dataset_event",
+            event="api.create_asset_event",
             execution_date=None,
             expected_extra=event_payload,
         )
 
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra_logs(self, session):
-        self._create_dataset(session)
-        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
+        self._create_asset(session)
+        event_payload = {"asset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
@@ -620,54 +620,54 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         _check_last_log(
             session,
             dag_id=None,
-            event="api.create_dataset_event",
+            event="api.create_asset_event",
             execution_date=None,
             expected_extra=expected_extra,
         )
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
-        self._create_dataset(session)
-        event_invalid_payload = {"dataset_uri": "TEST_DATASET_URI", "extra": {"foo": "bar"}, "fake": {}}
+        self._create_asset(session)
+        event_invalid_payload = {"asset_uri": "TEST_ASSET_URI", "extra": {"foo": "bar"}, "fake": {}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
 
     def test_should_raises_401_unauthenticated(self, session):
-        self._create_dataset(session)
-        response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "TEST_DATASET_URI"})
+        self._create_asset(session)
+        response = self.client.post("/api/v1/assets/events", json={"asset_uri": "TEST_ASSET_URI"})
         assert_401(response)
 
 
-class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
+class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
         "url, expected_event_runids",
         [
             # Limit test data
-            ("/api/v1/datasets/events?limit=1&order_by=source_run_id", ["run1"]),
+            ("/api/v1/assets/events?limit=1&order_by=source_run_id", ["run1"]),
             (
-                "/api/v1/datasets/events?limit=3&order_by=source_run_id",
+                "/api/v1/assets/events?limit=3&order_by=source_run_id",
                 [f"run{i}" for i in range(1, 4)],
             ),
             # Offset test data
             (
-                "/api/v1/datasets/events?offset=1&order_by=source_run_id",
+                "/api/v1/assets/events?offset=1&order_by=source_run_id",
                 [f"run{i}" for i in range(2, 10)],
             ),
             (
-                "/api/v1/datasets/events?offset=3&order_by=source_run_id",
+                "/api/v1/assets/events?offset=3&order_by=source_run_id",
                 [f"run{i}" for i in range(4, 10)],
             ),
             # Limit and offset test data
             (
-                "/api/v1/datasets/events?offset=3&limit=3&order_by=source_run_id",
+                "/api/v1/assets/events?offset=3&limit=3&order_by=source_run_id",
                 [f"run{i}" for i in [4, 5, 6]],
             ),
         ],
     )
     @provide_session
     def test_limit_and_offset(self, url, expected_event_runids, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         events = [
             AssetEvent(
                 dataset_id=1,
@@ -685,11 +685,11 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        event_runids = [event["source_run_id"] for event in response.json["dataset_events"]]
+        event_runids = [event["source_run_id"] for event in response.json["asset_events"]]
         assert event_runids == expected_event_runids
 
     def test_should_respect_page_size_limit_default(self, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         events = [
             AssetEvent(
                 dataset_id=1,
@@ -704,14 +704,14 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/assets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 100
+        assert len(response.json["asset_events"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
-        self._create_dataset(session)
+        self._create_asset(session)
         events = [
             AssetEvent(
                 dataset_id=1,
@@ -727,14 +727,14 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.commit()
 
         response = self.client.get(
-            "/api/v1/datasets/events?limit=180", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/assets/events?limit=180", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 150
+        assert len(response.json["asset_events"]) == 150
 
 
-class TestQueuedEventEndpoint(TestDatasetEndpoint):
+class TestQueuedEventEndpoint(TestAssetEndpoint):
     @pytest.fixture
     def time_freezer(self) -> Generator:
         freezer = time_machine.travel(self.default_time, tick=False)
@@ -744,56 +744,56 @@ class TestQueuedEventEndpoint(TestDatasetEndpoint):
 
         freezer.stop()
 
-    def _create_dataset_dag_run_queues(self, dag_id, dataset_id, session):
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+    def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=asset_id)
         session.add(adrq)
         session.commit()
         return adrq
 
 
-class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
+class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
-        dataset_uri = "dummy"
+        asset_uri = "dummy"
 
-        response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}")
+        response = self.client.get(f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}")
 
         assert_401(response)
 
     def test_should_raise_403_forbidden(self, session):
         dag_id = "dummy"
-        dataset_uri = "dummy"
+        asset_uri = "dummy"
 
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
 
 
-class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
+class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
-        dataset_uri = "dummy"
-        response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}")
+        asset_uri = "dummy"
+        response = self.client.delete(f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self, session):
         dag_id = "dummy"
-        dataset_uri = "dummy"
+        asset_uri = "dummy"
         response = self.client.delete(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
 
-class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
+class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
-        response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/queuedEvent")
+        response = self.client.get(f"/api/v1/dags/{dag_id}/assets/queuedEvent")
 
         assert_401(response)
 
@@ -801,18 +801,18 @@ class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         dag_id = "dummy"
 
         response = self.client.get(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
 
 
-class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
+class TestDeleteDagAssetQueuedEvents(TestAssetEndpoint):
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
-        response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/queuedEvent")
+        response = self.client.delete(f"/api/v1/dags/{dag_id}/assets/queuedEvent")
 
         assert_401(response)
 
@@ -820,45 +820,45 @@ class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
         dag_id = "dummy"
 
         response = self.client.delete(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
+            f"/api/v1/dags/{dag_id}/assets/queuedEvent",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
 
 
-class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
+class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_raises_401_unauthenticated(self):
-        dataset_uri = "not_exists"
+        asset_uri = "not_exists"
 
-        response = self.client.get(f"/api/v1/datasets/queuedEvent/{dataset_uri}")
+        response = self.client.get(f"/api/v1/assets/queuedEvent/{asset_uri}")
 
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        dataset_uri = "not_exists"
+        asset_uri = "not_exists"
 
         response = self.client.get(
-            f"/api/v1/datasets/queuedEvent/{dataset_uri}",
+            f"/api/v1/assets/queuedEvent/{asset_uri}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
 
 
-class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
+class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_raises_401_unauthenticated(self):
-        dataset_uri = "not_exists"
+        asset_uri = "not_exists"
 
-        response = self.client.delete(f"/api/v1/datasets/queuedEvent/{dataset_uri}")
+        response = self.client.delete(f"/api/v1/assets/queuedEvent/{asset_uri}")
 
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
-        dataset_uri = "not_exists"
+        asset_uri = "not_exists"
 
         response = self.client.delete(
-            f"/api/v1/datasets/queuedEvent/{dataset_uri}",
+            f"/api/v1/assets/queuedEvent/{asset_uri}",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 

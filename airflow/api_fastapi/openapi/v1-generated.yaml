@@ -7,7 +7,7 @@ info:
     Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
-  /ui/next_run_datasets/{dag_id}:
+  /ui/next_run_assets/{dag_id}:
     get:
       tags:
       - Asset

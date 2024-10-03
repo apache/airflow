@@ -29,11 +29,11 @@ import {
 } from "@chakra-ui/react";
 import { isEmpty } from "lodash";
 
-import { useDataset } from "src/api";
+import { useAsset } from "src/api";
 import { getMetaValue } from "src/utils";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
-import Events from "./DatasetEvents";
+import Events from "./AssetEvents";
 
 const gridUrl = getMetaValue("grid_url");
 
@@ -41,8 +41,8 @@ interface Props {
   uri: string;
 }
 
-const DatasetDetails = ({ uri }: Props) => {
-  const { data: dataset, isLoading } = useDataset({ uri });
+const AssetDetails = ({ uri }: Props) => {
+  const { data: dataset, isLoading } = useAsset({ uri });
 
   const hasProducingTasks = !!dataset?.producingTasks?.length;
   const hasConsumingDags = !!dataset?.consumingDags?.length;
@@ -102,10 +102,10 @@ const DatasetDetails = ({ uri }: Props) => {
         />
       )}
       <Box mt={2}>
-        {dataset && dataset.id && <Events datasetId={dataset.id} showLabel />}
+        {dataset && dataset.id && <Events assetId={dataset.id} showLabel />}
       </Box>
     </Flex>
   );
 };
 
-export default DatasetDetails;
+export default AssetDetails;

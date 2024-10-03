@@ -93,14 +93,14 @@ class AssetSchema(SQLAlchemySchema):
 class AssetCollection(NamedTuple):
     """List of Assets with meta."""
 
-    datasets: list[AssetModel]
+    assets: list[AssetModel]
     total_entries: int
 
 
 class AssetCollectionSchema(Schema):
     """Asset Collection Schema."""
 
-    datasets = fields.List(fields.Nested(AssetSchema))
+    assets = fields.List(fields.Nested(AssetSchema))
     total_entries = fields.Int()
 
 
@@ -150,21 +150,21 @@ class AssetEventSchema(SQLAlchemySchema):
 class AssetEventCollection(NamedTuple):
     """List of Asset events with meta."""
 
-    dataset_events: list[AssetEvent]
+    asset_events: list[AssetEvent]
     total_entries: int
 
 
 class AssetEventCollectionSchema(Schema):
     """Asset Event Collection Schema."""
 
-    dataset_events = fields.List(fields.Nested(AssetEventSchema))
+    asset_events = fields.List(fields.Nested(AssetEventSchema))
     total_entries = fields.Int()
 
 
 class CreateAssetEventSchema(Schema):
     """Create Asset Event Schema."""
 
-    dataset_uri = fields.String()
+    asset_uri = fields.String()
     extra = JsonObjectField()
 
 

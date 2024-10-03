@@ -23,11 +23,11 @@ import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
 import { useSearchParams } from "react-router-dom";
 
-import { useDatasetsSummary } from "src/api";
+import { useAssetsSummary } from "src/api";
 import { CellProps, Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
-import type { DateOption } from "src/api/useDatasetsSummary";
+import type { DateOption } from "src/api/useAssetsSummary";
 
 import type { OnSelectProps } from "./types";
 
@@ -56,7 +56,7 @@ const dateOptions: Record<string, DateOption> = {
   hour: { count: 1, unit: "hour" },
 };
 
-const DatasetsList = ({ onSelect }: Props) => {
+const AssetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
@@ -73,7 +73,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   const {
     data: { datasets, totalEntries },
     isLoading,
-  } = useDatasetsSummary({
+  } = useAssetsSummary({
     limit,
     offset,
     order,
@@ -99,7 +99,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   const data = useMemo(() => datasets, [datasets]);
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
-  const onDatasetSelect = (row: Row<API.Dataset>) => {
+  const onDatasetSelect = (row: Row<API.Asset>) => {
     if (row.original.uri) onSelect({ uri: row.original.uri });
   };
 
@@ -175,4 +175,4 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 };
 
-export default DatasetsList;
+export default AssetsList;

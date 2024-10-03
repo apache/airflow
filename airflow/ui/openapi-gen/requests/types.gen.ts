@@ -203,7 +203,7 @@ export type DeleteConnectionData = {
 export type DeleteConnectionResponse = void;
 
 export type $OpenApiTs = {
-  "/ui/next_run_datasets/{dag_id}": {
+  "/ui/next_run_assets/{dag_id}": {
     get: {
       req: NextRunAssetsData;
       res: {

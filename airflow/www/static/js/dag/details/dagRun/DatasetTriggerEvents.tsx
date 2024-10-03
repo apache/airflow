@@ -19,10 +19,10 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
-import { useUpstreamDatasetEvents } from "src/api";
+import { useUpstreamAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
 import { CardDef, CardList } from "src/components/Table";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
 import { getMetaValue } from "src/utils";
 
@@ -32,17 +32,17 @@ interface Props {
 
 const dagId = getMetaValue("dag_id");
 
-const cardDef: CardDef<DatasetEvent> = {
+const cardDef: CardDef<AssetEvent> = {
   card: ({ row }) => (
-    <DatasetEventCard datasetEvent={row} showTriggeredDagRuns={false} />
+    <DatasetEventCard assetEvent={row} showTriggeredDagRuns={false} />
   ),
 };
 
 const DatasetTriggerEvents = ({ runId }: Props) => {
   const {
-    data: { datasetEvents = [] },
+    data: { assetEvents = [] },
     isLoading,
-  } = useUpstreamDatasetEvents({ dagRunId: runId, dagId });
+  } = useUpstreamAssetEvents({ dagRunId: runId, dagId });
 
   const columns = useMemo(
     () => [
@@ -66,7 +66,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
     []
   );
 
-  const data = useMemo(() => datasetEvents, [datasetEvents]);
+  const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
     <Box mt={3} flexGrow={1}>

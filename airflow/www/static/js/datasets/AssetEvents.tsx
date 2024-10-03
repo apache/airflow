@@ -22,22 +22,22 @@ import { snakeCase } from "lodash";
 import type { SortingRule } from "react-table";
 import { Box, Flex, Heading, Select } from "@chakra-ui/react";
 
-import { useDatasetEvents } from "src/api";
+import { useAssetEvents } from "src/api";
 
 import { CardList, type CardDef } from "src/components/Table";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
 
 type Props = {
-  datasetId?: number;
+  assetId?: number;
   showLabel?: boolean;
 };
 
-const cardDef: CardDef<DatasetEvent> = {
-  card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
+const cardDef: CardDef<AssetEvent> = {
+  card: ({ row }) => <DatasetEventCard assetEvent={row} />,
 };
 
-const Events = ({ datasetId, showLabel }: Props) => {
+const Events = ({ assetId, showLabel }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
@@ -48,10 +48,10 @@ const Events = ({ datasetId, showLabel }: Props) => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
-    data: { datasetEvents = [], totalEntries = 0 },
+    data: { assetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
-  } = useDatasetEvents({
-    datasetId,
+  } = useAssetEvents({
+    assetId,
     limit,
     offset,
     orderBy,
@@ -83,7 +83,7 @@ const Events = ({ datasetId, showLabel }: Props) => {
     []
   );
 
-  const data = useMemo(() => datasetEvents, [datasetEvents]);
+  const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
     <Box>

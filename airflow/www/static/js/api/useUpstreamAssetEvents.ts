@@ -22,30 +22,30 @@ import { useQuery, UseQueryOptions } from "react-query";
 
 import { getMetaValue } from "src/utils";
 import type {
-  DatasetEventCollection,
-  GetUpstreamDatasetEventsVariables,
+  AssetEventCollection,
+  GetUpstreamAssetEventsVariables,
 } from "src/types/api-generated";
 
-interface Props extends GetUpstreamDatasetEventsVariables {
-  options?: UseQueryOptions<DatasetEventCollection>;
+interface Props extends GetUpstreamAssetEventsVariables {
+  options?: UseQueryOptions<AssetEventCollection>;
 }
 
-const useUpstreamDatasetEvents = ({ dagId, dagRunId, options }: Props) => {
+const useUpstreamAssetEvents = ({ dagId, dagRunId, options }: Props) => {
   const upstreamEventsUrl = (
-    getMetaValue("upstream_dataset_events_api") ||
-    `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
+    getMetaValue("upstream_asset_events_api") ||
+    `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamAssetEvents`
   ).replace("_DAG_RUN_ID_", encodeURIComponent(dagRunId));
 
-  const query = useQuery<DatasetEventCollection>(
-    ["upstreamDatasetEvents", dagRunId],
+  const query = useQuery<AssetEventCollection>(
+    ["upstreamAssetEvents", dagRunId],
     () => axios.get(upstreamEventsUrl),
     options
   );
 
   return {
     ...query,
-    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
+    data: query.data ?? { assetEvents: [], totalEntries: 0 },
   };
 };
 
-export default useUpstreamDatasetEvents;
+export default useUpstreamAssetEvents;
