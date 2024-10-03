@@ -36,7 +36,7 @@ class ConnectionResponse(BaseModel):
     port: int | None
     extra: str | None
 
-    @field_validator("extra")
+    @field_validator("extra", mode="before")
     @classmethod
     def redact_extra(cls, v: str | None) -> str | None:
         if v is None:
