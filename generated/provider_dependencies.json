@@ -525,7 +525,7 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.3.0"
+      "pydantic>=2.6.4"
     ],
     "devel-deps": [],
     "plugins": [],
