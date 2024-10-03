@@ -1197,27 +1197,36 @@ def upgradedb(
         synchronize_log_template(session=session)
 
 
+@contextlib.contextmanager
+def manage_logging_level():
+    original_logging_level = logging.root.level
+    try:
+        yield
+    finally:
+        logging.root.setLevel(original_logging_level)
+
+
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
-    original_logging_level = logging.root.level
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
-    log.info("Dropping tables that exist")
 
-    import_all_models()
+    with manage_logging_level():
+        log.info("Dropping tables that exist")
 
-    connection = settings.engine.connect()
+        import_all_models()
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
-        drop_airflow_models(connection)
-        drop_airflow_moved_tables(connection)
-        external_db_manager = RunDBManager()
-        external_db_manager.drop_tables(session, connection)
+        connection = settings.engine.connect()
 
-    if not skip_init:
-        initdb(session=session)
-    logging.root.setLevel(original_logging_level)
+        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+            drop_airflow_models(connection)
+            drop_airflow_moved_tables(connection)
+            external_db_manager = RunDBManager()
+            external_db_manager.drop_tables(session, connection)
+
+            if not skip_init:
+                initdb(session=session)
 
 
 @provide_session
