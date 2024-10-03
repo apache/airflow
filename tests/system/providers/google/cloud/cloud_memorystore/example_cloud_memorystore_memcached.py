@@ -44,7 +44,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "google_project_id")
 
 DAG_ID = "cloud_memorystore_memcached"
