@@ -31,7 +31,7 @@ core:
     dag_bundle_storage_path:
       description: |
         The folder where Airflow will store DAG bundles locally.
-        By default, this will be `tempfile.gettempdir()`. This path must be absolute.
+        By default, this will be ``tempfile.gettempdir()/airflow``. This path must be absolute.
       version_added: 3.0.0
       type: string
       example: "{AIRFLOW_HOME}/dag_bundles"

@@ -43,7 +43,7 @@ class BaseDagBundle(ABC):
     def dag_bundle_storage_path(self) -> Path:
         if temp_dir := conf.get("core", "dag_bundle_storage_path"):
             return Path(temp_dir)
-        return Path(tempfile.gettempdir())
+        return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
     @abstractmethod
     def path(self) -> Path:
