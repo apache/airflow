@@ -42,7 +42,7 @@ interface Props {
   updatedAfter?: DateOption;
 }
 
-export default function useDatasetsSummary({
+export default function useAssetsSummary({
   limit,
   offset,
   order,

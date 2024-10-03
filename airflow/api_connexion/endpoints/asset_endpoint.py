@@ -57,13 +57,13 @@ if TYPE_CHECKING:
 
     from airflow.api_connexion.types import APIResponse
 
-RESOURCE_EVENT_PREFIX = "dataset"
+RESOURCE_EVENT_PREFIX = "asset"
 
 
 @security.requires_access_asset("GET")
 @provide_session
-def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get an asset ."""
+def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Get an asset."""
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.uri == uri)
@@ -80,7 +80,7 @@ def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
-def get_datasets(
+def get_assets(
     *,
     limit: int,
     offset: int = 0,
@@ -109,18 +109,18 @@ def get_datasets(
         .offset(offset)
         .limit(limit)
     ).all()
-    return asset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
+    return asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=total_entries))
 
 
 @security.requires_access_asset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
-def get_dataset_events(
+def get_asset_events(
     *,
     limit: int,
     offset: int = 0,
     order_by: str = "timestamp",
-    dataset_id: int | None = None,
+    asset_id: int | None = None,
     source_dag_id: str | None = None,
     source_task_id: str | None = None,
     source_run_id: str | None = None,
@@ -132,8 +132,8 @@ def get_dataset_events(
 
     query = select(AssetEvent)
 
-    if dataset_id:
-        query = query.where(AssetEvent.dataset_id == dataset_id)
+    if asset_id:
+        query = query.where(AssetEvent.dataset_id == asset_id)
     if source_dag_id:
         query = query.where(AssetEvent.source_dag_id == source_dag_id)
     if source_task_id:
@@ -149,14 +149,13 @@ def get_dataset_events(
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = session.scalars(query.offset(offset).limit(limit)).all()
     return asset_event_collection_schema.dump(
-        AssetEventCollection(dataset_events=events, total_entries=total_entries)
+        AssetEventCollection(asset_events=events, total_entries=total_entries)
     )
 
 
 def _generate_queued_event_where_clause(
     *,
     dag_id: str | None = None,
-    dataset_id: int | None = None,
     uri: str | None = None,
     before: str | None = None,
     permitted_dag_ids: set[str] | None = None,
@@ -165,8 +164,6 @@ def _generate_queued_event_where_clause(
     where_clause = []
     if dag_id is not None:
         where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
-    if dataset_id is not None:
-        where_clause.append(AssetDagRunQueue.dataset_id == dataset_id)
     if uri is not None:
         where_clause.append(
             AssetDagRunQueue.dataset_id.in_(
@@ -183,7 +180,7 @@ def _generate_queued_event_where_clause(
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag_dataset_queued_event(
+def get_dag_asset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get a queued asset event for a DAG."""
@@ -206,7 +203,7 @@ def get_dag_dataset_queued_event(
 @security.requires_access_dag("GET")
 @provide_session
 @action_logging
-def delete_dag_dataset_queued_event(
+def delete_dag_asset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete a queued asset event for a DAG."""
@@ -224,7 +221,7 @@ def delete_dag_dataset_queued_event(
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag_dataset_queued_events(
+def get_dag_asset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued asset events for a DAG."""
@@ -253,7 +250,7 @@ def get_dag_dataset_queued_events(
 @security.requires_access_dag("GET")
 @action_logging
 @provide_session
-def delete_dag_dataset_queued_events(
+def delete_dag_asset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued asset events for a DAG."""
@@ -271,7 +268,7 @@ def delete_dag_dataset_queued_events(
 
 @security.requires_access_asset("GET")
 @provide_session
-def get_dataset_queued_events(
+def get_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued asset events for an asset."""
@@ -303,7 +300,7 @@ def get_dataset_queued_events(
 @security.requires_access_asset("DELETE")
 @action_logging
 @provide_session
-def delete_dataset_queued_events(
+def delete_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued asset events for an asset."""
@@ -325,7 +322,7 @@ def delete_dataset_queued_events(
 @security.requires_access_asset("POST")
 @provide_session
 @action_logging
-def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
+def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     """Create asset event."""
     body = get_json_request_dict()
     try:
@@ -333,7 +330,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    uri = json_body["dataset_uri"]
+    uri = json_body["asset_uri"]
     asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
     if not asset:
         raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
@@ -341,7 +338,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
     asset_event = asset_manager.register_asset_change(
-        asset=Asset(uri),
+        asset=Asset(uri=uri),
         timestamp=timestamp,
         extra=extra,
         session=session,

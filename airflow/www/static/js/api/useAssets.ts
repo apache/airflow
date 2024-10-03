@@ -24,15 +24,26 @@ import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
 
 interface Props {
-  uri: string;
+  dagIds?: string[];
+  enabled?: boolean;
 }
 
-export default function useDataset({ uri }: Props) {
-  return useQuery(["dataset", uri], () => {
-    const datasetUrl = getMetaValue("dataset_api").replace(
-      "__URI__",
-      encodeURIComponent(uri)
-    );
-    return axios.get<AxiosResponse, API.Dataset>(datasetUrl);
-  });
+export default function useAssets({ dagIds, enabled = true }: Props) {
+  return useQuery(
+    ["datasets", dagIds],
+    () => {
+      const datasetsUrl = getMetaValue("datasets_api");
+      const dagIdsParam =
+        dagIds && dagIds.length ? { dag_ids: dagIds.join(",") } : {};
+
+      return axios.get<AxiosResponse, API.AssetCollection>(datasetsUrl, {
+        params: {
+          ...dagIdsParam,
+        },
+      });
+    },
+    {
+      enabled,
+    }
+  );
 }
