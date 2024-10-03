@@ -580,11 +580,11 @@ class TestSchedulerJob:
         assert State.SCHEDULED == ti1.state
         session.rollback()
 
-    def test_execute_task_instances_backfill_tasks_wont_execute(self, dag_maker):
+    def test_execute_task_instances_backfill_tasks_will_execute(self, dag_maker):
         """
         Tests that backfill tasks won't get executed.
         """
-        dag_id = "SchedulerJobTest.test_execute_task_instances_backfill_tasks_wont_execute"
+        dag_id = "SchedulerJobTest.test_execute_task_instances_backfill_tasks_will_execute"
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id):
@@ -606,7 +606,7 @@ class TestSchedulerJob:
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db()
-        assert State.SCHEDULED == ti1.state
+        assert ti1.state == TaskInstanceState.QUEUED
         session.rollback()
 
     @conf_vars({("scheduler", "standalone_dag_processor"): "False"})
@@ -696,24 +696,25 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.BACKFILL_JOB, state=State.RUNNING)
+        dr_non_backfill = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr_backfill = dag_maker.create_dagrun_after(
+            dr_non_backfill, run_type=DagRunType.BACKFILL_JOB, state=State.RUNNING
+        )
 
-        ti_backfill = dr2.get_task_instance(task1.task_id)
-        ti_with_dagrun = dr1.get_task_instance(task1.task_id)
-        # ti_with_paused
+        ti_backfill = dr_backfill.get_task_instance(task1.task_id)
+        ti_non_backfill = dr_non_backfill.get_task_instance(task1.task_id)
+
         ti_backfill.state = State.SCHEDULED
-        ti_with_dagrun.state = State.SCHEDULED
+        ti_non_backfill.state = State.SCHEDULED
 
-        session.merge(dr2)
+        session.merge(dr_backfill)
         session.merge(ti_backfill)
-        session.merge(ti_with_dagrun)
+        session.merge(ti_non_backfill)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
-        res_keys = (x.key for x in res)
-        assert ti_with_dagrun.key in res_keys
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert len(queued_tis) == 2
+        assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
 
     def test_find_executable_task_instances_pool(self, dag_maker):
@@ -2124,7 +2125,7 @@ class TestSchedulerJob:
         assert ti.state == State.NONE
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
+        assert ti2.state == State.NONE, "Tasks run by Backfill Jobs should be treated the same"
 
     def test_adopt_or_reset_orphaned_tasks_multiple_executors(self, dag_maker, mock_executors):
         """Test that with multiple executors configured tasks are sorted correctly and handed off to the
@@ -5802,7 +5803,7 @@ class TestSchedulerJob:
         session.flush()
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
-        assert backfill_run.state == State.RUNNING
+        assert backfill_run.state == State.SUCCESS
 
     def test_asset_orphaning(self, dag_maker, session):
         asset1 = Asset(uri="ds1")
