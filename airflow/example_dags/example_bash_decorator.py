@@ -33,7 +33,7 @@ def example_bash_decorator():
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
         return f"echo {task_instance_key_str} && sleep {sleep_seconds}"
 
-    run_me_loop = [run_me.override(task_id=f"runme_{i}")(sleep_seconds=i) for i in range(5)]
+    run_me_loop = [run_me.override(task_id=f"runme_{i}")(sleep_seconds=i) for i in range(3)]
 
     # [START howto_decorator_bash]
     @task.bash
