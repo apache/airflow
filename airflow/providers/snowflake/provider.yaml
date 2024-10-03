@@ -90,12 +90,14 @@ dependencies:
   - pyarrow>=14.0.1
   - snowflake-connector-python>=3.7.1
   - snowflake-sqlalchemy>=1.4.0
+  - snowflake-snowpark-python>=1.17.0;python_version<"3.12"
 
 integrations:
   - integration-name: Snowflake
     external-doc-url: https://snowflake.com/
     how-to-guide:
       - /docs/apache-airflow-providers-snowflake/operators/snowflake.rst
+      - /docs/apache-airflow-providers-snowflake/operators/snowpark.rst
     logo: /integration-logos/snowflake/Snowflake.png
     tags: [service]
 
@@ -103,6 +105,11 @@ operators:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.operators.snowflake
+      - airflow.providers.snowflake.operators.snowpark
+
+task-decorators:
+  - class-name: airflow.providers.snowflake.decorators.snowpark.snowpark_task
+    name: snowpark
 
 hooks:
   - integration-name: Snowflake
