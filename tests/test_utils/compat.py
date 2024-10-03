@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from packaging.version import Version
 
