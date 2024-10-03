@@ -45,9 +45,10 @@ class BaseDagBundle(ABC):
             return Path(temp_dir)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
+    @property
     @abstractmethod
     def path(self) -> Path:
-        """Path where the DAGs from this backend is stored."""
+        """Path where the DAGs from this backend live."""
 
     @abstractmethod
     def get_current_version(self) -> str:
