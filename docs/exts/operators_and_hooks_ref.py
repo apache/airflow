@@ -519,8 +519,8 @@ class DatasetSchemeDirective(BaseJinjaReferenceDirective):
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _common_render_list_content(
             header_separator=header_separator,
-            resource_type="dataset-uris",
-            template="dataset-uri-schemes.rst.jinja2",
+            resource_type="asset-uris",
+            template="asset-uri-schemes.rst.jinja2",
         )
 
 
@@ -538,7 +538,7 @@ def setup(app):
     app.add_directive("airflow-executors", ExecutorsDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
-    app.add_directive("airflow-dataset-schemes", DatasetSchemeDirective)
+    app.add_directive("airflow-asset-schemes", DatasetSchemeDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

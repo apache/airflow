@@ -46,7 +46,7 @@ const SearchBar = ({
   (datasetDependencies?.nodes || []).forEach((node) => {
     if (node.value.class === "dag")
       dagOptions.push({ value: node.id, label: node.value.label });
-    if (node.value.class === "dataset")
+    if (node.value.class === "asset")
       datasetOptions.push({ value: node.id, label: node.value.label });
   });
 

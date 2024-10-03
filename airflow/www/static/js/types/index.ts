@@ -135,12 +135,12 @@ interface DepNode {
     id?: string;
     class:
       | "dag"
-      | "dataset"
+      | "asset"
       | "trigger"
       | "sensor"
       | "or-gate"
       | "and-gate"
-      | "dataset-alias";
+      | "asset-alias";
     label: string;
     rx?: number;
     ry?: number;

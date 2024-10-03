@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
+
+if TYPE_CHECKING:
+    from flask import Flask
 
 
 @contextmanager
@@ -44,7 +48,11 @@ def create_user_scope(app, username, **kwargs):
     It will create a user and provide it for the fixture via YIELD (generator)
     then will tidy up once test is complete
     """
-    test_user = create_user(app, username, **kwargs)
+    from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+        create_user as create_user_fab,
+    )
+
+    test_user = create_user_fab(app, username, **kwargs)
 
     try:
         yield test_user
@@ -52,26 +60,19 @@ def create_user_scope(app, username, **kwargs):
         delete_user(app, username)
 
 
-def create_user(app, username, role_name=None, email=None, permissions=None):
-    appbuilder = app.appbuilder
-
+def create_user(app: Flask, username: str, role_name: str | None):
     # Removes user and role so each test has isolated test data.
     delete_user(app, username)
-    role = None
-    if role_name:
-        delete_role(app, role_name)
-        role = create_role(app, role_name, permissions)
-    else:
-        role = []
 
-    return appbuilder.sm.add_user(
-        username=username,
-        first_name=username,
-        last_name=username,
-        email=email or f"{username}@example.org",
-        role=role,
-        password=username,
+    users = app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
+    users.append(
+        {
+            "username": username,
+            "role": role_name,
+        }
     )
+
+    app.config["SIMPLE_AUTH_MANAGER_USERS"] = users
 
 
 def create_role(app, name, permissions=None):
@@ -87,14 +88,6 @@ def create_role(app, name, permissions=None):
     return role
 
 
-def set_user_single_role(app, user, role_name):
-    role = create_role(app, role_name)
-    if role not in user.roles:
-        user.roles = [role]
-        app.appbuilder.sm.update_user(user)
-        user._perms = None
-
-
 def delete_role(app, name):
     if name not in EXISTING_ROLES:
         if app.appbuilder.sm.find_role(name):
@@ -106,20 +99,11 @@ def delete_roles(app):
         delete_role(app, role.name)
 
 
-def delete_user(app, username):
-    appbuilder = app.appbuilder
-    for user in appbuilder.sm.get_all_users():
-        if user.username == username:
-            _ = [
-                delete_role(app, role.name) for role in user.roles if role and role.name not in EXISTING_ROLES
-            ]
-            appbuilder.sm.del_register_user(user)
-            break
+def delete_user(app: Flask, username):
+    users = app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
+    users = [user for user in users if user["username"] != username]
 
-
-def delete_users(app):
-    for user in app.appbuilder.sm.get_all_users():
-        delete_user(app, user.username)
+    app.config["SIMPLE_AUTH_MANAGER_USERS"] = users
 
 
 def assert_401(response):

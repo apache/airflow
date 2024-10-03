@@ -690,7 +690,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-          channel-id: 'zzz_webhook_test'
+          channel-id: 'internal-airflow-ci-cd'
           # yamllint disable rule:line-length
           payload: |
             {

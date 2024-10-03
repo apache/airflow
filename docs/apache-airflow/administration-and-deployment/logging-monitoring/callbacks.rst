@@ -34,7 +34,7 @@ For example, you may wish to alert when certain tasks have failed, or have the l
     Callback functions are executed after tasks are completed.
     Errors in callback functions will show up in scheduler logs rather than task logs.
     By default, scheduler logs do not show up in the UI and instead can be found in
-    ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+    ``$AIRFLOW_HOME/logs/scheduler/latest/DAG_FILE.py.log``
 
 Callback Types
 --------------

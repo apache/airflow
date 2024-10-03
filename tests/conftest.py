@@ -973,10 +973,10 @@ def dag_maker(request):
 
         def cleanup(self):
             from airflow.models import DagModel, DagRun, TaskInstance, XCom
-            from airflow.models.dataset import DatasetEvent
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
+            from tests.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
@@ -1004,7 +1004,7 @@ def dag_maker(request):
                     self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
-                    self.session.query(DatasetEvent).filter(DatasetEvent.source_dag_id.in_(dag_ids)).delete(
+                    self.session.query(AssetEvent).filter(AssetEvent.source_dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
                     self.session.commit()

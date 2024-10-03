@@ -113,6 +113,12 @@ connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
     connection-type: mysql
 
+asset-uris:
+  - schemes: [mysql, mariadb]
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
 dataset-uris:
   - schemes: [mysql, mariadb]
-    handler: airflow.providers.mysql.datasets.mysql.sanitize_uri
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri

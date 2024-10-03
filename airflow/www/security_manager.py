@@ -40,6 +40,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.security.permissions import (
     RESOURCE_ADMIN_MENU,
+    RESOURCE_ASSET,
     RESOURCE_AUDIT_LOG,
     RESOURCE_BROWSE_MENU,
     RESOURCE_CLUSTER_ACTIVITY,
@@ -49,7 +50,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_DOCS_MENU,
     RESOURCE_JOB,
@@ -253,7 +253,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 details=ConnectionDetails(conn_id=get_connection_id(resource_pk)),
                 user=user,
             ),
-            RESOURCE_DATASET: lambda action, resource_pk, user: auth_manager.is_authorized_dataset(
+            RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_asset(
                 method=methods[action],
                 user=user,
             ),

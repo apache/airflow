@@ -44,7 +44,11 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom

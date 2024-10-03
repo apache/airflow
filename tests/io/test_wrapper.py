@@ -19,13 +19,13 @@ from __future__ import annotations
 import uuid
 from unittest.mock import patch
 
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.io.path import ObjectStoragePath
 
 
 @patch("airflow.providers_manager.ProvidersManager")
 def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector):
-    providers_manager.return_value._dataset_factories = lambda x: Dataset(uri=x)
+    providers_manager.return_value._asset_factories = lambda x: Asset(uri=x)
     uri = f"file:///tmp/{str(uuid.uuid4())}"
     path = ObjectStoragePath(uri)
     file = path.open("w")
@@ -33,7 +33,7 @@ def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector)
     file.close()
 
     assert len(hook_lineage_collector._outputs) == 1
-    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Dataset(uri=uri)
+    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Asset(uri=uri)
 
     file = path.open("r")
     file.read()
@@ -42,23 +42,23 @@ def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector)
     path.unlink(missing_ok=True)
 
     assert len(hook_lineage_collector._inputs) == 1
-    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Dataset(uri=uri)
+    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Asset(uri=uri)
 
 
 @patch("airflow.providers_manager.ProvidersManager")
 def test_wrapper_works_with_contextmanager(providers_manager, hook_lineage_collector):
-    providers_manager.return_value._dataset_factories = lambda x: Dataset(uri=x)
+    providers_manager.return_value._asset_factories = lambda x: Asset(uri=x)
     uri = f"file:///tmp/{str(uuid.uuid4())}"
     path = ObjectStoragePath(uri)
     with path.open("w") as file:
         file.write("asdf")
 
     assert len(hook_lineage_collector._outputs) == 1
-    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Dataset(uri=uri)
+    assert next(iter(hook_lineage_collector._outputs.values()))[0] == Asset(uri=uri)
 
     with path.open("r") as file:
         file.read()
     path.unlink(missing_ok=True)
 
     assert len(hook_lineage_collector._inputs) == 1
-    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Dataset(uri=uri)
+    assert next(iter(hook_lineage_collector._inputs.values()))[0] == Asset(uri=uri)

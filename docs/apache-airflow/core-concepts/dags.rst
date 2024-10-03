@@ -712,19 +712,9 @@ configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
 
 .. note::
 
-    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``regexp`` to ensure backwards compatibility.
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``glob`` in Airflow 3 or later (in previous versions it was ``regexp``).
 
-For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
-specifies a regular expression pattern, and directories or files whose names (not DAG id)
-match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
-to match the pattern). Use the ``#`` character to indicate a comment; all characters
-on lines starting with ``#`` will be ignored.
-
-As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
-doesn't support many advanced features, please check its
-`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
-
-With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
+With the ``glob`` syntax (the default), the patterns work just like those in a ``.gitignore`` file:
 
 * The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
@@ -738,15 +728,18 @@ With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` 
   is relative to the directory level of the particular .airflowignore file itself. Otherwise the
   pattern may also match at any level below the .airflowignore level.
 
+For the ``regexp`` pattern syntax, each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names (not DAG id)
+match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
+to match the pattern). Use the ``#`` character to indicate a comment; all characters
+on lines starting with ``#`` will be ignored.
+
+As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
+doesn't support many advanced features, please check its
+`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
+
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
-a ``.airflowignore`` file using the ``regexp`` syntax with content
-
-.. code-block::
-
-    project_a
-    tenant_[\d]
-
-Or, equivalently, in the ``glob`` syntax
+a ``.airflowignore`` file with the ``glob`` syntax
 
 .. code-block::
 

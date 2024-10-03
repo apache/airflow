@@ -92,7 +92,7 @@ export const flattenNodes = ({
           onToggleGroups(newGroupIds);
         },
         datasetEvent:
-          node.value.class === "dataset"
+          node.value.class === "asset"
             ? datasetEvents?.find((de) => de.datasetUri === node.value.label)
             : undefined,
         ...node.value,

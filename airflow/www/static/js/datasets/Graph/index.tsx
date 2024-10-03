@@ -87,7 +87,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
         height: c.height,
         onSelect: () => {
           if (onSelect) {
-            if (c.value.class === "dataset") onSelect({ uri: c.value.label });
+            if (c.value.class === "asset") onSelect({ uri: c.value.label });
             else if (c.value.class === "dag")
               onSelect({ dagId: c.value.label });
           }

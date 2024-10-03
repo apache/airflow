@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
@@ -114,9 +114,10 @@ class SerializedDagModel(Base):
         self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        self.dag_hash = SerializedDagModel.hash(dag_data)
 
-        self.dag_hash = md5(dag_data_json).hexdigest()
+        # partially ordered json data
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -131,6 +132,30 @@ class SerializedDagModel(Base):
 
     def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
+
+    @classmethod
+    def hash(cls, dag_data):
+        """Hash the data to get the dag_hash."""
+        dag_data = cls._sort_serialized_dag_dict(dag_data)
+        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
+
+    @classmethod
+    def _sort_serialized_dag_dict(cls, serialized_dag: Any):
+        """Recursively sort json_dict and its nested dictionaries and lists."""
+        if isinstance(serialized_dag, dict):
+            return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
+        elif isinstance(serialized_dag, list):
+            if all(isinstance(i, dict) for i in serialized_dag):
+                if all("task_id" in i.get("__var", {}) for i in serialized_dag):
+                    return sorted(
+                        [cls._sort_serialized_dag_dict(i) for i in serialized_dag],
+                        key=lambda x: x["__var"]["task_id"],
+                    )
+            elif all(isinstance(item, str) for item in serialized_dag):
+                return sorted(serialized_dag)
+            return [cls._sort_serialized_dag_dict(i) for i in serialized_dag]
+        return serialized_dag
 
     @classmethod
     @provide_session
@@ -149,6 +174,7 @@ class SerializedDagModel(Base):
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
+        :param processor_subdir: The dag directory of the processor
         :param session: ORM Session
 
         :returns: Boolean indicating if the DAG was written to the DB

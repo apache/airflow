@@ -7670,6 +7670,39 @@
                     "type": "integer",
                     "default": 600
                 },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "clusterIP": {
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "nodePort": {
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",

@@ -21,7 +21,7 @@ import pytest
 
 from airflow.security import permissions
 from airflow.www import app as application
-from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.www import client_with_login
 

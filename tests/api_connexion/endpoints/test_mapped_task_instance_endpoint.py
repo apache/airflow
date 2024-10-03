@@ -28,12 +28,11 @@ from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.taskmap import TaskMap
-from airflow.security import permissions
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from tests.test_utils.mock_operators import MockOperator
 
@@ -50,24 +49,16 @@ QUOTED_DEFAULT_DATETIME_STR_2 = urllib.parse.quote(DEFAULT_DATETIME_STR_2)
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_roles(app)
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestMappedTaskInstanceEndpoint:
@@ -133,8 +124,8 @@ class TestMappedTaskInstanceEndpoint:
                 session.add(ti)
 
             self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-            self.app.dag_bag.dags = {dag_id: dag_maker.dag}  # type: ignore
-            self.app.dag_bag.sync_to_db()  # type: ignore
+            self.app.dag_bag.dags = {dag_id: dag_maker.dag}
+            self.app.dag_bag.sync_to_db()
             session.flush()
 
             mapped.expand_mapped_task(dr.run_id, session=session)

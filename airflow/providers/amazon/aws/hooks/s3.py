@@ -40,8 +40,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
 
@@ -49,6 +47,8 @@ if TYPE_CHECKING:
 
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
+
+from importlib.util import find_spec
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -59,6 +59,13 @@ from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
+
+if find_spec("airflow.assets"):
+    from airflow.lineage.hook import get_hook_lineage_collector
+else:
+    # TODO: import from common.compat directly after common.compat providers with
+    # asset_compat_lineage_collector released
+    from airflow.providers.amazon.aws.utils.asset_compat_lineage_collector import get_hook_lineage_collector
 
 logger = logging.getLogger(__name__)
 
@@ -1103,11 +1110,11 @@ class S3Hook(AwsBaseHook):
 
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args, Config=self.transfer_config)
-        get_hook_lineage_collector().add_input_dataset(
-            context=self, scheme="file", dataset_kwargs={"path": filename}
+        get_hook_lineage_collector().add_input_asset(
+            context=self, scheme="file", asset_kwargs={"path": filename}
         )
-        get_hook_lineage_collector().add_output_dataset(
-            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
 
     @unify_bucket_name_and_key
@@ -1250,8 +1257,8 @@ class S3Hook(AwsBaseHook):
             Config=self.transfer_config,
         )
         # No input because file_obj can be anything - handle in calling function if possible
-        get_hook_lineage_collector().add_output_dataset(
-            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
 
     def copy_object(
@@ -1308,11 +1315,11 @@ class S3Hook(AwsBaseHook):
         response = self.get_conn().copy_object(
             Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
         )
-        get_hook_lineage_collector().add_input_dataset(
-            context=self, scheme="s3", dataset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key}
+        get_hook_lineage_collector().add_input_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": source_bucket_name, "key": source_bucket_key}
         )
-        get_hook_lineage_collector().add_output_dataset(
-            context=self, scheme="s3", dataset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key}
+        get_hook_lineage_collector().add_output_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": dest_bucket_name, "key": dest_bucket_key}
         )
         return response
 
@@ -1433,10 +1440,10 @@ class S3Hook(AwsBaseHook):
 
             file_path.parent.mkdir(exist_ok=True, parents=True)
 
-            get_hook_lineage_collector().add_output_dataset(
+            get_hook_lineage_collector().add_output_asset(
                 context=self,
                 scheme="file",
-                dataset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
+                asset_kwargs={"path": file_path if file_path.is_absolute() else file_path.absolute()},
             )
             file = open(file_path, "wb")
         else:
@@ -1448,8 +1455,8 @@ class S3Hook(AwsBaseHook):
                 ExtraArgs=self.extra_args,
                 Config=self.transfer_config,
             )
-        get_hook_lineage_collector().add_input_dataset(
-            context=self, scheme="s3", dataset_kwargs={"bucket": bucket_name, "key": key}
+        get_hook_lineage_collector().add_input_asset(
+            context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
         return file.name
 

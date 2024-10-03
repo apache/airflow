@@ -124,7 +124,7 @@ def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | 
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        if current_app.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
+        if current_app.config.get("AUTH_ROLE_PUBLIC", None):
             response = function(*args, **kwargs)
             return make_response(response)
 

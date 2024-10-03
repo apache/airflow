@@ -96,9 +96,12 @@ class SnowflakeHook(DbApiHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -107,8 +110,8 @@ class SnowflakeHook(DbApiHook):
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
             "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
             "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
-            "private_key_content": StringField(
-                lazy_gettext("Private key (Text)"), widget=BS3TextAreaFieldWidget()
+            "private_key_content": PasswordField(
+                lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
             ),
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
@@ -317,6 +320,28 @@ class SnowflakeHook(DbApiHook):
                 engine_kwargs.setdefault("connect_args", {})
                 engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
+
+    def get_snowpark_session(self):
+        """
+        Get a Snowpark session object.
+
+        :return: the created session.
+        """
+        from snowflake.snowpark import Session
+
+        from airflow import __version__ as airflow_version
+        from airflow.providers.snowflake import __version__ as provider_version
+
+        conn_config = self._get_conn_params
+        session = Session.builder.configs(conn_config).create()
+        # add query tag for observability
+        session.update_query_tag(
+            {
+                "airflow_version": airflow_version,
+                "airflow_provider_version": provider_version,
+            }
+        )
+        return session
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)

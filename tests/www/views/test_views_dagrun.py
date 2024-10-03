@@ -24,7 +24,11 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
-from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string

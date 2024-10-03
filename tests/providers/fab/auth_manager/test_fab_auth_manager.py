@@ -48,7 +48,6 @@ from airflow.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -62,11 +61,20 @@ from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import (
+            RESOURCE_DATASET as RESOURCE_ASSET,
+        )
+
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
-    "is_authorized_dataset": RESOURCE_DATASET,
+    "is_authorized_asset": RESOURCE_ASSET,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 

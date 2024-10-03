@@ -85,7 +85,7 @@ class TestDagRun:
         db.clear_db_pools()
         db.clear_db_dags()
         db.clear_db_variables()
-        db.clear_db_datasets()
+        db.clear_db_assets()
         db.clear_db_xcom()
         db.clear_db_task_fail()
 

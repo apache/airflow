@@ -33,11 +33,11 @@ class AvpEntities(Enum):
     USER = "User"
 
     # Resource types
+    ASSET = "Asset"
     CONFIGURATION = "Configuration"
     CONNECTION = "Connection"
     CUSTOM = "Custom"
     DAG = "Dag"
-    DATASET = "Dataset"
     MENU = "Menu"
     POOL = "Pool"
     VARIABLE = "Variable"

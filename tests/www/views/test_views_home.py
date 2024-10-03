@@ -27,7 +27,7 @@ from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
-from tests.test_utils.api_connexion_utils import create_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.permissions import _resource_name
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
@@ -466,3 +466,41 @@ def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
         check_content_in_response("apacheairflow.gateway.scarf.sh", resp)
     else:
         check_content_not_in_response("apacheairflow.gateway.scarf.sh", resp)
+
+
+@pytest.mark.parametrize(
+    "url, filter_tags_cookie_val, filter_lastrun_cookie_val, expected_filter_tags, expected_filter_lastrun",
+    [
+        ("home", None, None, [], None),
+        # from url only
+        ("home?tags=example&tags=test", None, None, ["example", "test"], None),
+        ("home?lastrun=running", None, None, [], "running"),
+        ("home?tags=example&tags=test&lastrun=running", None, None, ["example", "test"], "running"),
+        # from cookie only
+        ("home", "example,test", None, ["example", "test"], None),
+        ("home", None, "running", [], "running"),
+        ("home", "example,test", "running", ["example", "test"], "running"),
+        # from url and cookie
+        ("home?tags=example", "example,test", None, ["example"], None),
+        ("home?lastrun=failed", None, "running", [], "failed"),
+        ("home?tags=example", None, "running", ["example"], "running"),
+        ("home?lastrun=running", "example,test", None, ["example", "test"], "running"),
+        ("home?tags=example&lastrun=running", "example,test", "failed", ["example"], "running"),
+    ],
+)
+def test_filter_cookie_eval(
+    working_dags,
+    admin_client,
+    url,
+    filter_tags_cookie_val,
+    filter_lastrun_cookie_val,
+    expected_filter_tags,
+    expected_filter_lastrun,
+):
+    with admin_client.session_transaction() as flask_session:
+        flask_session[FILTER_TAGS_COOKIE] = filter_tags_cookie_val
+        flask_session[FILTER_LASTRUN_COOKIE] = filter_lastrun_cookie_val
+
+    resp = admin_client.get(url, follow_redirects=True)
+    assert resp.request.args.getlist("tags") == expected_filter_tags
+    assert resp.request.args.get("lastrun") == expected_filter_lastrun

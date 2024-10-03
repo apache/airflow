@@ -20,6 +20,7 @@
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
+import { fixupPluginRules } from "@eslint/compat";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -57,7 +58,7 @@ export const reactRefreshNamespace = "react-refresh";
 export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
   plugins: {
     [jsxA11yNamespace]: jsxA11y,
-    [reactHooksNamespace]: reactHooks,
+    [reactHooksNamespace]: fixupPluginRules(reactHooks),
     [reactNamespace]: react,
     [reactRefreshNamespace]: reactRefresh,
   },

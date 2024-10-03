@@ -1,0 +1,1 @@
+Deprecated field ``concurrency`` from ``DAGDetailSchema`` has been removed. Please use ``max_active_tasks`` from ``DAGDetailSchema`` instead.
