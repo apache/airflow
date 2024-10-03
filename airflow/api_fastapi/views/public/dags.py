@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, Request
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -41,9 +41,14 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
-from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGPatchBody, DAGResponse
+from airflow.api_fastapi.serializers.dags import (
+    DAGCollectionResponse,
+    DAGDetailsResponse,
+    DAGPatchBody,
+    DAGResponse,
+)
 from airflow.api_fastapi.views.router import AirflowRouter
-from airflow.models import DagModel
+from airflow.models import DAG, DagModel
 
 dags_router = AirflowRouter(tags=["DAG"])
 
@@ -85,6 +90,28 @@ async def get_dags(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
         total_entries=total_entries,
     )
+
+
+@dags_router.get(
+    "/dags/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422])
+)
+async def get_dag_details(
+    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
+) -> DAGDetailsResponse:
+    """Get details of DAG."""
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+
+    dag_model: DagModel = session.get(DagModel, dag_id)
+    if not dag_model:
+        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+
+    for key, value in dag.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag_model, key):
+            setattr(dag_model, key, value)
+
+    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
 @dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
