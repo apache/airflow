@@ -103,7 +103,7 @@ export const prefetchUseDagServiceGetDags = (
  * Get a connection entry.
  * @param data The data for the request.
  * @param data.connectionId
- * @returns unknown Successful Response
+ * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseConnectionServiceGetConnection = (

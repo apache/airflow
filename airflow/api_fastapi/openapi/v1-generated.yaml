@@ -378,7 +378,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
         '401':
           content:
             application/json:
@@ -405,6 +406,56 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ConnectionResponse:
+      properties:
+        connection_id:
+          type: string
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      - description
+      - host
+      - login
+      - schema
+      - port
+      - extra
+      title: ConnectionResponse
+      description: Connection serializer for responses.
     DAGCollectionResponse:
       properties:
         dags:

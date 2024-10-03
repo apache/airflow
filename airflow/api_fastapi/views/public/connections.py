@@ -23,6 +23,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.serializers.connections import ConnectionResponse
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import Connection
 
@@ -55,11 +56,11 @@ async def delete_connection(
 async def get_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
-):
+) -> ConnectionResponse:
     """Get a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
         raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
 
-    return connection
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
