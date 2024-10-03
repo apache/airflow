@@ -237,8 +237,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :param execution_timeout: max time allowed for the execution of
-        this task instance, if it goes beyond it will raise and fail.
+        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond
+            it will raise and fail.
         :return: return only result of the LAST SQL expression if handler was provided unless return_last
             is set to False.
         """
