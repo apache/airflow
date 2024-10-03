@@ -428,8 +428,8 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_active == true(),
             )
             .order_by(
-                BackfillDagRun.sort_ordinal.nulls_first(),
-                cls.last_scheduling_decision.nulls_first(),
+                nulls_first(BackfillDagRun.sort_ordinal, session=session),
+                nulls_first(cls.last_scheduling_decision, session=session),
                 cls.execution_date,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
