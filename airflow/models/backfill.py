@@ -27,7 +27,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, update
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import Conflict, NotFound
@@ -112,6 +112,12 @@ class BackfillDagRun(Base):
             ondelete="set null",
         ),
     )
+
+    @validates("sort_ordinal")
+    def validate_sort_ordinal(self, key, val):
+        if val < 1:
+            raise ValueError("sort_ordinal must be >= 1")
+        return val
 
 
 def _create_backfill(
