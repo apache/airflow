@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_trino_to_gcs"
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")

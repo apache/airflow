@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 
 # [START howto_operator_cloud_run_service_creation]
@@ -50,11 +50,11 @@ def _create_service():
 
 
 with DAG(
-    "example_cloud_run_service",
+    "cloud_run_service",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["cloud-run-service-example"],
+    tags=["cloud-run", "service", "example"],
 ) as dag:
     # [START howto_operator_cloud_run_create_service]
     create_cloud_run_service = CloudRunCreateServiceOperator(

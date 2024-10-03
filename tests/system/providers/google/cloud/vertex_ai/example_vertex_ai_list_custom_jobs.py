@@ -29,7 +29,7 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import ListCustomTrainingJobOperator
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_custom_job_operations"
 REGION = "us-central1"

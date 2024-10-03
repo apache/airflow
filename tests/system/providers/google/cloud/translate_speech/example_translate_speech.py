@@ -28,10 +28,10 @@ from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToS
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "example_gcp_translate_speech"
+DAG_ID = "gcp_translate_speech"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
@@ -60,7 +60,7 @@ with DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "translate-speech"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 

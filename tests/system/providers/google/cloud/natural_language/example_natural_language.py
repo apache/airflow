@@ -35,8 +35,8 @@ from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageClassifyTextOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_gcp_natural_language"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "gcp_natural_language"
 
 # [START howto_operator_gcp_natural_language_document_text]
 TEXT = """Airflow is a platform to programmatically author, schedule and monitor workflows.
@@ -60,7 +60,7 @@ with DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "natural-language"],
 ) as dag:
     # [START howto_operator_gcp_natural_language_analyze_entities]
     analyze_entities = CloudNaturalLanguageAnalyzeEntitiesOperator(
@@ -118,6 +118,12 @@ with DAG(
     analyze_entity_sentiment >> analyze_entity_sentiment_result
     analyze_sentiment >> analyze_sentiment_result
     analyze_classify_text >> analyze_classify_text_result
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

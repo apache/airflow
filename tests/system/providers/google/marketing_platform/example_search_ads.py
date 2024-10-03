@@ -33,7 +33,7 @@ from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsSearchOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "search_ads"
 
 # [START howto_search_ads_env_variables]

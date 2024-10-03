@@ -59,7 +59,7 @@ try:
 except ImportError:
     pytest.skip("MsSQL not available", allow_module_level=True)
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 DAG_ID = "bigquery_to_mssql"
 

@@ -60,7 +60,7 @@ from airflow.providers.google.marketing_platform.operators.analytics_admin impor
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "google_analytics_admin"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"

@@ -41,7 +41,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "example_cloud_workflows"
+DAG_ID = "cloud_workflows"
 
 LOCATION = "us-central1"
 WORKFLOW_ID = f"workflow-{DAG_ID}-{ENV_ID}".replace("_", "-")

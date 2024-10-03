@@ -32,7 +32,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_operations_location"
 
 BQ_LOCATION = "europe-north1"

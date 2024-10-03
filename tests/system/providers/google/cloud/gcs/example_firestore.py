@@ -43,9 +43,9 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_firestore_to_gcp"
+DAG_ID = "firestore_to_gcp"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
