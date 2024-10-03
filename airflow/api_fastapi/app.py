@@ -25,6 +25,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from airflow.settings import AIRFLOW_PATH
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
 app: FastAPI | None = None
@@ -78,7 +79,7 @@ def init_views(app) -> None:
 
     dev_mode = os.environ.get("DEV_MODE", False) == "true"
 
-    directory = "./airflow/ui/dev" if dev_mode else "./airflow/ui/dist"
+    directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 
     # During python tests or when the backend is run without having the frontend build
     # those directories might not exist. App should not fail initializing in those scenarios.
