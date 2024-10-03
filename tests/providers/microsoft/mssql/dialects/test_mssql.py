@@ -56,7 +56,7 @@ class TestMsSqlDialect:
     def test_get_primary_keys(self):
         assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 2.10")
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 3.0")
     def test_generate_replace_sql(self):
         values = [
             {"id": "id", "name": "Stallone", "firstname": "Sylvester", "age": "78"},

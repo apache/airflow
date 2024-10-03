@@ -221,7 +221,7 @@ class TestMsSqlHook:
         hook = MsSqlHook()
         hook.get_sqlalchemy_engine()
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 2.10")
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 3.0")
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     @mock.patch(
         "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_column_names",
