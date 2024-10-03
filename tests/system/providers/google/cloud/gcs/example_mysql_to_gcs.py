@@ -56,7 +56,7 @@ except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
 DAG_ID = "mysql_to_gcs"
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
 REGION = "europe-west2"

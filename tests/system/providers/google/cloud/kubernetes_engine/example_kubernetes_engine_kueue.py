@@ -36,8 +36,8 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_kubernetes_engine_kueue"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "kubernetes_engine_kueue"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-west3"
@@ -167,12 +167,15 @@ with DAG(
     )
 
     (
+        # TEST SETUP
         create_cluster
         >> add_kueue_cluster
         >> create_resource_flavor
         >> create_cluster_queue
         >> create_local_queue
+        # TEST BODY
         >> kueue_job_task
+        # TEST TEARDOWN
         >> delete_cluster
     )
 

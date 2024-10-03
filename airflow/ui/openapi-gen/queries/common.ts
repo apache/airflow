@@ -1,7 +1,11 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
@@ -70,9 +74,28 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type DagServiceGetDagDetailsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagDetails>
+>;
+export type DagServiceGetDagDetailsQueryResult<
+  TData = DagServiceGetDagDetailsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagDetailsKey = "DagServiceGetDagDetails";
+export const UseDagServiceGetDagDetailsKeyFn = (
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
+>;
+export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.deleteConnection>
 >;
