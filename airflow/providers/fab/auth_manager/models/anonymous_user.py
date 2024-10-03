@@ -35,7 +35,7 @@ class AnonymousUser(AnonymousUserMixin, BaseUser):
     @property
     def roles(self):
         if not self._roles:
-            public_role = current_app.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+            public_role = current_app.config.get("AUTH_ROLE_PUBLIC", None)
             self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
         return self._roles
 

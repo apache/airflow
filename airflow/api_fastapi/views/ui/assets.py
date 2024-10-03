@@ -17,16 +17,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db import get_session
+from airflow.api_fastapi.db.common import get_session
+from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import DagModel
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 
-assets_router = APIRouter(tags=["Asset"])
+assets_router = AirflowRouter(tags=["Asset"])
 
 
 @assets_router.get("/next_run_datasets/{dag_id}", include_in_schema=False)

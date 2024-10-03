@@ -3,12 +3,18 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunAssetsUiNextRunDatasetsDagIdGetData,
-  NextRunAssetsUiNextRunDatasetsDagIdGetResponse,
-  GetDagsPublicDagsGetData,
-  GetDagsPublicDagsGetResponse,
-  PatchDagPublicDagsDagIdPatchData,
-  PatchDagPublicDagsDagIdPatchResponse,
+  NextRunAssetsData,
+  NextRunAssetsResponse,
+  GetDagsData,
+  GetDagsResponse,
+  PatchDagsData,
+  PatchDagsResponse,
+  GetDagDetailsData,
+  GetDagDetailsResponse,
+  PatchDagData,
+  PatchDagResponse,
+  DeleteConnectionData,
+  DeleteConnectionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -19,9 +25,9 @@ export class AssetService {
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunAssetsUiNextRunDatasetsDagIdGet(
-    data: NextRunAssetsUiNextRunDatasetsDagIdGetData,
-  ): CancelablePromise<NextRunAssetsUiNextRunDatasetsDagIdGetResponse> {
+  public static nextRunAssets(
+    data: NextRunAssetsData,
+  ): CancelablePromise<NextRunAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_datasets/{dag_id}",
@@ -53,9 +59,9 @@ export class DagService {
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getDagsPublicDagsGet(
-    data: GetDagsPublicDagsGetData = {},
-  ): CancelablePromise<GetDagsPublicDagsGetResponse> {
+  public static getDags(
+    data: GetDagsData = {},
+  ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dags",
@@ -78,8 +84,81 @@ export class DagService {
   }
 
   /**
+   * Patch Dags
+   * Patch multiple DAGs.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @param data.updateMask
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.owners
+   * @param data.dagIdPattern
+   * @param data.onlyActive
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchDags(
+    data: PatchDagsData,
+  ): CancelablePromise<PatchDagsResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags",
+      query: {
+        update_mask: data.updateMask,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        only_active: data.onlyActive,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Details
+   * Get details of DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns DAGDetailsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagDetails(
+    data: GetDagDetailsData,
+  ): CancelablePromise<GetDagDetailsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/details",
+      path: {
+        dag_id: data.dagId,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Unprocessable Entity",
+      },
+    });
+  }
+
+  /**
    * Patch Dag
-   * Update the specific DAG.
+   * Patch the specific DAG.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.requestBody
@@ -87,9 +166,9 @@ export class DagService {
    * @returns DAGResponse Successful Response
    * @throws ApiError
    */
-  public static patchDagPublicDagsDagIdPatch(
-    data: PatchDagPublicDagsDagIdPatchData,
-  ): CancelablePromise<PatchDagPublicDagsDagIdPatchResponse> {
+  public static patchDag(
+    data: PatchDagData,
+  ): CancelablePromise<PatchDagResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/dags/{dag_id}",
@@ -103,6 +182,34 @@ export class DagService {
       mediaType: "application/json",
       errors: {
         400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ConnectionService {
+  /**
+   * Delete Connection
+   * Delete a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteConnection(
+    data: DeleteConnectionData,
+  ): CancelablePromise<DeleteConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

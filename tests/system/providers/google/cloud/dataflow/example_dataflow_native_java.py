@@ -105,7 +105,7 @@ with DAG(
         },
         job_class="org.apache.beam.examples.WordCount",
         dataflow_config={
-            "job_name": "test-java-pipeline-job",
+            "job_name": f"java-pipeline-job-{ENV_ID}",
             "check_if_running": CheckJobRunning.IgnoreJob,
             "location": LOCATION,
             "poll_sleep": 10,
@@ -124,7 +124,7 @@ with DAG(
         },
         job_class="org.apache.beam.examples.WordCount",
         dataflow_config={
-            "job_name": "test-deferrable-java-pipeline-job",
+            "job_name": f"deferrable-java-pipeline-job-{ENV_ID}",
             "check_if_running": CheckJobRunning.WaitForRun,
             "location": LOCATION,
             "poll_sleep": 10,

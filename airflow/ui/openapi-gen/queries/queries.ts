@@ -6,7 +6,11 @@ import {
   UseQueryOptions,
 } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -17,8 +21,8 @@ import * as Common from "./common";
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
-  TData = Common.AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export const useAssetServiceNextRunAssets = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -31,12 +35,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
-      { dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }) as TData,
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
     ...options,
   });
 /**
@@ -56,8 +56,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceGetDagsPublicDagsGet = <
-  TData = Common.DagServiceGetDagsPublicDagsGetDefaultResponse,
+export const useDagServiceGetDags = <
+  TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -88,7 +88,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
+    queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -104,7 +104,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
         lastDagRunState,
@@ -119,8 +119,120 @@ export const useDagServiceGetDagsPublicDagsGet = <
     ...options,
   });
 /**
+ * Get Dag Details
+ * Get details of DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGDetailsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagDetails = <
+  TData = Common.DagServiceGetDagDetailsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
+    queryFn: () => DagService.getDagDetails({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Patch Dags
+ * Patch multiple DAGs.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @param data.updateMask
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServicePatchDags = <
+  TData = Common.DagServicePatchDagsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagIdPattern?: string;
+        lastDagRunState?: DagRunState;
+        limit?: number;
+        offset?: number;
+        onlyActive?: boolean;
+        owners?: string[];
+        paused?: boolean;
+        requestBody: DAGPatchBody;
+        tags?: string[];
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagIdPattern?: string;
+      lastDagRunState?: DagRunState;
+      limit?: number;
+      offset?: number;
+      onlyActive?: boolean;
+      owners?: string[];
+      paused?: boolean;
+      requestBody: DAGPatchBody;
+      tags?: string[];
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagIdPattern,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      requestBody,
+      tags,
+      updateMask,
+    }) =>
+      DagService.patchDags({
+        dagIdPattern,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        requestBody,
+        tags,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dag
- * Update the specific DAG.
+ * Patch the specific DAG.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.requestBody
@@ -128,8 +240,8 @@ export const useDagServiceGetDagsPublicDagsGet = <
  * @returns DAGResponse Successful Response
  * @throws ApiError
  */
-export const useDagServicePatchDagPublicDagsDagIdPatch = <
-  TData = Common.DagServicePatchDagPublicDagsDagIdPatchMutationResult,
+export const useDagServicePatchDag = <
+  TData = Common.DagServicePatchDagMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -158,10 +270,49 @@ export const useDagServicePatchDagPublicDagsDagIdPatch = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody, updateMask }) =>
-      DagService.patchDagPublicDagsDagIdPatch({
+      DagService.patchDag({
         dagId,
         requestBody,
         updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Connection
+ * Delete a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceDeleteConnection = <
+  TData = Common.ConnectionServiceDeleteConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        connectionId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      connectionId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ connectionId }) =>
+      ConnectionService.deleteConnection({
+        connectionId,
       }) as unknown as Promise<TData>,
     ...options,
   });

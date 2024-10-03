@@ -12,7 +12,7 @@ paths:
       tags:
       - Asset
       summary: Next Run Assets
-      operationId: next_run_assets_ui_next_run_datasets__dag_id__get
+      operationId: next_run_assets
       parameters:
       - name: dag_id
         in: path
@@ -27,7 +27,7 @@ paths:
             application/json:
               schema:
                 type: object
-                title: Response Next Run Assets Ui Next Run Datasets  Dag Id  Get
+                title: Response Next Run Assets
         '422':
           description: Validation Error
           content:
@@ -40,7 +40,7 @@ paths:
       - DAG
       summary: Get Dags
       description: Get all DAGs.
-      operationId: get_dags_public_dags_get
+      operationId: get_dags
       parameters:
       - name: limit
         in: query
@@ -131,13 +131,185 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - DAG
+      summary: Patch Dags
+      description: Patch multiple DAGs.
+      operationId: patch_dags
+      parameters:
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/details:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Details
+      description: Get details of DAG.
+      operationId: get_dag_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGDetailsResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /public/dags/{dag_id}:
     patch:
       tags:
       - DAG
       summary: Patch Dag
-      description: Update the specific DAG.
-      operationId: patch_dag_public_dags__dag_id__patch
+      description: Patch the specific DAG.
+      operationId: patch_dag
       parameters:
       - name: dag_id
         in: path
@@ -198,6 +370,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/{connection_id}:
+    delete:
+      tags:
+      - Connection
+      summary: Delete Connection
+      description: Delete a connection entry.
+      operationId: delete_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     DAGCollectionResponse:
@@ -216,6 +429,243 @@ components:
       - total_entries
       title: DAGCollectionResponse
       description: DAG Collection serializer for responses.
+    DAGDetailsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
+        is_paused:
+          type: boolean
+          title: Is Paused
+        is_active:
+          type: boolean
+          title: Is Active
+        last_parsed_time:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Parsed Time
+        last_pickled:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Pickled
+        last_expired:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Expired
+        scheduler_lock:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduler Lock
+        pickle_id:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Pickle Id
+        default_view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Default View
+        fileloc:
+          type: string
+          title: Fileloc
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        timetable_summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timetable Summary
+        timetable_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timetable Description
+        tags:
+          items:
+            $ref: '#/components/schemas/DagTagPydantic'
+          type: array
+          title: Tags
+        max_active_tasks:
+          type: integer
+          title: Max Active Tasks
+        max_active_runs:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Active Runs
+        max_consecutive_failed_dag_runs:
+          type: integer
+          title: Max Consecutive Failed Dag Runs
+        has_task_concurrency_limits:
+          type: boolean
+          title: Has Task Concurrency Limits
+        has_import_errors:
+          type: boolean
+          title: Has Import Errors
+        next_dagrun:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun
+        next_dagrun_data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Data Interval Start
+        next_dagrun_data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Data Interval End
+        next_dagrun_create_after:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Next Dagrun Create After
+        owners:
+          items:
+            type: string
+          type: array
+          title: Owners
+        catchup:
+          type: boolean
+          title: Catchup
+        dag_run_timeout:
+          anyOf:
+          - type: string
+            format: duration
+          - type: 'null'
+          title: Dag Run Timeout
+        dataset_expression:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Dataset Expression
+        doc_md:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Doc Md
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        is_paused_upon_creation:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Paused Upon Creation
+        orientation:
+          type: string
+          title: Orientation
+        params:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Params
+        render_template_as_native_obj:
+          type: boolean
+          title: Render Template As Native Obj
+        template_search_path:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Template Search Path
+        timezone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timezone
+        last_parsed:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Parsed
+        file_token:
+          type: string
+          title: File Token
+          description: Return file token.
+          readOnly: true
+        concurrency:
+          type: integer
+          title: Concurrency
+          description: Return max_active_tasks as concurrency.
+          readOnly: true
+      type: object
+      required:
+      - dag_id
+      - dag_display_name
+      - is_paused
+      - is_active
+      - last_parsed_time
+      - last_pickled
+      - last_expired
+      - scheduler_lock
+      - pickle_id
+      - default_view
+      - fileloc
+      - description
+      - timetable_summary
+      - timetable_description
+      - tags
+      - max_active_tasks
+      - max_active_runs
+      - max_consecutive_failed_dag_runs
+      - has_task_concurrency_limits
+      - has_import_errors
+      - next_dagrun
+      - next_dagrun_data_interval_start
+      - next_dagrun_data_interval_end
+      - next_dagrun_create_after
+      - owners
+      - catchup
+      - dag_run_timeout
+      - dataset_expression
+      - doc_md
+      - start_date
+      - end_date
+      - is_paused_upon_creation
+      - orientation
+      - params
+      - render_template_as_native_obj
+      - template_search_path
+      - timezone
+      - last_parsed
+      - file_token
+      - concurrency
+      title: DAGDetailsResponse
+      description: Specific serializer for DAG Details responses.
     DAGPatchBody:
       properties:
         is_paused:
