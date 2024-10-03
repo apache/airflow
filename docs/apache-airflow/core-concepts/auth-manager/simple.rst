@@ -51,6 +51,8 @@ Each user needs two pieces of information:
 The password is auto-generated for each user and printed out in the webserver logs.
 When generated, these passwords are also saved in your environment, therefore they will not change if you stop or restart your environment.
 
+The passwords are saved in the file ``generated/simple_auth_manager_passwords.json.generated``, you can read and update them directly in the file as well if desired.
+
 .. _roles-permissions:
 
 Manage roles and permissions
