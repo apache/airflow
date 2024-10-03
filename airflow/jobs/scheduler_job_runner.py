@@ -1566,6 +1566,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             active_runs = active_runs_of_dags[(dag_id, backfill_id)]
             if backfill_id is not None:
                 if active_runs >= backfill.max_active_runs:
+                    # todo: delete all "candidate dag runs" from list for this dag right now
                     self.log.info(
                         "dag cannot be started due to backfill max_active_runs constraint; "
                         "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
@@ -1577,6 +1578,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
             elif dag.max_active_runs:
                 if active_runs >= dag.max_active_runs:
+                    # todo: delete all candidate dag runs for this dag from list right now
                     self.log.info(
                         "dag cannot be started due to dag max_active_runs constraint; "
                         "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
