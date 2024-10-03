@@ -215,18 +215,6 @@ class BaseK8STest:
 
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
-    def _wait_until_dag_response(self, url, payload):
-        max_attempts = 10
-        result = {}
-        while max_attempts:
-            result = self.session.patch(url, json=payload)
-            if result.status_code == 200:
-                return result
-            else:
-                time.sleep(30)
-            max_attempts -= 1
-        return result
-
     def start_dag(self, dag_id, host):
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
