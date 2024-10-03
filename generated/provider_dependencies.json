@@ -528,7 +528,12 @@
       "pydantic>=2.3.0"
     ],
     "devel-deps": [],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "edge_executor",
+        "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
+      }
+    ],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "not-ready"
