@@ -97,7 +97,6 @@ class DAGDetailSchema(DAGSchema):
     timezone = TimezoneField(dump_only=True)
     catchup = fields.Boolean(dump_only=True)
     orientation = fields.String(dump_only=True)
-    concurrency = fields.Method("get_concurrency", dump_only=True)  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer(dump_only=True)
     dataset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime(dump_only=True)
@@ -113,10 +112,6 @@ class DAGDetailSchema(DAGSchema):
     template_searchpath = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
     last_loaded = fields.DateTime(dump_only=True, data_key="last_parsed")
-
-    @staticmethod
-    def get_concurrency(obj: DAG):
-        return obj.max_active_tasks
 
     @staticmethod
     def get_tags(obj: DAG):

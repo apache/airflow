@@ -49,7 +49,7 @@ from airflow.settings import Session, json
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "sql_to_sheets"
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
 REGION = "europe-west2"

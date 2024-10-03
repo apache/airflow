@@ -37,8 +37,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_dataflow_sql"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "dataflow_sql"
 LOCATION = "europe-west3"
 DATAFLOW_SQL_JOB_NAME = f"{DAG_ID}_{ENV_ID}".replace("_", "-")
 BQ_SQL_DATASET = f"{DAG_ID}_{ENV_ID}".replace("-", "_")
@@ -57,7 +57,7 @@ INSERT_ROWS_QUERY = (
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=None,
+    schedule="@once",
     catchup=False,
     tags=["example", "dataflow-sql"],
 ) as dag:

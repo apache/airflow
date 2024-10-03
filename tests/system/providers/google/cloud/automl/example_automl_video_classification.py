@@ -46,7 +46,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_automl_video_clss"
+DAG_ID = "automl_video_clss"
 REGION = "us-central1"
 VIDEO_DISPLAY_NAME = f"auto-ml-video-clss-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"auto-ml-video-clss-model-{ENV_ID}"

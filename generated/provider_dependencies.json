@@ -525,10 +525,15 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.3.0"
+      "pydantic>=2.6.4"
     ],
     "devel-deps": [],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "edge_executor",
+        "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
+      }
+    ],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "not-ready"
@@ -1230,6 +1235,7 @@
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyarrow>=14.0.1",
       "snowflake-connector-python>=3.7.1",
+      "snowflake-snowpark-python>=1.17.0;python_version<\"3.12\"",
       "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],
