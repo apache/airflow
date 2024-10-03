@@ -40,9 +40,10 @@ class BaseDagBundle(ABC):
         self.version = version
 
     @property
-    def dag_bundle_storage_path(self) -> Path:
-        if temp_dir := conf.get("core", "dag_bundle_storage_path"):
-            return Path(temp_dir)
+    def _dag_bundle_storage_path(self) -> Path:
+        """Where Airflow can store DAG bundles on disk (if local disk is required)."""
+        if configured_location := conf.get("core", "dag_bundle_storage_path"):
+            return Path(configured_location)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
     @property
