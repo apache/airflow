@@ -1,42 +1,35 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import { AssetService, DagService } from "../requests/services.gen";
+import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Next Run Datasets
+ * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
-  <
-    TData = Common.DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
-    TError = unknown,
-    TQueryKey extends Array<unknown> = unknown[],
-  >(
-    {
-      dagId,
-    }: {
-      dagId: string;
-    },
-    queryKey?: TQueryKey,
-    options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-  ) =>
-    useSuspenseQuery<TData, TError>({
-      queryKey:
-        Common.UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn(
-          { dagId },
-          queryKey,
-        ),
-      queryFn: () =>
-        DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet({
-          dagId,
-        }) as TData,
-      ...options,
-    });
+export const useAssetServiceNextRunAssetsSuspense = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
 /**
  * Get Dags
  * Get all DAGs.
@@ -49,18 +42,20 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
+ * @param data.lastDagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceGetDagsPublicDagsGetSuspense = <
-  TData = Common.DagServiceGetDagsPublicDagsGetDefaultResponse,
+export const useDagServiceGetDagsSuspense = <
+  TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -71,6 +66,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -83,10 +79,11 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
+    queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
@@ -98,9 +95,10 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
@@ -109,5 +107,31 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Details
+ * Get details of DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGDetailsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagDetailsSuspense = <
+  TData = Common.DagServiceGetDagDetailsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
+    queryFn: () => DagService.getDagDetails({ dagId }) as TData,
     ...options,
   });

@@ -38,7 +38,7 @@ try:
 except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_to_mysql"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")

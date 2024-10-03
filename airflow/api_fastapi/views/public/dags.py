@@ -17,15 +17,22 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db import apply_filters_to_select, get_session
+from airflow.api_fastapi.db.common import (
+    get_session,
+    paginated_select,
+)
+from airflow.api_fastapi.db.dags import dags_select_with_latest_dag_run
+from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
+    QueryDagIdPatternSearchWithNone,
+    QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
     QueryOnlyActiveFilter,
@@ -34,11 +41,16 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
-from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGPatchBody, DAGResponse
-from airflow.models import DagModel
-from airflow.utils.db import get_query_count
+from airflow.api_fastapi.serializers.dags import (
+    DAGCollectionResponse,
+    DAGDetailsResponse,
+    DAGPatchBody,
+    DAGResponse,
+)
+from airflow.api_fastapi.views.router import AirflowRouter
+from airflow.models import DAG, DagModel
 
-dags_router = APIRouter(tags=["DAG"])
+dags_router = AirflowRouter(tags=["DAG"])
 
 
 @dags_router.get("/dags")
@@ -51,43 +63,65 @@ async def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
-    order_by: Annotated[SortParam, Depends(SortParam(["dag_id", "dag_display_name", "next_dagrun"]))],
+    last_dag_run_state: QueryLastDagRunStateFilter,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"]
+            ).depends
+        ),
+    ],
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
-    dags_query = select(DagModel)
-
-    dags_query = apply_filters_to_select(
-        dags_query, [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners]
+    dags_select, total_entries = paginated_select(
+        dags_select_with_latest_dag_run,
+        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
+        order_by,
+        offset,
+        limit,
+        session,
     )
 
-    # TODO: Re-enable when permissions are handled.
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
-    # dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
+    dags = session.scalars(dags_select).all()
 
-    total_entries = get_query_count(dags_query, session=session)
-
-    dags_query = apply_filters_to_select(dags_query, [order_by, offset, limit])
-
-    dags = session.scalars(dags_query).all()
-
-    try:
-        return DAGCollectionResponse(
-            dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
-            total_entries=total_entries,
-        )
-    except ValueError as e:
-        raise HTTPException(400, f"DAGCollectionSchema error: {str(e)}")
+    return DAGCollectionResponse(
+        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        total_entries=total_entries,
+    )
 
 
-@dags_router.patch("/dags/{dag_id}")
+@dags_router.get(
+    "/dags/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422])
+)
+async def get_dag_details(
+    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
+) -> DAGDetailsResponse:
+    """Get details of DAG."""
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+
+    dag_model: DagModel = session.get(DagModel, dag_id)
+    if not dag_model:
+        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+
+    for key, value in dag.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag_model, key):
+            setattr(dag_model, key, value)
+
+    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
+
+
+@dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
     session: Annotated[Session, Depends(get_session)],
     update_mask: list[str] | None = Query(None),
 ) -> DAGResponse:
-    """Update the specific DAG."""
+    """Patch the specific DAG."""
     dag = session.get(DagModel, dag_id)
 
     if dag is None:
@@ -105,3 +139,50 @@ async def patch_dag(
         setattr(dag, attr_name, attr_value)
 
     return DAGResponse.model_validate(dag, from_attributes=True)
+
+
+@dags_router.patch("/dags", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+async def patch_dags(
+    patch_body: DAGPatchBody,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    tags: QueryTagsFilter,
+    owners: QueryOwnersFilter,
+    dag_id_pattern: QueryDagIdPatternSearchWithNone,
+    only_active: QueryOnlyActiveFilter,
+    paused: QueryPausedFilter,
+    last_dag_run_state: QueryLastDagRunStateFilter,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> DAGCollectionResponse:
+    """Patch multiple DAGs."""
+    if update_mask:
+        if update_mask != ["is_paused"]:
+            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+    else:
+        update_mask = ["is_paused"]
+
+    dags_select, total_entries = paginated_select(
+        dags_select_with_latest_dag_run,
+        [only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        None,
+        offset,
+        limit,
+        session,
+    )
+
+    dags = session.scalars(dags_select).all()
+
+    dags_to_update = {dag.dag_id for dag in dags}
+
+    session.execute(
+        update(DagModel)
+        .where(DagModel.dag_id.in_(dags_to_update))
+        .values(is_paused=patch_body.is_paused)
+        .execution_options(synchronize_session="fetch")
+    )
+
+    return DAGCollectionResponse(
+        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        total_entries=total_entries,
+    )

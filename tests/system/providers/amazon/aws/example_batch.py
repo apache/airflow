@@ -207,7 +207,7 @@ with DAG(
         job_name=batch_job_name,
         job_queue=batch_job_queue_name,
         job_definition=batch_job_definition_name,
-        overrides=JOB_OVERRIDES,
+        container_overrides=JOB_OVERRIDES,
     )
     # [END howto_operator_batch]
 

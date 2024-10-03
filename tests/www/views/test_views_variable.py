@@ -25,7 +25,7 @@ import pytest
 from airflow.models import Variable
 from airflow.security import permissions
 from airflow.utils.session import create_session
-from tests.test_utils.api_connexion_utils import create_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 from tests.test_utils.www import (
     _check_last_log,
     check_content_in_response,
@@ -43,7 +43,7 @@ VARIABLE = {
 
 
 @pytest.fixture(autouse=True)
-def clear_variables():
+def _clear_variables():
     with create_session() as session:
         session.query(Variable).delete()
 

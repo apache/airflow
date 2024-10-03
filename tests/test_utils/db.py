@@ -38,18 +38,19 @@ from airflow.models import (
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
-from airflow.models.dataset import (
-    DagScheduleDatasetReference,
-    DatasetDagRunQueue,
-    DatasetEvent,
-    DatasetModel,
-    TaskOutletDatasetReference,
-)
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, ParseImportError
+from tests.test_utils.compat import (
+    AIRFLOW_V_2_10_PLUS,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+    ParseImportError,
+    TaskOutletAssetReference,
+)
 
 
 def clear_db_runs():
@@ -66,17 +67,25 @@ def clear_db_runs():
             pass
 
 
-def clear_db_datasets():
-    with create_session() as session:
-        session.query(DatasetEvent).delete()
-        session.query(DatasetModel).delete()
-        session.query(DatasetDagRunQueue).delete()
-        session.query(DagScheduleDatasetReference).delete()
-        session.query(TaskOutletDatasetReference).delete()
-        if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import DatasetAliasModel
+def clear_db_backfills():
+    from airflow.models.backfill import Backfill, BackfillDagRun
 
-            session.query(DatasetAliasModel).delete()
+    with create_session() as session:
+        session.query(BackfillDagRun).delete()
+        session.query(Backfill).delete()
+
+
+def clear_db_assets():
+    with create_session() as session:
+        session.query(AssetEvent).delete()
+        session.query(AssetModel).delete()
+        session.query(AssetDagRunQueue).delete()
+        session.query(DagScheduleAssetReference).delete()
+        session.query(TaskOutletAssetReference).delete()
+        if AIRFLOW_V_2_10_PLUS:
+            from tests.test_utils.compat import AssetAliasModel
+
+            session.query(AssetAliasModel).delete()
 
 
 def clear_db_dags():
@@ -223,7 +232,7 @@ def clear_dag_specific_permissions():
 
 def clear_all():
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_dags()
     clear_db_serialized_dags()
     clear_db_sla_miss()

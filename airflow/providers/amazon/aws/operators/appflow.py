@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 import time
-import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -140,7 +139,6 @@ class AppflowRunOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunOperator`
 
-    :param source: Obsolete, unnecessary for this operator
     :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -155,17 +153,10 @@ class AppflowRunOperator(AppflowBaseOperator):
     def __init__(
         self,
         flow_name: str,
-        source: str | None = None,
         poll_interval: int = 20,
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
-        if source is not None:
-            warnings.warn(
-                "The `source` parameter is unused when simply running a flow, please remove it.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         super().__init__(
             flow_name=flow_name,
             flow_update=False,

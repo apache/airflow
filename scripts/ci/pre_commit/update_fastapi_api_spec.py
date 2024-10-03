@@ -21,7 +21,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_precommit_utils import console, initialize_breeze_precommit, run_command_via_breeze_shell
+from common_precommit_utils import (
+    initialize_breeze_precommit,
+    run_command_via_breeze_shell,
+    validate_cmd_result,
+)
 
 initialize_breeze_precommit(__name__, __file__)
 
@@ -31,9 +35,4 @@ cmd_result = run_command_via_breeze_shell(
     skip_environment_initialization=False,
 )
 
-if cmd_result.returncode != 0:
-    console.print(
-        "[warning]\nIf you see strange stacktraces above, "
-        "run `breeze ci-image build --python 3.8` and try again."
-    )
-sys.exit(cmd_result.returncode)
+validate_cmd_result(cmd_result)

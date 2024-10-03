@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage dag start event not being emitted (#42448)``
+* ``fix: typo in error stack trace formatting for clearer output (#42017)``
+
 1.12.0
 ......
 

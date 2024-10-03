@@ -36,6 +36,7 @@
 
     Connection Types <connections/snowflake>
     Operators <operators/index>
+    Decorators <decorators/index>
 
 .. toctree::
     :hidden:
