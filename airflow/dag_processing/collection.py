@@ -305,7 +305,6 @@ class AssetModelOperation(NamedTuple):
                 session=session,
             )
         )
-        session.add_all(AssetActive(name=model.name, uri=model.uri) for model in orm_assets.values())
         return orm_assets
 
     def add_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
@@ -326,6 +325,9 @@ class AssetModelOperation(NamedTuple):
             )
         )
         return orm_aliases
+
+    def add_asset_active_references(self, assets: Collection[AssetModel], *, session: Session) -> None:
+        session.add_all(AssetActive(name=a.name, uri=a.uri) for a in assets if (a.name, a.uri))
 
     def add_dag_asset_references(
         self,
