@@ -31,10 +31,13 @@ if TYPE_CHECKING:
 
 class GitDagBundle(BaseDagBundle):
     """
-    git DAG bundle backend.
+    git DAG bundle - exposes a git repository as a DAG bundle.
 
     Instead of cloning the repository every time, we clone the repository once into a bare repo from the source
     and then do a clone for each version from there.
+
+    :param repo_url: URL of the git repository
+    :param head: Branch or tag for this DAG bundle
     """
 
     supports_versioning = True

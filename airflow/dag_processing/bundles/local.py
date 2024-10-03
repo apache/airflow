@@ -24,7 +24,11 @@ from airflow.exceptions import AirflowException
 
 
 class LocalDagBundle(BaseDagBundle):
-    """local DAG bundle backend."""
+    """
+    Local DAG bundle - exposes a local directory as a DAG bundle.
+
+    :param local_folder: Local folder where the DAGs are stored
+    """
 
     supports_versioning = False
 
