@@ -41,5 +41,6 @@ class LocalDagBundle(BaseDagBundle):
     def cleanup(self) -> None:
         pass
 
+    @property
     def path(self) -> Path:
         return self._path

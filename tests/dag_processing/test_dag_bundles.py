@@ -44,7 +44,7 @@ def test_default_dag_storage_path():
 class TestLocalDagBundle:
     def test_path(self):
         bundle = LocalDagBundle(id="test", local_folder="/hello")
-        assert bundle.path() == Path("/hello")
+        assert bundle.path == Path("/hello")
 
     def test_does_not_support_versioning(self):
         assert LocalDagBundle.supports_versioning is False
@@ -74,7 +74,7 @@ class TestGitDagBundle:
     def test_uses_dag_bundle_storage_path(self, git_repo):
         repo_path, repo = git_repo
         bundle = GitDagBundle(id="test", repo_url=repo_path, head="master")
-        assert str(bundle.dag_bundle_storage_path) in str(bundle.path())
+        assert str(bundle.dag_bundle_storage_path) in str(bundle.path)
 
     def test_get_current_version(self, git_repo):
         repo_path, repo = git_repo
@@ -97,7 +97,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
-        files_in_repo = {f.name for f in bundle.path().iterdir() if f.is_file()}
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
     def test_get_tag_version(self, git_repo):
@@ -119,7 +119,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
-        files_in_repo = {f.name for f in bundle.path().iterdir() if f.is_file()}
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
     def test_get_latest(self, git_repo):
@@ -136,7 +136,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() != starting_commit.hexsha
 
-        files_in_repo = {f.name for f in bundle.path().iterdir() if f.is_file()}
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
 
     def test_refresh(self, git_repo):
@@ -147,7 +147,7 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
-        files_in_repo = {f.name for f in bundle.path().iterdir() if f.is_file()}
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
         file_path = repo_path / "new_test.py"
@@ -160,5 +160,5 @@ class TestGitDagBundle:
 
         assert bundle.get_current_version() == commit.hexsha
 
-        files_in_repo = {f.name for f in bundle.path().iterdir() if f.is_file()}
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo

@@ -61,12 +61,12 @@ class GitDagBundle(BaseDagBundle):
             self.refresh()
 
     def _ensure_repo_exists(self) -> None:
-        if not os.path.exists(self.path()):
+        if not os.path.exists(self.path):
             Repo.clone_from(
                 url=self.bare_repo_path,
-                to_path=self.path(),
+                to_path=self.path,
             )
-        self.repo = Repo(self.path())
+        self.repo = Repo(self.path)
 
     def _ensure_bare_repo_exists(self) -> None:
         if not os.path.exists(self.bare_repo_path):
@@ -94,6 +94,7 @@ class GitDagBundle(BaseDagBundle):
     def cleanup(self) -> None:
         pass
 
+    @property
     def path(self) -> Path:
         location = self.version or self.head
         return self.dag_bundle_storage_path / "git" / f"{self.id}+{location}"
