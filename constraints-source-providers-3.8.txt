@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-02T13:42:57.523081
+# This constraints file was automatically generated on 2024-10-03T07:42:38.329123
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -271,7 +271,7 @@ grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
 grpcio==1.66.2
-gssapi==1.8.3
+gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
 h2==4.1.0
@@ -329,7 +329,7 @@ jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.4.1
 kombu==5.4.2
-krb5==0.6.0
+krb5==0.7.0
 kubernetes==30.1.0
 kubernetes_asyncio==30.1.0
 kylinpy==2.8.4
@@ -368,7 +368,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.31
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.22
+mypy-boto3-s3==1.35.32
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
@@ -542,6 +542,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.2
+snowflake-snowpark-python==1.22.1
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -563,7 +564,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.14
-sqlalchemy-bigquery==1.11.0
+sqlalchemy-bigquery==1.12.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
 sqlalchemy_drill==1.1.5
@@ -610,9 +611,9 @@ types-docutils==0.21.0.20240907
 types-paramiko==3.5.0.20240928
 types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20240906
+types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
-types-pytz==2024.2.0.20240913
+types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20240903
 types-requests==2.31.0.6
 types-setuptools==75.1.0.20240917
