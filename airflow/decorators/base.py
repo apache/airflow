@@ -545,7 +545,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
         dag = partial_kwargs.pop("dag")
-        task_group = partial_kwargs.pop("task_group")
+        task_group = partial_kwargs.pop("task_group", None)
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
         max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
