@@ -93,10 +93,10 @@ def mock_plugin_manager(plugins=None, **kwargs):
             )
         )
 
-        if airflow_version >= "2.10.0":
-            ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES
-        else:
+        if airflow_version <= "3":
             ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V2_10
+        else:
+            ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES
 
         for attr in ATTR_TO_PATCH:
             exit_stack.enter_context(mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr)))
