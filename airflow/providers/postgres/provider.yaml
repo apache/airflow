@@ -87,6 +87,10 @@ operators:
     python-modules:
       - airflow.providers.postgres.operators.postgres
 
+dialects:
+  - dialect-type: postgres
+    dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
+
 hooks:
   - integration-name: PostgreSQL
     python-modules:
