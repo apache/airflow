@@ -267,7 +267,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 with closing(conn.cursor()) as cur:
                     t = create_timeout_thread(cur, execution_timeout)
 
-                    # todo; adjust this to make testing easier
+                    # TODO: adjust this to make testing easier
                     try:
                         self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     except Exception as e:
