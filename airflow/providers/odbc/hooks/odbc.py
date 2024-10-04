@@ -19,13 +19,10 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from functools import cached_property
 from typing import Any, List, Sequence, cast
 from urllib.parse import quote_plus
 
 from pyodbc import Connection, Row, connect
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import ArgumentError
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts

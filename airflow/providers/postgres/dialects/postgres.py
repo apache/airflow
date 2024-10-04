@@ -19,7 +19,6 @@ from __future__ import annotations
 from methodtools import lru_cache
 
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 
 
 class PostgresDialect(Dialect):
