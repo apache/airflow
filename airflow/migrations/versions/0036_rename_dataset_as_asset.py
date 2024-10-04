@@ -42,13 +42,14 @@ if TYPE_CHECKING:
 
 
 def _rename_index(
-    batch_op: BatchOperations, original_name: str, new_name: str, columns: list[str], unique: bool
+    *, batch_op: BatchOperations, original_name: str, new_name: str, columns: list[str], unique: bool
 ) -> None:
     batch_op.drop_index(original_name)
     batch_op.create_index(new_name, columns, unique=unique)
 
 
 def _rename_fk_constraint(
+    *,
     batch_op: BatchOperations,
     original_name: str,
     new_name: str,
@@ -65,6 +66,13 @@ def _rename_fk_constraint(
         remote_cols=remote_cols,
         ondelete=ondelete,
     )
+
+
+def _rename_pk_constraint(
+    *, batch_op: BatchOperations, original_name: str, new_name: str, columns: list[str]
+) -> None:
+    batch_op.drop_constraint(original_name)
+    batch_op.create_primary_key(constraint_name=new_name, columns=columns)
 
 
 def upgrade():
@@ -130,7 +138,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dataset_alias_dataset_dataset_id_fkey",
@@ -141,10 +148,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_pkey"))
-        batch_op.create_primary_key(
-            constraint_name=op.f("asset_alias_asset_pkey"),
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dataset_alias_dataset_pkey",
+            new_name="asset_alias_asset_pkey",
             columns=["alias_id", "dataset_id"],
         )
 
@@ -176,7 +183,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dss_de_event_id",
@@ -186,7 +192,6 @@ def upgrade():
             remote_cols=["id"],
             ondelete="CASCADE",
         )
-
 
         _rename_fk_constraint(
             batch_op=batch_op,
@@ -198,7 +203,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name=op.f("dataset_alias_dataset_event_alias_id_fkey"),
@@ -209,10 +213,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
-        batch_op.drop_constraint(op.f("dataset_alias_dataset_event_pkey"))
-        batch_op.create_primary_key(
-            constraint_name=op.f("asset_alias_asset_event_pkey"),
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dataset_alias_dataset_event_pkey",
+            new_name="asset_alias_asset_event_pkey",
             columns=["alias_id", "event_id"],
         )
 
@@ -236,7 +240,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="ddrq_dag_fkey",
@@ -247,9 +250,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        batch_op.drop_constraint("datasetdagrunqueue_pkey")
-        batch_op.create_primary_key(
-            constraint_name="assetdagrunqueue_pkey",
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="datasetdagrunqueue_pkey",
+            new_name="assetdagrunqueue_pkey",
             columns=["dataset_id", "target_dag_id"],
         )
 
@@ -273,7 +277,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
     op.rename_table("dag_schedule_dataset_reference", "dag_schedule_asset_reference")
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         _rename_index(
@@ -294,7 +297,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dsdr_dataset_fkey",
@@ -305,10 +307,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
-        batch_op.drop_constraint("dsdr_pkey")
-        batch_op.create_primary_key(
-            constraint_name="dsar_pkey",
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dsdr_pkey",
+            new_name="dsar_pkey",
             columns=["dataset_id", "dag_id"],
         )
 
@@ -332,7 +334,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="todr_dataset_fkey",
@@ -343,10 +344,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
-        batch_op.drop_constraint("todr_pkey")
-        batch_op.create_primary_key(
-            constraint_name="todr_pkey",
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="todr_pkey",
+            new_name="todr_pkey",
             columns=["dataset_id", "dag_id", "task_id"],
         )
 
@@ -378,7 +379,6 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name=op.f("dagrun_dataset_event_event_id_fkey"),
@@ -389,10 +389,10 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-
-        batch_op.drop_constraint(op.f("dagrun_dataset_event_pkey"))
-        batch_op.create_primary_key(
-            constraint_name=op.f("dagrun_asset_event_pkey"),
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dagrun_dataset_event_pkey",
+            new_name="dagrun_asset_event_pkey",
             columns=["dag_run_id", "event_id"],
         )
 
