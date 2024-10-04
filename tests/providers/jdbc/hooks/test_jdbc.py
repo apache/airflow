@@ -56,8 +56,7 @@ def get_hook(
     )
 
     hook = JdbcHook(**hook_params)
-    hook.get_connection = Mock()
-    hook.get_connection.return_value = connection
+    hook.get_connection = lambda *args, **kwargs: connection
     return hook
 
 
@@ -77,7 +76,6 @@ class TestJdbcHook:
                 ),
             )
         )
-
 
     @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect", autospec=True, return_value=jdbc_conn_mock)
     def test_jdbc_conn_connection(self, jdbc_mock):
