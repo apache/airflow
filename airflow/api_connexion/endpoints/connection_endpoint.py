@@ -75,6 +75,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
     return NoContent, HTTPStatus.NO_CONTENT
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("GET")
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
