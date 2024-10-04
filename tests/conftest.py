@@ -986,15 +986,16 @@ def dag_maker(request):
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
 
-                    self.session.query(SerializedDagModel).filter(
-                        SerializedDagModel.dag_id.in_(dag_ids)
-                    ).delete(synchronize_session=False)
                     self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
+
                     self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
+                    self.session.query(SerializedDagModel).filter(
+                        SerializedDagModel.dag_id.in_(dag_ids)
+                    ).delete(synchronize_session=False)
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )

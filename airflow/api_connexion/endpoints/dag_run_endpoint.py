@@ -61,6 +61,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
@@ -347,7 +348,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                serialized_dag=SerializedDagModel.get(dag_id),
                 session=session,
                 triggered_by=DagRunTriggeredByType.REST_API,
             )

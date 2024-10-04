@@ -80,6 +80,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -141,7 +142,6 @@ class DagRun(Base, LoggingMixin):
     data_interval_end = Column(UtcDateTime)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
-    dag_hash = Column(String(32))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -155,6 +155,11 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False, server_default="0")
+    serialized_dag_id = Column(
+        Integer,
+        ForeignKey("serialized_dag.id", name="dag_run_serialized_dag_fkey", ondelete="SET NULL"),
+    )
+    serialized_dag = relationship("SerializedDagModel", back_populates="dag_run")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -218,7 +223,7 @@ class DagRun(Base, LoggingMixin):
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
-        dag_hash: str | None = None,
+        serialized_dag: SerializedDagModel | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
@@ -242,7 +247,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.queued_at = queued_at
         self.run_type = run_type
-        self.dag_hash = dag_hash
+        self.serialized_dag = serialized_dag
         self.creating_job_id = creating_job_id
         self.clear_number = 0
         self.triggered_by = triggered_by
@@ -353,6 +358,12 @@ class DagRun(Base, LoggingMixin):
     @declared_attr
     def state(self):
         return synonym("_state", descriptor=property(self.get_state, self.set_state))
+
+    @provide_session
+    def dag_hash(self, session: Session = NEW_SESSION):
+        from airflow.models.serialized_dag import SerializedDagModel as SDM
+
+        return str(session.scalar(select(SDM.dag_hash).where(SDM.id == self.serialized_dag_id)))
 
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
@@ -939,6 +950,7 @@ class DagRun(Base, LoggingMixin):
                 "state=%s, external_trigger=%s, run_type=%s, "
                 "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
             )
+
             self.log.info(
                 msg,
                 self.dag_id,
@@ -956,7 +968,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                self.dag_hash,
+                self.dag_hash(session),
             )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
@@ -980,7 +992,7 @@ class DagRun(Base, LoggingMixin):
                     "run_type": str(self.run_type),
                     "data_interval_start": str(self.data_interval_start),
                     "data_interval_end": str(self.data_interval_end),
-                    "dag_hash": str(self.dag_hash),
+                    "dag_hash": str(self.dag_hash(session)),
                     "conf": str(self.conf),
                 }
                 if span.is_recording():

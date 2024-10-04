@@ -92,6 +92,7 @@ class TaskInstanceHistory(Base):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     task_display_name = Column("task_display_name", String(2000), nullable=True)
+    serialized_dag_id = Column(Integer)
 
     def __init__(
         self,
@@ -100,10 +101,9 @@ class TaskInstanceHistory(Base):
     ):
         super().__init__()
         for column in self.__table__.columns:
-            if column.name == "id":
+            if column.name in ["id", "dag_hash"]:
                 continue
             setattr(self, column.name, getattr(ti, column.name))
-
         if state:
             self.state = state
 

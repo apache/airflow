@@ -25,8 +25,21 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    UniqueConstraint,
+    and_,
+    delete,
+    exc,
+    or_,
+    select,
+)
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -34,7 +47,6 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
-from airflow.models.dagrun import DagRun
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
@@ -77,7 +89,9 @@ class SerializedDagModel(Base):
 
     __tablename__ = "serialized_dag"
 
-    dag_id = Column(String(ID_LEN), primary_key=True)
+    id = Column(Integer, primary_key=True)
+    version_number = Column(Integer, nullable=False, default=1)
+    dag_id = Column(String(ID_LEN))
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(BigInteger(), nullable=False)
@@ -87,13 +101,13 @@ class SerializedDagModel(Base):
     dag_hash = Column(String(32), nullable=False)
     processor_subdir = Column(String(2000), nullable=True)
 
-    __table_args__ = (Index("idx_fileloc_hash", fileloc_hash, unique=False),)
-
-    dag_runs = relationship(
-        DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
+    __table_args__ = (
+        Index("idx_fileloc_hash", fileloc_hash, unique=False),
+        UniqueConstraint("dag_hash", "version_number", name="dag_hash_version_number_unique"),
     )
+
+    dag_run = relationship("DagRun", back_populates="serialized_dag")
+    task_instance = relationship("TaskInstance", back_populates="serialized_dag")
 
     dag_model = relationship(
         DagModel,
@@ -193,8 +207,9 @@ class SerializedDagModel(Base):
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag, processor_subdir)
+
         serialized_dag_db = session.execute(
-            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id)
+            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id).order_by(cls.id.desc())
         ).first()
 
         if (
@@ -205,10 +220,23 @@ class SerializedDagModel(Base):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
+        latest_version = session.execute(
+            select(cls.version_number).where(cls.dag_id == dag.dag_id).order_by(cls.id.desc()).limit(1)
+        ).first()
+        if latest_version is not None:
+            new_version_number = latest_version.version_number + 1
+        else:
+            new_version_number = 1
+        new_serialized_dag.version_number = new_version_number
+
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
-        session.merge(new_serialized_dag)
+        session.add(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         return True
+
+    @classmethod
+    def latest_item_select_object(cls, dag_id):
+        return select(cls).where(cls.dag_id == dag_id).order_by(cls.id.desc()).limit(1)
 
     @classmethod
     @provide_session
@@ -219,7 +247,18 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        serialized_dags = session.scalars(select(cls))
+        latest_versions_subquery = (
+            session.query(cls.dag_id, func.max(cls.version_number).label("max_version"))
+            .group_by(cls.dag_id)
+            .subquery()
+        )
+        serialized_dags = session.scalars(
+            select(cls).join(
+                latest_versions_subquery,
+                (cls.dag_id == latest_versions_subquery.c.dag_id)
+                and (cls.version_number == latest_versions_subquery.c.max_version),
+            )
+        )
 
         dags = {}
         for row in serialized_dags:
@@ -269,7 +308,7 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
         """
-        session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
+        session.execute(delete(cls).where(cls.dag_id == dag_id))
 
     @classmethod
     @internal_api_call
@@ -334,11 +373,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        row = session.scalar(select(cls).where(cls.dag_id == dag_id))
-        if row:
-            return row
-
-        return session.scalar(select(cls).where(cls.dag_id == dag_id))
+        return session.scalar(cls.latest_item_select_object(dag_id))
 
     @staticmethod
     @provide_session
@@ -373,7 +408,9 @@ class SerializedDagModel(Base):
         :param dag_id: DAG ID
         :param session: ORM Session
         """
-        return session.scalar(select(cls.last_updated).where(cls.dag_id == dag_id))
+        return session.scalar(
+            select(cls.last_updated).where(cls.dag_id == dag_id).order_by(cls.id.desc()).limit(1)
+        )
 
     @classmethod
     @provide_session
@@ -395,7 +432,9 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :return: DAG Hash, or None if the DAG is not found
         """
-        return session.scalar(select(cls.dag_hash).where(cls.dag_id == dag_id))
+        return session.scalar(
+            select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.id.desc()).limit(1)
+        )
 
     @classmethod
     def get_latest_version_hash_and_updated_datetime(
@@ -413,7 +452,10 @@ class SerializedDagModel(Base):
         :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
         """
         return session.execute(
-            select(cls.dag_hash, cls.last_updated).where(cls.dag_id == dag_id)
+            select(cls.dag_hash, cls.last_updated)
+            .where(cls.dag_id == dag_id)
+            .order_by(cls.id.desc())
+            .limit(1)
         ).one_or_none()
 
     @classmethod
@@ -424,9 +466,18 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
+        latest_versions_subquery = (
+            session.query(cls.dag_id, func.max(cls.version_number).label("max_version"))
+            .group_by(cls.dag_id)
+            .subquery()
+        )
         if session.bind.dialect.name in ["sqlite", "mysql"]:
             query = session.execute(
-                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
+                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies")).join(
+                    latest_versions_subquery,
+                    (cls.dag_id == latest_versions_subquery.c.dag_id)
+                    and (cls.version_number == latest_versions_subquery.c.max_version),
+                )
             )
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
@@ -439,10 +490,9 @@ class SerializedDagModel(Base):
     @internal_api_call
     @provide_session
     def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
-        from airflow.models.serialized_dag import SerializedDagModel
-
         try:
-            model = session.get(SerializedDagModel, dag_id)
+            # get the latest version of the DAG
+            model = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
             if model:
                 return model.dag.get_task(task_id)
         except (exc.NoResultFound, TaskNotFound):

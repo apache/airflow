@@ -4020,6 +4020,7 @@ class TestTaskInstance:
             "next_kwargs": None,
             "next_method": None,
             "updated_at": None,
+            "serialized_dag_id": None,
             "task_display_name": "Test Refresh from DB Task",
         }
         # Make sure we aren't missing any new value in our expected_values list.

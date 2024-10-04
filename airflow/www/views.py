@@ -2254,7 +2254,7 @@ class Airflow(AirflowBaseView):
                 state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                serialized_dag=SerializedDagModel.get(dag.dag_id),
                 run_id=run_id,
                 triggered_by=DagRunTriggeredByType.UI,
             )

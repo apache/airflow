@@ -43,6 +43,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -1858,8 +1859,11 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
-    # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
+    serialized_dag_id = Column(
+        Integer,
+        ForeignKey("serialized_dag.id", name="task_instance_serialized_dag_fkey", ondelete="SET NULL"),
+    )
+    serialized_dag = relationship("SerializedDagModel", back_populates="task_instance")
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),

@@ -52,6 +52,7 @@ def compare_attributes(path1, path2):
         "triggerer_job",
         "note",
         "rendered_task_instance_fields",
+        "serialized_dag",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return

@@ -302,7 +302,7 @@ def _create_orm_dagrun(
     conf,
     state,
     run_type,
-    dag_hash,
+    serialized_dag,
     creating_job_id,
     data_interval,
     session,
@@ -317,7 +317,7 @@ def _create_orm_dagrun(
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_hash=dag_hash,
+        serialized_dag=serialized_dag,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -2542,7 +2542,7 @@ class DAG(LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        dag_hash: str | None = None,
+        serialized_dag: SerializedDagModel | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
     ):
@@ -2561,7 +2561,7 @@ class DAG(LoggingMixin):
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
-        :param dag_hash: Hash of Serialized DAG
+        :param serialized_dag: The serialized Dag Model object
         :param data_interval: Data interval of the DagRun
         """
         logical_date = timezone.coerce_datetime(execution_date)
@@ -2627,7 +2627,7 @@ class DAG(LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_hash=dag_hash,
+            serialized_dag=serialized_dag,
             creating_job_id=creating_job_id,
             data_interval=data_interval,
             session=session,
