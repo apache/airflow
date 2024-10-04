@@ -233,7 +233,7 @@ class DatasetManager(LoggingMixin):
         from sqlalchemy.dialects.postgresql import insert
 
         stmt = insert(DagPriorityParsingRequest).on_conflict_do_nothing()
-        session.execute(stmt, {"fileloc": fileloc for fileloc in file_locs})
+        session.execute(stmt, [{"fileloc": fileloc} for fileloc in file_locs])
 
 
 def resolve_dataset_manager() -> DatasetManager:
