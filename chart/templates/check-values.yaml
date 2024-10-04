@@ -72,3 +72,61 @@ The sole purpose of this yaml file is it to check the values file is consistent 
     {{- end }}
 
   {{- end }}
+
+{{- /*
+#####################################
+   Multirepo GitSync Related Changes
+   We will check Below Rules
+    1 . Duplicate Entry of git-repos and branch combinations in repositories section in values.yaml
+    2 . ContainerName should be unique for every repos
+######################################
+*/
+-}}
+
+  {{- if .Values.dags.gitSync.enabled }}
+
+    {{- if hasKey .Values.dags.gitSync "repositories" }}
+
+      {{- if lt (len .Values.dags.gitSync.repositories) 1 }}
+        {{- fail (printf " gitSync is enabled : Please provide git repo information under repositories. Please check the values.yaml for more information ") }}
+
+      {{- else }}
+
+        {{- $repoCount := len .Values.dags.gitSync.repositories }}
+        {{- $uniqueNames := dict }}
+        {{- $uniqueContainer := dict }}
+
+        # Check if repositories list has duplicate repo and branch combination
+
+        {{- range .Values.dags.gitSync.repositories }}
+          {{- $key_names := printf "%s-%s" .repo .branch }}  # Create a unique key based on repo and branch
+          {{- $key_container := printf "%s" .containerName }} # Create a unique key based on containerName
+          {{- if not (hasKey $uniqueNames $key_names) }}  # Check if the key is not already in the dictionary
+            {{- $_ := set $uniqueNames $key_names $key_names }}  # Add the key to the dictionary
+          {{- end }}
+          {{- if not (hasKey $uniqueContainer $key_container) }}  # Check if the key is not already in the dictionary
+            {{- $_ := set $uniqueContainer $key_container $key_container }}  # Add the key to the dictionary
+          {{- end }}
+        {{- end }}
+
+        {{- $uniqueNamesCount := len $uniqueNames }}  # Count the number of unique combinations
+        {{- $uniqueContainerCount := len $uniqueContainer }}  # Count the number of unique combinations
+
+        {{- if not (eq $uniqueNamesCount $repoCount) }}
+          {{- fail (printf " Validation Error: Duplicate Entry Found , %d unique repo-branch combinations, but the number of repositories provided : %d. "
+          $uniqueNamesCount (len .Values.dags.gitSync.repositories)) }}
+        {{- end }}
+
+        {{- if not (eq $uniqueContainerCount $repoCount) }}
+          {{- fail (printf " Validation Error: Duplicate Entry Found , %d unique containerNames, but the number of repositories provided : %d. "
+          $uniqueContainerCount (len .Values.dags.gitSync.repositories)) }}
+        {{- end }}
+
+      {{- end }}
+
+    {{- else }}
+      {{- fail (printf " gitSync is enabled : repositories section can not be nil ") }}
+
+    {{- end }}
+
+  {{- end }}

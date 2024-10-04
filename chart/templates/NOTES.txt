@@ -142,7 +142,9 @@ WARNING:
 {{- end }}
 {{- end }}
 
-{{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.sshKeySecret (not .Values.dags.gitSync.knownHosts)}}
+{{- if and .Values.dags.gitSync.enabled }}
+{{- range $repo := .Values.dags.gitSync.repositories }}
+{{- if and $repo.sshKeySecret (not $repo.knownHosts ) }}
 
 #####################################################
 #  WARNING: You should set dags.gitSync.knownHosts  #
@@ -154,6 +156,8 @@ making you susceptible to man-in-the-middle attacks!
 Information on how to set knownHosts can be found here:
 https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#knownhosts
 
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{- if .Values.flower.extraNetworkPolicies }}
@@ -203,4 +207,17 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserve
 
 {{- if ne .Values.executor (tpl .Values.config.core.executor $) }}
    {{ fail "Please configure the executor with `executor`, not `config.core.executor`." }}
+{{- end }}
+
+###########################################################
+#  INFO: MultiRepo GitSync setup has been initiated       #
+#  gitSync container name should be unique                #
+#  If dags persistence enabled make sure it is RWX or RWO #
+###########################################################
+
+{{- if .Values.dags.gitSync.enabled }}
+ GitSync Enabled : {{ .Values.dags.gitSync.enabled }}
+ Number of Repositories : {{ len .Values.dags.gitSync.repositories }}
+{{- else }}
+ GitSync Enabled : {{ .Values.dags.gitSync.enabled }}
 {{- end }}

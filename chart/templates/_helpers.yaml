@@ -184,31 +184,44 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+# multirepo sync changes
+# Handling custom git-sync-environment for all repos
+
 {{/* User defined gitSync container environment from */}}
 {{- define "custom_git_sync_environment_from" }}
   {{- $Global := . }}
-  {{- with .Values.dags.gitSync.envFrom }}
+  {{- with .envFrom }}
     {{- tpl . $Global | nindent 2 }}
   {{- end }}
 {{- end }}
 
+# multirepo sync changes
+# git-ssh-key-volume for every repo
+
 {{/*  Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
-- name: git-sync-ssh-key
+{{- range $repo := .Values.dags.gitSync.repositories }}
+- name: {{ printf "git-sync-ssh-key-%s" $repo.containerName }}
   secret:
     secretName: {{ template "git_sync_ssh_key" . }}
     defaultMode: 288
 {{- end }}
+{{- end }}
+
+# multirepo sync changes
+# Create a container ( init also ) , for each repo
 
 {{/*  Git sync container */}}
 {{- define "git_sync_container" }}
-- name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
-  image: {{ template "git_sync_image" . }}
-  imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
-  securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
-  envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
+{{- $is_init := .is_init }}
+{{- range $repo := .Values.dags.gitSync.repositories }}
+- name: {{ $repo.containerName }}{{ if $is_init }}-init{{ end }}
+  image: {{ template "git_sync_image" $ }}
+  imagePullPolicy: {{ $.Values.images.gitSync.pullPolicy }}
+  securityContext: {{- include "localContainerSecurityContext" $repo | nindent 4 }}
+  envFrom: {{- include "custom_git_sync_environment_from" $repo | default "\n  []" | indent 2 }}
   env:
-    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
+    {{- if or $repo.sshKeySecret $repo.sshKey }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
     - name: GITSYNC_SSH_KEY_FILE
@@ -217,7 +230,7 @@ If release name contains chart name it will be used as a full name.
       value: "true"
     - name: GITSYNC_SSH
       value: "true"
-    {{- if .Values.dags.gitSync.knownHosts }}
+    {{- if $repo.knownHosts }}
     - name: GIT_KNOWN_HOSTS
       value: "true"
     - name: GITSYNC_SSH_KNOWN_HOSTS
@@ -232,95 +245,120 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{ else if .Values.dags.gitSync.credentialsSecret }}
+    {{ else if $repo.credentialsSecret }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ $repo.credentialsSecret | quote }}
           key: GIT_SYNC_USERNAME
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ $repo.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ $repo.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          name: {{ $repo.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
-      value: {{ .Values.dags.gitSync.rev | quote }}
+      value: {{ $repo.rev | quote }}
     - name: GITSYNC_REF
-      value: {{ .Values.dags.gitSync.ref | quote }}
+      value: {{ $repo.ref | quote }}
     - name: GIT_SYNC_BRANCH
-      value: {{ .Values.dags.gitSync.branch | quote }}
+      value: {{ $repo.branch | quote }}
     - name: GIT_SYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
+      value: {{ $repo.repo | quote }}
     - name: GITSYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
+      value: {{ $repo.repo | quote }}
     - name: GIT_SYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
+      value: {{ $repo.depth | quote }}
     - name: GITSYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
+      value: {{ $repo.depth | quote }}
     - name: GIT_SYNC_ROOT
       value: "/git"
     - name: GITSYNC_ROOT
       value: "/git"
     - name: GIT_SYNC_DEST
-      value: "repo"
+      value: {{ $repo.containerName | quote }}
     - name: GITSYNC_LINK
-      value: "repo"
+      value: {{ $repo.containerName | quote }}
     - name: GIT_SYNC_ADD_USER
       value: "true"
     - name: GITSYNC_ADD_USER
       value: "true"
-    {{- if .Values.dags.gitSync.wait }}
+    {{- if $repo.wait }}
     - name: GIT_SYNC_WAIT
-      value: {{ .Values.dags.gitSync.wait | quote }}
+      value: {{ $repo.wait | quote }}
     {{- end }}
     - name: GITSYNC_PERIOD
-      value: {{ .Values.dags.gitSync.period | quote }}
+      value: {{ $repo.period | quote }}
     - name: GIT_SYNC_MAX_SYNC_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
+      value: {{ $repo.maxFailures | quote }}
     - name: GITSYNC_MAX_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
-    {{- if .is_init }}
+      value: {{ $repo.maxFailures | quote }}
+    {{- if $is_init }}
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
     {{- end }}
-    {{- with .Values.dags.gitSync.env }}
+    {{- with $repo.env }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
-  resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  resources: {{ toYaml $repo.resources | nindent 4 }}
   volumeMounts:
-  - name: dags
-    mountPath: /git
-  {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
-  - name: git-sync-ssh-key
-    mountPath: /etc/git-secret/ssh
-    readOnly: true
-    subPath: gitSshKey
-  {{- if .Values.dags.gitSync.knownHosts }}
-  - name: config
-    mountPath: /etc/git-secret/known_hosts
-    readOnly: true
-    subPath: known_hosts
+    - name: repo-volume-{{ $repo.containerName }}
+      mountPath: /git
+  {{- if or $repo.sshKeySecret $repo.sshKey }}
+    - name: git-sync-ssh-key
+      mountPath: /etc/git-secret/ssh
+      readOnly: true
+      subPath: gitSshKey
+  {{- if $repo.knownHosts }}
+    - name: config
+      mountPath: /etc/git-secret/known_hosts
+      readOnly: true
+      subPath: known_hosts
   {{- end }}
   {{- end }}
-  {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
+  {{- if $repo.extraVolumeMounts }}
+    {{- tpl (toYaml $repo.extraVolumeMounts) . | nindent 2 }}
   {{- end }}
-  {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
-  lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
+  {{- if and $repo.containerLifecycleHooks (not $is_init) }}
+  lifecycle: {{- tpl (toYaml $repo.containerLifecycleHooks) . | nindent 4 }}
   {{- end }}
+{{- end }}
+{{- end }}
+
+# multirepo sync changes
+# Create a symlink for each repo setup
+# The symlink is created in airflowhome/dags/bags folder
+
+{{- define "airflow.dags_poststart" }}
+postStart:
+  exec:
+    command:
+      - /bin/bash
+      - -c
+      - |
+        {{- if .Values.dags.mountPath }}
+        mkdir {{ printf "%s/bags;" .Values.dags.mountPath }}
+        {{- range $repo := .Values.dags.gitSync.repositories }}
+        ln -sf {{ printf "%s/%s/%s/%s %s/bags/%s;" $.Values.dags.mountPath $repo.containerName $repo.containerName $repo.subPath $.Values.airflowHome $repo.containerName }}
+        {{- end }}
+        {{- else }}
+        mkdir {{ printf "%s/dags/bags;" .Values.airflowHome }}
+        {{- range $repo := .Values.dags.gitSync.repositories }}
+        ln -sf {{ printf "%s/dags/%s/%s/%s %s/dags/bags/%s;" $.Values.airflowHome $repo.containerName $repo.containerName $repo.subPath $.Values.airflowHome $repo.containerName }}
+        {{- end }}
+        {{- end }}
 {{- end }}
 
 {{/* This helper will change when customers deploy a new image */}}
@@ -439,9 +477,10 @@ If release name contains chart name it will be used as a full name.
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
 {{- end }}
 
+# multirepo sync changes
 {{/* Create the name of the git sync ssh secret to use */}}
 {{- define "git_sync_ssh_key" -}}
-  {{- default (printf "%s-ssh-secret" (include "airflow.fullname" .)) .Values.dags.gitSync.sshKeySecret }}
+  {{- default (printf "%s-ssh-secret" (include "airflow.fullname" $ )) .sshKeySecret }}
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}
@@ -513,16 +552,20 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+# multirepo sync changes
+# Defined the dags_folder
+# If gitSync is enabled then the dags_folder should be dags/bags inside airflowhome
+
 {{- define "airflow_dags" -}}
   {{- if .Values.dags.mountPath }}
     {{- if .Values.dags.gitSync.enabled }}
-      {{- printf "%s/repo/%s" .Values.dags.mountPath .Values.dags.gitSync.subPath }}
+      {{- printf "%s/bags" .Values.dags.mountPath }}
     {{- else }}
       {{- printf "%s" .Values.dags.mountPath }}
     {{- end }}
   {{- else }}
     {{- if .Values.dags.gitSync.enabled }}
-      {{- printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath }}
+      {{- printf "%s/dags/bags" .Values.airflowHome }}
     {{- else }}
       {{- printf "%s/dags" .Values.airflowHome }}
     {{- end }}
@@ -537,7 +580,21 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+# multirepo sync changes
+# mounting the gitSync output to repo wise folders inside airflowhome / dags
+
 {{- define "airflow_dags_mount" -}}
+{{- if .Values.dags.gitSync.enabled }}
+{{- range $repo := .Values.dags.gitSync.repositories }}
+- name: repo-volume-{{ $repo.containerName }}
+  {{- if $.Values.dags.mountPath }}
+  mountPath: {{ printf "%s/%s" $.Values.dags.mountPath $repo.containerName }}
+  {{- else }}
+  mountPath: {{ printf "%s/dags/%s" $.Values.airflowHome $repo.containerName }}
+  readOnly: true
+  {{- end }}
+{{- end }}
+{{- else }}
 - name: dags
   {{- if .Values.dags.mountPath }}
   mountPath: {{ .Values.dags.mountPath }}
@@ -547,7 +604,8 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- if .Values.dags.persistence.subPath }}
   subPath: {{ .Values.dags.persistence.subPath }}
   {{- end }}
-  readOnly: {{ .Values.dags.gitSync.enabled | ternary "True" "False" }}
+  readOnly: false
+{{- end }}
 {{- end }}
 
 {{- define "airflow_config_path" -}}

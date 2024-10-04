@@ -8641,235 +8641,242 @@
                             "type": "boolean",
                             "default": false
                         },
-                        "repo": {
-                            "description": "Git repository.",
-                            "type": "string",
-                            "default": "https://github.com/apache/airflow.git"
-                        },
-                        "branch": {
-                            "description": "Git branch",
-                            "type": "string",
-                            "default": "v2-2-stable"
-                        },
-                        "rev": {
-                            "description": "Git revision.",
-                            "type": "string",
-                            "default": "HEAD"
-                        },
-                        "ref": {
-                            "description": "Git revision branch, tag, or hash.",
-                            "type": "string",
-                            "default": "v2-2-stable"
-                        },
-                        "depth": {
-                            "description": "Repository depth.",
-                            "type": "integer",
-                            "default": 1
-                        },
-                        "maxFailures": {
-                            "description": "The number of consecutive failures allowed before aborting.",
-                            "type": "integer",
-                            "default": 0
-                        },
-                        "subPath": {
-                            "description": "Subpath within the repo where dags are located.",
-                            "type": "string",
-                            "default": "tests/dags"
-                        },
-                        "wait": {
-                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": [
-                                "integer",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "period": {
-                            "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": "string",
-                            "default": "5s"
-                        },
-                        "containerName": {
-                            "description": "Git sync container name.",
-                            "type": "string",
-                            "default": "git-sync"
-                        },
-                        "securityContext": {
-                            "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "runAsUser": 50000,
-                                    "runAsGroup": 0
-                                }
-                            ]
-                        },
-                        "emptyDirConfig": {
-                            "description": "Configuration for dags empty dir volume.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
-                            "default": null
-                        },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        },
-                        "securityContexts": {
-                            "description": "Security context definition for the git sync sidecar. If not set, the values from global `securityContexts` will be used.",
-                            "type": "object",
-                            "x-docsSection": "Kubernetes",
-                            "properties": {
-                                "container": {
-                                    "description": "Container security context definition for the git sync sidecar.",
+                        "repositories": {
+                            "description": "List of repositories for git sync",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "repo": {
+                                    "description": "Git repository.",
+                                    "type": "string",
+                                    "default": "https://github.com/apache/airflow.git"
+                                },
+                                "branch": {
+                                    "description": "Git branch",
+                                    "type": "string",
+                                    "default": "v2-2-stable"
+                                },
+                                "rev": {
+                                    "description": "Git revision.",
+                                    "type": "string",
+                                    "default": "HEAD"
+                                },
+                                "ref": {
+                                    "description": "Git revision branch, tag, or hash.",
+                                    "type": "string",
+                                    "default": "v2-2-stable"
+                                },
+                                "depth": {
+                                    "description": "Repository depth.",
+                                    "type": "integer",
+                                    "default": 1
+                                },
+                                "maxFailures": {
+                                    "description": "The number of consecutive failures allowed before aborting.",
+                                    "type": "integer",
+                                    "default": 0
+                                },
+                                "subPath": {
+                                    "description": "Subpath within the repo where dags are located.",
+                                    "type": "string",
+                                    "default": "tests/dags"
+                                },
+                                "wait": {
+                                    "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "period": {
+                                    "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
+                                    "type": "string",
+                                    "default": "5s"
+                                },
+                                "containerName": {
+                                    "description": "Git sync container name.",
+                                    "type": "string",
+                                    "default": "git-sync"
+                                },
+                                "securityContext": {
+                                    "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                                     "type": "object",
                                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "emptyDirConfig": {
+                                    "description": "Configuration for dags empty dir volume.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                                    "default": null
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
                                     "default": {},
                                     "x-docsSection": "Kubernetes",
                                     "examples": [
                                         {
-                                            "allowPrivilegeEscalation": false,
-                                            "capabilities": {
-                                                "drop": [
-                                                    "ALL"
-                                                ]
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
                                             }
                                         }
                                     ]
-                                }
-                            }
-                        },
-                        "uid": {
-                            "description": "Git sync container run as user parameter.",
-                            "type": "integer",
-                            "default": 65533
-                        },
-                        "extraVolumeMounts": {
-                            "description": "Mount additional volumes into git sync container.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
-                            }
-                        },
-                        "credentialsSecret": {
-                            "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "sshKey": {
-                            "description": "SSH private key",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "sshKeySecret": {
-                            "description": "Name of a Secret containing the repo `sshKeySecret`.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null
-                        },
-                        "knownHosts": {
-                            "description": "When using a ssh private key, the contents of your `known_hosts` file.",
-                            "type": [
-                                "string",
-                                "null"
-                            ],
-                            "default": null,
-                            "examples": [
-                                "<host1>,<ip1> <key1>\n<host2>,<ip2> <key2>",
-                                "<host1>,<ip1> <key1>"
-                            ]
-                        },
-                        "env": {
-                            "description": "Environment variables for git sync container.",
-                            "type": "array",
-                            "default": [],
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "value": {
-                                        "type": "string"
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the git sync sidecar. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the git sync sidecar.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
                                     }
                                 },
-                                "required": [
-                                    "name",
-                                    "value"
-                                ],
-                                "additionalProperties": false
-                            },
-                            "examples": [
-                                {
-                                    "name": "GIT_SYNC_TIMEOUT",
-                                    "value": "60"
-                                }
-                            ]
-                        },
-                        "envFrom": {
-                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
-                            "type": [
-                                "null",
-                                "string"
-                            ],
-                            "default": null,
-                            "examples": [
-                                "- secretRef:\n    name: 'proxy-config",
-                                "- configMapRef:\n    name: 'proxy-config"
-                            ]
-                        },
-                        "resources": {
-                            "description": "Resources on workers git-sync sidecar",
-                            "type": "object",
-                            "default": {},
-                            "examples": [
-                                {
-                                    "limits": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
-                                    },
-                                    "requests": {
-                                        "cpu": "100m",
-                                        "memory": "128Mi"
+                                "uid": {
+                                    "description": "Git sync container run as user parameter.",
+                                    "type": "integer",
+                                    "default": 65533
+                                },
+                                "extraVolumeMounts": {
+                                    "description": "Mount additional volumes into git sync container.",
+                                    "type": "array",
+                                    "default": [],
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
                                     }
+                                },
+                                "credentialsSecret": {
+                                    "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "sshKey": {
+                                    "description": "SSH private key",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "sshKeySecret": {
+                                    "description": "Name of a Secret containing the repo `sshKeySecret`.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "knownHosts": {
+                                    "description": "When using a ssh private key, the contents of your `known_hosts` file.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "examples": [
+                                        "<host1>,<ip1> <key1>\n<host2>,<ip2> <key2>",
+                                        "<host1>,<ip1> <key1>"
+                                    ]
+                                },
+                                "env": {
+                                    "description": "Environment variables for git sync container.",
+                                    "type": "array",
+                                    "default": [],
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "value": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "name",
+                                            "value"
+                                        ],
+                                        "additionalProperties": false
+                                    },
+                                    "examples": [
+                                        {
+                                            "name": "GIT_SYNC_TIMEOUT",
+                                            "value": "60"
+                                        }
+                                    ]
+                                },
+                                "envFrom": {
+                                    "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ],
+                                    "default": null,
+                                    "examples": [
+                                        "- secretRef:\n    name: 'proxy-config",
+                                        "- configMapRef:\n    name: 'proxy-config"
+                                    ]
+                                },
+                                "resources": {
+                                    "description": "Resources on workers git-sync sidecar",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                                 }
-                            ],
-                            "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                            }
                         }
                     }
                 }

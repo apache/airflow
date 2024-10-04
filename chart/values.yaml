@@ -2710,112 +2710,115 @@ dags:
     # git repo clone url
     # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
-    repo: https://github.com/apache/airflow.git
-    branch: v2-2-stable
-    rev: HEAD
-    # The git revision (branch, tag, or hash) to check out, v4 only
-    ref: v2-2-stable
-    depth: 1
-    # the number of consecutive failures allowed before aborting
-    maxFailures: 0
-    # subpath within the repo where dags are located
-    # should be "" if dags are at repo root
-    subPath: "tests/dags"
-    # if your repo needs a user name password
-    # you can load them to a k8s secret like the one below
-    #   ---
-    #   apiVersion: v1
-    #   kind: Secret
-    #   metadata:
-    #     name: git-credentials
-    #   data:
-    #     # For git-sync v3
-    #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
-    #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
-    #     # For git-sync v4
-    #     GITSYNC_USERNAME: <base64_encoded_git_username>
-    #     GITSYNC_PASSWORD: <base64_encoded_git_password>
-    # and specify the name of the secret below
-    #
-    # credentialsSecret: git-credentials
-    #
-    #
-    # If you are using an ssh clone url, you can load
-    # the ssh private key to a k8s secret like the one below
-    #   ---
-    #   apiVersion: v1
-    #   kind: Secret
-    #   metadata:
-    #     name: airflow-ssh-secret
-    #   data:
-    #     # key needs to be gitSshKey
-    #     gitSshKey: <base64_encoded_data>
-    # and specify the name of the secret below
-    # sshKeySecret: airflow-ssh-secret
-    #
-    # Or set sshKeySecret with your key
-    # sshKey: |-
-    #   -----BEGIN {OPENSSH PRIVATE KEY}-----
-    #   ...
-    #   -----END {OPENSSH PRIVATE KEY}-----
-    #
-    # If you are using an ssh private key, you can additionally
-    # specify the content of your known_hosts file, example:
-    #
-    # knownHosts: |
-    #    <host1>,<ip1> <key1>
-    #    <host2>,<ip2> <key2>
+    repositories:
+    # list of all repositories in an array format
+    # for multiple repo or branch in gitSync , cotainerName should be unique
+      - repo: https://github.com/apache/airflow.git
+        branch: v2-2-stable
+        rev: HEAD
+        # The git revision (branch, tag, or hash) to check out, v4 only
+        ref: v2-2-stable
+        depth: 1
+        # the number of consecutive failures allowed before aborting
+        maxFailures: 0
+        # subpath within the repo where dags are located
+        # should be "" if dags are at repo root
+        subPath: "tests/dags"
+        # if your repo needs a user name password
+        # you can load them to a k8s secret like the one below
+        #   ---
+        #   apiVersion: v1
+        #   kind: Secret
+        #   metadata:
+        #     name: git-credentials
+        #   data:
+        #     # For git-sync v3
+        #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
+        #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
+        #     # For git-sync v4
+        #     GITSYNC_USERNAME: <base64_encoded_git_username>
+        #     GITSYNC_PASSWORD: <base64_encoded_git_password>
+        # and specify the name of the secret below
+        #
+        # credentialsSecret: git-credentials
+        #
+        #
+        # If you are using an ssh clone url, you can load
+        # the ssh private key to a k8s secret like the one below
+        #   ---
+        #   apiVersion: v1
+        #   kind: Secret
+        #   metadata:
+        #     name: airflow-ssh-secret
+        #   data:
+        #     # key needs to be gitSshKey
+        #     gitSshKey: <base64_encoded_data>
+        # and specify the name of the secret below
+        # sshKeySecret: airflow-ssh-secret
+        #
+        # Or set sshKeySecret with your key
+        # sshKey: |-
+        #   -----BEGIN {OPENSSH PRIVATE KEY}-----
+        #   ...
+        #   -----END {OPENSSH PRIVATE KEY}-----
+        #
+        # If you are using an ssh private key, you can additionally
+        # specify the content of your known_hosts file, example:
+        #
+        # knownHosts: |
+        #    <host1>,<ip1> <key1>
+        #    <host2>,<ip2> <key2>
 
-    # interval between git sync attempts in seconds
-    # high values are more likely to cause DAGs to become out of sync between different components
-    # low values cause more traffic to the remote git repository
-    # Go-style duration string (e.g. "100ms" or "0.1s" = 100ms).
-    # For backwards compatibility, wait will be used if it is specified.
-    period: 5s
-    wait: ~
-    # add variables from secret into gitSync containers, such proxy-config
-    envFrom: ~
-    # envFrom: |
-    #   - secretRef:
-    #       name: 'proxy-config'
+        # interval between git sync attempts in seconds
+        # high values are more likely to cause DAGs to become out of sync between different components
+        # low values cause more traffic to the remote git repository
+        # Go-style duration string (e.g. "100ms" or "0.1s" = 100ms).
+        # For backwards compatibility, wait will be used if it is specified.
+        period: 5s
+        wait: ~
+        # add variables from secret into gitSync containers, such proxy-config
+        envFrom: ~
+        # envFrom: |
+        #   - secretRef:
+        #       name: 'proxy-config'
 
-    containerName: git-sync
-    uid: 65533
+        containerName: git-sync
+        uid: 65533
 
-    # When not set, the values defined in the global securityContext will be used
-    securityContext: {}
-    #  runAsUser: 65533
-    #  runAsGroup: 0
+        # When not set, the values defined in the global securityContext will be used
+        securityContext: {}
+        #  runAsUser: 65533
+        #  runAsGroup: 0
 
-    securityContexts:
-      container: {}
+        securityContexts:
+          container: {}
 
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
+        # container level lifecycle hooks
+        containerLifecycleHooks: {}
 
-    # Mount additional volumes into git-sync. It can be templated like in the following example:
-    #   extraVolumeMounts:
-    #     - name: my-templated-extra-volume
-    #       mountPath: "{{ .Values.my_custom_path }}"
-    #       readOnly: true
-    extraVolumeMounts: []
-    env: []
-    # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
-    # - name: ""
-    #   value: ""
+        # Mount additional volumes into git-sync. It can be templated like in the following example:
+        #   extraVolumeMounts:
+        #     - name: my-templated-extra-volume
+        #       mountPath: "{{ .Values.my_custom_path }}"
+        #       readOnly: true
+        extraVolumeMounts: []
+        env: []
+        # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
+        # - name: ""
+        #   value: ""
 
-    # Configuration for empty dir volume
-    # emptyDirConfig:
-    #   sizeLimit: 1Gi
-    #   medium: Memory
+        # Configuration for empty dir volume
+        # emptyDirConfig:
+        #   sizeLimit: 1Gi
+        #   medium: Memory
 
-    resources: {}
-    #  limits:
-    #   cpu: 100m
-    #   memory: 128Mi
-    #  requests:
-    #   cpu: 100m
-    #   memory: 128Mi
+        resources: {}
+        #  limits:
+        #   cpu: 100m
+        #   memory: 128Mi
+        #  requests:
+        #   cpu: 100m
+        #   memory: 128Mi
 
 logs:
   # Configuration for empty dir volume (if logs.persistence.enabled == false)
