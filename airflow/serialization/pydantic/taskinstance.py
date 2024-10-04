@@ -509,8 +509,8 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             cfg_path=cfg_path,
         )
 
-    def _register_dataset_changes(self, *, events, session: Session | None = None) -> None:
-        TaskInstance._register_dataset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
+    def _register_asset_changes(self, *, events, session: Session | None = None) -> None:
+        TaskInstance._register_asset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
 
     def defer_task(self, exception: TaskDeferred, session: Session | None = None):
         """Defer task."""

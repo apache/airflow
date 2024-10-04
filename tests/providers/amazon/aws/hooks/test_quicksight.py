@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 
 DEFAULT_AWS_ACCOUNT_ID = "123456789012"
@@ -255,13 +255,3 @@ class TestQuicksight:
                 ingestion_type="INCREMENTAL_REFRESH",
             )
         assert "create_ingestion API, error: Fake Error" in caplog.text
-
-    def test_deprecated_properties(self):
-        hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook") as mocked_class, pytest.warns(
-            AirflowProviderDeprecationWarning, match="consider to use `.*account_id` instead"
-        ):
-            mocked_sts_hook = mock.MagicMock(name="FakeStsHook")
-            mocked_class.return_value = mocked_sts_hook
-            assert hook.sts_hook is mocked_sts_hook
-            mocked_class.assert_called_once_with(aws_conn_id=None)

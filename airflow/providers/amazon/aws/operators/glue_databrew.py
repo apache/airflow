@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
@@ -49,7 +48,6 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-    :param delay: Time in seconds to wait between status checks. (Deprecated).
     :param waiter_delay: Time in seconds to wait between status checks. Default is 30.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 60)
     :return: dictionary with key run_id and value of the resulting job's run_id.
@@ -92,13 +90,6 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        if delay is not None:
-            warnings.warn(
-                "please use `waiter_delay` instead of delay.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.waiter_delay = delay
 
     def execute(self, context: Context):
         job = self.hook.conn.start_job_run(Name=self.job_name)

@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 from google.cloud.speech_v1 import (
+    RecognitionAudio,
+    RecognitionConfig,
     RecognizeResponse,
     SpeechRecognitionAlternative,
     SpeechRecognitionResult,
@@ -54,8 +56,8 @@ class TestCloudTranslateSpeech:
         ]
 
         op = CloudTranslateSpeechOperator(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
             target_language="pl",
             format_="text",
             source_language=None,
@@ -77,8 +79,8 @@ class TestCloudTranslateSpeech:
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
         )
 
         mock_translate_hook.return_value.translate.assert_called_once_with(
@@ -104,8 +106,8 @@ class TestCloudTranslateSpeech:
             results=[SpeechRecognitionResult()]
         )
         op = CloudTranslateSpeechOperator(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
             target_language="pl",
             format_="text",
             source_language=None,
@@ -128,8 +130,47 @@ class TestCloudTranslateSpeech:
         )
 
         mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
-            audio={"uri": "gs://bucket/object"},
-            config={"encoding": "LINEAR16"},
+            audio=RecognitionAudio({"uri": "gs://bucket/object"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
         )
 
         mock_translate_hook.return_value.translate.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.FileDetailsLink.persist")
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
+    @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")
+    def test_no_audio_uri(self, mock_translate_hook, mock_speech_hook, file_link_mock):
+        mock_speech_hook.return_value.recognize_speech.return_value = RecognizeResponse(
+            results=[
+                SpeechRecognitionResult(
+                    alternatives=[SpeechRecognitionAlternative(transcript="test speech recognition result")]
+                )
+            ]
+        )
+        mock_translate_hook.return_value.translate.return_value = [
+            {
+                "translatedText": "sprawdzić wynik rozpoznawania mowy",
+                "detectedSourceLanguage": "en",
+                "model": "base",
+                "input": "test speech recognition result",
+            }
+        ]
+        op = CloudTranslateSpeechOperator(
+            audio=RecognitionAudio({"content": b"set content data instead of uri"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
+            target_language="pl",
+            format_="text",
+            source_language=None,
+            model="base",
+            gcp_conn_id=GCP_CONN_ID,
+            task_id="id",
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+
+        mock_speech_hook.return_value.recognize_speech.assert_called_once_with(
+            audio=RecognitionAudio({"content": b"set content data instead of uri"}),
+            config=RecognitionConfig({"encoding": "LINEAR16"}),
+        )
+        assert op.audio.uri == ""
+        file_link_mock.assert_not_called()
