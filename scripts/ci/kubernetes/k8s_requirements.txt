@@ -1,1 +1,1 @@
--e .[devel-devscripts,devel-tests,cncf.kubernetes] --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
+-e .[devel-devscripts,devel-tests,cncf.kubernetes] --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt"

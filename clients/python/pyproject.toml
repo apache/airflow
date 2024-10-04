@@ -25,7 +25,7 @@ dynamic = ["version"]
 description = "Apache Airflow API (Stable)"
 readme = "README.md"
 license-files.globs = ["LICENSE", "NOTICE"]
-requires-python = "~=3.8"
+requires-python = "~=3.9"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -42,7 +42,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -74,7 +73,7 @@ run-coverage = "pytest test"
 run = "run-coverage --no-cov"
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+python = ["3.9", "3.10", "3.11"]
 
 [tool.hatch.version]
 path = "./version.txt"

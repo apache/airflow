@@ -256,7 +256,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  breeze --python 3.8 --backend postgres
+  breeze --python 3.9 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -313,7 +313,7 @@ Using Breeze
 ------------
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend postgres``)
+   In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
    and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -324,9 +324,9 @@ Using Breeze
       Use CI image.
 
    Branch name:            main
-   Docker image:           ghcr.io/apache/airflow/main/ci/python3.8:latest
+   Docker image:           ghcr.io/apache/airflow/main/ci/python3.9:latest
    Airflow source version: 2.4.0.dev0
-   Python version:         3.8
+   Python version:         3.9
    Backend:                mysql 5.7
 
 
@@ -365,7 +365,7 @@ Using Breeze
 
   .. code-block:: bash
 
-    breeze --python 3.8 --backend postgres
+    breeze --python 3.9 --backend postgres
 
   2. Open tmux
 
@@ -601,7 +601,7 @@ All Tests are inside ./tests directory.
 
    root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.8.16, pytest-7.2.1, pluggy-1.0.0 -- /usr/local/bin/python
+   platform linux -- Python 3.9.16, pytest-7.2.1, pluggy-1.0.0 -- /usr/local/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow, configfile: pytest.ini
    plugins: timeouts-1.2.1, capture-warnings-0.0.4, cov-4.0.0, requests-mock-1.10.0, rerunfailures-11.1.1, anyio-3.6.2, instafail-0.4.2, time-machine-2.9.0, asyncio-0.20.3, httpx-0.21.3, xdist-3.2.0
@@ -628,7 +628,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All
+   breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -638,7 +638,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type Core
+    breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -647,7 +647,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
+   breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type All --integration mongo
 
 - For more information on Testing visit : |09_testing.rst|
 
