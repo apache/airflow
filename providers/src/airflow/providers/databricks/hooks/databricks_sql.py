@@ -57,7 +57,7 @@ LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 T = TypeVar("T")
 
 
-def create_timeout_thread(cur, execution_timeout: Union[timedelta, None]) -> Union[threading.Timer, None]:
+def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
     if execution_timeout is not None:
         seconds_to_timeout = execution_timeout.total_seconds()
         t = threading.Timer(seconds_to_timeout, cur.connection.cancel)
