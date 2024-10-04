@@ -33,7 +33,6 @@ from typing import (
     TypeVar,
     cast,
     overload,
-    Union,
 )
 
 from databricks import sql  # type: ignore[attr-defined]
