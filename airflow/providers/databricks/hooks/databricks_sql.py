@@ -37,7 +37,12 @@ from typing import (
 
 from databricks import sql  # type: ignore[attr-defined]
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskExecutionError, AirflowTaskExecutionTimeout
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskExecutionError,
+    AirflowTaskExecutionTimeout,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
