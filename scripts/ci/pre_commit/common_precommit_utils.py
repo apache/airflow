@@ -30,7 +30,7 @@ from rich.console import Console
 
 AIRFLOW_SOURCES_ROOT_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.8"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 
 console = Console(width=400, color_system="standard")
 

@@ -32,7 +32,10 @@ if you never tested modules and if you do not know how to bypass version check o
 For testing, you can create your own virtual environment, or use the one that ``uv`` or ``pipx`` created
 for you if you already installed breeze following the recommended installation.
 
-Or you can change your directory to
+For local virtualenv, you can use ``pyenv`` or any other virtualenv wrapper. For example with ``pyenv``,
+you can use ``pyenv virtualenv 3.9.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
+with Python 3.9.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
+in editable mode with ``pip install -e ./dev/breeze``.
 
 The venv can be used for running breeze tests and for debugging breeze. While running tests should
 be usually "out-of-the-box" for most IDEs, once you configure ``./dev/breeze`` project to use the venv,

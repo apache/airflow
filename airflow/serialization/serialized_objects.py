@@ -25,6 +25,7 @@ import inspect
 import logging
 import warnings
 import weakref
+from functools import cache
 from inspect import signature
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
@@ -36,7 +37,6 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import (
     BaseDataset,

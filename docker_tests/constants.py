@@ -21,6 +21,6 @@ from pathlib import Path
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.8"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE

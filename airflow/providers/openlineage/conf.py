@@ -35,7 +35,7 @@ if os.getenv("PYTEST_VERSION"):
 
     cache = decorator
 else:
-    from airflow.compat.functools import cache
+    from functools import cache
 from airflow.configuration import conf
 
 _CONFIG_SECTION = "openlineage"

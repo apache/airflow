@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import operator
+from functools import cache
 from typing import Iterator
 
 import pendulum
@@ -36,7 +37,6 @@ from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.types import DagRunType

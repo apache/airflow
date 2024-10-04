@@ -568,7 +568,6 @@ percent-encoded when you access them via UI (/ = %2F)
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.9", "3.10", "3.11", "3.12" \].
 
-
 ----
 
 Read next about [Github Variables](03_github_variables.md)

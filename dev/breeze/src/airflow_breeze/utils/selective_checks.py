@@ -25,7 +25,7 @@ from collections import defaultdict
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar
+from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -128,7 +128,7 @@ ALL_PROVIDERS_SENTINEL = AllProvidersSentinel()
 T = TypeVar("T", FileGroupForCi, SelectiveCoreTestType)
 
 
-class HashableDict(Dict[T, List[str]]):
+class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 
@@ -1131,13 +1131,6 @@ class SelectiveChecks:
             FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
-        if not (
-            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
-            or self._matching_files(
-                FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
-            )
-        ):
-            pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):

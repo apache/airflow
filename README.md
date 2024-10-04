@@ -99,7 +99,7 @@ Apache Airflow is tested with:
 
 |             | Main version (dev)           | Stable version (2.10.4)      |
 |-------------|------------------------------|------------------------------|
-| Python      | 3.9, 3.10, 3.11, 3.12        | 3.8, 3.9, 3.10, 3.11, 3.12   |
+| Python      | 3.9, 3.10, 3.11, 3.12        | 3.9, 3.10, 3.11, 3.12        |
 | Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
 | Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29, 1.30 |
 | PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16           |
@@ -311,7 +311,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for Kubernetes, a
    version stays supported by Airflow if two major cloud providers still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.8 it
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.9 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 
