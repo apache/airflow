@@ -189,7 +189,7 @@ Two databases are also available:
 
 During this process, two processes are created:
 
-- LocalTaskJobProcess - It's logic is described by LocalTaskJob. It is monitoring RawTaskProcess. New processes are started using TaskRunner.
+- LocalTaskJobProcess - Its logic is described by LocalTaskJob. It is monitoring RawTaskProcess. New processes are started using TaskRunner.
 - RawTaskProcess - It is a process with the user code e.g. :meth:`~airflow.models.baseoperator.BaseOperator.execute`.
 
 | [1] **SchedulerProcess** processes the tasks and when it finds a task that needs to be done, sends it to the **QueueBroker**.
