@@ -930,7 +930,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "python-versions-list-as-string": "3.9 3.10 3.11 3.12",
                     "kubernetes-versions": "['v1.28.13', 'v1.29.8', 'v1.30.4', 'v1.31.0']",
                     "kubernetes-versions-list-as-string": "v1.28.13 v1.29.8 v1.30.4 v1.31.0",
-                    "kubernetes-combos-list-as-string": "3.9-v1.29.8 3.10-v1.30.4 3.11-v1.31.0 3.12-v1.28.13",
+                    "kubernetes-combos-list-as-string": "3.9-v1.28.13 3.10-v1.29.8 3.11-v1.30.4 3.12-v1.31.0",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
