@@ -48,7 +48,7 @@ class TestDruidSubmitHook:
                     conn_type = "http"
 
                 if ingestion_type == IngestionType.MSQ:
-                    return f"{conn_type}//druid-overlord:8081/druid/v2/sql/task"
+                    return f"{conn_type}://druid-overlord:8081/druid/v2/sql/task"
                 return f"{conn_type}://druid-overlord:8081/druid/indexer/v1/task"
 
         self.db_hook = TestDRuidhook()
