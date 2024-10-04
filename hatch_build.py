@@ -426,7 +426,7 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     "eval-type-backport>=0.2.0",
     "fastapi[standard]>=0.112.2",
