@@ -24,7 +24,7 @@ import ydb
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.ydb.hooks.ydb import YDBHook
-from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
+from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator, YDBScanQueryOperator
 
 # [START ydb_operator_howto_guide]
 
@@ -101,12 +101,21 @@ with DAG(
     )
     # [END ydb_operator_howto_guide_get_birth_date]
 
+    # [START ydb_operator_howto_guide_get_birth_date_scan]
+    get_birth_date_scan = YDBScanQueryOperator(
+        task_id="get_birth_date_scan",
+        sql="SELECT * FROM pet WHERE birth_date BETWEEN '{{params.begin_date}}' AND '{{params.end_date}}'",
+        params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+    )
+    # [END ydb_operator_howto_guide_get_birth_date_scan]
+
     (
         create_pet_table
         >> populate_pet_table
         >> populate_pet_table_via_bulk_upsert()
         >> get_all_pets
         >> get_birth_date
+        >> get_birth_date_scan
     )
     # [END ydb_operator_howto_guide]
 

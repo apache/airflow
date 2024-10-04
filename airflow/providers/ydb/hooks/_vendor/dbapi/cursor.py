@@ -3,9 +3,18 @@ import dataclasses
 import functools
 import hashlib
 import itertools
-import logging
 import posixpath
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from collections.abc import AsyncIterator
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Union,
+)
 
 import ydb
 import ydb.aio
@@ -20,8 +29,6 @@ from .errors import (
     OperationalError,
     ProgrammingError,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def get_column_type(type_obj: Any) -> str:
@@ -77,14 +84,18 @@ def _handle_ydb_errors(func):
 class Cursor:
     def __init__(
         self,
+        driver: Union[ydb.Driver, ydb.aio.Driver],
         session_pool: Union[ydb.SessionPool, ydb.aio.SessionPool],
         tx_mode: ydb.AbstractTransactionModeBuilder,
         tx_context: Optional[ydb.BaseTxContext] = None,
+        use_scan_query: bool = False,
         table_path_prefix: str = "",
     ):
+        self.driver = driver
         self.session_pool = session_pool
         self.tx_mode = tx_mode
         self.tx_context = tx_context
+        self.use_scan_query = use_scan_query
         self.description = None
         self.arraysize = 1
         self.rows = None
@@ -117,9 +128,10 @@ class Cursor:
     def execute(self, operation: YdbQuery, parameters: Optional[Mapping[str, Any]] = None):
         query = self._get_ydb_query(operation)
 
-        logger.info("execute sql: %s, params: %s", query, parameters)
         if operation.is_ddl:
             chunks = self._execute_ddl(query)
+        elif self.use_scan_query:
+            chunks = self._execute_scan_query(query, parameters)
         else:
             chunks = self._execute_dml(query, parameters)
 
@@ -163,6 +175,21 @@ class Cursor:
         yql_with_params = yql_text + "".join([k + str(v) for k, v in sorted_parameters])
         name = hashlib.sha256(yql_with_params.encode("utf-8")).hexdigest()
         return ydb.DataQuery(yql_text, parameters_types, name=name)
+
+    @_handle_ydb_errors
+    def _execute_scan_query(
+        self, query: Union[ydb.DataQuery, str], parameters: Optional[Mapping[str, Any]] = None
+    ) -> Generator[ydb.convert.ResultSet, None, None]:
+        prepared_query = query
+        if isinstance(query, str) and parameters:
+            prepared_query: ydb.DataQuery = self._retry_operation_in_pool(self._prepare, query)
+
+        if isinstance(query, str):
+            scan_query = ydb.ScanQuery(query, None)
+        else:
+            scan_query = ydb.ScanQuery(prepared_query.yql_text, prepared_query.parameters_types)
+
+        return self._execute_scan_query_in_driver(scan_query, parameters)
 
     @_handle_ydb_errors
     def _execute_dml(
@@ -219,6 +246,15 @@ class Cursor:
     ) -> ydb.convert.ResultSets:
         return session.transaction(tx_mode).execute(prepared_query, parameters, commit_tx=True)
 
+    def _execute_scan_query_in_driver(
+        self,
+        scan_query: ydb.ScanQuery,
+        parameters: Optional[Mapping[str, Any]],
+    ) -> Generator[ydb.convert.ResultSet, None, None]:
+        chunk: ydb.ScanQueryResult
+        for chunk in self.driver.table_client.scan_query(scan_query, parameters):
+            yield chunk.result_set
+
     def _run_operation_in_tx(self, callee: collections.abc.Callable, *args, **kwargs):
         return callee(self.tx_context, *args, **kwargs)
 
@@ -264,7 +300,7 @@ class Cursor:
         return self.execute(script)
 
     def fetchone(self):
-        return next(self.rows or [], None)
+        return next(self.rows or iter([]), None)
 
     def fetchmany(self, size=None):
         return list(itertools.islice(self.rows, size or self.arraysize))
@@ -327,6 +363,21 @@ class AsyncCursor(Cursor):
         parameters: Optional[Mapping[str, Any]],
     ) -> ydb.convert.ResultSets:
         return await session.transaction(tx_mode).execute(prepared_query, parameters, commit_tx=True)
+
+    def _execute_scan_query_in_driver(
+        self,
+        scan_query: ydb.ScanQuery,
+        parameters: Optional[Mapping[str, Any]],
+    ) -> Generator[ydb.convert.ResultSet, None, None]:
+        iterator: AsyncIterator[ydb.ScanQueryResult] = self._await(
+            self.driver.table_client.scan_query(scan_query, parameters)
+        )
+        while True:
+            try:
+                result = self._await(iterator.__anext__())
+                yield result.result_set
+            except StopAsyncIteration:
+                break
 
     def _run_operation_in_tx(self, callee: collections.abc.Coroutine, *args, **kwargs):
         return self._await(callee(self.tx_context, *args, **kwargs))
