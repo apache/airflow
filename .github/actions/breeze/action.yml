@@ -21,9 +21,6 @@ description: 'Sets up Python and Breeze'
 inputs:
   python-version:
     description: 'Python version to use'
-    # Version of Python used for reproducibility of the packages built
-    # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
-    # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
     default: "3.9"
 outputs:
   host-python-version:
