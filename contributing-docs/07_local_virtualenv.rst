@@ -141,7 +141,7 @@ Airflow, but it is a convenient way to manage your local Python versions and vir
 Installing Hatch
 ................
 
-You can install hat using various other ways (including Gui installers).
+You can install hatch using various other ways (including Gui installers).
 
 Example using ``pipx``:
 
