@@ -70,9 +70,6 @@ class TestPostgresDialect:
         assert (
             sql
             == """
-            INSERT INTO hollywood.actors
-            VALUES (id, name, firstname, age)
-            ON CONFLICT (id)
-            DO UPDATE SET name = excluded.name, firstname = excluded.firstname, age = excluded.age;
+            INSERT INTO hollywood.actors (id, name, firstname, age) VALUES (?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET name = excluded.name, firstname = excluded.firstname, age = excluded.age
         """.strip()
         )

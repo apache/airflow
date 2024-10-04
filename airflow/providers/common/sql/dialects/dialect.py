@@ -58,11 +58,14 @@ class Dialect(LoggingMixin):
         return self.hook._replace_statement_format  # type: ignore
 
     @classmethod
-    def _extract_schema_from_table(cls, table: str) -> list[str]:
-        return table.split(".")[::-1]
+    def _extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
+        parts = table.split(".")
+        return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
 
     @lru_cache(maxsize=None)
-    def get_column_names(self, table: str) -> list[str]:
+    def get_column_names(self, table: str, schema: str | None = None) -> list[str]:
+        if schema is None:
+            table, schema = self._extract_schema_from_table(table)
         column_names = list(
             column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
         )
@@ -70,8 +73,10 @@ class Dialect(LoggingMixin):
         return column_names
 
     @lru_cache(maxsize=None)
-    def get_primary_keys(self, table: str) -> list[str]:
-        primary_keys = self.inspector.get_pk_constraint(*self._extract_schema_from_table(table)).get(
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]:
+        if schema is None:
+            table, schema = self._extract_schema_from_table(table)
+        primary_keys = self.inspector.get_pk_constraint(table_name=table, schema=schema).get(
             "constrained_columns", []
         )
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
@@ -87,6 +92,13 @@ class Dialect(LoggingMixin):
         return_last: bool = True,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         return self.hook.run(sql, autocommit, parameters, handler, split_statements, return_last)
+
+    def get_records(
+        self,
+        sql: str | list[str],
+        parameters: Iterable | Mapping[str, Any] | None = None,
+    ) -> Any:
+        return self.hook.get_records(sql=sql, parameters=parameters)
 
     def generate_insert_sql(self, table, values, target_fields, **kwargs) -> str:
         """
