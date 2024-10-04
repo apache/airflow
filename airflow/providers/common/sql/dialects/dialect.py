@@ -31,7 +31,7 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
-    def __init__(self, *, hook, **kwargs) -> None:
+    def __init__(self, hook, **kwargs) -> None:
         super().__init__(**kwargs)
 
         from airflow.providers.common.sql.hooks.sql import DbApiHook
