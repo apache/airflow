@@ -244,6 +244,7 @@ class CeleryExecutor(BaseExecutor):
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self._execution_mode = conf.get("celery", "execution_mode")
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -301,22 +302,28 @@ class CeleryExecutor(BaseExecutor):
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
     def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
-        from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
+        from airflow.providers.celery.executors.celery_executor_utils import (
+            send_task_to_executor,
+            send_tasks_to_executor_in_group,
+        )
 
-        if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
-            # One tuple, or max one process -> send it in the main thread.
-            return list(map(send_task_to_executor, task_tuples_to_send))
+        if self._execution_mode == "process_pool":
+            if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
+                # One tuple, or max one process -> send it in the main thread.
+                return list(map(send_task_to_executor, task_tuples_to_send))
 
-        # Use chunks instead of a work queue to reduce context switching
-        # since tasks are roughly uniform in size
-        chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
-        num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
+            # Use chunks instead of a work queue to reduce context switching
+            # since tasks are roughly uniform in size
+            chunksize = self._num_tasks_per_send_process(len(task_tuples_to_send))
+            num_processes = min(len(task_tuples_to_send), self._sync_parallelism)
 
-        with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
-            key_and_async_results = list(
-                send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
-            )
-        return key_and_async_results
+            with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
+                key_and_async_results = list(
+                    send_pool.map(send_task_to_executor, task_tuples_to_send, chunksize=chunksize)
+                )
+            return key_and_async_results
+        elif self._execution_mode == "celery_group":
+            return send_tasks_to_executor_in_group(task_tuples_to_send)
 
     def sync(self) -> None:
         if not self.tasks:

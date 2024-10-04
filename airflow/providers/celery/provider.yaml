@@ -326,6 +326,14 @@ config:
         type: string
         example: ~
         default: "False"
+      execution_mode:
+        description: |
+          The mode in which the Celery executor will execute the tasks.
+          The value can be one of ``process_pool`` (default) or ``celery_group``.
+        version_added: ~
+        type: string
+        example: ~
+        default: "process_pool"
   celery_broker_transport_options:
     description: |
       This section is for specifying options which can be passed to the

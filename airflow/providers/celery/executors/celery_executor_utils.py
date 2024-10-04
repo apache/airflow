@@ -32,9 +32,10 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 
-from celery import Celery, Task, states as celery_states
+from celery import Celery, Task, group, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
+from celery.result import GroupResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 from sqlalchemy import select
@@ -222,6 +223,30 @@ def send_task_to_executor(
         result = ExceptionWithTraceback(e, exception_traceback)
 
     return key, command, result
+
+
+def send_tasks_to_executor_in_group(
+    tasks_tuples: list[TaskInstanceInCelery],
+) -> list[tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]]:
+    """Sends tasks to executor in batch using Celery group."""
+    keys: list[TaskInstanceKey] = []
+    commands: list[CommandType] = []
+    queues: list[str | None] = []
+    tasks_to_run: list[Task] = []
+    # keys, commands, queues, tasks_to_run = map(list, zip(*tasks_tuples))
+    for task_tuple in tasks_tuples:
+        # temp workaround for MyPy
+        key, command, queue, task_to_run = task_tuple
+        keys.append(key)
+        commands.append(command)
+        queues.append(queue)
+        tasks_to_run.append(task_to_run)
+    tasks = [tasks_to_run[i].s(commands[i]).set(queue=queues[i]) for i in range(len(tasks_tuples))]
+    tasks_group = group(tasks)
+    result = tasks_group.apply_async()
+    result.save()
+    group_result = GroupResult.restore(result.id, app=app)
+    return list(zip(keys, commands, group_result.children))
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
