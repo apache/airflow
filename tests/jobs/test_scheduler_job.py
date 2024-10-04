@@ -799,14 +799,14 @@ class TestSchedulerJob:
         session.flush()
         assert total_executed_ti == len(res)
 
-    def test_find_executable_task_instances_order_execution_date(self, dag_maker):
+    def test_find_executable_task_instances_order_logical_date(self, dag_maker):
         """
-        Test that task instances follow execution_date order priority. If two dagruns with
+        Test that task instances follow logical_date order priority. If two dagruns with
         different execution dates are scheduled, tasks with earliest dagrun execution date will first
         be executed
         """
-        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_execution_date-a"
-        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_execution_date-b"
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date-b"
         task_id = "task-a"
         session = settings.Session()
         with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
@@ -941,9 +941,9 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    def test_find_executable_task_instances_order_execution_date_and_priority(self, dag_maker):
-        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-a"
-        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_execution_date_and_priority-b"
+    def test_find_executable_task_instances_order_logical_date_and_priority(self, dag_maker):
+        dag_id_1 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date_and_priority-a"
+        dag_id_2 = "SchedulerJobTest.test_find_executable_task_instances_order_logical_date_and_priority-b"
         task_id = "task-a"
         session = settings.Session()
         with dag_maker(dag_id=dag_id_1, max_active_tasks=16, session=session):
@@ -2502,7 +2502,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
-        # check that next_dagrun is dr.execution_date
+        # check that next_dagrun is dr.logical_date
         dag_maker.dag_model.next_dagrun == dr.logical_date
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
@@ -2999,7 +2999,7 @@ class TestSchedulerJob:
         Test that ignore_first_depends_on_past doesn't affect results
         (this is the same test as
         test_dagrun_deadlock_ignore_depends_on_past_advance_logical_date except
-        that start_date == execution_date so depends_on_past is irrelevant).
+        that start_date == logical_date so depends_on_past is irrelevant).
         """
         # todo: AIP-78 remove along with DAG.run()
         #  this only tests the backfill job runner, not the scheduler
@@ -3430,7 +3430,7 @@ class TestSchedulerJob:
             session.query(func.count(TaskInstance.task_id))
             .filter(
                 TaskInstance.dag_id == dr.dag_id,
-                TaskInstance.execution_date == dr.logical_date,
+                TaskInstance.logical_date == dr.logical_date,
                 TaskInstance.task_id == dr.dag.tasks[0].task_id,
                 TaskInstance.state == State.SCHEDULED,
             )
@@ -3498,7 +3498,7 @@ class TestSchedulerJob:
             session.query(func.count(TaskInstance.task_id))
             .filter(
                 TaskInstance.dag_id == dr.dag_id,
-                TaskInstance.execution_date == dr.logical_date,
+                TaskInstance.logical_date == dr.logical_date,
                 TaskInstance.state == State.SCHEDULED,
             )
             .scalar()
@@ -3687,7 +3687,7 @@ class TestSchedulerJob:
         # We had better get a dag run
         assert dr is not None
 
-        execution_date = dr.logical_date
+        logical_date = dr.logical_date
 
         running_dates = dag1.get_active_runs()
 
@@ -3696,7 +3696,7 @@ class TestSchedulerJob:
         except Exception:
             running_date = "Except"
 
-        assert execution_date == running_date, "Running Date must match Execution Date"
+        assert logical_date == running_date, "Running Date must match Execution Date"
 
     def test_list_py_file_paths(self):
         """
@@ -4324,7 +4324,7 @@ class TestSchedulerJob:
 
         session = settings.Session()
 
-        # Verify that dag_model.next_dagrun is equal to next execution_date
+        # Verify that dag_model.next_dagrun is equal to next logical_date
         dag_model = dag_maker.dag_model
         assert dag_model.next_dagrun == DEFAULT_DATE
         assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE
@@ -4590,7 +4590,7 @@ class TestSchedulerJob:
                 session.query(TaskInstance)
                 .join(TaskInstance.dag_run)
                 .filter(TaskInstance.state != State.SUCCESS)
-                .order_by(DagRun.execution_date)
+                .order_by(DagRun.logical_date)
                 .first()
             )
             if ti:
@@ -4630,11 +4630,11 @@ class TestSchedulerJob:
             self.job_runner._do_scheduling(session)
             complete_one_dagrun()
 
-        expected_execution_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
-        dagrun_execution_dates = [
-            dr.logical_date for dr in session.query(DagRun).order_by(DagRun.execution_date).all()
+        expected_logical_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
+        dagrun_logical_dates = [
+            dr.logical_date for dr in session.query(DagRun).order_by(DagRun.logical_date).all()
         ]
-        assert dagrun_execution_dates == expected_execution_dates
+        assert dagrun_logical_dates == expected_logical_dates
 
     def test_do_schedule_max_active_runs_and_manual_trigger(self, dag_maker, mock_executors):
         """
@@ -5088,7 +5088,7 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
-    def test_start_queued_dagruns_do_follow_execution_date_order(self, dag_maker):
+    def test_start_queued_dagruns_do_follow_logical_date_order(self, dag_maker):
         session = settings.Session()
         with dag_maker("test_dag1", max_active_runs=1):
             EmptyOperator(task_id="mytask")
@@ -5141,12 +5141,12 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_1", max_active_runs=1, start_date=date) as dag:
             task1 = EmptyOperator(task_id="dummy_task")
 
-        dr1_running = dag_maker.create_dagrun(run_id="dr1_run_1", execution_date=date)
+        dr1_running = dag_maker.create_dagrun(run_id="dr1_run_1", logical_date=date)
         data_interval = dag.infer_automated_data_interval(logical_date)
         dag_maker.create_dagrun(
             run_id="dr1_run_2",
             state=State.QUEUED,
-            execution_date=dag.next_dagrun_info(
+            logical_date=dag.next_dagrun_info(
                 last_automated_dagrun=data_interval, restricted=False
             ).data_interval.start,
         )
@@ -5155,12 +5155,12 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_2", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
         for i in range(16):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.RUNNING, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.RUNNING, logical_date=date)
             date = dr.logical_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr2_run_16")
         date = dr16[0].logical_date + timedelta(hours=1)
         for i in range(16, 32):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, logical_date=date)
             date = dr.logical_date + timedelta(hours=1)
 
         # third dag and dagruns
@@ -5168,12 +5168,12 @@ class TestSchedulerJob:
         with dag_maker("test_dagrun_states_are_correct_3", start_date=date) as dag:
             EmptyOperator(task_id="dummy_task")
         for i in range(16):
-            dr = dag_maker.create_dagrun(run_id=f"dr3_run_{i+1}", state=State.RUNNING, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr3_run_{i+1}", state=State.RUNNING, logical_date=date)
             date = dr.logical_date + timedelta(hours=1)
         dr16 = DagRun.find(run_id="dr3_run_16")
         date = dr16[0].logical_date + timedelta(hours=1)
         for i in range(16, 32):
-            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, execution_date=date)
+            dr = dag_maker.create_dagrun(run_id=f"dr2_run_{i+1}", state=State.QUEUED, logical_date=date)
             date = dr.logical_date + timedelta(hours=1)
 
         scheduler_job = Job()
@@ -5492,7 +5492,7 @@ class TestSchedulerJob:
         # We don't actually need a linked trigger here; the code doesn't check.
         dr1 = dag_maker.create_dagrun()
         dr2 = dag_maker.create_dagrun(
-            run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+            run_id="test2", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
         )
         ti1 = dr1.get_task_instance("dummy1", session)
         ti2 = dr2.get_task_instance("dummy1", session)
@@ -5559,7 +5559,7 @@ class TestSchedulerJob:
                 # We don't actually need a linked trigger here; the code doesn't check.
                 dr1 = dag_maker.create_dagrun()
                 dr2 = dag_maker.create_dagrun(
-                    run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+                    run_id="test2", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
                 )
                 ti1 = dr1.get_task_instance("dummy1", session)
                 ti2 = dr2.get_task_instance("dummy1", session)
@@ -5611,7 +5611,7 @@ class TestSchedulerJob:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 state=DagRunState.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -5681,7 +5681,7 @@ class TestSchedulerJob:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 state=DagRunState.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -5753,7 +5753,7 @@ class TestSchedulerJob:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 state=DagRunState.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -6044,11 +6044,11 @@ class TestSchedulerJob:
         dm = DagModel.get_dagmodel(dag.dag_id)
         self.job_runner._create_dag_runs([dm], session)
 
-        # Check catchup worked correctly by ensuring execution_date is quite new
+        # Check catchup worked correctly by ensuring logical_date is quite new
         # Our dag is a daily dag
         assert (
-            session.query(DagRun.execution_date)
-            .filter(DagRun.execution_date != DEFAULT_DATE)  # exclude the first run
+            session.query(DagRun.logical_date)
+            .filter(DagRun.logical_date != DEFAULT_DATE)  # exclude the first run
             .scalar()
         ) > (timezone.utcnow() - timedelta(days=2))
 
@@ -6059,7 +6059,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="task1")
 
         scheduled_run = dag_maker.create_dagrun(
-            execution_date=datetime.datetime(2022, 1, 1),
+            logical_date=datetime.datetime(2022, 1, 1),
             run_type=DagRunType.SCHEDULED,
         )
         scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
