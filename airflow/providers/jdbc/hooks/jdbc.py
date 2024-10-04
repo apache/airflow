@@ -174,7 +174,7 @@ class JdbcHook(DbApiHook):
             engine_kwargs = {}
         engine_kwargs["creator"] = self.get_conn
 
-        return super().get_sqlalchemy_engine(**engine_kwargs)
+        return super().get_sqlalchemy_engine(engine_kwargs)
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(self.get_conn_id())
