@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import enum
-import itertools
 import json
 import math
 import time
@@ -721,14 +720,29 @@ class PodManager(LoggingMixin):
         except HTTPError as e:
             raise AirflowException(f"There was an error reading the kubernetes API: {e}")
 
-    def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
+    def await_xcom_sidecar_container_start(
+        self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
+    ) -> None:
+        """Check if the sidecar container has reached the 'Running' state before performing do_xcom_push."""
         self.log.info("Checking if xcom sidecar container is started.")
-        for attempt in itertools.count():
+        start_time = time.time()
+        last_log_time = start_time
+
+        while True:
+            elapsed_time = time.time() - start_time
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
-                self.log.info("The xcom sidecar container is started.")
+                self.log.info("The xcom sidecar container has started.")
                 break
-            if not attempt:
-                self.log.warning("The xcom sidecar container is not yet started.")
+            if (time.time() - last_log_time) >= log_interval:
+                self.log.warning(
+                    "Still waiting for the xcom sidecar container to start. Elapsed time: %d seconds.",
+                    int(elapsed_time),
+                )
+                last_log_time = time.time()
+            if elapsed_time > timeout:
+                raise AirflowException(
+                    f"Xcom sidecar container did not start within {timeout // 60} minutes."
+                )
             time.sleep(1)
 
     def extract_xcom(self, pod: V1Pod) -> str:

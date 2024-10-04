@@ -601,6 +601,21 @@ class TestPodManager:
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_await_xcom_sidecar_container_timeout(self, mock_container_is_running):
+        mock_pod = MagicMock()
+        mock_container_is_running.return_value = False
+        with pytest.raises(AirflowException):
+            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=10, log_interval=5)
+        mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_await_xcom_sidecar_container_starts(self, mock_container_is_running):
+        mock_pod = MagicMock()
+        mock_container_is_running.return_value = True
+        self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod)
+        mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
+
 
 def params_for_test_container_is_running():
     """The `container_is_running` method is designed to handle an assortment of bad objects
