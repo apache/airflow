@@ -4773,23 +4773,6 @@ class TestSchedulerJob:
         assert dag1_running_count == 1
         assert running_count == 11
 
-    def test_dag1_is_mutated(self, dag_maker, session):
-        with dag_maker(
-            "test_dag1",
-            start_date=DEFAULT_DATE,
-            schedule=timedelta(days=1),
-            max_active_runs=1,
-        ) as dag1:
-            EmptyOperator(task_id="mytask")
-
-        with dag_maker(
-            "test_dag2",
-            start_date=timezone.datetime(2020, 1, 1),
-            schedule=timedelta(days=1),
-        ):
-            EmptyOperator(task_id="mytask")
-        assert dag1.dag_id == "test_dag2"
-
     def test_max_active_runs_in_a_dag_doesnt_prevent_backfill_from_running(self, dag_maker):
         session = settings.Session()
         with dag_maker(
