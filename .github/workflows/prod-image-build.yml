@@ -163,11 +163,6 @@ jobs:
           inputs.do-build == 'true' &&
           inputs.upload-package-artifact == 'true' &&
           inputs.build-provider-packages == 'true'
-      - name: "Prepare standard provider package"
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages standard --package-format wheel
-        if: inputs.do-build  == 'true' && inputs.upload-package-artifact == 'true'
       - name: "Prepare chicken-eggs provider packages"
         shell: bash
         run: >
