@@ -55,8 +55,12 @@ def get_hook(
         }
     )
 
-    hook = JdbcHook(**hook_params)
-    hook.get_connection = lambda *args, **kwargs: connection
+    class MockedJdbcHook(JdbcHook):
+        @classmethod
+        def get_connection(cls, conn_id: str) -> Connection:
+            return connection
+
+    hook = MockedJdbcHook(**hook_params)
     return hook
 
 
