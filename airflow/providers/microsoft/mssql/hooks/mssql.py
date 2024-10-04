@@ -62,6 +62,10 @@ class MsSqlHook(DbApiHook):
             raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
+    @property
+    def dialect_name(self) -> str | None:
+        return "mssql"
+
     def get_uri(self) -> str:
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 

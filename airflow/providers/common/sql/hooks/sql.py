@@ -245,21 +245,15 @@ class DbApiHook(BaseHook):
         return Inspector.from_engine(self.get_sqlalchemy_engine())
 
     @cached_property
-    def dialect_name(self) -> str:
+    def dialect_name(self) -> str | None:
         try:
-            dialect_name = make_url(self.get_uri()).get_dialect().name
-            self.log.debug("dialect_name: %s", self.dialect_name)
-            return dialect_name
+            return make_url(self.get_uri()).get_dialect().name
         except ArgumentError:
-            conn = self.get_connection(self.get_conn_id())
-            config = conn.extra_dejson
+            config = self.connection_extra
             sqlalchemy_scheme = config.get("sqlalchemy_scheme")
-            self.log.debug("sqlalchemy_scheme: %s", self.dialect_name)
             if sqlalchemy_scheme:
                 return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
-            dialect = config.get("dialect", conn.conn_type)
-            self.log.debug("dialect: %s", dialect)
-            return dialect
+            return config.get("dialect")
 
     @cached_property
     def dialect(self) -> Dialect:
