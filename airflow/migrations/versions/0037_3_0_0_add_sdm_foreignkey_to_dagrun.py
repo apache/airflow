@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add SDM foreignkey to DagRun.
+Add SDM foreign key to DagRun, TI & TIH.
 
 Revision ID: 4235395d5ec5
 Revises: e1ff90d3efe9

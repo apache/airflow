@@ -159,7 +159,7 @@ class DagRun(Base, LoggingMixin):
         Integer,
         ForeignKey("serialized_dag.id", name="dag_run_serialized_dag_fkey", ondelete="SET NULL"),
     )
-    serialized_dag = relationship("SerializedDagModel", back_populates="dag_run", lazy="select")
+    serialized_dag = relationship("SerializedDagModel", back_populates="dag_run")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -359,13 +359,11 @@ class DagRun(Base, LoggingMixin):
     def state(self):
         return synonym("_state", descriptor=property(self.get_state, self.set_state))
 
-    @property
-    def dag_hash(self):
-        if self.serialized_dag:
-            return self.serialized_dag.dag_hash
-        # TODO: Should we avoid serialized DAG deletion since
-        # we can have multiple versions of same dag?
-        return "SerializedDAG Deleted"
+    @provide_session
+    def dag_hash(self, session: Session = NEW_SESSION):
+        from airflow.models.serialized_dag import SerializedDagModel as SDM
+
+        return str(session.scalar(select(SDM.dag_hash).where(SDM.id == self.serialized_dag_id)))
 
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
@@ -952,6 +950,7 @@ class DagRun(Base, LoggingMixin):
                 "state=%s, external_trigger=%s, run_type=%s, "
                 "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
             )
+
             self.log.info(
                 msg,
                 self.dag_id,
@@ -969,7 +968,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                self.dag_hash,
+                self.dag_hash(session),
             )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
@@ -993,7 +992,7 @@ class DagRun(Base, LoggingMixin):
                     "run_type": str(self.run_type),
                     "data_interval_start": str(self.data_interval_start),
                     "data_interval_end": str(self.data_interval_end),
-                    "dag_hash": str(self.dag_hash),
+                    "dag_hash": str(self.dag_hash(session)),
                     "conf": str(self.conf),
                 }
                 if span.is_recording():
