@@ -23,7 +23,7 @@ import { Handle, NodeProps, Position } from "reactflow";
 import { TbLogicAnd, TbLogicOr } from "react-icons/tb";
 
 import type { DepNode, DagRun, Task, TaskInstance } from "src/types";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
@@ -49,7 +49,7 @@ export interface CustomNodeProps {
   style?: string;
   isZoomedOut: boolean;
   class: DepNode["value"]["class"];
-  datasetEvent?: DatasetEvent;
+  assetEvent?: AssetEvent;
 }
 
 const Node = (props: NodeProps<CustomNodeProps>) => {

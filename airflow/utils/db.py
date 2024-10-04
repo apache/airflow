@@ -882,8 +882,8 @@ def check_and_run_migrations():
         verb = "initialize"
     elif source_heads != db_heads:
         db_command = upgradedb
-        command_name = "upgrade"
-        verb = "upgrade"
+        command_name = "migrate"
+        verb = "migrate"
 
     if sys.stdout.isatty() and verb:
         print()

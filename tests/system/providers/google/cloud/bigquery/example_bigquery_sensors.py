@@ -39,7 +39,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_bigquery_sensors"
+DAG_ID = "bigquery_sensors"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 TABLE_NAME = f"partitioned_table_{DAG_ID}_{ENV_ID}".replace("-", "_")

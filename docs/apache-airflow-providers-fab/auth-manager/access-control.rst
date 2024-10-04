@@ -166,9 +166,9 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_edit, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_edit, DAG Runs.can_read                                  User
-/datasets                                                                          GET    Assets.can_read                                                   Viewer
-/datasets/{uri}                                                                    GET    Assets.can_read                                                   Viewer
-/datasets/events                                                                   GET    Assets.can_read                                                   Viewer
+/assets                                                                            GET    Assets.can_read                                                   Viewer
+/assets/{uri}                                                                      GET    Assets.can_read                                                   Viewer
+/assets/events                                                                     GET    Assets.can_read                                                   Viewer
 /eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
 /eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
