@@ -5,6 +5,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  DashboardService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -32,6 +33,39 @@ export const useAssetServiceNextRunAssetsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics Data
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetricsDataSuspense = <
+  TData = Common.DashboardServiceHistoricalMetricsDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsDataKeyFn(
+      { endDate, startDate },
+      queryKey,
+    ),
+    queryFn: () =>
+      DashboardService.historicalMetricsData({ endDate, startDate }) as TData,
     ...options,
   });
 /**

@@ -5,6 +5,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  DashboardService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -27,6 +28,33 @@ export const prefetchUseAssetServiceNextRunAssets = (
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
     queryFn: () => AssetService.nextRunAssets({ dagId }),
+  });
+/**
+ * Historical Metrics Data
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceHistoricalMetricsData = (
+  queryClient: QueryClient,
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsDataKeyFn({
+      endDate,
+      startDate,
+    }),
+    queryFn: () =>
+      DashboardService.historicalMetricsData({ endDate, startDate }),
   });
 /**
  * Get Dags
