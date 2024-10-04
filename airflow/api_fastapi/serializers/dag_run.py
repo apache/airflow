@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
+
 
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
@@ -31,8 +34,8 @@ class DAGRunResponse(BaseModel):
     data_interval_start: str | None
     data_interval_end: str | None
     last_scheduling_decision: str | None
-    run_type: str  # Enum
-    state: str  # Enum
+    run_type: DagRunType
+    state: DagRunState
     external_trigger: bool
     conf: dict
     notes: str | None

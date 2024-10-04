@@ -868,12 +868,10 @@ export const $DAGRunResponse = {
       title: "Last Scheduling Decision",
     },
     run_type: {
-      type: "string",
-      title: "Run Type",
+      $ref: "#/components/schemas/DagRunType",
     },
     state: {
-      type: "string",
-      title: "State",
+      $ref: "#/components/schemas/DagRunState",
     },
     external_trigger: {
       type: "boolean",
@@ -924,6 +922,13 @@ export const $DagRunState = {
 These are "shared" with TaskInstanceState in some parts of the code,
 so please ensure that their values always match the ones with the
 same name in TaskInstanceState.`,
+} as const;
+
+export const $DagRunType = {
+  type: "string",
+  enum: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  title: "DagRunType",
+  description: "Class with DagRun types.",
 } as const;
 
 export const $DagTagPydantic = {

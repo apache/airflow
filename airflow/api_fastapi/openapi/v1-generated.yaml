@@ -1014,11 +1014,9 @@ components:
           - type: 'null'
           title: Last Scheduling Decision
         run_type:
-          type: string
-          title: Run Type
+          $ref: '#/components/schemas/DagRunType'
         state:
-          type: string
-          title: State
+          $ref: '#/components/schemas/DagRunState'
         external_trigger:
           type: boolean
           title: External Trigger
@@ -1063,6 +1061,15 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
+    DagRunType:
+      type: string
+      enum:
+      - backfill
+      - scheduled
+      - manual
+      - dataset_triggered
+      title: DagRunType
+      description: Class with DagRun types.
     DagTagPydantic:
       properties:
         name:

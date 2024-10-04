@@ -132,8 +132,8 @@ export type DAGRunResponse = {
   data_interval_start: string | null;
   data_interval_end: string | null;
   last_scheduling_decision: string | null;
-  run_type: string;
-  state: string;
+  run_type: DagRunType;
+  state: DagRunState;
   external_trigger: boolean;
   conf: {
     [key: string]: unknown;
@@ -149,6 +149,15 @@ export type DAGRunResponse = {
  * same name in TaskInstanceState.
  */
 export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
+ * Class with DagRun types.
+ */
+export type DagRunType =
+  | "backfill"
+  | "scheduled"
+  | "manual"
+  | "dataset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
