@@ -424,6 +424,15 @@ class BaseExecutor(LoggingMixin):
                 self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
+    def failed_in_queue(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set failed in queue state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.FAILED_IN_QUEUE, info)
+
     def fail(self, key: TaskInstanceKey, info=None) -> None:
         """
         Set fail state for the event.

@@ -414,6 +414,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic,
         if ti.task_id == task_instance.task_id or ti.state in (
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
+            TaskInstanceState.FAILED_IN_QUEUE,
         ):
             continue
         task = task_instance.task.dag.task_dict[ti.task_id]

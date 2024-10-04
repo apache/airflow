@@ -53,6 +53,7 @@ class TaskInstanceState(str, Enum):
     SUCCESS = "success"  # Task completed
     RESTARTING = "restarting"  # External request to restart (e.g. cleared when running)
     FAILED = "failed"  # Task errored out
+    FAILED_IN_QUEUE = "failed_in_queue"  # Task failed due to queue timeout
     UP_FOR_RETRY = "up_for_retry"  # Task failed but has retries left
     UP_FOR_RESCHEDULE = "up_for_reschedule"  # A waiting `reschedule` sensor
     UPSTREAM_FAILED = "upstream_failed"  # One or more upstream deps failed
@@ -89,6 +90,7 @@ class State:
     SUCCESS = TaskInstanceState.SUCCESS
     RUNNING = TaskInstanceState.RUNNING
     FAILED = TaskInstanceState.FAILED
+    FAILED_IN_QUEUE = TaskInstanceState.FAILED_IN_QUEUE
 
     # These are TaskState only
     NONE = None
@@ -121,6 +123,7 @@ class State:
         TaskInstanceState.SUCCESS: "green",
         TaskInstanceState.RESTARTING: "violet",
         TaskInstanceState.FAILED: "red",
+        TaskInstanceState.FAILED_IN_QUEUE: "coral",
         TaskInstanceState.UP_FOR_RETRY: "gold",
         TaskInstanceState.UP_FOR_RESCHEDULE: "turquoise",
         TaskInstanceState.UPSTREAM_FAILED: "orange",
@@ -147,6 +150,7 @@ class State:
         [
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
+            TaskInstanceState.FAILED_IN_QUEUE,
             TaskInstanceState.SKIPPED,
             TaskInstanceState.UPSTREAM_FAILED,
             TaskInstanceState.REMOVED,
@@ -179,7 +183,7 @@ class State:
     """
 
     failed_states: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
+        [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED, TaskInstanceState.FAILED_IN_QUEUE]
     )
     """
     A list of states indicating that a task or dag is a failed state.
