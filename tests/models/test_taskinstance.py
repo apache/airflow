@@ -3411,8 +3411,6 @@ class TestTaskInstance:
         session.commit()
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["logical_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
-        with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"

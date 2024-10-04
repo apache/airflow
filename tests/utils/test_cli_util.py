@@ -54,7 +54,7 @@ class TestCliUtil:
             "sub_command": "test",
             "dag_id": "foo",
             "task_id": "bar",
-            "logical_date": exec_date,
+            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
