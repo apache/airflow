@@ -1762,6 +1762,8 @@ export interface components {
       macros?: (string | null)[];
       /** @description The flask blueprints */
       flask_blueprints?: (string | null)[];
+      /** @description The fastapi apps */
+      fastapi_apps?: ({ [key: string]: unknown } | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */

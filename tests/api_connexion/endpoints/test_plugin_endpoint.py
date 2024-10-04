@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 
 import pytest
+from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView
 
@@ -49,6 +50,10 @@ class MockOperatorLink(BaseOperatorLink):
 
 
 bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
+
+app = FastAPI()
+
+app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "App name"}
 
 
 class MockView(BaseView): ...
@@ -89,6 +94,7 @@ class MyCustomListener:
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
+    fastapi_apps = [app_with_metadata]
     appbuilder_views = [{"view": mockview}]
     appbuilder_menu_items = [appbuilder_menu_items]
     global_operator_extra_links = [MockOperatorLink()]
@@ -141,6 +147,13 @@ class TestGetPlugins(TestPluginsEndpoint):
                     "executors": [],
                     "flask_blueprints": [
                         f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
+                    ],
+                    "fastapi_apps": [
+                        {
+                            "app": "fastapi.applications.FastAPI",
+                            "name": "App name",
+                            "url_prefix": "/some_prefix",
+                        }
                     ],
                     "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "hooks": [qualname(PluginHook)],

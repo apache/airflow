@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 
@@ -109,6 +110,11 @@ bp = Blueprint(
     static_url_path="/static/test_plugin",
 )
 
+app = FastAPI()
+
+
+app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
+
 
 # Extend an existing class to avoid the need to implement the full interface
 class CustomCronDataIntervalTimetable(CronDataIntervalTimetable):
@@ -133,6 +139,7 @@ class AirflowTestPlugin(AirflowPlugin):
     executors = [PluginExecutor]
     macros = [plugin_macro]
     flask_blueprints = [bp]
+    fastapi_apps = [app_with_metadata]
     appbuilder_views = [v_appbuilder_package]
     appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
     global_operator_extra_links = [

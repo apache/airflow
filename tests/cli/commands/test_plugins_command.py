@@ -56,7 +56,7 @@ class TestPluginsCommand:
         assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
-    def test_should_display_one_plugins(self):
+    def test_should_display_one_plugin(self):
         with redirect_stdout(StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
@@ -71,6 +71,13 @@ class TestPluginsCommand:
                 "executors": ["tests.plugins.test_plugin.PluginExecutor"],
                 "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
+                ],
+                "fastapi_apps": [
+                    {
+                        "app": "fastapi.applications.FastAPI",
+                        "url_prefix": "/some_prefix",
+                        "name": "Name of the App",
+                    }
                 ],
                 "appbuilder_views": [
                     {
