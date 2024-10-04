@@ -49,6 +49,7 @@ PRE_INSTALLED_PROVIDERS = [
     "imap",
     "smtp",
     "sqlite",
+    "standard",
 ]
 
 # Those extras are dynamically added by hatch in the build hook to metadata optional dependencies
@@ -239,6 +240,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
+        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
         "ruff==0.5.5",
@@ -465,7 +467,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.6.0",
+    "pydantic>=2.6.4",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",

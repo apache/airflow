@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.1",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.1",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -4651,6 +4651,16 @@
                         "null"
                     ],
                     "default": 300
+                },
+                "env": {
+                    "description": "Add additional env vars to migrate database job.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 }
             }
         },
@@ -7659,6 +7669,39 @@
                     "description": "Grace period for Redis to exit after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 600
+                },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "clusterIP": {
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "nodePort": {
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
                 },
                 "persistence": {
                     "description": "Persistence configuration.",

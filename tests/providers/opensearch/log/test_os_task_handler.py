@@ -29,7 +29,8 @@ from unittest.mock import Mock, patch
 
 import pendulum
 import pytest
-from opensearchpy import OpenSearch
+
+opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy.exceptions import NotFoundError
 
 from airflow.configuration import conf
@@ -112,11 +113,6 @@ class TestOpensearchTaskHandler:
         )
 
         self.os_task_handler.client = MockClient()
-        # self.index_name = "test_index"
-        # self.doc_type = "log"
-        # self.test_message = "some random stuff"
-        # self.body = {"message": self.test_message, "log_id": self.LOG_ID, "offset": 1}
-        # self.os.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
@@ -141,7 +137,6 @@ class TestOpensearchTaskHandler:
         )
 
     def test_client(self):
-        assert issubclass(type(self.os_task_handler.client), OpenSearch)
         assert self.os_task_handler.index_patterns == "_all"
 
     def test_client_with_config(self):

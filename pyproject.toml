@@ -29,7 +29,7 @@ requires = [
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.0.1; python_version < '3.11'",
+    "tomli==2.0.2; python_version < '3.11'",
     "trove-classifiers==2024.9.12",
 ]
 build-backend = "hatchling.build"
@@ -415,6 +415,9 @@ combine-as-imports = true
 "tests/providers/openai/triggers/test_openai.py" = ["E402"]
 "tests/providers/opensearch/conftest.py" = ["E402"]
 "tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_json_formatter.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_response.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_task_handler.py" = ["E402"]
 "tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]

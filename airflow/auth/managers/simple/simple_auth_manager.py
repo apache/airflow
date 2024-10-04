@@ -28,6 +28,7 @@ from flask import session, url_for
 from termcolor import colored
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
 from hatch_build import AIRFLOW_ROOT_PATH
 
@@ -35,15 +36,14 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
-    from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 
 
 class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
@@ -113,7 +113,9 @@ class SimpleAuthManager(BaseAuthManager):
             file.write(json.dumps(self.passwords))
 
     def is_logged_in(self) -> bool:
-        return "user" in session
+        return "user" in session or self.appbuilder.get_app.config.get(
+            "SIMPLE_AUTH_MANAGER_ALL_ADMINS", False
+        )
 
     def get_url_login(self, **kwargs) -> str:
         return url_for("SimpleAuthManagerAuthenticationViews.login")
@@ -122,7 +124,12 @@ class SimpleAuthManager(BaseAuthManager):
         return url_for("SimpleAuthManagerAuthenticationViews.logout")
 
     def get_user(self) -> SimpleAuthManagerUser | None:
-        return session["user"] if self.is_logged_in() else None
+        if not self.is_logged_in():
+            return None
+        if self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False):
+            return SimpleAuthManagerUser(username="anonymous", role="admin")
+        else:
+            return session["user"]
 
     def is_authorized_configuration(
         self,
@@ -156,8 +163,8 @@ class SimpleAuthManager(BaseAuthManager):
             allow_role=SimpleAuthManagerRole.USER,
         )
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -214,7 +221,12 @@ class SimpleAuthManager(BaseAuthManager):
         user = self.get_user()
         if not user:
             return False
-        role_str = user.get_role().upper()
+
+        user_role = user.get_role()
+        if not user_role:
+            return False
+
+        role_str = user_role.upper()
         role = SimpleAuthManagerRole[role_str]
         if role == SimpleAuthManagerRole.ADMIN:
             return True

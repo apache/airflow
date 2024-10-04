@@ -47,11 +47,11 @@ import type { CustomNodeProps } from "./Node";
 const datasetsUrl = getMetaValue("datasets_url");
 
 const DatasetNode = ({
-  data: { label, height, width, latestDagRunId, isZoomedOut, datasetEvent },
+  data: { label, height, width, latestDagRunId, isZoomedOut, assetEvent },
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
 
-  const { from_rest_api: fromRestApi } = (datasetEvent?.extra || {}) as Record<
+  const { from_rest_api: fromRestApi } = (assetEvent?.extra || {}) as Record<
     string,
     string
   >;
@@ -61,8 +61,8 @@ const DatasetNode = ({
       <PopoverTrigger>
         <Box
           borderRadius={isZoomedOut ? 10 : 5}
-          borderWidth={datasetEvent ? 2 : 1}
-          borderColor={datasetEvent ? "green" : "gray.400"}
+          borderWidth={assetEvent ? 2 : 1}
+          borderColor={assetEvent ? "green" : "gray.400"}
           bg="white"
           height={`${height}px`}
           width={`${width}px`}
@@ -99,7 +99,7 @@ const DatasetNode = ({
                 />
                 Dataset
               </Text>
-              {!!datasetEvent && (
+              {!!assetEvent && (
                 <Text
                   fontWeight={400}
                   fontSize="md"
@@ -108,7 +108,7 @@ const DatasetNode = ({
                   alignSelf="flex-end"
                 >
                   {/* @ts-ignore */}
-                  {moment(datasetEvent.timestamp).fromNow()}
+                  {moment(assetEvent.timestamp).fromNow()}
                 </Text>
               )}
             </>
@@ -120,23 +120,23 @@ const DatasetNode = ({
           <PopoverArrow bg="gray.100" />
           <PopoverCloseButton />
           <PopoverHeader>{label}</PopoverHeader>
-          {!!datasetEvent && (
+          {!!assetEvent && (
             <PopoverBody>
-              <Time dateTime={datasetEvent?.timestamp} />
+              <Time dateTime={assetEvent?.timestamp} />
               <Box>
                 Source:
                 {fromRestApi && <TbApi size="20px" />}
-                {!!datasetEvent?.sourceTaskId && (
+                {!!assetEvent?.sourceTaskId && (
                   <SourceTaskInstance
-                    datasetEvent={datasetEvent}
+                    assetEvent={assetEvent}
                     showLink={false}
                   />
                 )}
-                {!!datasetEvent?.createdDagruns?.length && (
+                {!!assetEvent?.createdDagruns?.length && (
                   <>
                     Triggered Dag Runs:
                     <TriggeredDagRuns
-                      createdDagRuns={datasetEvent?.createdDagruns}
+                      createdDagRuns={assetEvent?.createdDagruns}
                       showLink={false}
                     />
                   </>

@@ -96,20 +96,20 @@ Airflow provides a powerful feature for tracking data lineage not only between t
 This functionality helps you understand how data flows throughout your Airflow pipelines.
 
 A global instance of ``HookLineageCollector`` serves as the central hub for collecting lineage information.
-Hooks can send details about datasets they interact with to this collector.
-The collector then uses this data to construct AIP-60 compliant Datasets, a standard format for describing datasets.
+Hooks can send details about assets they interact with to this collector.
+The collector then uses this data to construct AIP-60 compliant Assets, a standard format for describing assets.
 
 .. code-block:: python
 
-    from airflow.lineage.hook_lineage import get_hook_lineage_collector
+    from airflow.lineage.hook.lineage import get_hook_lineage_collector
 
 
     class CustomHook(BaseHook):
         def run(self):
             # run actual code
             collector = get_hook_lineage_collector()
-            collector.add_input_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/in"})
-            collector.add_output_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/out"})
+            collector.add_input_asset(self, asset_kwargs={"scheme": "file", "path": "/tmp/in"})
+            collector.add_output_asset(self, asset_kwargs={"scheme": "file", "path": "/tmp/out"})
 
 Lineage data collected by the ``HookLineageCollector`` can be accessed using an instance of ``HookLineageReader``,
 which is registered in an Airflow plugin.
@@ -122,7 +122,7 @@ which is registered in an Airflow plugin.
 
     class CustomHookLineageReader(HookLineageReader):
         def get_inputs(self):
-            return self.lineage_collector.collected_datasets.inputs
+            return self.lineage_collector.collected_assets.inputs
 
 
     class HookLineageCollectionPlugin(AirflowPlugin):
@@ -130,7 +130,7 @@ which is registered in an Airflow plugin.
         hook_lineage_readers = [CustomHookLineageReader]
 
 If no ``HookLineageReader`` is registered within Airflow, a default ``NoOpCollector`` is used instead.
-This collector does not create AIP-60 compliant datasets or collect lineage information.
+This collector does not create AIP-60 compliant assets or collect lineage information.
 
 
 Lineage Backend

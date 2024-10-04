@@ -31,16 +31,16 @@ from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequ
 from pendulum import DateTime
 from sqlalchemy.orm import Session
 
+from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.configuration import AirflowConfigParser
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
+from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
@@ -62,31 +62,31 @@ class OutletEventAccessor:
         self,
         *,
         extra: dict[str, Any],
-        raw_key: str | Dataset | DatasetAlias,
-        dataset_alias_events: list[DatasetAliasEvent],
+        raw_key: str | Asset | AssetAlias,
+        asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
-    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
+    def add(self, asset: Asset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
-    raw_key: str | Dataset | DatasetAlias
-    dataset_alias_events: list[DatasetAliasEvent]
+    raw_key: str | Asset | AssetAlias
+    asset_alias_events: list[AssetAliasEvent]
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor: ...
+    def __getitem__(self, key: str | Asset | AssetAlias) -> OutletEventAccessor: ...
 
-class InletEventsAccessor(Sequence[DatasetEvent]):
+class InletEventsAccessor(Sequence[AssetEvent]):
     @overload
-    def __getitem__(self, key: int) -> DatasetEvent: ...
+    def __getitem__(self, key: int) -> AssetEvent: ...
     @overload
-    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+    def __getitem__(self, key: slice) -> Sequence[AssetEvent]: ...
     def __len__(self) -> int: ...
 
 class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
     def __init__(self, inlets: list, *, session: Session) -> None: ...
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: int | str | Dataset | DatasetAlias) -> InletEventsAccessor: ...
+    def __getitem__(self, key: int | str | Asset | AssetAlias) -> InletEventsAccessor: ...
 
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
@@ -132,7 +132,7 @@ class Context(TypedDict, total=False):
     ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[DatasetEvent | DatasetEventPydantic]]
+    triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

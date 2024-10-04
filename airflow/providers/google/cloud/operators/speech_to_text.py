@@ -113,15 +113,14 @@ class CloudSpeechToTextRecognizeSpeechOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-
-        FileDetailsLink.persist(
-            context=context,
-            task_instance=self,
-            # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
-            uri=self.audio["uri"][5:],
-            project_id=self.project_id or hook.project_id,
-        )
-
+        if self.audio.uri:
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
+                uri=self.audio.uri[5:],
+                project_id=self.project_id or hook.project_id,
+            )
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

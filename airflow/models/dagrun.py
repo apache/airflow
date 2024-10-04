@@ -67,6 +67,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -388,12 +389,8 @@ class DagRun(Base, LoggingMixin):
         return dict(iter(session.execute(query)))
 
     @classmethod
-    def next_dagruns_to_examine(
-        cls,
-        state: DagRunState,
-        session: Session,
-        max_number: int | None = None,
-    ) -> Query:
+    @retry_db_transaction
+    def get_running_dag_runs_to_examine(cls, session: Session) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -401,42 +398,79 @@ class DagRun(Base, LoggingMixin):
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
+        :meta private:
         """
         from airflow.models.dag import DagModel
 
-        if max_number is None:
-            max_number = cls.DEFAULT_DAGRUNS_TO_EXAMINE
-
-        # TODO: Bake this query, it is run _A lot_
         query = (
             select(cls)
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
+            .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .where(DagModel.is_paused == false(), DagModel.is_active == true())
-        )
-        if state == DagRunState.QUEUED:
-            # For dag runs in the queued state, we check if they have reached the max_active_runs limit
-            # and if so we drop them
-            running_drs = (
-                select(DagRun.dag_id, func.count(DagRun.state).label("num_running"))
-                .where(DagRun.state == DagRunState.RUNNING)
-                .group_by(DagRun.dag_id)
-                .subquery()
+            .order_by(
+                nulls_first(cls.last_scheduling_decision, session=session),
+                cls.execution_date,
             )
-            query = query.outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id).where(
-                func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
-            )
-        query = query.order_by(
-            nulls_first(cls.last_scheduling_decision, session=session),
-            cls.execution_date,
         )
 
         if not settings.ALLOW_FUTURE_EXEC_DATES:
             query = query.where(DagRun.execution_date <= func.now())
 
         return session.scalars(
-            with_row_locks(query.limit(max_number), of=cls, session=session, skip_locked=True)
+            with_row_locks(
+                query.limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE),
+                of=cls,
+                session=session,
+                skip_locked=True,
+            )
+        )
+
+    @classmethod
+    @retry_db_transaction
+    def get_queued_dag_runs_to_set_running(cls, session: Session) -> Query:
+        """
+        Return the next queued DagRuns that the scheduler should attempt to schedule.
+
+        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
+        query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
+        the transaction is committed it will be unlocked.
+
+        :meta private:
+        """
+        from airflow.models.dag import DagModel
+
+        # For dag runs in the queued state, we check if they have reached the max_active_runs limit
+        # and if so we drop them
+        running_drs = (
+            select(DagRun.dag_id, func.count(DagRun.state).label("num_running"))
+            .where(DagRun.state == DagRunState.RUNNING)
+            .group_by(DagRun.dag_id)
+            .subquery()
+        )
+        query = (
+            select(cls)
+            .where(cls.state == DagRunState.QUEUED)
+            .join(DagModel, DagModel.dag_id == cls.dag_id)
+            .where(DagModel.is_paused == false(), DagModel.is_active == true())
+            .outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id)
+            .where(func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs)
+            .order_by(
+                nulls_first(cls.last_scheduling_decision, session=session),
+                cls.execution_date,
+            )
+        )
+
+        if not settings.ALLOW_FUTURE_EXEC_DATES:
+            query = query.where(DagRun.execution_date <= func.now())
+
+        return session.scalars(
+            with_row_locks(
+                query.limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE),
+                of=cls,
+                session=session,
+                skip_locked=True,
+            )
         )
 
     @classmethod
@@ -1233,7 +1267,7 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill
+                self.run_type == DagRunType.BACKFILL_JOB
                 or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
@@ -1504,10 +1538,6 @@ class DagRun(Base, LoggingMixin):
             session.flush()
             yield ti
 
-    @property
-    def is_backfill(self) -> bool:
-        return self.run_type == DagRunType.BACKFILL_JOB
-
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
@@ -1657,7 +1687,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

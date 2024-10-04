@@ -70,6 +70,9 @@ Follow the `pnpm docs <https://pnpm.io/installation>`__ to install pnpm locally 
     # Run tests for all .test.ts, test.tsx files
     pnpm test
 
+    # Run coverage
+    pnpm coverage
+
     # Generate queries and types from the REST API OpenAPI spec
     pnpm codegen
 
@@ -81,7 +84,14 @@ Project Structure
 - ``/src/components`` shared components across the UI
 - ``/dist`` build files
 
+Local Environment Variables
+---------------------------
 
+Copy the example environment
+
+.. code-block:: bash
+
+    cp .env.example .env.local
 
 DEPRECATED Airflow WWW
 ----------------------

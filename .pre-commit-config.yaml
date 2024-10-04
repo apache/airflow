@@ -1174,7 +1174,7 @@ repos:
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_connexion/openapi/v1\.yaml$
+        files: ^airflow/ui/|^airflow/api_fastapi/openapi/v1-generated\.yaml$
         entry: ./scripts/ci/pre_commit/lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
@@ -1290,7 +1290,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py|^performance
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
@@ -1342,6 +1342,13 @@ repos:
         language: python
         files: ^airflow/providers/.*/provider\.yaml$
         additional_dependencies: ['rich>=12.4.4']
+        require_serial: true
+      - id: check-template-fields-valid
+        name: Check templated fields mapped in operators/sensors
+        language: python
+        entry: ./scripts/ci/pre_commit/check_template_fields.py
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
         require_serial: true
       - id: update-migration-references
         name: Update migration ref doc

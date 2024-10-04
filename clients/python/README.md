@@ -343,15 +343,15 @@ Class | Method | HTTP request | Description
 *DAGRunApi* | [**get_dag_run**](docs/DAGRunApi.md#get_dag_run) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id} | Get a DAG run
 *DAGRunApi* | [**get_dag_runs**](docs/DAGRunApi.md#get_dag_runs) | **GET** /dags/{dag_id}/dagRuns | List DAG runs
 *DAGRunApi* | [**get_dag_runs_batch**](docs/DAGRunApi.md#get_dag_runs_batch) | **POST** /dags/~/dagRuns/list | List DAG runs (batch)
-*DAGRunApi* | [**get_upstream_dataset_events**](docs/DAGRunApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
+*DAGRunApi* | [**get_upstream_asset_events**](docs/DAGRunApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get asset events for a DAG run
 *DAGRunApi* | [**post_dag_run**](docs/DAGRunApi.md#post_dag_run) | **POST** /dags/{dag_id}/dagRuns | Trigger a new DAG run
 *DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
 *DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
-*DatasetApi* | [**get_dataset**](docs/DatasetApi.md#get_dataset) | **GET** /datasets/{uri} | Get a dataset
-*DatasetApi* | [**get_dataset_events**](docs/DatasetApi.md#get_dataset_events) | **GET** /datasets/events | Get dataset events
-*DatasetApi* | [**get_datasets**](docs/DatasetApi.md#get_datasets) | **GET** /datasets | List datasets
-*DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
+*AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /assets/{uri} | Get an asset
+*AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /assets/events | Get asset events
+*DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /assets | List assets
+*DatasetApi* | [**get_upstream_asset_events**](docs/DatasetApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get dataset events for a DAG run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
 *EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries
 *ImportErrorApi* | [**get_import_error**](docs/ImportErrorApi.md#get_import_error) | **GET** /importErrors/{import_error_id} | Get an import error
@@ -402,6 +402,11 @@ Class | Method | HTTP request | Description
  - [ActionCollection](docs/ActionCollection.md)
  - [ActionCollectionAllOf](docs/ActionCollectionAllOf.md)
  - [ActionResource](docs/ActionResource.md)
+ - [AssetCollection](docs/AssetCollection.md)
+ - [AssetCollectionAllOf](docs/AssetCollectionAllOf.md)
+ - [AssetEvent](docs/AssetEvent.md)
+ - [AssetEventCollection](docs/AssetEventCollection.md)
+ - [AssetEventCollectionAllOf](docs/AssetEventCollectionAllOf.md)
  - [BasicDAGRun](docs/BasicDAGRun.md)
  - [ClassReference](docs/ClassReference.md)
  - [ClearDagRun](docs/ClearDagRun.md)
@@ -426,17 +431,12 @@ Class | Method | HTTP request | Description
  - [DAGRun](docs/DAGRun.md)
  - [DAGRunCollection](docs/DAGRunCollection.md)
  - [DAGRunCollectionAllOf](docs/DAGRunCollectionAllOf.md)
- - [DagScheduleDatasetReference](docs/DagScheduleDatasetReference.md)
+ - [DagScheduleAssetReference](docs/DagScheduleAssetReference.md)
  - [DagState](docs/DagState.md)
  - [DagWarning](docs/DagWarning.md)
  - [DagWarningCollection](docs/DagWarningCollection.md)
  - [DagWarningCollectionAllOf](docs/DagWarningCollectionAllOf.md)
  - [Dataset](docs/Dataset.md)
- - [DatasetCollection](docs/DatasetCollection.md)
- - [DatasetCollectionAllOf](docs/DatasetCollectionAllOf.md)
- - [DatasetEvent](docs/DatasetEvent.md)
- - [DatasetEventCollection](docs/DatasetEventCollection.md)
- - [DatasetEventCollectionAllOf](docs/DatasetEventCollectionAllOf.md)
  - [Error](docs/Error.md)
  - [EventLog](docs/EventLog.md)
  - [EventLogCollection](docs/EventLogCollection.md)
@@ -481,7 +481,7 @@ Class | Method | HTTP request | Description
  - [TaskInstanceCollectionAllOf](docs/TaskInstanceCollectionAllOf.md)
  - [TaskInstanceReference](docs/TaskInstanceReference.md)
  - [TaskInstanceReferenceCollection](docs/TaskInstanceReferenceCollection.md)
- - [TaskOutletDatasetReference](docs/TaskOutletDatasetReference.md)
+ - [TaskOutletAssetReference](docs/TaskOutletAssetReference.md)
  - [TaskState](docs/TaskState.md)
  - [TimeDelta](docs/TimeDelta.md)
  - [Trigger](docs/Trigger.md)
