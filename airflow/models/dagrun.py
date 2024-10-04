@@ -159,7 +159,7 @@ class DagRun(Base, LoggingMixin):
         Integer,
         ForeignKey("serialized_dag.id", name="dag_run_serialized_dag_fkey", ondelete="SET NULL"),
     )
-    serialized_dag = relationship("SerializedDagModel", back_populates="dag_run")
+    serialized_dag = relationship("SerializedDagModel", back_populates="dag_run", lazy="select")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -359,18 +359,12 @@ class DagRun(Base, LoggingMixin):
     def state(self):
         return synonym("_state", descriptor=property(self.get_state, self.set_state))
 
-    @provide_session
-    def dag_hash(self, session):
-        """Get the serialized DAG hash."""
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        if self.serialized_dag_id:
-            s_dag = session.scalar(
-                select(SerializedDagModel.dag_hash).where(SerializedDagModel.id == self.serialized_dag_id)
-            )
-            return s_dag.dag_hash
-        # TODO: Should we avoid serialized DAG deletion sinc
-        #  we can have multiple versions of same dag?
+    @property
+    def dag_hash(self):
+        if self.serialized_dag:
+            return self.serialized_dag.dag_hash
+        # TODO: Should we avoid serialized DAG deletion since
+        # we can have multiple versions of same dag?
         return "SerializedDAG Deleted"
 
     @provide_session
@@ -975,7 +969,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                self.dag_hash(session),
+                self.dag_hash,
             )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
