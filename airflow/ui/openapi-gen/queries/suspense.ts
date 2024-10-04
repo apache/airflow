@@ -3,7 +3,7 @@ import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
-  DagRunService,
+  ConnectionService,
   DagService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -140,33 +140,31 @@ export const useDagServiceGetDagDetailsSuspense = <
     ...options,
   });
 /**
- * Get Dag Run
+ * Get Connection
+ * Get a connection entry.
  * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagRunServiceGetDagRunSuspense = <
-  TData = Common.DagRunServiceGetDagRunDefaultResponse,
+export const useConnectionServiceGetConnectionSuspense = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
-    dagRunId,
+    connectionId,
   }: {
-    dagId: string;
-    dagRunId: string;
+    connectionId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
-      { dagId, dagRunId },
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
+      { connectionId },
       queryKey,
     ),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
     ...options,
   });

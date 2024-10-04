@@ -3,7 +3,7 @@ import { type QueryClient } from "@tanstack/react-query";
 
 import {
   AssetService,
-  DagRunService,
+  ConnectionService,
   DagService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -119,24 +119,22 @@ export const prefetchUseDagServiceGetDagDetails = (
     queryFn: () => DagService.getDagDetails({ dagId }),
   });
 /**
- * Get Dag Run
+ * Get Connection
+ * Get a connection entry.
  * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetDagRun = (
+export const prefetchUseConnectionServiceGetConnection = (
   queryClient: QueryClient,
   {
-    dagId,
-    dagRunId,
+    connectionId,
   }: {
-    dagId: string;
-    dagRunId: string;
+    connectionId: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
+    queryFn: () => ConnectionService.getConnection({ connectionId }),
   });

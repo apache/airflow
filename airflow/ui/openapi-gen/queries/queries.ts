@@ -9,7 +9,6 @@ import {
 import {
   AssetService,
   ConnectionService,
-  DagRunService,
   DagService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState } from "../requests/types.gen";
@@ -146,34 +145,32 @@ export const useDagServiceGetDagDetails = <
     ...options,
   });
 /**
- * Get Dag Run
+ * Get Connection
+ * Get a connection entry.
  * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagRunServiceGetDagRun = <
-  TData = Common.DagRunServiceGetDagRunDefaultResponse,
+export const useConnectionServiceGetConnection = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
-    dagRunId,
+    connectionId,
   }: {
-    dagId: string;
-    dagRunId: string;
+    connectionId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
-      { dagId, dagRunId },
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
+      { connectionId },
       queryKey,
     ),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
     ...options,
   });
 /**

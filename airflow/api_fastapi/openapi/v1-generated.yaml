@@ -411,32 +411,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
-      - DagRun
-      summary: Get Dag Run
-      operationId: get_dag_run
+      - Connection
+      summary: Get Connection
+      description: Get a connection entry.
+      operationId: get_connection
       parameters:
-      - name: dag_id
+      - name: connection_id
         in: path
         required: true
         schema:
           type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
+          title: Connection Id
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRunResponse'
+                $ref: '#/components/schemas/ConnectionResponse'
         '401':
           content:
             application/json:
@@ -463,6 +457,56 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ConnectionResponse:
+      properties:
+        conn_id:
+          type: string
+          title: Conn Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+      type: object
+      required:
+      - conn_id
+      - conn_type
+      - description
+      - host
+      - login
+      - schema
+      - port
+      - extra
+      title: ConnectionResponse
+      description: Connection serializer for responses.
     DAGCollectionResponse:
       properties:
         dags:

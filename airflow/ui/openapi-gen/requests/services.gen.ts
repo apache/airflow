@@ -15,8 +15,8 @@ import type {
   PatchDagResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
-  GetDagRunData,
-  GetDagRunResponse,
+  GetConnectionData,
+  GetConnectionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -219,26 +219,23 @@ export class ConnectionService {
       },
     });
   }
-}
 
-export class DagRunService {
   /**
-   * Get Dag Run
+   * Get Connection
+   * Get a connection entry.
    * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @returns DAGRunResponse Successful Response
+   * @param data.connectionId
+   * @returns ConnectionResponse Successful Response
    * @throws ApiError
    */
-  public static getDagRun(
-    data: GetDagRunData,
-  ): CancelablePromise<GetDagRunResponse> {
+  public static getConnection(
+    data: GetConnectionData,
+  ): CancelablePromise<GetConnectionResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      url: "/public/connections/{connection_id}",
       path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
+        connection_id: data.connectionId,
       },
       errors: {
         401: "Unauthorized",
