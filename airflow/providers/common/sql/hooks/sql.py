@@ -247,14 +247,19 @@ class DbApiHook(BaseHook):
     @cached_property
     def dialect_name(self) -> str:
         try:
-            return make_url(self.get_uri()).get_dialect().name
+            dialect_name = make_url(self.get_uri()).get_dialect().name
+            self.log.debug("dialect_name: %s", self.dialect_name)
+            return dialect_name
         except ArgumentError:
             conn = self.get_connection(self.get_conn_id())
             config = conn.extra_dejson
-            name = config.get("sqlalchemy_scheme")
-            if name:
-                return name.split("+")[0] if "+" in name else name
-            return config.get("scheme", conn.conn_type)
+            sqlalchemy_scheme = config.get("sqlalchemy_scheme")
+            self.log.debug("sqlalchemy_scheme: %s", self.dialect_name)
+            if sqlalchemy_scheme:
+                return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
+            dialect = config.get("dialect", conn.conn_type)
+            self.log.debug("dialect: %s", dialect)
+            return dialect
 
     @cached_property
     def dialect(self) -> Dialect:
