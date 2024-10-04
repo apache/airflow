@@ -234,6 +234,15 @@ class TestBaseAuthManager:
     ):
         assert auth_manager.security_manager == mock_airflow_security_manager()
 
+    @patch.object(EmptyAuthManager, "filter_accessible_dag_ids")
+    def test_get_accessible_dag_ids(self, mock_filter_accessible_dag_ids, auth_manager):
+        user = Mock()
+        session = Mock()
+        dags = set()
+        session.execute.return_value = dags
+        auth_manager.get_accessible_dag_ids(method="GET", user=user, session=session)
+        mock_filter_accessible_dag_ids.assert_called_once_with(method="GET", user=user, dag_ids=dags)
+
     @pytest.mark.parametrize(
         "access_all, access_per_dag, dag_ids, expected",
         [
@@ -241,27 +250,27 @@ class TestBaseAuthManager:
             (
                 True,
                 {},
-                ["dag1", "dag2"],
+                {"dag1", "dag2"},
                 {"dag1", "dag2"},
             ),
             # No access to any dag
             (
                 False,
                 {},
-                ["dag1", "dag2"],
+                {"dag1", "dag2"},
                 set(),
             ),
             # Access to specific dags
             (
                 False,
                 {"dag1": True},
-                ["dag1", "dag2"],
+                {"dag1", "dag2"},
                 {"dag1"},
             ),
         ],
     )
-    def test_get_permitted_dag_ids(
-        self, auth_manager, access_all: bool, access_per_dag: dict, dag_ids: list, expected: set
+    def test_filter_accessible_dag_ids(
+        self, auth_manager, access_all: bool, access_per_dag: dict, dag_ids: set, expected: set
     ):
         def side_effect_func(
             *,
@@ -270,21 +279,11 @@ class TestBaseAuthManager:
             details: DagDetails | None = None,
             user: BaseUser | None = None,
         ):
-            if not details:
-                return access_all
-            else:
-                return access_per_dag.get(details.id, False)
+            return access_all or (details and access_per_dag.get(details.id, False))
 
         auth_manager.is_authorized_dag = MagicMock(side_effect=side_effect_func)
         user = Mock()
-        session = Mock()
-        dags = []
-        for dag_id in dag_ids:
-            mock = Mock()
-            mock.dag_id = dag_id
-            dags.append(mock)
-        session.execute.return_value = dags
-        result = auth_manager.get_permitted_dag_ids(user=user, session=session)
+        result = auth_manager.filter_accessible_dag_ids(method="GET", user=user, dag_ids=dag_ids)
         assert result == expected
 
     @patch.object(EmptyAuthManager, "security_manager")

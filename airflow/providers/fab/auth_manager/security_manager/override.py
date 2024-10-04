@@ -24,7 +24,7 @@ import os
 import random
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Sequence
 
 import jwt
 import packaging.version
@@ -69,11 +69,11 @@ from itsdangerous import want_bytes
 from markupsafe import Markup
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
@@ -108,13 +108,11 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.security import permissions
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.security.permissions import RESOURCE_ASSET
 else:
     try:
@@ -968,79 +966,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
-    def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs readable by authenticated user."""
-        warnings.warn(
-            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs editable by authenticated user."""
-        warnings.warn(
-            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
-    @provide_session
-    def get_accessible_dags(
-        self,
-        user_actions: Container[str] | None,
-        user,
-        session: Session = NEW_SESSION,
-    ) -> Iterable[DagModel]:
-        warnings.warn(
-            "`get_accessible_dags` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-
-        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
-        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-
-    @provide_session
-    def get_accessible_dag_ids(
-        self,
-        user,
-        user_actions: Container[str] | None = None,
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        warnings.warn(
-            "`get_accessible_dag_ids` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-        if not user_actions:
-            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-        method_from_fab_action_map = get_method_from_fab_action_map()
-        user_methods: Container[ResourceMethod] = [
-            method_from_fab_action_map[action]
-            for action in method_from_fab_action_map
-            if action in user_actions
-        ]
-        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
-
     @staticmethod
-    def get_readable_dag_ids(user=None) -> set[str]:
+    def get_readable_dag_ids(user=None) -> set[str] | ResourceSetAccess:
         """Get the DAG IDs readable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+        return get_auth_manager().get_accessible_dag_ids(method="GET", user=user)
 
     @staticmethod
-    def get_editable_dag_ids(user=None) -> set[str]:
+    def get_editable_dag_ids(user=None) -> set[str] | ResourceSetAccess:
         """Get the DAG IDs editable by authenticated user."""
-        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+        return get_auth_manager().get_accessible_dag_ids(method="PUT", user=user)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Check if user has read or write access to some dags."""
@@ -1050,8 +984,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
-            return any(self.get_readable_dag_ids(user))
-        return any(self.get_editable_dag_ids(user))
+            readable_dags = self.get_readable_dag_ids(user)
+            return readable_dags == ResourceSetAccess.ALL or any(readable_dags)
+        editable_dags = self.get_editable_dag_ids(user)
+        return editable_dags == ResourceSetAccess.ALL or any(editable_dags)
 
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Return all permissions as a set of tuples with the action and resource names."""

@@ -26,11 +26,12 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
 )
-from airflow.api_connexion.security import get_readable_dags
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagwarning import DagWarning as DagWarningModel
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -61,8 +62,9 @@ def get_dag_warnings(
     if dag_id:
         query = query.where(DagWarningModel.dag_id == dag_id)
     else:
-        readable_dags = get_readable_dags()
-        query = query.where(DagWarningModel.dag_id.in_(readable_dags))
+        readable_dags = get_auth_manager().get_accessible_dag_ids(method="GET")
+        if readable_dags != ResourceSetAccess.ALL:
+            query = query.where(DagWarningModel.dag_id.in_(readable_dags))
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
     total_entries = get_query_count(query, session=session)

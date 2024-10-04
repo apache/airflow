@@ -141,7 +141,7 @@ The following methods aren't required to override to have a functional Airflow a
 * ``batch_is_authorized_connection``: Batch version of ``is_authorized_connection``. If not overridden, it will call ``is_authorized_connection`` for every single item.
 * ``batch_is_authorized_pool``: Batch version of ``is_authorized_pool``. If not overridden, it will call ``is_authorized_pool`` for every single item.
 * ``batch_is_authorized_variable``: Batch version of ``is_authorized_variable``. If not overridden, it will call ``is_authorized_variable`` for every single item.
-* ``get_permitted_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
+* ``get_accessible_dag_ids``: Return the list of DAG IDs the user has access to.  If not overridden, it will call ``is_authorized_dag`` for every single DAG available in the environment.
 * ``filter_permitted_menu_items``: Return the menu items the user has access to.  If not overridden, it will call ``has_access`` in :class:`~airflow.www.security_manager.AirflowSecurityManagerV2` for every single menu item.
 
 CLI

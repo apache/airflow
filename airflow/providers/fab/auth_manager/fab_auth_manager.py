@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Container
+from typing import TYPE_CHECKING
 
 import packaging.version
 from connexion import FlaskApi
@@ -30,7 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod, ResourceSetAccess
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConfigurationDetails,
@@ -300,27 +300,24 @@ class FabAuthManager(BaseAuthManager):
         return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
-    def get_permitted_dag_ids(
+    def get_accessible_dag_ids(
         self,
         *,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod,
         user=None,
         session: Session = NEW_SESSION,
-    ) -> set[str]:
-        if not methods:
-            methods = ["PUT", "GET"]
-
+    ) -> set[str] | ResourceSetAccess:
         if not user:
             user = self.get_user()
 
         if not self.is_logged_in():
             roles = user.roles
         else:
-            if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-                "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-            ):
+            is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user)
+            if is_global_authorized:
                 # If user is authorized to read/edit all DAGs, return all DAGs
-                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                return ResourceSetAccess.ALL
+
             user_query = session.scalar(
                 select(User)
                 .options(
@@ -339,7 +336,7 @@ class FabAuthManager(BaseAuthManager):
                 action = permission.action.name
                 if (
                     action in map_fab_action_name_to_method_name
-                    and map_fab_action_name_to_method_name[action] in methods
+                    and map_fab_action_name_to_method_name[action] == method
                 ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
@@ -441,7 +438,8 @@ class FabAuthManager(BaseAuthManager):
             resource_dag_name = self._resource_name(details.id, RESOURCE_DAG)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
-        return False
+        accessible_dag_ids = self.get_accessible_dag_ids(method=method)
+        return accessible_dag_ids == ResourceSetAccess.ALL or any(accessible_dag_ids)
 
     def _is_authorized_dag_run(
         self,

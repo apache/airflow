@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.error_schema import (
     import_error_collection_schema,
     import_error_schema,
 )
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
@@ -53,9 +54,8 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
         )
     session.expunge(error)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
-    if not can_read_all_dags:
-        readable_dag_ids = security.get_readable_dags()
+    readable_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET")
+    if readable_dag_ids != ResourceSetAccess.ALL:
         file_dag_ids = {
             dag_id[0]
             for dag_id in session.query(DagModel.dag_id).filter(DagModel.fileloc == error.filename).all()
@@ -89,11 +89,9 @@ def get_import_errors(
     query = select(ParseImportError)
     query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
 
-    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
-
-    if not can_read_all_dags:
+    readable_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET")
+    if readable_dag_ids != ResourceSetAccess.ALL:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
-        readable_dag_ids = security.get_readable_dags()
         dagfiles_stmt = select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids))
         query = query.where(ParseImportError.filename.in_(dagfiles_stmt))
         count_query = count_query.where(ParseImportError.filename.in_(dagfiles_stmt))
@@ -101,7 +99,7 @@ def get_import_errors(
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()
 
-    if not can_read_all_dags:
+    if readable_dag_ids != ResourceSetAccess.ALL:
         for import_error in import_errors:
             # Check if user has read access to all the DAGs defined in the file
             file_dag_ids = (

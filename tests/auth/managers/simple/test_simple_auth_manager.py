@@ -22,6 +22,7 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask, session
 
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
@@ -278,6 +279,10 @@ class TestSimpleAuthManager:
         with app.test_request_context():
             session["user"] = SimpleAuthManagerUser(username="test", role=role)
             assert getattr(auth_manager_with_appbuilder, api)(method=method) is result
+
+    @pytest.mark.db_test
+    def test_get_accessible_dag_ids(self, auth_manager):
+        assert auth_manager.get_accessible_dag_ids(method="GET") == ResourceSetAccess.ALL
 
     @pytest.mark.db_test
     @patch(

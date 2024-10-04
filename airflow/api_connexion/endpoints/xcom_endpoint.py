@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.xcom_schema import (
     xcom_schema_native,
     xcom_schema_string,
 )
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
@@ -61,8 +62,9 @@ def get_xcom_entries(
     """Get all XCom values."""
     query = select(XCom)
     if dag_id == "~":
-        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
-        query = query.where(XCom.dag_id.in_(readable_dag_ids))
+        readable_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
+        if readable_dag_ids != ResourceSetAccess.ALL:
+            query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:
         query = query.where(XCom.dag_id == dag_id)

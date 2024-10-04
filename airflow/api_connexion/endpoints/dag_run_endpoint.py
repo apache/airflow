@@ -58,6 +58,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
@@ -225,9 +226,9 @@ def get_dag_runs(
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
-        query = query.where(
-            DagRun.dag_id.in_(get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user))
-        )
+        accessible_dags = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
+        if accessible_dags != ResourceSetAccess.ALL:
+            query = query.where(DagRun.dag_id.in_(accessible_dags))
     else:
         query = query.where(DagRun.dag_id == dag_id)
 
@@ -268,12 +269,12 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    readable_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
     query = select(DagRun)
-    if data.get("dag_ids"):
+    if data.get("dag_ids") and readable_dag_ids != ResourceSetAccess.ALL:
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
         query = query.where(DagRun.dag_id.in_(dag_ids))
-    else:
+    elif readable_dag_ids != ResourceSetAccess.ALL:
         query = query.where(DagRun.dag_id.in_(readable_dag_ids))
 
     states = data.get("states")

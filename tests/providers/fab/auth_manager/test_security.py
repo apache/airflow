@@ -368,7 +368,7 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(
         with _create_dag_model_context("test_dag_id", session, security_manager):
             security_manager.sync_roles()
 
-            assert get_auth_manager().get_permitted_dag_ids(user=user) == set()
+            assert get_auth_manager().get_accessible_dag_ids(user=user) == set()
 
 
 def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, security_manager, has_dag_perm):
@@ -406,7 +406,7 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
 
         security_manager.sync_roles()
 
-        assert get_auth_manager().get_permitted_dag_ids(user=user) == set(test_dag_ids)
+        assert get_auth_manager().get_accessible_dag_ids(user=user) == set(test_dag_ids)
 
 
 def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
@@ -534,7 +534,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert get_auth_manager().get_permitted_dag_ids(user=user) == {"dag_id"}
+            assert get_auth_manager().get_accessible_dag_ids(user=user) == {"dag_id"}
 
 
 @patch.object(FabAuthManager, "is_logged_in")
@@ -542,7 +542,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     mock_is_logged_in, app, security_manager, session
 ):
     # In this test case,
-    # get_permitted_dag_ids() don't return DAGs to which the user has CAN_EDIT action
+    # get_accessible_dag_ids() don't return DAGs to which the user has CAN_EDIT action
     username = "Monsieur User"
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
@@ -568,7 +568,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user) == set()
+            assert get_auth_manager().get_accessible_dag_ids(methods=["GET"], user=user) == set()
 
 
 def test_has_access(security_manager):

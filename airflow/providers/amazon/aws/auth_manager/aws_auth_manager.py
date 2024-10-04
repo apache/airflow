@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence, cast
+from typing import TYPE_CHECKING, Sequence, cast
 
 from flask import session, url_for
 
@@ -298,38 +298,33 @@ class AwsAuthManager(BaseAuthManager):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
 
-    def filter_permitted_dag_ids(
+    def filter_accessible_dag_ids(
         self,
         *,
         dag_ids: set[str],
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod,
         user=None,
     ):
         """
         Filter readable or writable DAGs for user.
 
         :param dag_ids: the list of DAG ids
-        :param methods: whether filter readable or writable
+        :param method: the method to perform
         :param user: the current user
         """
-        if not methods:
-            methods = ["PUT", "GET"]
-
         if not user:
             user = self.get_user()
 
-        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
+        requests: dict[str, IsAuthorizedRequest] = defaultdict()
         requests_list: list[IsAuthorizedRequest] = []
         for dag_id in dag_ids:
-            for method in ["GET", "PUT"]:
-                if method in methods:
-                    request: IsAuthorizedRequest = {
-                        "method": cast(ResourceMethod, method),
-                        "entity_type": AvpEntities.DAG,
-                        "entity_id": dag_id,
-                    }
-                    requests[dag_id][cast(ResourceMethod, method)] = request
-                    requests_list.append(request)
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.DAG,
+                "entity_id": dag_id,
+            }
+            requests[dag_id] = request
+            requests_list.append(request)
 
         batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
             requests=requests_list, user=user
@@ -341,16 +336,7 @@ class AwsAuthManager(BaseAuthManager):
             )
             return result["decision"] == "ALLOW"
 
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if (
-                "GET" in methods
-                and _has_access_to_dag(requests[dag_id]["GET"])
-                or "PUT" in methods
-                and _has_access_to_dag(requests[dag_id]["PUT"])
-            )
-        }
+        return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id])}
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         """
