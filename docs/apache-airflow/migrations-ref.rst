@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``0d9e73a75ee4`` (head) | ``44eabb1904b4`` | ``3.0.0``         | Add name and group fields to DatasetModel.                   |
+| ``e1ff90d3efe9`` (head) | ``0d9e73a75ee4`` | ``3.0.0``         | Add serial ID to SDM.                                        |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``0d9e73a75ee4``        | ``44eabb1904b4`` | ``3.0.0``         | Add name and group fields to DatasetModel.                   |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``44eabb1904b4``        | ``16cbcb1c8c36`` | ``3.0.0``         | Update dag_run_note.user_id and task_instance_note.user_id   |
 |                         |                  |                   | columns to String.                                           |
