@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-03T07:42:38.329123
+# This constraints file was automatically generated on 2024-10-04T19:41:20.142972
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -51,7 +51,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
-aiohttp==3.10.8
+aiohttp==3.10.9
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -138,7 +138,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.15.2
+cfn-lint==1.16.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -386,9 +386,9 @@ objsize==0.7.0
 openai==1.51.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.22.0
-openlineage-python==1.22.0
-openlineage_sql==1.22.0
+openlineage-integration-common==1.23.0
+openlineage-python==1.23.0
+openlineage_sql==1.23.0
 openpyxl==3.1.5
 opensearch-py==2.7.1
 opentelemetry-api==1.27.0
@@ -415,7 +415,7 @@ parso==0.8.4
 pathable==0.4.3
 pathspec==0.12.1
 pbr==6.1.0
-pdpyras==5.2.0
+pdpyras==5.3.0
 pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.4
@@ -502,7 +502,7 @@ pyzmq==26.2.0
 qdrant-client==1.11.3
 reactivex==4.0.4
 readme_renderer==43.0
-redis==5.1.0
+redis==5.1.1
 redshift-connector==2.1.3
 referencing==0.35.1
 regex==2024.9.11
@@ -519,7 +519,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.9.1
+rich==13.9.2
 rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
@@ -607,14 +607,14 @@ types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
-types-docutils==0.21.0.20240907
+types-docutils==0.21.0.20241004
 types-paramiko==3.5.0.20240928
 types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
-types-redis==4.6.0.20240903
+types-redis==4.6.0.20241004
 types-requests==2.31.0.6
 types-setuptools==75.1.0.20240917
 types-tabulate==0.9.0.20240106
