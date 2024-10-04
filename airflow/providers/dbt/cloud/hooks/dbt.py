@@ -26,7 +26,6 @@ from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, Sequence, Set, TypeVar, cast
 
 import aiohttp
-from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
 from requests.sessions import Session
@@ -184,7 +183,10 @@ class DbtCloudHook(HttpHook):
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {"login": "Account ID", "password": "API Token", "host": "Tenant"},
-            "placeholders": {"host": "Defaults to 'cloud.getdbt.com'.", "extra": "Optional JSON-formatted extra."},
+            "placeholders": {
+                "host": "Defaults to 'cloud.getdbt.com'.",
+                "extra": "Optional JSON-formatted extra.",
+            },
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
@@ -196,7 +198,7 @@ class DbtCloudHook(HttpHook):
         return conn.host or "cloud.getdbt.com"
 
     @staticmethod
-    def _get_proxies(conn: Connection) -> dict[str,str] | None:
+    def _get_proxies(conn: Connection) -> dict[str, str] | None:
         return conn.extra_dejson.get("proxies", None)
 
     @staticmethod
@@ -245,10 +247,10 @@ class DbtCloudHook(HttpHook):
         proxies = self._get_proxies(self.connection)
         async with aiohttp.ClientSession(headers=headers) as session:
             if proxies is not None:
-                if url.startswith('https'):
-                    proxy = proxies.get('https')
+                if url.startswith("https"):
+                    proxy = proxies.get("https")
                 else:
-                    proxy = proxies.get('http')
+                    proxy = proxies.get("http")
                 async with session.get(url, params=params, proxy=proxy) as response:
                     try:
                         response.raise_for_status()
@@ -296,7 +298,9 @@ class DbtCloudHook(HttpHook):
 
         return session
 
-    def _paginate(self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str,str] | None = None) -> list[Response]:
+    def _paginate(
+        self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
+    ) -> list[Response]:
         extra_options = {"proxies": proxies} if proxies is not None else {}
         response = self.run(endpoint=endpoint, data=payload, extra_options=extra_options)
         resp_json = response.json()
