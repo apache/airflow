@@ -1507,7 +1507,7 @@ class TestKubernetesPodOperator:
         # check that KPO waits for the base container to complete before proceeding to extract XCom
         mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
         # check that we wait for the xcom sidecar to start before extracting XCom
-        mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
+        mock_await_xcom_sidecar.assert_called_once_with(pod=pod, startup_timeout=120)
 
     @patch(HOOK_CLASS, new=MagicMock)
     @patch(KUB_OP_PATH.format("find_pod"))
