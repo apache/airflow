@@ -162,7 +162,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
 
     expected = {
         "catchup": True,
-        "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
         "dag_display_name": "test_dag",
@@ -227,7 +226,6 @@ def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serialize
 
     expected = {
         "catchup": True,
-        "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
         "dag_display_name": "test_dag",

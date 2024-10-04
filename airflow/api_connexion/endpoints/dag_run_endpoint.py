@@ -114,10 +114,8 @@ def get_dag_run(
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_asset("GET")
 @provide_session
-def get_upstream_dataset_events(
-    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
-) -> APIResponse:
-    """If dag run is dataset-triggered, return the asset events that triggered it."""
+def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
             DagRun.dag_id == dag_id,
@@ -131,7 +129,7 @@ def get_upstream_dataset_events(
         )
     events = dag_run.consumed_dataset_events
     return asset_event_collection_schema.dump(
-        AssetEventCollection(dataset_events=events, total_entries=len(events))
+        AssetEventCollection(asset_events=events, total_entries=len(events))
     )
 
 

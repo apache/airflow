@@ -234,9 +234,6 @@ ARG_SKIP_SERVE_LOGS = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_REQ_FLAG = Arg(
-    ("-d", "--dag-id"), required=True, help="The id of the dag"
-)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
@@ -1096,7 +1093,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
-            ARG_DAG_ID_REQ_FLAG,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
             ARG_OUTPUT,

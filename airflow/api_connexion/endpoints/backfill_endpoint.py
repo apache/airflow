@@ -32,8 +32,12 @@ from airflow.api_connexion.schemas.backfill_schema import (
     backfill_collection_schema,
     backfill_schema,
 )
-from airflow.models.backfill import AlreadyRunningBackfill, Backfill, _create_backfill
-from airflow.utils import timezone
+from airflow.models.backfill import (
+    AlreadyRunningBackfill,
+    Backfill,
+    _cancel_backfill,
+    _create_backfill,
+)
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
@@ -106,24 +110,6 @@ def unpause_backfill(*, backfill_id, session, **kwargs):
 
 @provide_session
 @backfill_to_dag
-@security.requires_access_dag("PUT")
-@action_logging
-def cancel_backfill(*, backfill_id, session, **kwargs):
-    br: Backfill = session.get(Backfill, backfill_id)
-    if br.completed_at is not None:
-        raise Conflict("Backfill is already completed.")
-
-    br.completed_at = timezone.utcnow()
-
-    # first, pause
-    if not br.is_paused:
-        br.is_paused = True
-    session.commit()
-    return backfill_schema.dump(br)
-
-
-@provide_session
-@backfill_to_dag
 @security.requires_access_dag("GET")
 @action_logging
 def get_backfill(*, backfill_id: int, session: Session = NEW_SESSION, **kwargs):
@@ -155,3 +141,17 @@ def create_backfill(
         return backfill_schema.dump(backfill_obj)
     except AlreadyRunningBackfill:
         raise Conflict(f"There is already a running backfill for dag {dag_id}")
+
+
+@provide_session
+@backfill_to_dag
+@security.requires_access_dag("PUT")
+@action_logging
+def cancel_backfill(
+    *,
+    backfill_id,
+    session: Session = NEW_SESSION,  # used by backfill_to_dag decorator
+    **kwargs,
+):
+    br = _cancel_backfill(backfill_id=backfill_id)
+    return backfill_schema.dump(br)

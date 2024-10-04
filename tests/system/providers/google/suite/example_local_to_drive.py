@@ -39,7 +39,7 @@ from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "local_to_drive"
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 FILE_NAME_1 = "test1"
 FILE_NAME_2 = "test2"
