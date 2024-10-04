@@ -263,6 +263,7 @@ class TestDruidHook:
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
         get_conn_value.conn_type = "http"
+        get_conn_value.schema = None
         get_conn_value.port = "1"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
         mock_get_connection.return_value = get_conn_value
@@ -274,6 +275,7 @@ class TestDruidHook:
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
         get_conn_value.conn_type = "http"
+        get_conn_value.schema = None
         get_conn_value.port = "1"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
         mock_get_connection.return_value = get_conn_value
@@ -285,6 +287,7 @@ class TestDruidHook:
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
         get_conn_value.conn_type = "http"
+        get_conn_value.schema = None
         get_conn_value.port = "1"
         get_conn_value.schema = "https"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
@@ -297,6 +300,7 @@ class TestDruidHook:
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
         get_conn_value.conn_type = "http"
+        get_conn_value.schema = None
         get_conn_value.port = "1"
         get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
         mock_get_connection.return_value = get_conn_value
@@ -372,6 +376,7 @@ class TestDruidDbApiHook:
         self.conn = conn = MagicMock()
         self.conn.host = "host"
         self.conn.port = "1000"
+        self.conn.schema = None
         self.conn.conn_type = "druid"
         self.conn.extra_dejson = {"endpoint": "druid/v2/sql"}
         self.conn.cursor.return_value = self.cur
