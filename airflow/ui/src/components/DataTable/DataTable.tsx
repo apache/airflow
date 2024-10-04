@@ -22,7 +22,6 @@ import {
   getExpandedRowModel,
   getPaginationRowModel,
   useReactTable,
-  type ColumnDef,
   type OnChangeFn,
   type TableState as ReactTableState,
   type Row,
@@ -34,11 +33,12 @@ import React, { type ReactNode, useCallback, useRef } from "react";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
 import { TablePaginator } from "./TablePaginator";
-import type { CardDef, TableState } from "./types";
+import { createSkeletonMock } from "./skeleton";
+import type { CardDef, MetaColumn, TableState } from "./types";
 
 type DataTableProps<TData> = {
   readonly cardDef?: CardDef<TData>;
-  readonly columns: Array<ColumnDef<TData>>;
+  readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
   readonly getRowCanExpand?: (row: Row<TData>) => boolean;
@@ -51,6 +51,7 @@ type DataTableProps<TData> = {
   readonly renderSubComponent?: (props: {
     row: Row<TData>;
   }) => React.ReactElement;
+  readonly skeletonCount?: number;
   readonly total?: number;
 };
 
@@ -68,6 +69,7 @@ export const DataTable = <TData,>({
   modelName,
   noRowsMessage,
   onStateChange,
+  skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
@@ -91,6 +93,10 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
+  const extra = Boolean(isLoading)
+    ? createSkeletonMock(displayMode, skeletonCount, columns)
+    : {};
+
   const table = useReactTable({
     columns,
     data,
@@ -103,6 +109,7 @@ export const DataTable = <TData,>({
     onStateChange: handleStateChange,
     rowCount: total,
     state: initialState,
+    ...extra,
   });
 
   ref.current.tableRef = table;

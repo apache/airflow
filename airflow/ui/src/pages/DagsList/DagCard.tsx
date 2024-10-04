@@ -16,7 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, SimpleGrid, Text, VStack } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Flex,
+  HStack,
+  SimpleGrid,
+  Text,
+  Tooltip,
+  useColorModeValue,
+  VStack,
+} from "@chakra-ui/react";
 import { FiCalendar, FiTag } from "react-icons/fi";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
@@ -26,55 +36,84 @@ type Props = {
   readonly dag: DAGResponse;
 };
 
-export const DagCard = ({ dag }: Props) => (
-  <Box
-    borderColor="gray.100"
-    borderRadius={8}
-    borderWidth={1}
-    overflow="hidden"
-  >
-    <Flex
-      alignItems="center"
-      bg="blue.50"
-      justifyContent="space-between"
-      px={3}
-      py={2}
+const MAX_TAGS = 3;
+
+export const DagCard = ({ dag }: Props) => {
+  const cardHeadBg = useColorModeValue("blue.50", "gray.900");
+  const cardBorder = useColorModeValue("gray.100", "gray.700");
+  const dagIdColor = useColorModeValue("blue.600", "blue.400");
+  const tooltipBg = useColorModeValue("blue.100", "gray.700");
+
+  return (
+    <Box
+      borderColor={cardBorder}
+      borderRadius={8}
+      borderWidth={1}
+      overflow="hidden"
     >
-      <HStack>
-        <Text color="blue.600" fontWeight="bold">
-          {dag.dag_display_name}
-        </Text>
-        {dag.tags.length ? (
-          <HStack spacing={1}>
-            <FiTag />
-            {dag.tags.map((tag, index) => (
-              <Text fontSize="sm" key={tag.name}>
-                {tag.name}
-                {index === dag.tags.length - 1 ? undefined : ","}
-              </Text>
-            ))}
-          </HStack>
-        ) : undefined}
-      </HStack>
-      <HStack>
-        <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
-      </HStack>
-    </Flex>
-    <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
-      <Box />
-      {Boolean(dag.next_dagrun) ? (
+      <Flex
+        alignItems="center"
+        bg={cardHeadBg}
+        justifyContent="space-between"
+        px={3}
+        py={2}
+      >
+        <HStack>
+          <Tooltip hasArrow label={dag.description}>
+            <Text color={dagIdColor} fontWeight="bold">
+              {dag.dag_display_name}
+            </Text>
+          </Tooltip>
+          {dag.tags.length ? (
+            <HStack spacing={1}>
+              <FiTag data-testid="dag-tag" />
+              {dag.tags.slice(0, MAX_TAGS).map((tag) => (
+                <Badge key={tag.name}>{tag.name}</Badge>
+              ))}
+              {dag.tags.length > MAX_TAGS && (
+                <Tooltip
+                  bg={tooltipBg}
+                  hasArrow
+                  label={
+                    <VStack p={1} spacing={1}>
+                      {dag.tags.slice(MAX_TAGS).map((tag) => (
+                        <Badge key={tag.name}>{tag.name}</Badge>
+                      ))}
+                    </VStack>
+                  }
+                >
+                  <Badge>+{dag.tags.length - MAX_TAGS} more</Badge>
+                </Tooltip>
+              )}
+            </HStack>
+          ) : undefined}
+        </HStack>
+        <HStack>
+          <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+        </HStack>
+      </Flex>
+      <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
+        <Box />
         <VStack align="flex-start" spacing={1}>
           <Text color="gray.500" fontSize="sm">
             Next Run
           </Text>
-          <Text fontSize="sm">
-            {dag.next_dagrun} <FiCalendar style={{ display: "inline" }} />{" "}
-            {dag.timetable_description}
-          </Text>
+          {Boolean(dag.next_dagrun) ? (
+            <Text fontSize="sm">{dag.next_dagrun}</Text>
+          ) : undefined}
+          {Boolean(dag.timetable_summary) ? (
+            <Tooltip hasArrow label={dag.timetable_description}>
+              <Text fontSize="sm">
+                {" "}
+                <FiCalendar style={{ display: "inline" }} />{" "}
+                {dag.timetable_summary}
+              </Text>
+            </Tooltip>
+          ) : undefined}
         </VStack>
-      ) : undefined}
-      <Box />
-      <Box />
-    </SimpleGrid>
-  </Box>
-);
+        <Box />
+        <Box />
+      </SimpleGrid>
+    </Box>
+  );
+};

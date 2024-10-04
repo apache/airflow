@@ -22,7 +22,6 @@ import {
   HStack,
   Select,
   Skeleton,
-  Spinner,
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -53,6 +52,9 @@ const columns: Array<ColumnDef<DAGResponse>> = [
     ),
     enableSorting: false,
     header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
   },
   {
     accessorKey: "dag_id",
@@ -131,50 +133,47 @@ export const DagsList = () => {
 
   return (
     <>
-      {isLoading ? <Spinner /> : undefined}
-      {!isLoading && Boolean(data?.dags) && (
-        <>
-          <VStack alignItems="none">
-            <SearchBar
-              buttonProps={{ isDisabled: true }}
-              inputProps={{ isDisabled: true }}
-            />
-            <DagsFilters />
-            <HStack justifyContent="space-between">
-              <Heading py={3} size="md">
-                {pluralize("DAG", data?.total_entries)}
-              </Heading>
-              {display === "card" ? (
-                <Select
-                  onChange={handleSortChange}
-                  placeholder="Sort by…"
-                  value={orderBy}
-                  variant="flushed"
-                  width="200px"
-                >
-                  <option value="dag_id">Sort by DAG ID (A-Z)</option>
-                  <option value="-dag_id">Sort by DAG ID (Z-A)</option>
-                </Select>
-              ) : (
-                false
-              )}
-            </HStack>
-          </VStack>
-          <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-          <DataTable
-            cardDef={cardDef}
-            columns={columns}
-            data={data?.dags ?? []}
-            displayMode={display}
-            initialState={tableURLState}
-            isFetching={isFetching}
-            isLoading={isLoading}
-            modelName="DAG"
-            onStateChange={setTableURLState}
-            total={data?.total_entries}
-          />
-        </>
-      )}
+      <VStack alignItems="none">
+        <SearchBar
+          buttonProps={{ isDisabled: true }}
+          inputProps={{ isDisabled: true }}
+        />
+        <DagsFilters />
+        <HStack justifyContent="space-between">
+          <Heading py={3} size="md">
+            {pluralize("DAG", data?.total_entries)}
+          </Heading>
+          {display === "card" ? (
+            <Select
+              data-testid="sort-by-select"
+              onChange={handleSortChange}
+              placeholder="Sort by…"
+              value={orderBy}
+              variant="flushed"
+              width="200px"
+            >
+              <option value="dag_id">Sort by DAG ID (A-Z)</option>
+              <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+            </Select>
+          ) : (
+            false
+          )}
+        </HStack>
+      </VStack>
+      <ToggleTableDisplay display={display} setDisplay={setDisplay} />
+      <DataTable
+        cardDef={cardDef}
+        columns={columns}
+        data={data?.dags ?? []}
+        displayMode={display}
+        initialState={tableURLState}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        modelName="DAG"
+        onStateChange={setTableURLState}
+        skeletonCount={display === "card" ? 5 : undefined}
+        total={data?.total_entries}
+      />
     </>
   );
 };
