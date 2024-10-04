@@ -37,7 +37,7 @@ from typing import (
 
 from databricks import sql  # type: ignore[attr-defined]
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskExecutionError, AirflowTaskExecutionTimeout
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
@@ -272,9 +272,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     except Exception as e:
                         if t is None or t.is_alive():
-                            raise AirflowException(f"Error running statement: {sql_statement}. {str(e)}")
+                            raise AirflowTaskExecutionError(
+                                f"Error running statement: {sql_statement}. {str(e)}"
+                            )
                         else:
-                            raise AirflowException(
+                            raise AirflowTaskExecutionTimeout(
                                 f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
                             )
                     finally:
