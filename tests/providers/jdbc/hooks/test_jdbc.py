@@ -44,7 +44,8 @@ def get_hook(
     password: str | None = "password",
     host: str | None = "host",
     schema: str | None = "schema",
-    port: int | None = 1234):
+    port: int | None = 1234,
+):
     hook_params = hook_params or {}
     conn_params = conn_params or {}
     connection = Connection(
