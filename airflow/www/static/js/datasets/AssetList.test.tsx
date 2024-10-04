@@ -22,12 +22,12 @@
 import React from "react";
 import { render } from "@testing-library/react";
 
-import * as useDatasetsModule from "src/api/useDatasetsSummary";
+import * as useAssetsModule from "src/api/useAssetsSummary";
 import { Wrapper } from "src/utils/testUtils";
 
 import type { UseQueryResult } from "react-query";
 import type { DatasetListItem } from "src/types";
-import DatasetsList from "./DatasetsList";
+import AssetsList from "./AssetsList";
 
 const datasets = [
   {
@@ -59,8 +59,8 @@ const datasets = [
   },
 ];
 
-type UseDatasetsReturn = UseQueryResult<useDatasetsModule.DatasetsData> & {
-  data: useDatasetsModule.DatasetsData;
+type UseAssetsReturn = UseQueryResult<useAssetsModule.DatasetsData> & {
+  data: useAssetsModule.DatasetsData;
 };
 
 const returnValue = {
@@ -69,7 +69,7 @@ const returnValue = {
     totalEntries: datasets.length,
   },
   isSuccess: true,
-} as UseDatasetsReturn;
+} as UseAssetsReturn;
 
 const emptyReturnValue = {
   data: {
@@ -78,16 +78,16 @@ const emptyReturnValue = {
   },
   isSuccess: true,
   isLoading: false,
-} as UseDatasetsReturn;
+} as UseAssetsReturn;
 
 describe("Test Datasets List", () => {
   test("Displays a list of datasets", () => {
     jest
-      .spyOn(useDatasetsModule, "default")
+      .spyOn(useAssetsModule, "default")
       .mockImplementation(() => returnValue);
 
     const { getByText, queryAllByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <AssetsList onSelect={() => {}} />,
       { wrapper: Wrapper }
     );
 
@@ -107,11 +107,11 @@ describe("Test Datasets List", () => {
 
   test("Empty state displays when there are no datasets", () => {
     jest
-      .spyOn(useDatasetsModule, "default")
+      .spyOn(useAssetsModule, "default")
       .mockImplementation(() => emptyReturnValue);
 
     const { getByText, queryAllByTestId, getByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <AssetsList onSelect={() => {}} />,
       { wrapper: Wrapper }
     );
 

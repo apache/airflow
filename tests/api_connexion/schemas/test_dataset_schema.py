@@ -106,13 +106,13 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
         session.add_all(assets)
         session.add_all(asset_aliases)
         session.flush()
-        serialized_data = asset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=2))
-        serialized_data["datasets"][0]["id"] = 1
-        serialized_data["datasets"][1]["id"] = 2
-        serialized_data["datasets"][0]["aliases"][0]["id"] = 1
-        serialized_data["datasets"][0]["aliases"][1]["id"] = 2
+        serialized_data = asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=2))
+        serialized_data["assets"][0]["id"] = 1
+        serialized_data["assets"][1]["id"] = 2
+        serialized_data["assets"][0]["aliases"][0]["id"] = 1
+        serialized_data["assets"][0]["aliases"][1]["id"] = 2
         assert serialized_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
@@ -219,10 +219,10 @@ class TestAssetEventCollectionSchema(TestAssetSchemaBase):
         session.add_all(events)
         session.flush()
         serialized_data = asset_event_collection_schema.dump(
-            AssetEventCollection(dataset_events=events, total_entries=2)
+            AssetEventCollection(asset_events=events, total_entries=2)
         )
         assert serialized_data == {
-            "dataset_events": [
+            "asset_events": [
                 {"id": 1, "timestamp": self.timestamp, **common},
                 {"id": 2, "timestamp": self.timestamp, **common},
             ],
