@@ -227,7 +227,7 @@ export class DagRunService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId
-   * @returns unknown Successful Response
+   * @returns DAGRunResponse Successful Response
    * @throws ApiError
    */
   public static getDagRun(

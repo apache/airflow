@@ -107,6 +107,27 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunResponse = {
+  dag_run_id: string | null;
+  dag_id: string;
+  logical_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  last_scheduling_decision: string | null;
+  run_type: string;
+  state: string;
+  external_trigger: boolean;
+  conf: {
+    [key: string]: unknown;
+  };
+  notes: string | null;
+};
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -207,7 +228,7 @@ export type GetDagRunData = {
   dagRunId: string;
 };
 
-export type GetDagRunResponse = unknown;
+export type GetDagRunResponse = DAGRunResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -367,7 +388,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: DAGRunResponse;
         /**
          * Unauthorized
          */

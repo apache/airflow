@@ -123,7 +123,7 @@ export const prefetchUseDagServiceGetDagDetails = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
- * @returns unknown Successful Response
+ * @returns DAGRunResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseDagRunServiceGetDagRun = (
