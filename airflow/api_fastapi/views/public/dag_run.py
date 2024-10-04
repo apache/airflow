@@ -17,14 +17,28 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_run import dag_run_router
-from airflow.api_fastapi.views.public.dags import dags_router
+from fastapi import Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+from typing_extensions import Annotated
+
+from airflow.api_fastapi.db.common import get_session
+from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.views.router import AirflowRouter
+from airflow.models import DagRun
 
-public_router = AirflowRouter(prefix="/public")
+dag_run_router = AirflowRouter(tags=["DagRun"])
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(dag_run_router)
+@dag_run_router.get(
+    "/dags/{dag_id}/dagRuns/{dag_run_id}", responses=create_openapi_http_exception_doc([401, 403, 404])
+)
+async def get_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+
+    if dag_run is None:
+        raise HTTPException(
+            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+        )
+
+    return dag_run
