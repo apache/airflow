@@ -1,7 +1,11 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -133,5 +137,34 @@ export const useDagServiceGetDagDetailsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
     queryFn: () => DagService.getDagDetails({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnectionSuspense = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
+      { connectionId },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
     ...options,
   });
