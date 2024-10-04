@@ -271,7 +271,7 @@ class DbApiHook(BaseHook):
                 raise AirflowOptionalProviderFeatureException(
                     f"{dialect_info.dialect_class_name} not found, run: pip install "
                     f"'{dialect_info.provider_name}'."
-                    )
+                )
         raise AirflowException(f"Dialect '{self.dialect_name}' not found")
 
     def get_pandas_df(
