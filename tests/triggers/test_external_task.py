@@ -206,7 +206,7 @@ class TestWorkflowTrigger:
         assert classpath == "airflow.triggers.external_task.WorkflowTrigger"
         assert kwargs == {
             "external_dag_id": self.DAG_ID,
-            "execution_dates": [timezone.datetime(2022, 1, 1)],
+            "logical_dates": [timezone.datetime(2022, 1, 1)],
             "external_task_ids": [self.TASK_ID],
             "external_task_group_id": None,
             "failed_states": None,
@@ -275,7 +275,7 @@ class TestDagStateTrigger:
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            "execution_dates": [timezone.datetime(2022, 1, 1)],
+            "logical_dates": [timezone.datetime(2022, 1, 1)],
             "poll_interval": 5,
         }
 

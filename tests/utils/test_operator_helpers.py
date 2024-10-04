@@ -56,7 +56,7 @@ class TestOperatorHelpers:
     def test_context_to_airflow_vars_all_context(self):
         assert operator_helpers.context_to_airflow_vars(self.context) == {
             "airflow.ctx.dag_id": self.dag_id,
-            "airflow.ctx.logical_date": self.logical_date,
+            "airflow.ctx.execution_date": self.logical_date,
             "airflow.ctx.task_id": self.task_id,
             "airflow.ctx.dag_run_id": self.dag_run_id,
             "airflow.ctx.try_number": str(self.try_number),

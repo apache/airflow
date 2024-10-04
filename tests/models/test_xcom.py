@@ -220,7 +220,7 @@ class TestXCom:
     @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance):
         """
-        When XCom.serialize_value includes params execution_date, key, dag_id, task_id and run_id,
+        When XCom.serialize_value includes params logical_date, key, dag_id, task_id and run_id,
         then XCom.set should pass all of them.
         """
         serialize_watcher = MagicMock()
