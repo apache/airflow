@@ -34,14 +34,14 @@ def cleanup():
     initial_db_init()
 
 
-def test_next_run_datasets(test_client, dag_maker):
+def test_next_run_assets(test_client, dag_maker):
     with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()
     dag_maker.dagbag.sync_to_db()
 
-    response = test_client.get("/ui/next_run_datasets/upstream")
+    response = test_client.get("/ui/next_run_assets/upstream")
 
     assert response.status_code == 200
     assert response.json() == {
