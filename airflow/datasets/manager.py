@@ -226,14 +226,14 @@ class DatasetManager(LoggingMixin):
                 return None
             return req.fileloc
 
-        (_send_dag_priority_parsing_request_if_needed(fileloc) for fileloc in file_locs)
+        [_send_dag_priority_parsing_request_if_needed(fileloc) for fileloc in file_locs]
 
     @classmethod
     def _postgres_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         stmt = insert(DagPriorityParsingRequest).on_conflict_do_nothing()
-        session.execute(stmt, {"fileloc": fileloc for fileloc in file_locs})
+        session.execute(stmt, [{"fileloc": fileloc} for fileloc in file_locs])
 
 
 def resolve_dataset_manager() -> DatasetManager:
