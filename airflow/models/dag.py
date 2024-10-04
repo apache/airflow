@@ -585,7 +585,7 @@ class DAG(LoggingMixin):
 
         if full_filepath:
             warnings.warn(
-                f"Passing full_filepath to DAG() is deprecated and has no effect in {self.dag_id=}.",
+                f"Passing full_filepath to DAG() is deprecated and has no effect in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -599,7 +599,7 @@ class DAG(LoggingMixin):
             # TODO: Remove in Airflow 3.0
             warnings.warn(
                 "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks' "
-                f"in {self.dag_id=}.",
+                f"in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -655,14 +655,14 @@ class DAG(LoggingMixin):
         if schedule_interval is not NOTSET:
             warnings.warn(
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
-                f"Please use `schedule` instead in {self.dag_id=}.",
+                f"Please use `schedule` instead in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
-                f"Please use `schedule` instead in {self.dag_id=}.",
+                f"Please use `schedule` instead in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -690,7 +690,7 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Creating a DAG with an implicit schedule is deprecated, and will stop working "
                 "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly "
-                f"in {self.dag_id=}.",
+                f"in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -730,7 +730,7 @@ class DAG(LoggingMixin):
         elif default_view == "tree":
             warnings.warn(
                 "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG "
-                f"in {self.dag_id=}.",
+                f"in {self.dag_id}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
