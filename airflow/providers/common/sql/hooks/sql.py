@@ -245,7 +245,7 @@ class DbApiHook(BaseHook):
         return Inspector.from_engine(self.get_sqlalchemy_engine())
 
     @cached_property
-    def dialect_name(self) -> str | None:
+    def dialect_name(self) -> str:
         try:
             return make_url(self.get_uri()).get_dialect().name
         except ArgumentError:
@@ -253,29 +253,26 @@ class DbApiHook(BaseHook):
             sqlalchemy_scheme = config.get("sqlalchemy_scheme")
             if sqlalchemy_scheme:
                 return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
-            return config.get("dialect")
+            return config.get("dialect", "default")
 
     @cached_property
     def dialect(self) -> Dialect:
-        with suppress(Exception):
-            self.log.debug("dialect_name: %s", self.dialect_name)
-            if self.dialect_name:
-                from airflow.providers_manager import ProvidersManager
-                from airflow.utils.module_loading import import_string
+        from airflow.providers_manager import ProvidersManager
+        from airflow.utils.module_loading import import_string
 
-                dialect_info = ProvidersManager().dialects.get(self.dialect_name)
+        dialect_info = ProvidersManager().dialects.get(self.dialect_name)
 
-                self.log.debug("dialect_info: %s", dialect_info)
+        self.log.debug("dialect_info: %s", dialect_info)
 
-                if dialect_info:
-                    try:
-                        return import_string(dialect_info.dialect_class_name)(self)
-                    except ImportError:
-                        raise AirflowOptionalProviderFeatureException(
-                            f"{dialect_info.dialect_class_name} not found, run: pip install "
-                            f"'{dialect_info.provider_name}'."
-                        )
-        return Dialect(self)
+        if dialect_info:
+            try:
+                return import_string(dialect_info.dialect_class_name)(self)
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    f"{dialect_info.dialect_class_name} not found, run: pip install "
+                    f"'{dialect_info.provider_name}'."
+                    )
+        raise AirflowException(f"Dialect '{self.dialect_name}' not found")
 
     def get_pandas_df(
         self,

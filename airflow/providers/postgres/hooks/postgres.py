@@ -134,7 +134,7 @@ class PostgresHook(DbApiHook):
         )
 
     @property
-    def dialect_name(self) -> str | None:
+    def dialect_name(self) -> str:
         return "postgres"
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:

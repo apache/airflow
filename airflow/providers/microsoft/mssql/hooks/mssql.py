@@ -63,7 +63,7 @@ class MsSqlHook(DbApiHook):
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     @property
-    def dialect_name(self) -> str | None:
+    def dialect_name(self) -> str:
         return "mssql"
 
     def get_uri(self) -> str:
