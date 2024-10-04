@@ -121,6 +121,24 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG warning collection serializer for responses.
+ */
+export type DAGWarningCollectionResponse = {
+  import_errors: Array<DAGWarningResponse>;
+  total_entries: number;
+};
+
+/**
+ * DAG Warning serializer for responses.
+ */
+export type DAGWarningResponse = {
+  dag_id: string;
+  warning_message: string;
+  message: string;
+  timestamp: string;
+};
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -221,6 +239,16 @@ export type GetConnectionData = {
 };
 
 export type GetConnectionResponse = ConnectionResponse;
+
+export type ListDagWarningsData = {
+  dagIdPattern?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  warningType?: string | null;
+};
+
+export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -391,6 +419,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagWarnings": {
+    get: {
+      req: ListDagWarningsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWarningCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

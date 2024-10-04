@@ -5,6 +5,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  DagWarningService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
@@ -109,6 +110,34 @@ export const UseConnectionServiceGetConnectionKeyFn = (
 ) => [
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
+];
+export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
+  ReturnType<typeof DagWarningService.listDagWarnings>
+>;
+export type DagWarningServiceListDagWarningsQueryResult<
+  TData = DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagWarningServiceListDagWarningsKey =
+  "DagWarningServiceListDagWarnings";
+export const UseDagWarningServiceListDagWarningsKeyFn = (
+  {
+    dagIdPattern,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagIdPattern?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagWarningServiceListDagWarningsKey,
+  ...(queryKey ?? [{ dagIdPattern, limit, offset, orderBy, warningType }]),
 ];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>

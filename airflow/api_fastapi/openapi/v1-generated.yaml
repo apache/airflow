@@ -455,6 +455,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagWarnings:
+    get:
+      tags:
+      - DagWarning
+      summary: List Dag Warnings
+      description: Get a list of DAG warnings.
+      operationId: list_dag_warnings
+      parameters:
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: warning_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Warning Type
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGWarningCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     ConnectionResponse:
@@ -923,6 +993,45 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGWarningCollectionResponse:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/DAGWarningResponse'
+          type: array
+          title: Import Errors
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - import_errors
+      - total_entries
+      title: DAGWarningCollectionResponse
+      description: DAG warning collection serializer for responses.
+    DAGWarningResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        warning_message:
+          type: string
+          title: Warning Message
+        message:
+          type: string
+          title: Message
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+      type: object
+      required:
+      - dag_id
+      - warning_message
+      - message
+      - timestamp
+      title: DAGWarningResponse
+      description: DAG Warning serializer for responses.
     DagRunState:
       type: string
       enum:
