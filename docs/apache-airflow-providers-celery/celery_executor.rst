@@ -187,7 +187,7 @@ Two databases are also available:
 - QueueBroker
 - ResultBackend
 
-During this process, two 2 process are created:
+During this process, two processes are created:
 
 - LocalTaskJobProcess - It logic is described by LocalTaskJob. It is monitoring RawTaskProcess. New processes are started using TaskRunner.
 - RawTaskProcess - It is process with the user code e.g. :meth:`~airflow.models.baseoperator.BaseOperator.execute`.
