@@ -44,4 +44,4 @@ async def get_dag_run(
             404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
         )
 
-    return dag_run
+    return DAGRunResponse.model_validate(dag_run, from_attributes=True)

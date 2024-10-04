@@ -805,6 +805,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -816,6 +817,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -827,6 +829,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -838,6 +841,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -849,6 +853,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -860,6 +865,7 @@ export const $DAGRunResponse = {
       anyOf: [
         {
           type: "string",
+          format: "date-time",
         },
         {
           type: "null",
@@ -884,17 +890,6 @@ export const $DAGRunResponse = {
       type: "object",
       title: "Conf",
     },
-    notes: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Notes",
-    },
   },
   type: "object",
   required: [
@@ -911,7 +906,6 @@ export const $DAGRunResponse = {
     "external_trigger",
     "triggered_by",
     "conf",
-    "notes",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",

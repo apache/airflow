@@ -116,12 +116,11 @@ def setup(dag_maker, session=None):
     ],
 )
 def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by):
-    print(dag_id, run_id)
-    response = test_client.get(f"/api/v1/dags/{dag_id}/dagRuns/{run_id}")
+    response = test_client.get(f"/public/dags/{dag_id}/dagRuns/{run_id}")
     assert response.status_code == 200
     body = response.json()
     assert body["dag_id"] == dag_id
     assert body["run_id"] == run_id
     assert body["state"] == state
     assert body["run_type"] == run_type
-    assert body["triggered_by"] == triggered_by
+    assert body["triggered_by"] == triggered_by.value

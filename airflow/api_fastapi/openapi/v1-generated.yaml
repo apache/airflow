@@ -986,31 +986,37 @@ components:
         logical_date:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Logical Date
         start_date:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Start Date
         end_date:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: End Date
         data_interval_start:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Data Interval Start
         data_interval_end:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Data Interval End
         last_scheduling_decision:
           anyOf:
           - type: string
+            format: date-time
           - type: 'null'
           title: Last Scheduling Decision
         run_type:
@@ -1025,11 +1031,6 @@ components:
         conf:
           type: object
           title: Conf
-        notes:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Notes
       type: object
       required:
       - run_id
@@ -1045,7 +1046,6 @@ components:
       - external_trigger
       - triggered_by
       - conf
-      - notes
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DagRunState:

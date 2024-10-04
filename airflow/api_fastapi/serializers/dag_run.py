@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from airflow.utils.state import DagRunState
@@ -28,15 +30,14 @@ class DAGRunResponse(BaseModel):
 
     dag_run_id: str | None = Field(alias="run_id")
     dag_id: str
-    logical_date: str | None
-    start_date: str | None
-    end_date: str | None
-    data_interval_start: str | None
-    data_interval_end: str | None
-    last_scheduling_decision: str | None
+    logical_date: datetime | None
+    start_date: datetime | None
+    end_date: datetime | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    last_scheduling_decision: datetime | None
     run_type: DagRunType
     state: DagRunState
     external_trigger: bool
     triggered_by: DagRunTriggeredByType
     conf: dict
-    notes: str | None

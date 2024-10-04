@@ -139,7 +139,6 @@ export type DAGRunResponse = {
   conf: {
     [key: string]: unknown;
   };
-  notes: string | null;
 };
 
 /**
