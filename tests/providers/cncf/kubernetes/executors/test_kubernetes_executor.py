@@ -1252,9 +1252,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1316,9 +1318,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1376,9 +1380,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         with dag_maker(dag_id="test_clear"):
             op = BashOperator.partial(task_id="bash").expand(bash_command=["echo 0", "echo 1"])
 
@@ -1422,9 +1428,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1462,9 +1470,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1503,9 +1513,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1542,9 +1554,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1577,9 +1591,11 @@ class TestKubernetesExecutor:
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
         if hasattr(TaskInstance, "executor"):
-            from airflow.executors.executor_loader import ExecutorLoader
+            import importlib
 
-            ExecutorLoader.get_executor_names().clear()
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
         create_dummy_dag(dag_id="test_clear_0", task_id="task0", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 

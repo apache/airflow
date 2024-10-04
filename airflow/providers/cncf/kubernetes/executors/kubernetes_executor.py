@@ -200,9 +200,9 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_client
         from airflow.models.taskinstance import TaskInstance
 
-        has_executor = hasattr(TaskInstance, "executor")
+        hybrid_executor_enabled = hasattr(TaskInstance, "executor")
         default_executor = None
-        if has_executor:
+        if hybrid_executor_enabled:
             from airflow.executors.executor_loader import ExecutorLoader
 
             default_executor = str(ExecutorLoader.get_default_executor_name())
@@ -216,14 +216,14 @@ class KubernetesExecutor(BaseExecutor):
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            elif has_executor and KUBERNETES_EXECUTOR == default_executor:
+            elif hybrid_executor_enabled and KUBERNETES_EXECUTOR == default_executor:
                 query = query.where(
                     or_(
                         TaskInstance.executor == KUBERNETES_EXECUTOR,
                         TaskInstance.executor.is_(None),
                     ),
                 )
-            elif has_executor:
+            elif hybrid_executor_enabled:
                 query = query.where(TaskInstance.executor == KUBERNETES_EXECUTOR)
 
             queued_tis: list[TaskInstance] = session.scalars(query).all()
