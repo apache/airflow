@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 
 import pytest
@@ -75,3 +76,31 @@ class TestOpenSearchHook:
             open_search_conn_class=Urllib3HttpConnection,
         )
         assert hook_Urllib3.connection_class == Urllib3HttpConnection
+
+    def test_hook_with_auth(self, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_OPENSEARCH_DEFAULT",
+            json.dumps(
+                {
+                    "conn_type": "opensearch hook",
+                    "host": "testhost",
+                    "login": "testuser",
+                    "password": "testpass",
+                }
+            ),
+        )
+        hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+        assert hook.client.transport.kwargs["http_auth"] == ("testuser", "testpass")
+
+    def test_hook_no_auth(self, monkeypatch):
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_OPENSEARCH_DEFAULT",
+            json.dumps(
+                {
+                    "conn_type": "opensearch hook",
+                    "host": "testhost",
+                }
+            ),
+        )
+        hook = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True)
+        assert "http_auth" not in hook.client.transport.kwargs
