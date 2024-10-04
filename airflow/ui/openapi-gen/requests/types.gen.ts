@@ -124,7 +124,7 @@ export type DAGResponse = {
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  dag_run_id: string | null;
+  run_id: string | null;
   dag_id: string;
   logical_date: string | null;
   start_date: string | null;
@@ -135,6 +135,7 @@ export type DAGRunResponse = {
   run_type: DagRunType;
   state: DagRunState;
   external_trigger: boolean;
+  triggered_by: DagRunTriggeredByType;
   conf: {
     [key: string]: unknown;
   };
@@ -149,6 +150,19 @@ export type DAGRunResponse = {
  * same name in TaskInstanceState.
  */
 export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
+ * Class with TriggeredBy types for DagRun.
+ */
+export type DagRunTriggeredByType =
+  | "cli"
+  | "operator"
+  | "rest_api"
+  | "ui"
+  | "test"
+  | "timetable"
+  | "dataset"
+  | "backfill";
 
 /**
  * Class with DagRun types.

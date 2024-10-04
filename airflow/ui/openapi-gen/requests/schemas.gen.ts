@@ -786,7 +786,7 @@ export const $DAGResponse = {
 
 export const $DAGRunResponse = {
   properties: {
-    dag_run_id: {
+    run_id: {
       anyOf: [
         {
           type: "string",
@@ -795,7 +795,7 @@ export const $DAGRunResponse = {
           type: "null",
         },
       ],
-      title: "Dag Run Id",
+      title: "Run Id",
     },
     dag_id: {
       type: "string",
@@ -877,6 +877,9 @@ export const $DAGRunResponse = {
       type: "boolean",
       title: "External Trigger",
     },
+    triggered_by: {
+      $ref: "#/components/schemas/DagRunTriggeredByType",
+    },
     conf: {
       type: "object",
       title: "Conf",
@@ -895,7 +898,7 @@ export const $DAGRunResponse = {
   },
   type: "object",
   required: [
-    "dag_run_id",
+    "run_id",
     "dag_id",
     "logical_date",
     "start_date",
@@ -906,6 +909,7 @@ export const $DAGRunResponse = {
     "run_type",
     "state",
     "external_trigger",
+    "triggered_by",
     "conf",
     "notes",
   ],
@@ -922,6 +926,22 @@ export const $DagRunState = {
 These are "shared" with TaskInstanceState in some parts of the code,
 so please ensure that their values always match the ones with the
 same name in TaskInstanceState.`,
+} as const;
+
+export const $DagRunTriggeredByType = {
+  type: "string",
+  enum: [
+    "cli",
+    "operator",
+    "rest_api",
+    "ui",
+    "test",
+    "timetable",
+    "dataset",
+    "backfill",
+  ],
+  title: "DagRunTriggeredByType",
+  description: "Class with TriggeredBy types for DagRun.",
 } as const;
 
 export const $DagRunType = {

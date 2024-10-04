@@ -975,11 +975,11 @@ components:
       description: DAG serializer for responses.
     DAGRunResponse:
       properties:
-        dag_run_id:
+        run_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: Dag Run Id
+          title: Run Id
         dag_id:
           type: string
           title: Dag Id
@@ -1020,6 +1020,8 @@ components:
         external_trigger:
           type: boolean
           title: External Trigger
+        triggered_by:
+          $ref: '#/components/schemas/DagRunTriggeredByType'
         conf:
           type: object
           title: Conf
@@ -1030,7 +1032,7 @@ components:
           title: Notes
       type: object
       required:
-      - dag_run_id
+      - run_id
       - dag_id
       - logical_date
       - start_date
@@ -1041,6 +1043,7 @@ components:
       - run_type
       - state
       - external_trigger
+      - triggered_by
       - conf
       - notes
       title: DAGRunResponse
@@ -1061,6 +1064,19 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
+    DagRunTriggeredByType:
+      type: string
+      enum:
+      - cli
+      - operator
+      - rest_api
+      - ui
+      - test
+      - timetable
+      - dataset
+      - backfill
+      title: DagRunTriggeredByType
+      description: Class with TriggeredBy types for DagRun.
     DagRunType:
       type: string
       enum:

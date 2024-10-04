@@ -17,16 +17,16 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None
+    dag_run_id: str | None = Field(alias="run_id")
     dag_id: str
     logical_date: str | None
     start_date: str | None
@@ -37,5 +37,6 @@ class DAGRunResponse(BaseModel):
     run_type: DagRunType
     state: DagRunState
     external_trigger: bool
+    triggered_by: DagRunTriggeredByType
     conf: dict
     notes: str | None
