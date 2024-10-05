@@ -19,6 +19,8 @@ from __future__ import annotations
 from contextlib import ExitStack, contextmanager
 from unittest import mock
 
+from airflow import __version__ as airflow_version
+
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "plugins",
     "registered_hooks",
@@ -27,6 +29,24 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "admin_views",
     "flask_blueprints",
     "fastapi_apps",
+    "menu_links",
+    "flask_appbuilder_views",
+    "flask_appbuilder_menu_links",
+    "global_operator_extra_links",
+    "operator_extra_links",
+    "registered_operator_link_classes",
+    "timetable_classes",
+    "hook_lineage_reader_classes",
+]
+
+
+PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V2_10 = [
+    "plugins",
+    "registered_hooks",
+    "macros_modules",
+    "executors_modules",
+    "admin_views",
+    "flask_blueprints",
     "menu_links",
     "flask_appbuilder_views",
     "flask_appbuilder_menu_links",
@@ -73,7 +93,12 @@ def mock_plugin_manager(plugins=None, **kwargs):
             )
         )
 
-        for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
+        if airflow_version <= "3":
+            ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V2_10
+        else:
+            ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES
+
+        for attr in ATTR_TO_PATCH:
             exit_stack.enter_context(mock.patch(f"airflow.plugins_manager.{attr}", kwargs.get(attr)))
 
         # Always start the block with an empty plugins, so ensure_plugins_loaded runs.
