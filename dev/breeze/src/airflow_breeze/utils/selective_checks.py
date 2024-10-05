@@ -161,7 +161,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^clients/gen",
         ],
         FileGroupForCi.LEGACY_API_FILES: [
-            r"^airflow/api/",
             r"^airflow/api_connexion/",
         ],
         FileGroupForCi.HELM_FILES: [
