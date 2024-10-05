@@ -76,6 +76,7 @@ class TestFileTaskLogHandler:
             execution_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
         with conf_vars({("core", "executor"): executor_name}):
             reload(executor_loader)
             fth = FileTaskHandler("")
@@ -84,4 +85,4 @@ class TestFileTaskLogHandler:
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
