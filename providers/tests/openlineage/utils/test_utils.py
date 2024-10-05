@@ -39,7 +39,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_user_provided_run_facets,
 )
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType

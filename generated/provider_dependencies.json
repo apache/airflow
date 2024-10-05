@@ -67,8 +67,7 @@
       "mongo",
       "openlineage",
       "salesforce",
-      "ssh",
-      "standard"
+      "ssh"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -552,16 +551,6 @@
     "cross-providers-deps": [
       "common.sql"
     ],
-    "excluded-python-versions": [],
-    "state": "ready"
-  },
-  "essentials": {
-    "deps": [
-      "apache-airflow>=2.8.0"
-    ],
-    "devel-deps": [],
-    "plugins": [],
-    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },

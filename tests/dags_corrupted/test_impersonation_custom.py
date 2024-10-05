@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from fake_datetime import FakeDatetime
 
 from airflow.models.dag import DAG
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

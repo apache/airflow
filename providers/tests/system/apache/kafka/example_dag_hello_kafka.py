@@ -28,7 +28,7 @@ from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
 
 # This is just for setting up connections in the demo - you should use standard
 # methods for setting these connections in production
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 default_args = {
     "owner": "airflow",

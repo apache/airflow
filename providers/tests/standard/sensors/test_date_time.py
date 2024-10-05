@@ -22,19 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models.dag import DAG
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
 from airflow.providers.standard.sensors.date_time import DateTimeSensor
-========
-from airflow.providers.core.time.sensors.date_time import DateTimeSensor
->>>>>>>> 6f86e128e4 (add core.time provider):tests/providers/core/time/sensors/test_date_time.py
-========
-from airflow.providers.essentials.time.sensors.date_time import DateTimeSensor
->>>>>>>> 149f5ecb0d (change core to essentials):tests/providers/essentials/time/sensors/test_date_time.py
-========
-from airflow.providers.standard.time.sensors.date_time import DateTimeSensor
->>>>>>>> 1a855ce075 (change new provider name to standard):tests/providers/standard/time/sensors/test_date_time.py
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
@@ -96,19 +84,7 @@ class TestDateTimeSensor:
         ],
     )
     @patch(
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
-<<<<<<<< HEAD:tests/providers/standard/sensors/test_date_time.py
         "airflow.providers.standard.sensors.date_time.timezone.utcnow",
-========
-        "airflow.providers.core.time.sensors.date_time.timezone.utcnow",
->>>>>>>> 6f86e128e4 (add core.time provider):tests/providers/core/time/sensors/test_date_time.py
-========
-        "airflow.providers.essentials.time.sensors.date_time.timezone.utcnow",
->>>>>>>> 149f5ecb0d (change core to essentials):tests/providers/essentials/time/sensors/test_date_time.py
-========
-        "airflow.providers.standard.time.sensors.date_time.timezone.utcnow",
->>>>>>>> 1a855ce075 (change new provider name to standard):tests/providers/standard/time/sensors/test_date_time.py
         return_value=timezone.datetime(2020, 1, 1, 23, 0, tzinfo=timezone.utc),
     )
     def test_poke(self, mock_utcnow, task_id, target_time, expected):

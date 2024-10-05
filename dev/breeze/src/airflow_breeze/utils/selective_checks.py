@@ -276,7 +276,7 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^airflow/providers/standard/core/operators/python.py",
+    r"^airflow/providers/standard/operators/python.py",
     r"^tests/operators/test_python.py",
 ]
 

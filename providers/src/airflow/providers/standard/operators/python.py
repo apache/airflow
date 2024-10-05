@@ -98,7 +98,7 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     from airflow.decorators.python import python_task
 
     warnings.warn(
-        """from airflow.providers.standard.core.operators.python.task is deprecated. Please use the following instead
+        """from airflow.providers.standard.operators.python.task is deprecated. Please use the following instead
 
         from airflow.decorators import task
         @task
@@ -1165,7 +1165,7 @@ def get_current_context() -> Context:
 
     .. code:: python
 
-        from airflow.providers.standard.core.operators.python import get_current_context
+        from airflow.providers.standard.operators.python import get_current_context
 
 
         def my_task():

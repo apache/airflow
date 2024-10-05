@@ -26,7 +26,7 @@ import logging
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 logger = logging.getLogger(__name__)
 DEFAULT_DATE = datetime(2016, 1, 1)

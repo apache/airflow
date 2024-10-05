@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchListTasksOperator,
     CloudBatchSubmitJobOperator,
 )
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
