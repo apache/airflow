@@ -1268,6 +1268,7 @@ class TestStringifiedDAGs:
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
+            "call_on_kill_on_dagrun_timeout": True,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

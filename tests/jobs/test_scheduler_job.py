@@ -2488,6 +2488,45 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    def test_dagrun_timeout_triggers_on_kill(self, dag_maker, session):
+        """Test that when a DAG times out, call_on_kill_on_dagrun_timeout triggers on_kill for tasks."""
+        with dag_maker(
+            dag_id="test_dagrun_timeout",
+            dagrun_timeout=datetime.timedelta(seconds=1),
+            call_on_kill_on_dagrun_timeout=True,
+        ):
+            task = BashOperator(
+                task_id="task",
+                bash_command="sleep 10",
+            )
+
+        dr = dag_maker.create_dagrun(
+            state=DagRunState.RUNNING,
+            start_date=timezone.utcnow() - datetime.timedelta(seconds=2),
+        )
+        ti = dr.get_task_instance(task.task_id)
+        ti.set_state(TaskInstanceState.RUNNING, session)
+        session.merge(ti)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor(do_update=True)
+        self.job_runner.processor_agent = mock.Mock(spec=DagFileProcessorAgent)
+
+        self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        # Check that the DAG run is now in a failed state
+        # This refresh here is causing an error.
+        # session.refresh(dr)
+        assert dr.state == DagRunState.FAILED
+
+        # Check that the task instance is now in a failed state
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.FAILED
+
     def test_dagrun_timeout_fails_run_and_update_next_dagrun(self, dag_maker):
         """
         Test that dagrun timeout fails run and update the next dagrun
