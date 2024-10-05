@@ -345,7 +345,7 @@ class OracleHook(DbApiHook):
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
         :param sequence_column: the column name to which the sequence will be applied, default None.
-        :param sequence_name: the names of the sqeuence_name in the table, default None.
+        :param sequence_name: the names of the sequence_name in the table, default None.
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
