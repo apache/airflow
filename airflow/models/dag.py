@@ -305,6 +305,7 @@ def _create_orm_dagrun(
     dag_hash,
     creating_job_id,
     data_interval,
+    backfill_id,
     session,
     triggered_by,
 ):
@@ -321,6 +322,7 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        backfill_id=backfill_id,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -2545,6 +2547,7 @@ class DAG(LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
+        backfill_id: int | None = None,
     ):
         """
         Create a dag run from this dag including the tasks associated with this dag.
@@ -2563,6 +2566,7 @@ class DAG(LoggingMixin):
         :param session: database session
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
+        :param backfill_id: id of the backfill run if one exists
         """
         logical_date = timezone.coerce_datetime(execution_date)
 
@@ -2612,6 +2616,8 @@ class DAG(LoggingMixin):
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"
                 )
 
+        # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
+
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         copied_params.update(conf or {})
@@ -2629,6 +2635,7 @@ class DAG(LoggingMixin):
             run_type=run_type,
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
+            backfill_id=backfill_id,
             data_interval=data_interval,
             session=session,
             triggered_by=triggered_by,
@@ -2947,7 +2954,7 @@ class DagModel(Base):
     )
 
     max_active_tasks = Column(Integer, nullable=False)
-    max_active_runs = Column(Integer, nullable=True)
+    max_active_runs = Column(Integer, nullable=True)  # todo: should not be nullable if we have a default
     max_consecutive_failed_dag_runs = Column(Integer, nullable=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)

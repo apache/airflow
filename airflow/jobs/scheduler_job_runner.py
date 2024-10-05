@@ -1504,9 +1504,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # added all() to save runtime, otherwise query is executed more than once
         dag_runs: Collection[DagRun] = DagRun.get_queued_dag_runs_to_set_running(session).all()
 
-        active_runs_of_dags = Counter(
-            DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
+        query = (
+            select(
+                DagRun.dag_id,
+                DagRun.backfill_id,
+                func.count(DagRun.id).label("num_running"),
+            )
+            .where(DagRun.state == DagRunState.RUNNING)
+            .group_by(DagRun.dag_id, DagRun.backfill_id)
         )
+        active_runs_of_dags = Counter({(dag_id, br_id): num for dag_id, br_id, num in session.execute(query)})
 
         @add_span
         def _update_state(dag: DAG, dag_run: DagRun):
@@ -1548,33 +1555,51 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         span = Trace.get_current_span()
         for dag_run in dag_runs:
-            dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
-
+            dag_id = dag_run.dag_id
+            run_id = dag_run.run_id
+            backfill_id = dag_run.backfill_id
+            backfill = dag_run.backfill
+            dag = dag_run.dag = cached_get_dag(dag_id)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
-            active_runs = active_runs_of_dags[dag_run.dag_id]
-
-            if dag.max_active_runs and active_runs >= dag.max_active_runs:
-                self.log.debug(
-                    "DAG %s already has %d active runs, not moving any more runs to RUNNING state %s",
-                    dag.dag_id,
-                    active_runs,
-                    dag_run.execution_date,
-                )
-            else:
-                if span.is_recording():
-                    span.add_event(
-                        name="dag_run",
-                        attributes={
-                            "run_id": dag_run.run_id,
-                            "dag_id": dag_run.dag_id,
-                            "conf": str(dag_run.conf),
-                        },
+            active_runs = active_runs_of_dags[(dag_id, backfill_id)]
+            if backfill_id is not None:
+                if active_runs >= backfill.max_active_runs:
+                    # todo: delete all "candidate dag runs" from list for this dag right now
+                    self.log.info(
+                        "dag cannot be started due to backfill max_active_runs constraint; "
+                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                        active_runs,
+                        backfill.max_active_runs,
+                        dag_id,
+                        run_id,
                     )
-                active_runs_of_dags[dag_run.dag_id] += 1
-                _update_state(dag, dag_run)
-                dag_run.notify_dagrun_state_changed()
+                    continue
+            elif dag.max_active_runs:
+                if active_runs >= dag.max_active_runs:
+                    # todo: delete all candidate dag runs for this dag from list right now
+                    self.log.info(
+                        "dag cannot be started due to dag max_active_runs constraint; "
+                        "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
+                        active_runs,
+                        dag_run.max_active_runs,
+                        dag_run.dag_id,
+                        dag_run.run_id,
+                    )
+                    continue
+            if span.is_recording():
+                span.add_event(
+                    name="dag_run",
+                    attributes={
+                        "run_id": dag_run.run_id,
+                        "dag_id": dag_run.dag_id,
+                        "conf": str(dag_run.conf),
+                    },
+                )
+            active_runs_of_dags[(dag_run.dag_id, backfill_id)] += 1
+            _update_state(dag, dag_run)
+            dag_run.notify_dagrun_state_changed()
 
     @retry_db_transaction
     def _schedule_all_dag_runs(
