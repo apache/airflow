@@ -68,7 +68,6 @@ class ConsumeFromTopicOperator(BaseOperator):
     ui_color = BLUE
     template_fields = (
         "topics",
-        "apply_function",
         "apply_function_args",
         "apply_function_kwargs",
         "kafka_config_id",

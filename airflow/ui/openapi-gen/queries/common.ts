@@ -1,42 +1,42 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
+import { DagRunState } from "../requests/types.gen";
 
-export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse =
-  Awaited<
-    ReturnType<typeof DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet>
-  >;
-export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetQueryResult<
-  TData = DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.nextRunAssets>
+>;
+export type AssetServiceNextRunAssetsQueryResult<
+  TData = AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKey =
-  "DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet";
-export const UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn = (
+export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
+export const UseAssetServiceNextRunAssetsKeyFn = (
   {
     dagId,
   }: {
     dagId: string;
   },
   queryKey?: Array<unknown>,
-) => [
-  useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKey,
-  ...(queryKey ?? [{ dagId }]),
-];
-export type DagServiceGetDagsPublicDagsGetDefaultResponse = Awaited<
-  ReturnType<typeof DagService.getDagsPublicDagsGet>
+) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDags>
 >;
-export type DagServiceGetDagsPublicDagsGetQueryResult<
-  TData = DagServiceGetDagsPublicDagsGetDefaultResponse,
+export type DagServiceGetDagsQueryResult<
+  TData = DagServiceGetDagsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDagServiceGetDagsPublicDagsGetKey =
-  "DagServiceGetDagsPublicDagsGet";
-export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
+export const useDagServiceGetDagsKey = "DagServiceGetDags";
+export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -47,6 +47,7 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -57,11 +58,12 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [
-  useDagServiceGetDagsPublicDagsGetKey,
+  useDagServiceGetDagsKey,
   ...(queryKey ?? [
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      lastDagRunState,
       limit,
       offset,
       onlyActive,
@@ -72,6 +74,48 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
     },
   ]),
 ];
-export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
-  ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
+export type DagServiceGetDagDetailsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagDetails>
+>;
+export type DagServiceGetDagDetailsQueryResult<
+  TData = DagServiceGetDagDetailsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagDetailsKey = "DagServiceGetDagDetails";
+export const UseDagServiceGetDagDetailsKeyFn = (
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
+export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnection>
+>;
+export type ConnectionServiceGetConnectionQueryResult<
+  TData = ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionKey =
+  "ConnectionServiceGetConnection";
+export const UseConnectionServiceGetConnectionKeyFn = (
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionKey,
+  ...(queryKey ?? [{ connectionId }]),
+];
+export type DagServicePatchDagsMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDags>
+>;
+export type DagServicePatchDagMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDag>
+>;
+export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.deleteConnection>
 >;

@@ -55,7 +55,7 @@ from airflow import configuration, settings
 __all__ = [
     "__version__",
     "DAG",
-    "Dataset",
+    "Asset",
     "XComArg",
 ]
 
@@ -76,7 +76,7 @@ if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
 # Things to lazy import in form {local_name: ('target_module', 'target_name', 'deprecated')}
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "DAG": (".models.dag", "DAG", False),
-    "Dataset": (".datasets", "Dataset", False),
+    "Asset": (".assets", "Asset", False),
     "XComArg": (".models.xcom_arg", "XComArg", False),
     "version": (".version", "", False),
     # Deprecated lazy imports
@@ -86,8 +86,8 @@ if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
+    from airflow.models.asset import Asset
     from airflow.models.dag import DAG
-    from airflow.models.dataset import Dataset
     from airflow.models.xcom_arg import XComArg
 
 

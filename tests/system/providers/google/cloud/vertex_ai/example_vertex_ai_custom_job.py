@@ -68,16 +68,15 @@ def TABULAR_DATASET(bucket_name):
     }
 
 
-CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
-MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
+CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-2:latest"
+MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 
-# VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
+# LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
 # Because `gcs/data/` is shared folder for Airflow's workers.
-LOCAL_TRAINING_SCRIPT_PATH = os.environ.get(
-    "VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH", "california_housing_training_script.py"
-)
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
 
 
 with DAG(

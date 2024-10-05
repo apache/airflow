@@ -16,10 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
@@ -32,26 +30,17 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
     Watches for a glue crawl, triggers when it finishes.
 
     :param crawler_name: name of the crawler to watch
-    :param poll_interval: The amount of time in seconds to wait between attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
     def __init__(
         self,
         crawler_name: str,
-        poll_interval: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 5,
         waiter_max_attempts: int = 1500,
         **kwargs,
     ):
-        if poll_interval is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
         super().__init__(
             serialized_fields={"crawler_name": crawler_name},
             waiter_name="crawler_ready",

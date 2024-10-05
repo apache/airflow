@@ -25,6 +25,7 @@
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun
 /airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
+/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
 
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun @jscheffl

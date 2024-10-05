@@ -159,6 +159,7 @@ Name                                                                   Descripti
 ``previously_succeeded``                                               Number of previously succeeded task instances. Metric with dag_id and task_id tagging.
 ``zombies_killed``                                                     Zombie tasks killed. Metric with dag_id and task_id tagging.
 ``scheduler_heartbeat``                                                Scheduler heartbeats
+``dag_processor_heartbeat``                                            Standalone DAG processor heartbeats
 ``dag_processing.processes``                                           Relative number of currently running DAG parsing processes (ie this delta
                                                                        is negative when, since the last metric was sent, processes have completed).
                                                                        Metric with file_path and action tagging.
@@ -201,10 +202,10 @@ Name                                                                   Descripti
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
-``dataset.updates``                                                    Number of updated datasets
-``dataset.orphaned``                                                   Number of datasets marked as orphans because they are no longer referenced in DAG
+``asset.updates``                                                      Number of updated assets
+``asset.orphaned``                                                     Number of assets marked as orphans because they are no longer referenced in DAG
                                                                        schedule parameters or task outlets
-``dataset.triggered_dagruns``                                          Number of DAG runs triggered by a dataset update
+``asset.triggered_dagruns``                                            Number of DAG runs triggered by a asset update
 ====================================================================== ================================================================
 
 Gauges
@@ -246,6 +247,9 @@ Name                                                 Description
 ``task.mem_usage.<dag_id>.<task_id>``                Percentage of memory used by a task
 ``triggers.running.<hostname>``                      Number of triggers currently running for a triggerer (described by hostname)
 ``triggers.running``                                 Number of triggers currently running for a triggerer (described by hostname).
+                                                     Metric with hostname tagging.
+``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
+``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
                                                      Metric with hostname tagging.
 ==================================================== ========================================================================
 

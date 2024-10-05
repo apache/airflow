@@ -235,6 +235,41 @@ class TestSnowflakeSqlApiHook:
         assert exception_info
 
     @pytest.mark.parametrize(
+        "sql,statement_count,bindings",
+        [
+            (SQL_MULTIPLE_STMTS, 4, {"1": {"type": "FIXED", "value": "123"}}),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    def test_execute_query_bindings_warning(
+        self,
+        mock_get_headers,
+        mock_conn_params,
+        mock_requests,
+        sql,
+        statement_count,
+        bindings,
+    ):
+        """Test execute_query method logs warning when bindings are provided for multi-statement queries"""
+        mock_conn_params.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+        mock_requests.post.return_value = create_successful_response_mock(
+            {"statementHandles": ["uuid", "uuid1"]}
+        )
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        with mock.patch.object(hook.log, "warning") as mock_log_warning:
+            hook.execute_query(sql, statement_count, bindings=bindings)
+            mock_log_warning.assert_called_once_with(
+                "Bindings are not supported for multi-statement queries. Bindings will be ignored."
+            )
+
+    @pytest.mark.parametrize(
         "query_ids",
         [
             (["uuid", "uuid1"]),
