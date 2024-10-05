@@ -228,7 +228,7 @@ Imagine this code:
 .. code-block:: python
 
   from airflow import DAG
-  from airflow.providers.standard.core.operators.python import PythonOperator
+  from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
 
@@ -260,7 +260,7 @@ What you can do to check it is add some print statements to the code you want to
 .. code-block:: python
 
   from airflow import DAG
-  from airflow.providers.standard.core.operators.python import PythonOperator
+  from airflow.providers.standard.operators.python import PythonOperator
   import pendulum
 
 
@@ -891,7 +891,7 @@ of Airflow, or even that dependencies of several of your Custom Operators introd
 
 There are a number of strategies that can be employed to mitigate the problem. And while dealing with
 dependency conflict in custom operators is difficult, it's actually quite a bit easier when it comes to
-using :class:`airflow.providers.standard.core.operators.python.PythonVirtualenvOperator` or :class:`airflow.providers.standard.core.operators.python.ExternalPythonOperator`
+using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` or :class:`airflow.providers.standard.operators.python.ExternalPythonOperator`
 - either directly using classic "operator" approach or by using tasks decorated with
 ``@task.virtualenv`` or ``@task.external_python`` decorators if you use TaskFlow.
 
@@ -905,7 +905,7 @@ This is simplest to use and most limited strategy. The PythonVirtualenvOperator 
 create a virtualenv that your Python callable function will execute in. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.virtualenv`` decorator (recommended way of using the operator).
-Each :class:`airflow.providers.standard.core.operators.python.PythonVirtualenvOperator` task can
+Each :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` task can
 have its own independent Python virtualenv (dynamically created every time the task is run) and can
 specify fine-grained set of requirements that need to be installed for that task to execute.
 
@@ -953,7 +953,7 @@ There are certain limitations and overhead introduced by this operator:
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
   same worker might be affected by previous tasks creating/modifying files etc.
 
-You can see detailed examples of using :class:`airflow.providers.standard.core.operators.python.PythonVirtualenvOperator` in
+You can see detailed examples of using :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
 
 
@@ -963,11 +963,11 @@ Using ExternalPythonOperator
 .. versionadded:: 2.4
 
 A bit more involved but with significantly less overhead, security, stability problems is to use the
-:class:`airflow.providers.standard.core.operators.python.ExternalPythonOperator``. In the modern
+:class:`airflow.providers.standard.operators.python.ExternalPythonOperator``. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
 It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
-Unlike in :class:`airflow.providers.standard.core.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
+Unlike in :class:`airflow.providers.standard.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
 to such pre-existing environment. All dependencies you need should be added upfront in your environment
 and available in all the workers in case your Airflow runs in a distributed environment.
 
@@ -1021,7 +1021,7 @@ after your DevOps/System Admin teams deploy your new dependencies in pre-existin
 The nice thing about this is that you can switch the decorator back at any time and continue
 developing it "dynamically" with ``PythonVirtualenvOperator``.
 
-You can see detailed examples of using :class:`airflow.providers.standard.core.operators.python.ExternalPythonOperator` in
+You can see detailed examples of using :class:`airflow.providers.standard.operators.python.ExternalPythonOperator` in
 :ref:`Taskflow External Python example <taskflow/external_python_example>`
 
 Using DockerOperator or Kubernetes Pod Operator

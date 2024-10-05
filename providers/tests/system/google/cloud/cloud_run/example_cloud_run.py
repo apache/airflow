@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunListJobsOperator,
     CloudRunUpdateJobOperator,
 )
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

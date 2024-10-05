@@ -33,7 +33,7 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet

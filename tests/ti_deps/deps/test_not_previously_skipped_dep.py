@@ -22,7 +22,7 @@ import pytest
 
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.core.operators.python import BranchPythonOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State

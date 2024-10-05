@@ -28,7 +28,7 @@ import sys
 import pendulum
 
 from airflow import DAG
-from airflow.providers.standard.core.operators.python import (
+from airflow.providers.standard.operators.python import (
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
@@ -48,7 +48,7 @@ with DAG(
         """Print the Airflow context."""
         from pprint import pprint
 
-        from airflow.providers.standard.core.operators.python import get_current_context
+        from airflow.providers.standard.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)
@@ -62,7 +62,7 @@ with DAG(
         """Print the Airflow context in venv."""
         from pprint import pprint
 
-        from airflow.providers.standard.core.operators.python import get_current_context
+        from airflow.providers.standard.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)
@@ -78,7 +78,7 @@ with DAG(
         """Print the Airflow context in external python."""
         from pprint import pprint
 
-        from airflow.providers.standard.core.operators.python import get_current_context
+        from airflow.providers.standard.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)

@@ -30,7 +30,7 @@ import tempfile
 
 import pendulum
 
-from airflow.providers.standard.core.operators.python import is_venv_installed
+from airflow.providers.standard.operators.python import is_venv_installed
 
 if is_venv_installed():
     from airflow.decorators import task

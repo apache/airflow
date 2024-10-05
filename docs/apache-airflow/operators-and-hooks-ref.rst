@@ -68,7 +68,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.latest_only`
      -
 
-   * - :mod:`airflow.providers.standard.core.operators.python`
+   * - :mod:`airflow.providers.standard.operators.python`
      - :doc:`How to use <howto/operator/python>`
 
    * - :mod:`airflow.operators.trigger_dagrun`
@@ -91,7 +91,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.sensors.filesystem`
      - :ref:`How to use <howto/operator:FileSensor>`
 
-   * - :mod:`airflow.providers.standard.core.sensors.python`
+   * - :mod:`airflow.providers.standard.sensors.python`
      - :ref:`How to use <howto/operator:PythonSensor>`
 
    * - :mod:`airflow.sensors.weekday`

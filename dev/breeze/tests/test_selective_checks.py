@@ -271,7 +271,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/providers/standard/core/operators/python.py",),
+                ("airflow/providers/standard/operators/python.py",),
                 {
                     "affected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
