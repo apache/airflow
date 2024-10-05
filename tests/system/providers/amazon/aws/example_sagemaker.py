@@ -50,7 +50,7 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerTransformSensor,
     SageMakerTuningSensor,
 )
-from airflow.providers.standard.core.operators.python import get_current_context
+from airflow.providers.standard.operators.python import get_current_context
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
 

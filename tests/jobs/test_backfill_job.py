@@ -1890,7 +1890,7 @@ class TestBackfillJob:
     def test_mapped_dag_pre_existing_tis(self, dag_maker, session, mock_executor):
         """If the DagRun already has some mapped TIs, ensure that we re-run them successfully"""
         from airflow.decorators import task
-        from airflow.providers.standard.core.operators.python import PythonOperator
+        from airflow.providers.standard.operators.python import PythonOperator
 
         list_result = [[1], [2], [{"a": "b"}]]
 

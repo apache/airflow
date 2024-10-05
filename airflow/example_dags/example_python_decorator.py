@@ -30,7 +30,7 @@ from pprint import pprint
 import pendulum
 
 from airflow.decorators import dag, task
-from airflow.providers.standard.core.operators.python import is_venv_installed
+from airflow.providers.standard.operators.python import is_venv_installed
 
 log = logging.getLogger(__name__)
 

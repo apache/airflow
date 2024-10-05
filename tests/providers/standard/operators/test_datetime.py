@@ -26,19 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
-<<<<<<<< HEAD:tests/providers/standard/operators/test_datetime.py
-<<<<<<<< HEAD:tests/providers/standard/operators/test_datetime.py
-<<<<<<<< HEAD:tests/providers/standard/operators/test_datetime.py
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
-========
-from airflow.providers.core.time.operators.datetime import BranchDateTimeOperator
->>>>>>>> 6f86e128e4 (add core.time provider):tests/providers/core/time/operators/test_datetime.py
-========
-from airflow.providers.essentials.time.operators.datetime import BranchDateTimeOperator
->>>>>>>> 149f5ecb0d (change core to essentials):tests/providers/essentials/time/operators/test_datetime.py
-========
-from airflow.providers.standard.time.operators.datetime import BranchDateTimeOperator
->>>>>>>> 1a855ce075 (change new provider name to standard):tests/providers/standard/time/operators/test_datetime.py
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

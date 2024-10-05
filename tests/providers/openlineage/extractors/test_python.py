@@ -30,7 +30,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.standard.core.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 pytestmark = pytest.mark.db_test
 
