@@ -70,6 +70,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
         result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
 
     create_batch_2 = DataprocCreateBatchOperator(
@@ -79,6 +80,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID_2,
         result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
 
     create_batch_3 = DataprocCreateBatchOperator(
@@ -89,6 +91,7 @@ with DAG(
         batch_id=BATCH_ID_3,
         asynchronous=True,
         result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
@@ -123,6 +126,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID_4,
         asynchronous=True,
+        num_retries_if_resource_is_not_ready=3,
     )
 
     # [START how_to_cloud_dataproc_cancel_operation_operator]
