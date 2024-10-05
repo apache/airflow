@@ -4359,6 +4359,12 @@ components:
             type: string
             nullable: true
           description: The flask blueprints
+        fastapi_apps:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The fastapi apps
         appbuilder_views:
           type: array
           items:
