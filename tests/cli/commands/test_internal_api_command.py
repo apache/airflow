@@ -141,9 +141,13 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 "[magenta]Terminating monitor process and expect "
                 "internal-api and gunicorn processes to terminate as well"
             )
+            internal_api_proc = psutil.Process(pid_internal_api)
+            internal_api_proc.terminate()
             proc = psutil.Process(pid_monitor)
             proc.terminate()
-            assert proc.wait(120) in (0, None)
+            gone, alive = psutil.wait_procs([internal_api_proc, proc], timeout=120)
+            for p in alive:
+                p.kill()
             self._check_processes(ignore_running=False)
             console.print("[magenta]All internal-api and gunicorn processes are terminated.")
         except Exception:
