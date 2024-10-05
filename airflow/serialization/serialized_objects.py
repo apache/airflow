@@ -1604,6 +1604,10 @@ class SerializedDAG(DAG, BaseSerialization):
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
+
+            if dag.call_on_kill_on_dagrun_timeout:
+                serialized_dag["call_on_kill_on_dagrun_timeout"] = dag.call_on_kill_on_dagrun_timeout
+
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
             dag_deps = [
@@ -1666,6 +1670,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize_params_dict(v)
             elif k == "tags":
                 v = set(v)
+            elif k == "call_on_kill_on_dagrun_timeout":
+                v = cls.deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
