@@ -477,6 +477,7 @@ class PodGenerator:
         execution_date=None,
         run_id=None,
         airflow_worker=None,
+        include_version=False,
     ):
         """
         Generate selector for kubernetes executor pod.
@@ -491,6 +492,7 @@ class PodGenerator:
             execution_date=execution_date,
             run_id=run_id,
             airflow_worker=airflow_worker,
+            include_version=include_version,
         )
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         selector = ",".join(label_strings)
@@ -509,6 +511,7 @@ class PodGenerator:
         map_index=None,
         execution_date=None,
         run_id=None,
+        include_version=True,
     ):
         """
         Generate labels for kubernetes executor pod.
@@ -520,8 +523,9 @@ class PodGenerator:
             "task_id": make_safe_label_value(task_id),
             "try_number": str(try_number),
             "kubernetes_executor": "True",
-            "airflow_version": airflow_version.replace("+", "-"),
         }
+        if include_version:
+            labels["airflow_version"] = airflow_version.replace("+", "-")
         if airflow_worker is not None:
             labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
         if map_index is not None and map_index >= 0:
