@@ -307,6 +307,7 @@ class TestJenkinsOperator:
                 jenkins_connection_id="fake_jenkins_connection",
                 task_id="operator_test",
                 job_name="a_job_on_jenkins",
+                sleep_time=0.1,
             )
             mock_make_request.return_value = {
                 "body": '{"status": "success", "data": {}}',

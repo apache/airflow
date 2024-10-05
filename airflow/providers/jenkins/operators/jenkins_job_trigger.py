@@ -199,16 +199,18 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """Extract the queue information from the jenkins server for all jobs."""
         queue_info = jenkins_server.get_queue_info()
         info = []
-
-        for job in queue_info:
-            job_info = {
-                "task": job.get("task"),
-                "stuck": job.get("stuck"),
-                "why": job.get("why"),
-                "blocked": job.get("blocked"),
-                "build": job.get("build"),
-            }
-            info.append(job_info)
+        if not isinstance(queue_info, (list, tuple)):
+            info = [queue_info]
+        else:
+            for job in queue_info:
+                job_info = {
+                    "task": job.get("task"),
+                    "stuck": job.get("stuck"),
+                    "why": job.get("why"),
+                    "blocked": job.get("blocked"),
+                    "build": job.get("build"),
+                }
+                info.append(job_info)
 
         return info
 
