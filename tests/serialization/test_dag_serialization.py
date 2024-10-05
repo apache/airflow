@@ -230,6 +230,7 @@ serialized_simple_dag_ground_truth = {
         "dag_dependencies": [],
         "params": [],
         "tags": [],
+        "call_on_kill_on_dagrun_timeout": True,
     },
 }
 
