@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import logging
 import logging.config
+from importlib import reload
 from unittest import mock
 
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.executors import executor_loader
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import (
@@ -74,6 +76,7 @@ class TestFileTaskLogHandler:
         )
         ti.state = TaskInstanceState.RUNNING
         with conf_vars({("core", "executor"): executor_name}):
+            reload(executor_loader)
             fth = FileTaskHandler("")
 
             fth._read_from_logs_server = mock.Mock()
