@@ -375,8 +375,12 @@ class TestOracleHook:
         target_fields = ["col1", "col2", "col3"]
         sequence_column = "id"
         sequence_name = "my_sequence"
-        self.db_hook.bulk_insert_rows("table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name)
-        self.cur.prepare.assert_called_once_with("insert into table (id, col1, col2, col3) values (my_sequence.NEXTVAL, :1, :2, :3)")
+        self.db_hook.bulk_insert_rows(
+            "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+        )
+        self.cur.prepare.assert_called_once_with(
+            "insert into table (id, col1, col2, col3) values (my_sequence.NEXTVAL, :1, :2, :3)"
+        )
         self.cur.executemany.assert_called_once_with(None, rows)
 
     def test_callproc_none(self):
