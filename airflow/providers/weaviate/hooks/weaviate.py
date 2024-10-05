@@ -192,10 +192,11 @@ class WeaviateHook(BaseHook):
     def delete_collections(
         self,
         collection_names: list[str] | str,
+        if_error: str = "stop",
+        *,
         by_property: list[str] | str | None = None,
         contains_any: list[Any] | str | None = None,
         contains_all: list[Any] | str | None = None,
-        if_error: str = "stop",
     ) -> list[str] | None:
         """
         Delete all or specific collections if collection_names are provided.
@@ -243,8 +244,8 @@ class WeaviateHook(BaseHook):
         self,
         collection_name: list[str] | str,
         by_property: list[str] | str,
-        contains_any: list[Any] | str | None = None,
-        contains_all: list[Any] | str | None = None,
+        contains_any: list[str] | str | None = None,
+        contains_all: list[str] | str | None = None,
     ):
         """
         Delete collections based on property names.
@@ -254,7 +255,7 @@ class WeaviateHook(BaseHook):
         :param contains_any: list of values or a single value.
             Deletes collections where any of the specified values are present in the property.
         :param contains_all: list of values or a single value.
-            Deletes collections  where all specified values are present in the property.
+            Deletes collections where all specified values are present in the property.
         """
         client = self.get_conn()
         by_property = [by_property] if isinstance(by_property, str) else by_property
@@ -274,7 +275,7 @@ class WeaviateHook(BaseHook):
                         collection.data.delete_many(
                             where=Filter.by_property(prop).like(collection_name + "*")
                         )
-            except Exception as e:
+            except requests.exceptions.ConnectionError as e:
                 self.log.error(e)
                 raise e
 
