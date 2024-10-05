@@ -1689,7 +1689,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(TI.state.in_(State.unfinished))
                 )
                 for task_instance in unfinished_task_instances:
+                    # If the DAG is set to kill the task instances on timeout, we call on_kill
+                    # otherwise we just skip the task instance
                     task_instance.state = TaskInstanceState.SKIPPED
+                    if dag.call_on_kill_on_dagrun_timeout:
+                        task = dag.get_task(task_instance.task_id)
+                        if hasattr(task, "on_kill"):
+                            try:
+                                task.on_kill()
+                                task_instance.state = TaskInstanceState.FAILED
+                            except Exception as e:
+                                self.log.error("Error when calling on_kill for task %s: %s", task_instance, e)
+                        else:
+                            self.log.warning("Task %s does not have on_kill method, skipping", task_instance)
                     session.merge(task_instance)
                 session.flush()
                 self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
