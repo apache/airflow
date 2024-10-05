@@ -603,6 +603,10 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["on_skipped_callback"] = value
 
     @property
+    def call_on_kill_on_dagrun_timeout(self) -> bool:
+        return bool(self.partial_kwargs.get("call_on_kill_on_dagrun_timeout"))
+
+    @property
     def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
 
