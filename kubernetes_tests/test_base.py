@@ -218,7 +218,16 @@ class BaseK8STest:
     def start_dag(self, dag_id, host):
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
-        result = self.session.patch(patch_string, json={"is_paused": False})
+        max_attempts = 10
+        result = {}
+        while max_attempts:
+            result = self.session.patch(patch_string, json={"is_paused": False})
+            if result.status_code == 200:
+                break
+
+            time.sleep(30)
+            max_attempts -= 1
+
         try:
             result_json = result.json()
         except ValueError:

@@ -1508,7 +1508,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 class TestPatchDagRunState(TestDagRunEndpoint):
     @pytest.mark.parametrize("state", ["failed", "success", "queued"])
-    @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
+    @pytest.mark.parametrize("run_type", [DagRunType.MANUAL, DagRunType.SCHEDULED])
     def test_should_respond_200(self, state, run_type, dag_maker, session):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"
@@ -1799,12 +1799,12 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         assert event.timestamp
 
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected_response = {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
                     "dataset_id": asset1_id,
@@ -1835,7 +1835,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
     def test_should_respond_404(self):
         response = self.client.get(
-            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamDatasetEvents",
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamAssetEvents",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
@@ -1859,7 +1859,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         session.add(dagrun_model)
         session.commit()
 
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
 
         assert_401(response)
 

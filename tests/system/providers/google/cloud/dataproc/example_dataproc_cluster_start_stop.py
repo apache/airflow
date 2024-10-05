@@ -71,6 +71,7 @@ with DAG(
         cluster_name=CLUSTER_NAME,
         use_if_exists=True,
         retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
 
     # [START how_to_cloud_dataproc_start_cluster_operator]
