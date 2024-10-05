@@ -35,7 +35,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 
 if AIRFLOW_V_3_0_PLUS:
@@ -63,6 +63,7 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker"""
