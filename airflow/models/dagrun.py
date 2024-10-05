@@ -405,7 +405,7 @@ class DagRun(Base, LoggingMixin):
         query = (
             select(cls)
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(cls.state == DagRunState.RUNNING, cls.run_type != DagRunType.BACKFILL_JOB)
+            .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .where(DagModel.is_paused == false(), DagModel.is_active == true())
             .order_by(
@@ -450,7 +450,7 @@ class DagRun(Base, LoggingMixin):
         )
         query = (
             select(cls)
-            .where(cls.state == DagRunState.QUEUED, cls.run_type != DagRunType.BACKFILL_JOB)
+            .where(cls.state == DagRunState.QUEUED)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .where(DagModel.is_paused == false(), DagModel.is_active == true())
             .outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id)
@@ -1267,7 +1267,7 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill
+                self.run_type == DagRunType.BACKFILL_JOB
                 or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
@@ -1538,10 +1538,6 @@ class DagRun(Base, LoggingMixin):
             session.flush()
             yield ti
 
-    @property
-    def is_backfill(self) -> bool:
-        return self.run_type == DagRunType.BACKFILL_JOB
-
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
@@ -1691,7 +1687,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

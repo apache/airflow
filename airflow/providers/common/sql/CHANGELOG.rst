@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+1.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/common/sql): add dummy connection setter for backward compatibility (#42490)``
+* ``Changed type hinting for handler function (#42275)``
+
 1.17.0
 ......
 

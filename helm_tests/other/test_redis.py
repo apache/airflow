@@ -452,3 +452,44 @@ class TestRedisServiceAccount:
             show_only=["templates/redis/redis-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestRedisService:
+    """Tests redis service."""
+
+    @pytest.mark.parametrize(
+        "redis_values, expected",
+        [
+            ({"redis": {"service": {"type": "ClusterIP"}}}, "ClusterIP"),
+            ({"redis": {"service": {"type": "NodePort"}}}, "NodePort"),
+            ({"redis": {"service": {"type": "LoadBalancer"}}}, "LoadBalancer"),
+        ],
+    )
+    def test_redis_service_type(self, redis_values, expected):
+        docs = render_chart(
+            values=redis_values,
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert expected == jmespath.search("spec.type", docs[0])
+
+    def test_redis_service_nodeport(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "service": {"type": "NodePort", "nodePort": 11111},
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert 11111 == jmespath.search("spec.ports[0].nodePort", docs[0])
+
+    def test_redis_service_clusterIP(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "service": {"type": "ClusterIP", "clusterIP": "127.0.0.1"},
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert "127.0.0.1" == jmespath.search("spec.clusterIP", docs[0])

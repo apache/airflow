@@ -24,18 +24,17 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.datasets import Dataset
+from airflow.assets import Asset
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -52,79 +51,16 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        ],
+        role_name="admin",
     )
-    create_user(
-        app,  # type: ignore
-        username="test_no_dag_run_create_permission",
-        role_name="TestNoDagRunCreatePermission",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-    create_user(
-        app,  # type: ignore
-        username="test_dag_view_only",
-        role_name="TestViewDags",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-    create_user(
-        app,  # type: ignore
-        username="test_view_dags",
-        role_name="TestViewDags",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-        ],
-    )
-    create_user(
-        app,  # type: ignore
-        username="test_granular_permissions",
-        role_name="TestGranularDag",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN)],
-    )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_ID",
-        access_control={
-            "TestGranularDag": {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-            "TestNoDagRunCreatePermission": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-        },
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_dag_view_only")  # type: ignore
-    delete_user(app, username="test_view_dags")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_no_dag_run_create_permission")  # type: ignore
-    delete_roles(app)
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestDagRunEndpoint:
@@ -495,16 +431,6 @@ class TestGetDagRuns(TestDagRunEndpoint):
         self._create_test_dag_run(extra_dag=True)
         expected_dag_run_ids = ["TEST_DAG_ID", "TEST_DAG_ID", "TEST_DAG_ID_3", "TEST_DAG_ID_4"]
         response = self.client.get("api/v1/dags/~/dagRuns", environ_overrides={"REMOTE_USER": "test"})
-        assert response.status_code == 200
-        dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
-        assert dag_run_ids == expected_dag_run_ids
-
-    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
-        self._create_test_dag_run(extra_dag=True)
-        expected_dag_run_ids = ["TEST_DAG_ID", "TEST_DAG_ID"]
-        response = self.client.get(
-            "api/v1/dags/~/dagRuns", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
-        )
         assert response.status_code == 200
         dag_run_ids = [dag_run["dag_id"] for dag_run in response.json["dag_runs"]]
         assert dag_run_ids == expected_dag_run_ids
@@ -907,57 +833,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         msg = "Ordering with 'dag_ru' is disallowed or the attribute does not exist on the model"
         assert response.json["detail"] == msg
 
-    def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
-        self._create_test_dag_run(extra_dag=True)
-        expected_response_json_1 = {
-            "dag_id": "TEST_DAG_ID",
-            "dag_run_id": "TEST_DAG_RUN_ID_1",
-            "end_date": None,
-            "state": "running",
-            "execution_date": self.default_time,
-            "logical_date": self.default_time,
-            "external_trigger": True,
-            "start_date": self.default_time,
-            "conf": {},
-            "data_interval_end": None,
-            "data_interval_start": None,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "note": None,
-        }
-        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
-        expected_response_json_2 = {
-            "dag_id": "TEST_DAG_ID",
-            "dag_run_id": "TEST_DAG_RUN_ID_2",
-            "end_date": None,
-            "state": "running",
-            "execution_date": self.default_time_2,
-            "logical_date": self.default_time_2,
-            "external_trigger": True,
-            "start_date": self.default_time,
-            "conf": {},
-            "data_interval_end": None,
-            "data_interval_start": None,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "note": None,
-        }
-        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
-
-        response = self.client.post(
-            "api/v1/dags/~/dagRuns/list",
-            json={"dag_ids": []},
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 200
-        assert response.json == {
-            "dag_runs": [
-                expected_response_json_1,
-                expected_response_json_2,
-            ],
-            "total_entries": 2,
-        }
-
     @pytest.mark.parametrize(
         "payload, error",
         [
@@ -1328,15 +1203,6 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert response.status_code == 400
         assert "Invalid input for param" in response.json["detail"]
 
-    def test_dagrun_trigger_with_dag_level_permissions(self):
-        self._create_dag("TEST_DAG_ID")
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={"conf": {"validated_number": 1}},
-            environ_overrides={"REMOTE_USER": "test_no_dag_run_create_permission"},
-        )
-        assert response.status_code == 200
-
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
     def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
         self._create_dag("TEST_DAG_ID")
@@ -1627,11 +1493,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
         assert_401(response)
 
-    @pytest.mark.parametrize(
-        "username",
-        ["test_dag_view_only", "test_view_dags", "test_granular_permissions", "test_no_permissions"],
-    )
-    def test_should_raises_403_unauthorized(self, username):
+    def test_should_raises_403_unauthorized(self):
         self._create_dag("TEST_DAG_ID")
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
@@ -1639,7 +1501,7 @@ class TestPostDagRun(TestDagRunEndpoint):
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
                 "execution_date": self.default_time,
             },
-            environ_overrides={"REMOTE_USER": username},
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -1911,16 +1773,16 @@ class TestClearDagRun(TestDagRunEndpoint):
 @pytest.mark.need_serialized_dag
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        dataset1 = Dataset(uri="ds1")
+        asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
-            EmptyOperator(task_id="task", outlets=[dataset1])
+            EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        event = DatasetEvent(
-            dataset_id=ds1_id,
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        event = AssetEvent(
+            dataset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
@@ -1937,16 +1799,16 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         assert event.timestamp
 
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected_response = {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
-                    "dataset_id": ds1_id,
-                    "dataset_uri": dataset1.uri,
+                    "dataset_id": asset1_id,
+                    "dataset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
@@ -1973,7 +1835,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
     def test_should_respond_404(self):
         response = self.client.get(
-            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamDatasetEvents",
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamAssetEvents",
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
@@ -1997,7 +1859,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         session.add(dagrun_model)
         session.commit()
 
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
 
         assert_401(response)
 

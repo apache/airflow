@@ -34,7 +34,7 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
 from airflow.providers.google.cloud.links.translate import (
@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.links.translate import (
     TranslationLegacyModelTrainLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -338,6 +339,11 @@ class AutoMLPredictOperator(GoogleCloudBaseOperator):
         return PredictResponse.to_dict(result)
 
 
+@deprecated(
+    planned_removal_date="January 01, 2025",
+    use_instead="airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
     """
     Perform a batch prediction on Google Cloud AutoML.

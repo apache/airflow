@@ -24,5 +24,5 @@ Amazon Executors
 .. toctree::
     :maxdepth: 1
 
-    ECS Executor (experimental) <ecs-executor>
+    ECS Executor <ecs-executor>
     Batch Executor (experimental) <batch-executor>

@@ -36,11 +36,11 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
@@ -163,8 +163,8 @@ class SimpleAuthManager(BaseAuthManager):
             allow_role=SimpleAuthManagerRole.USER,
         )
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(
             method=method,
@@ -221,7 +221,12 @@ class SimpleAuthManager(BaseAuthManager):
         user = self.get_user()
         if not user:
             return False
-        role_str = user.get_role().upper()
+
+        user_role = user.get_role()
+        if not user_role:
+            return False
+
+        role_str = user_role.upper()
         role = SimpleAuthManagerRole[role_str]
         if role == SimpleAuthManagerRole.ADMIN:
             return True

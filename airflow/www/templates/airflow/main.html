@@ -99,7 +99,7 @@
   {% if auth_manager.is_logged_in() %}
     {% call show_message(category='info', dismissible=true) %}
       <span>We have a new UI for Airflow 3.0</span>
-      <a href="{{ url_for('ui.index') }}">Check it out now!</a>
+      <a href="http://localhost:29091/webapp">Check it out now!</a>
     {% endcall %}
   {% endif %}
 {% endblock %}

@@ -36,9 +36,9 @@ from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToG
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-DAG_ID = "example_bigquery_transfer"
+DAG_ID = "bigquery_transfer"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
