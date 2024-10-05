@@ -175,6 +175,7 @@
         "has_on_failure_callback":  { "type": "boolean" },
         "render_template_as_native_obj":  { "type": "boolean" },
         "tags": { "type": "array" },
+          "call_on_kill_on_dagrun_timeout": { "type": "boolean" },
         "_task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
