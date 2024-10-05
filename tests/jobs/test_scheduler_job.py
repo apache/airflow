@@ -4552,7 +4552,7 @@ class TestSchedulerJob:
         run1 = session.merge(run1)
         session.refresh(run1)
         assert run1.state == State.FAILED
-        assert run1_ti.state == State.SKIPPED
+        assert run1_ti.state == State.FAILED
         session.flush()
         # Run relevant part of scheduling again to assert run2 has been scheduled
         self.job_runner._start_queued_dagruns(session)
