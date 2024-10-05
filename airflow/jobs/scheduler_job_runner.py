@@ -342,14 +342,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_starved_tasks = len(starved_tasks)
             num_starved_tasks_task_dagrun_concurrency = len(starved_tasks_task_dagrun_concurrency)
 
-            # Get task instances associated with scheduled
-            # DagRuns which are not backfilled, in the given states,
-            # and the dag is not paused
             query = (
                 select(TI)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .join(TI.dag_run)
-                .where(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
+                .where(DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
                 .where(not_(DM.is_paused))
                 .where(TI.state == TaskInstanceState.SCHEDULED)
@@ -1020,7 +1017,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(
                     DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
-                    DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
                 .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
                 .group_by(DagRun)
@@ -1838,10 +1834,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
-                        .where(
-                            DagRun.run_type != DagRunType.BACKFILL_JOB,
-                            DagRun.state == DagRunState.RUNNING,
-                        )
+                        .where(DagRun.state == DagRunState.RUNNING)
                         .options(load_only(TI.dag_id, TI.task_id, TI.run_id))
                     )
 
@@ -1884,23 +1877,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return len(to_reset)
 
     @provide_session
-    def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
+    def check_trigger_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+    ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        num_timed_out_tasks = session.execute(
-            update(TI)
-            .where(
-                TI.state == TaskInstanceState.DEFERRED,
-                TI.trigger_timeout < timezone.utcnow(),
-            )
-            .values(
-                state=TaskInstanceState.SCHEDULED,
-                next_method="__fail__",
-                next_kwargs={"error": "Trigger/execution timeout"},
-                trigger_id=None,
-            )
-        ).rowcount
-        if num_timed_out_tasks:
-            self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                num_timed_out_tasks = session.execute(
+                    update(TI)
+                    .where(
+                        TI.state == TaskInstanceState.DEFERRED,
+                        TI.trigger_timeout < timezone.utcnow(),
+                    )
+                    .values(
+                        state=TaskInstanceState.SCHEDULED,
+                        next_method="__fail__",
+                        next_kwargs={"error": "Trigger/execution timeout"},
+                        trigger_id=None,
+                    )
+                ).rowcount
+                if num_timed_out_tasks:
+                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
     # [START find_zombies]
     def _find_zombies(self) -> None:

@@ -153,8 +153,14 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
         params: dict[str, Any] | None = {"requestId": str(req_id), "async": True, "pageSize": 10}
         headers = self.get_headers()
-        if bindings is None:
-            bindings = {}
+        sql_is_multi_stmt = ";" in sql.strip()
+        if not isinstance(bindings, dict) and bindings is not None:
+            raise AirflowException("Bindings should be a dictionary or None.")
+        if bindings and sql_is_multi_stmt:
+            self.log.warning(
+                "Bindings are not supported for multi-statement queries. Bindings will be ignored."
+            )
+        bindings = bindings or {}
         data = {
             "statement": sql,
             "resultSetMetaData": {"format": "json"},

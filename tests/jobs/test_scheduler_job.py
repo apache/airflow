@@ -148,7 +148,7 @@ class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         self.clean_db()
-        self.job_runner = None
+        self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
@@ -580,11 +580,11 @@ class TestSchedulerJob:
         assert State.SCHEDULED == ti1.state
         session.rollback()
 
-    def test_execute_task_instances_backfill_tasks_wont_execute(self, dag_maker):
+    def test_execute_task_instances_backfill_tasks_will_execute(self, dag_maker):
         """
         Tests that backfill tasks won't get executed.
         """
-        dag_id = "SchedulerJobTest.test_execute_task_instances_backfill_tasks_wont_execute"
+        dag_id = "SchedulerJobTest.test_execute_task_instances_backfill_tasks_will_execute"
         task_id_1 = "dummy_task"
 
         with dag_maker(dag_id=dag_id):
@@ -606,7 +606,7 @@ class TestSchedulerJob:
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db()
-        assert State.SCHEDULED == ti1.state
+        assert ti1.state == TaskInstanceState.QUEUED
         session.rollback()
 
     @conf_vars({("scheduler", "standalone_dag_processor"): "False"})
@@ -696,24 +696,25 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.BACKFILL_JOB, state=State.RUNNING)
+        dr_non_backfill = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr_backfill = dag_maker.create_dagrun_after(
+            dr_non_backfill, run_type=DagRunType.BACKFILL_JOB, state=State.RUNNING
+        )
 
-        ti_backfill = dr2.get_task_instance(task1.task_id)
-        ti_with_dagrun = dr1.get_task_instance(task1.task_id)
-        # ti_with_paused
+        ti_backfill = dr_backfill.get_task_instance(task1.task_id)
+        ti_non_backfill = dr_non_backfill.get_task_instance(task1.task_id)
+
         ti_backfill.state = State.SCHEDULED
-        ti_with_dagrun.state = State.SCHEDULED
+        ti_non_backfill.state = State.SCHEDULED
 
-        session.merge(dr2)
+        session.merge(dr_backfill)
         session.merge(ti_backfill)
-        session.merge(ti_with_dagrun)
+        session.merge(ti_non_backfill)
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
-        res_keys = (x.key for x in res)
-        assert ti_with_dagrun.key in res_keys
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert len(queued_tis) == 2
+        assert {x.key for x in queued_tis} == {ti_non_backfill.key, ti_backfill.key}
         session.rollback()
 
     def test_find_executable_task_instances_pool(self, dag_maker):
@@ -2124,7 +2125,7 @@ class TestSchedulerJob:
         assert ti.state == State.NONE
 
         ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
-        assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
+        assert ti2.state == State.NONE, "Tasks run by Backfill Jobs should be treated the same"
 
     def test_adopt_or_reset_orphaned_tasks_multiple_executors(self, dag_maker, mock_executors):
         """Test that with multiple executors configured tasks are sorted correctly and handed off to the
@@ -5192,6 +5193,82 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker):
+        """
+        Tests that it will retry on DB error like deadlock when updating timeout triggers.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        retry_times = 3
+
+        session = settings.Session()
+        # Create the test DAG and task
+        with dag_maker(
+            dag_id="test_retry_on_db_error_when_update_timeout_triggers",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=1,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        # Mock the db failure within retry times
+        might_fail_session = MagicMock(wraps=session)
+
+        def check_if_trigger_timeout(max_retries: int):
+            def make_side_effect():
+                call_count = 0
+
+                def side_effect(*args, **kwargs):
+                    nonlocal call_count
+                    if call_count < retry_times - 1:
+                        call_count += 1
+                        raise OperationalError("any_statement", "any_params", "any_orig")
+                    else:
+                        return session.execute(*args, **kwargs)
+
+                return side_effect
+
+            might_fail_session.execute.side_effect = make_side_effect()
+
+            try:
+                # Create a Task Instance for the task that is allegedly deferred
+                # but past its timeout, and one that is still good.
+                # We don't actually need a linked trigger here; the code doesn't check.
+                dr1 = dag_maker.create_dagrun()
+                dr2 = dag_maker.create_dagrun(
+                    run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+                )
+                ti1 = dr1.get_task_instance("dummy1", session)
+                ti2 = dr2.get_task_instance("dummy1", session)
+                ti1.state = State.DEFERRED
+                ti1.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+                ti2.state = State.DEFERRED
+                ti2.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=60)
+                session.flush()
+
+                # Boot up the scheduler and make it check timeouts
+                scheduler_job = Job()
+                self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+                self.job_runner.check_trigger_timeouts(max_retries=max_retries, session=might_fail_session)
+
+                # Make sure that TI1 is now scheduled to fail, and 2 wasn't touched
+                session.refresh(ti1)
+                session.refresh(ti2)
+                assert ti1.state == State.SCHEDULED
+                assert ti1.next_method == "__fail__"
+                assert ti2.state == State.DEFERRED
+            finally:
+                self.clean_db()
+
+        # Positive case, will retry until success before reach max retry times
+        check_if_trigger_timeout(retry_times)
+
+        # Negative case: no retries, execute only once.
+        with pytest.raises(OperationalError):
+            check_if_trigger_timeout(1)
+
     def test_find_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
@@ -5476,7 +5553,7 @@ class TestSchedulerJob:
         def watch_set_state(dr: DagRun, state, **kwargs):
             if state in (DagRunState.SUCCESS, DagRunState.FAILED):
                 # Stop the scheduler
-                self.job_runner.num_runs = 1  # type: ignore[attr-defined]
+                self.job_runner.num_runs = 1  # type: ignore[union-attr]
             orig_set_state(dr, state, **kwargs)  # type: ignore[call-arg]
 
         def watch_heartbeat(*args, **kwargs):
@@ -5726,7 +5803,7 @@ class TestSchedulerJob:
         session.flush()
 
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
-        assert backfill_run.state == State.RUNNING
+        assert backfill_run.state == State.SUCCESS
 
     def test_asset_orphaning(self, dag_maker, session):
         asset1 = Asset(uri="ds1")

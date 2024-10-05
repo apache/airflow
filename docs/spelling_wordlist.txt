@@ -831,8 +831,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -1485,6 +1492,9 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
 somecollection
 somedatabase
 sortable

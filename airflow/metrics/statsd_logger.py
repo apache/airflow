@@ -177,6 +177,7 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
         prefix=conf.get("metrics", "statsd_prefix"),
+        ipv6=conf.getboolean("metrics", "statsd_ipv6", fallback=False),
     )
 
     influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)

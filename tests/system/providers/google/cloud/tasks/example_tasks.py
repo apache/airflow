@@ -43,7 +43,7 @@ from airflow.providers.google.cloud.operators.tasks import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_tasks_tasks"
 
 timestamp = timestamp_pb2.Timestamp()
