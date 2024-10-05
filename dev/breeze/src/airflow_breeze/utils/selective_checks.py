@@ -239,6 +239,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
+            r"^tests/test_utils/",
         ],
     }
 )
