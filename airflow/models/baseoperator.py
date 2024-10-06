@@ -44,7 +44,6 @@ from typing import (
     NoReturn,
     Sequence,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -1776,10 +1775,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         return self.start_trigger_args
-
-
-# TODO: Deprecate for Airflow 3.0
-Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
