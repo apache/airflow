@@ -328,6 +328,8 @@ class OracleHook(DbApiHook):
         rows: list[tuple],
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
+        sequence_column: str | None = None,
+        sequence_name: str | None = None,
     ):
         """
         Perform bulk inserts efficiently for Oracle DB.
@@ -342,6 +344,8 @@ class OracleHook(DbApiHook):
             If None, each rows should have some order as table columns name
         :param commit_every: the maximum number of rows to insert in one transaction
             Default 5000. Set greater than 0. Set 1 to insert each row in each transaction
+        :param sequence_column: the column name to which the sequence will be applied, default None.
+        :param sequence_name: the names of the sequence_name in the table, default None.
         """
         if not rows:
             raise ValueError("parameter rows could not be None or empty iterable")
@@ -350,11 +354,23 @@ class OracleHook(DbApiHook):
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields or rows[0]
-        prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-            tablename=table,
-            columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
-        )
+
+        if sequence_column and sequence_name:
+            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
+                tablename=table,
+                columns="({})".format(", ".join([sequence_column] + target_fields))
+                if target_fields
+                else f"({sequence_column})",
+                values=", ".join(
+                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
+                ),
+            )
+        else:
+            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
+                tablename=table,
+                columns="({})".format(", ".join(target_fields)) if target_fields else "",
+                values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
+            )
         row_count = 0
         # Chunk the rows
         row_chunk = []
