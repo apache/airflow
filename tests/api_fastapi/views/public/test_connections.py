@@ -25,13 +25,23 @@ from tests_common.test_utils.db import clear_db_connections
 pytestmark = pytest.mark.db_test
 
 TEST_CONN_ID = "test_connection_id"
+TEST_CONN_ID_2 = "test_connection_id_2"
 TEST_CONN_TYPE = "test_type"
+TEST_CONN_TYPE_2 = "test_type_2"
 
 
 @provide_session
 def _create_connection(session) -> None:
     connection_model = Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE)
     session.add(connection_model)
+
+
+@provide_session
+def _create_connections(session) -> None:
+    connection_model_1 = Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE)
+    connection_model_2 = Connection(conn_id=TEST_CONN_ID_2, conn_type=TEST_CONN_TYPE_2)
+    connections = [connection_model_1, connection_model_2]
+    session.add_all(connections)
 
 
 class TestConnectionEndpoint:
@@ -44,6 +54,9 @@ class TestConnectionEndpoint:
 
     def create_connection(self):
         _create_connection()
+
+    def create_connections(self):
+        _create_connections()
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
@@ -102,3 +115,76 @@ class TestGetConnection(TestConnectionEndpoint):
         assert body["conn_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
         assert body["extra"] == '{"password": "***"}'
+
+
+class TestGetConnections(TestConnectionEndpoint):
+    def test_should_respond_200(self, test_client, session):
+        self.create_connections()
+        result = session.query(Connection).all()
+        assert len(result) == 2
+        response = test_client.get("/public/connections/")
+        assert response.status_code == 200
+        assert response.json() == {
+            "connections": [
+                {
+                    "conn_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "schema": None,
+                    "port": None,
+                },
+                {
+                    "conn_id": TEST_CONN_ID_2,
+                    "conn_type": TEST_CONN_TYPE_2,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "schema": None,
+                    "port": None,
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_should_respond_200_with_order_by(self, test_client, session):
+        self.create_connections()
+        result = session.query(Connection).all()
+        assert len(result) == 2
+        response = test_client.get("/public/connections/?order_by=-connection_id")
+        assert response.status_code == 200
+        # Using - means descending
+        assert response.json() == {
+            "connections": [
+                {
+                    "conn_id": TEST_CONN_ID_2,
+                    "conn_type": TEST_CONN_TYPE_2,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "schema": None,
+                    "port": None,
+                },
+                {
+                    "conn_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "schema": None,
+                    "port": None,
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    # TODO: Re-enable when permissions are handled.
+    # def test_should_raises_401_unauthenticated(self, test_client):
+    # response = test_client.get("/public/connections")
+    #
+    # assert on response
