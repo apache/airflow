@@ -25,11 +25,17 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 
 const PAUSED_PARAM = "paused";
+const STATE_PARAM = "lastrun";
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const state = searchParams.get(STATE_PARAM);
+  const isAll = state === null || state === "all";
+  const isRunning = Boolean(state) && state === "running";
+  const isFailed = Boolean(state) && state === "failed";
+  const isSuccess = Boolean(state) && state === "success";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -51,6 +57,19 @@ export const DagsFilters = () => {
       [pagination, searchParams, setSearchParams, setTableURLState, sorting],
     );
 
+  const handleStateChange: React.ChangeEventHandler<HTMLSelectElement> =
+    useCallback(
+      ({ target: { value } }) => {
+        if (value === "all") {
+          searchParams.delete(STATE_PARAM);
+        } else {
+          searchParams.set(STATE_PARAM, value);
+        }
+        setSearchParams(searchParams);
+      },
+      [searchParams, setSearchParams],
+    );
+
   return (
     <HStack justifyContent="space-between">
       <HStack spacing={4}>
@@ -59,10 +78,34 @@ export const DagsFilters = () => {
             State:
           </Text>
           <HStack>
-            <QuickFilterButton isActive>All</QuickFilterButton>
-            <QuickFilterButton isDisabled>Failed</QuickFilterButton>
-            <QuickFilterButton isDisabled>Running</QuickFilterButton>
-            <QuickFilterButton isDisabled>Successful</QuickFilterButton>
+            <QuickFilterButton
+              isActive={isAll}
+              onClick={handleStateChange}
+              value="all"
+            >
+              All
+            </QuickFilterButton>
+            <QuickFilterButton
+              isActive={isFailed}
+              onClick={handleStateChange}
+              value="failed"
+            >
+              Failed
+            </QuickFilterButton>
+            <QuickFilterButton
+              isActive={isRunning}
+              onClick={handleStateChange}
+              value="running"
+            >
+              Running
+            </QuickFilterButton>
+            <QuickFilterButton
+              isActive={isSuccess}
+              onClick={handleStateChange}
+              value="success"
+            >
+              Successful
+            </QuickFilterButton>
           </HStack>
         </Box>
         <Box>

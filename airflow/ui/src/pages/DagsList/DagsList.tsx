@@ -97,12 +97,14 @@ const cardDef: CardDef<DAGResponse> = {
 };
 
 const PAUSED_PARAM = "paused";
+const STATE_PARAM = "lastrun";
 
 export const DagsList = () => {
   const [searchParams] = useSearchParams();
   const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const lastDagRunState = searchParams.get(STATE_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -112,6 +114,7 @@ export const DagsList = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
   const { data, isFetching, isLoading } = useDagServiceGetDags({
+    lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
