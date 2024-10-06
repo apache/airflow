@@ -107,7 +107,7 @@ def test_action_logging_post(session, admin_client):
     form = dict(
         task_id="runme_1",
         dag_id="example_bash_operator",
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         upstream="false",
         downstream="false",
         future="false",
