@@ -138,3 +138,33 @@ export const prefetchUseConnectionServiceGetConnection = (
     queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
     queryFn: () => ConnectionService.getConnection({ connectionId }),
   });
+/**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnections = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+  });

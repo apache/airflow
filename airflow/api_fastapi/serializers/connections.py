@@ -48,3 +48,10 @@ class ConnectionResponse(BaseModel):
         except json.JSONDecodeError:
             # we can't redact fields in an unstructured `extra`
             return v
+
+
+class ConnectionCollectionResponse(BaseModel):
+    """DAG Collection serializer for responses."""
+
+    connections: list[ConnectionResponse]
+    total_entries: int
