@@ -101,7 +101,7 @@ class BashOperator(BaseOperator):
 
     .. note::
 
-        To simply execute a ``.sh`` or ``.bash`` script (without any Jinja template), ddd a space after the
+        To simply execute a ``.sh`` or ``.bash`` script (without any Jinja template), add a space after the
         script name ``bash_command`` argument -- for example ``bash_command="my_script.sh "``. This
         is because Airflow tries to load this file and process it as a Jinja template when
         it ends with ``.sh`` or ``.bash``.
