@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-04T19:49:13.920860
+# This constraints file was automatically generated on 2024-10-06T13:50:10.397741
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -283,7 +283,7 @@ diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
-dnspython==2.6.1
+dnspython==2.7.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
@@ -393,7 +393,7 @@ httpcore==1.0.6
 httplib2==0.22.0
 httptools==0.6.1
 httpx==0.27.0
-humanize==4.10.0
+humanize==4.11.0
 hvac==2.3.0
 hyperframe==6.0.1
 hyperlink==21.0.0
@@ -529,7 +529,7 @@ pbr==6.1.0
 pdpyras==5.3.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.4
+pgvector==0.3.5
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
@@ -543,7 +543,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.10.1
 pprintpp==0.4.0
-pre-commit==3.8.0
+pre_commit==4.0.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
@@ -716,7 +716,7 @@ types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
-types-docutils==0.21.0.20241004
+types-docutils==0.21.0.20241005
 types-paramiko==3.5.0.20240928
 types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
