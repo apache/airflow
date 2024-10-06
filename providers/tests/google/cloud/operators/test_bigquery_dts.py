@@ -76,7 +76,7 @@ class TestBigQueryCreateDataTransferOperator:
         if AIRFLOW_V_3_0_PLUS:
             ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
         else:
-            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", execution_date=None)
+            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", logical_date=None)
 
         assert "secret_access_key" not in return_value.get("params", {})
         assert "access_key_id" not in return_value.get("params", {})

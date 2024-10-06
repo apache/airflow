@@ -259,7 +259,7 @@ class TestTsFunction:
             "dag": DAG(
                 dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
             ),
-            "execution_date": datetime(2019, 2, 14, 0, 0),
+            "logical_date": datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
         assert datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc) == result
@@ -269,7 +269,7 @@ class TestTsFunction:
 
         context = {
             "dag": dag,
-            "execution_date": datetime(2019, 2, 19),
+            "logical_date": datetime(2019, 2, 19),
         }
         result = ts_function(context)
         assert pendulum.instance(datetime(2019, 2, 24)).isoformat() == result.isoformat()

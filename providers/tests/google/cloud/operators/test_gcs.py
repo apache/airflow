@@ -42,6 +42,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSTimeSpanFileTransformOperator,
 )
 from airflow.timetables.base import DagRunInfo, DataInterval
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -407,11 +408,18 @@ class TestGCSTimeSpanFileTransformOperator:
             ),
         ]
         mock_ti = mock.Mock()
-        context = dict(
-            execution_date=timespan_start,
-            dag=mock_dag,
-            ti=mock_ti,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            context = dict(
+                logical_date=timespan_start,
+                dag=mock_dag,
+                ti=mock_ti,
+            )
+        else:
+            context = dict(
+                execution_date=timespan_start,
+                dag=mock_dag,
+                ti=mock_ti,
+            )
 
         mock_tempdir.return_value.__enter__.side_effect = [source, destination]
         mock_hook.return_value.list_by_timespan.return_value = [
@@ -594,6 +602,7 @@ class TestGCSTimeSpanFileTransformOperator:
                 ),
             ),
         ]
+
         context = dict(
             execution_date=timespan_start,
             dag=mock_dag,

@@ -46,7 +46,7 @@ TEST_JSON_RESULT = lambda state: json.dumps(
             "dag_id": "test_dag_id",
             "run_id": "scheduled__2024-05-22T11:10:00+00:00",
             "state": state,
-            "execution_date": "2024-05-22T11:10:00+00:00",
+            "logical_date": "2024-05-22T11:10:00+00:00",
             "start_date": "2024-05-22T11:20:01.531988+00:00",
             "end_date": "2024-05-22T11:20:11.997479+00:00",
         }

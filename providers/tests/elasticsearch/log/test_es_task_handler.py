@@ -78,7 +78,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
-        create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
+        create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -563,8 +563,8 @@ class TestElasticsearchTaskHandler:
         assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(ti, 1)
 
     def test_clean_date(self):
-        clean_execution_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        assert "2016_07_08T09_10_11_000012" == clean_execution_date
+        clean_logical_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        assert "2016_07_08T09_10_11_000012" == clean_logical_date
 
     @pytest.mark.parametrize(
         "json_format, es_frontend, expected_url",
