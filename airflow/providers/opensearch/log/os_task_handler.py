@@ -215,12 +215,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
-            # todo: remove-at-min-airflow-version-2.8
-            #   after Airflow 2.8 can always pass `identifier`
-            if getattr(super(), "supports_task_context_logging", False):
-                super().set_context(ti, identifier=identifier)
-            else:
-                super().set_context(ti)
+            super().set_context(ti, identifier=identifier)
         self.context_set = True
 
     def emit(self, record):
