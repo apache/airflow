@@ -201,9 +201,8 @@ class SortParam(BaseParam[str]):
         else:
             return select.order_by(nullscheck, column.asc(), self.order_column.asc())
 
-    @abstractmethod
     def depends(self, order_by: str) -> SortParam:
-        pass
+        return self.set_value(order_by)
 
 
 class SortConnectionParam(SortParam):
