@@ -199,7 +199,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    "execution_date": self._clean_date(ti.execution_date),
+                    "logical_date": self._clean_date(ti.logical_date),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },

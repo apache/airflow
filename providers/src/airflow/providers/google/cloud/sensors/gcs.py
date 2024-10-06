@@ -25,7 +25,9 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.storage.retry import DEFAULT_RETRY
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -42,6 +44,8 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
     from airflow.utils.context import Context
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):
@@ -186,9 +190,14 @@ def ts_function(context):
     except KeyError:
         from airflow.utils import timezone
 
-        data_interval = context["dag"].infer_automated_data_interval(
-            timezone.coerce_datetime(context["logical_date"])
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            data_interval = context["dag"].infer_automated_data_interval(
+                timezone.coerce_datetime(context["logical_date"])
+            )
+        else:
+            data_interval = context["dag"].infer_automated_data_interval(
+                timezone.coerce_datetime(context["execution_date"])
+            )
         next_info = context["dag"].next_dagrun_info(data_interval, restricted=False)
         if next_info is None:
             return None
