@@ -167,10 +167,10 @@ These can be useful if your code has extra knowledge about its environment and w
 
 .. _concepts:zombies:
 
-Zombie/Undead Tasks
--------------------
+Zombie Tasks
+------------
 
-No system runs perfectly, and task instances are expected to die once in a while. Airflow detects two kinds of task/process mismatch:
+No system runs perfectly, and task instances are expected to die once in a while.
 
 * *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
   (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
@@ -181,11 +181,8 @@ No system runs perfectly, and task instances are expected to die once in a while
     * The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
     * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
-* *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
-  Instances via the UI. Airflow will find them periodically and terminate them.
 
-
-Below is the code snippet from the Airflow scheduler that runs periodically to detect zombie/undead tasks.
+Below is the code snippet from the Airflow scheduler that runs periodically to detect zombie tasks.
 
 .. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
     :language: python
