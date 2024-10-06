@@ -147,8 +147,8 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.settings import Session
 
-    if not annotation_run_id and "execution_date" in annotations:
-        execution_date = pendulum.parse(annotations["execution_date"])
+    if not annotation_run_id and "logical_date" in annotations:
+        logical_date = pendulum.parse(annotations["logical_date"])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 
@@ -158,7 +158,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             .filter(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
-                DagRun.logical_date == execution_date,
+                DagRun.logical_date == logical_date,
             )
             .scalar()
         )

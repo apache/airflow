@@ -130,11 +130,11 @@ class OpenLineageAdapter(LoggingMixin):
         dag_id: str,
         task_id: str,
         try_number: int,
-        execution_date: datetime,
+        logical_date: datetime,
     ):
         return str(
             generate_static_uuid(
-                instant=execution_date,
+                instant=logical_date,
                 data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
             )
         )

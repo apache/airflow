@@ -108,7 +108,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
-    `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
+    `log_id = {dag_id}-{task_id}-{logical_date}-{try_number}`
     Log messages with specific log_id are sorted based on `offset`,
     which is a unique integer indicates log message's order.
     Timestamps here are unreliable because multiple log messages
@@ -296,7 +296,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            execution_date = self._clean_date(dag_run.logical_date)
+            logical_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -306,7 +306,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            execution_date = dag_run.logical_date.isoformat()
+            logical_date = dag_run.logical_date.isoformat()
 
         return log_id_template.format(
             dag_id=ti.dag_id,
@@ -314,7 +314,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             run_id=getattr(ti, "run_id", ""),
             data_interval_start=data_interval_start,
             data_interval_end=data_interval_end,
-            execution_date=execution_date,
+            execution_date=logical_date,
             try_number=try_number,
             map_index=getattr(ti, "map_index", ""),
         )
@@ -474,7 +474,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                      'container': {'id': 'airflow'},
                      'dag_id': 'example_bash_operator',
                      'ecs': {'version': '8.0.0'},
-                     'execution_date': '2023_07_09T07_47_32_000000',
+                     'logical_date': '2023_07_09T07_47_32_000000',
                      'filename': 'taskinstance.py',
                      'input': {'type': 'log'},
                      'levelname': 'INFO',
