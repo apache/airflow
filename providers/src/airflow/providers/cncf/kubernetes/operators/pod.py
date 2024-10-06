@@ -259,6 +259,7 @@ class KubernetesPodOperator(BaseOperator):
         "cluster_context",
         "env_from",
         "node_selector",
+        "kubernetes_conn_id",
     )
     template_fields_renderers = {"env_vars": "py"}
 
