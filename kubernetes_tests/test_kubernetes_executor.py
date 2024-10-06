@@ -46,7 +46,7 @@ class TestKubernetesExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            execution_date=execution_date,
+            logical_date=execution_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=300,
@@ -83,7 +83,7 @@ class TestKubernetesExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            execution_date=execution_date,
+            logical_date=execution_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=300,

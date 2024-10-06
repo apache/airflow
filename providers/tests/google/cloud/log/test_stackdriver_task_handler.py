@@ -151,7 +151,7 @@ class TestStackdriverLoggingHandlerTask:
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            "execution_date": "2016-01-01T00:00:00+00:00",
+            "logical_date": "2016-01-01T00:00:00+00:00",
             "try_number": "1",
         }
         resource = Resource(type="global", labels={})
@@ -175,7 +175,7 @@ class TestStackdriverLoggingHandlerTask:
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            "execution_date": "2016-01-01T00:00:00+00:00",
+            "logical_date": "2016-01-01T00:00:00+00:00",
             "try_number": "1",
             "product.googleapis.com/task_id": "test-value",
         }
@@ -202,7 +202,7 @@ class TestStackdriverLoggingHandlerTask:
                     'logName="projects/project_id/logs/airflow"\n'
                     'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                     'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"'
+                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
                 ),
                 order_by="timestamp asc",
                 page_size=1000,
@@ -232,7 +232,7 @@ class TestStackdriverLoggingHandlerTask:
                     'logName="projects/project_id/logs/airflow"\n'
                     'labels.task_id="K\\"OT"\n'
                     'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"'
+                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
                 ),
                 order_by="timestamp asc",
                 page_size=1000,
@@ -260,7 +260,7 @@ class TestStackdriverLoggingHandlerTask:
                     'logName="projects/project_id/logs/airflow"\n'
                     'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                     'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"\n'
+                    'labels.logical_date="2016-01-01T00:00:00+00:00"\n'
                     'labels.try_number="3"'
                 ),
                 order_by="timestamp asc",
@@ -290,7 +290,7 @@ class TestStackdriverLoggingHandlerTask:
 logName="projects/project_id/logs/airflow"
 labels.task_id="task_for_testing_stackdriver_task_handler"
 labels.dag_id="dag_for_testing_stackdriver_file_task_handler"
-labels.execution_date="2016-01-01T00:00:00+00:00"
+labels.logical_date="2016-01-01T00:00:00+00:00"
 labels.try_number="3"'''
                 ),
                 order_by="timestamp asc",
@@ -312,7 +312,7 @@ labels.try_number="3"'''
                     'logName="projects/project_id/logs/airflow"\n'
                     'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                     'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"\n'
+                    'labels.logical_date="2016-01-01T00:00:00+00:00"\n'
                     'labels.try_number="3"'
                 ),
                 order_by="timestamp asc",
@@ -368,7 +368,7 @@ labels.try_number="3"'''
                     'resource.labels.project_id="project_id"\n'
                     'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
                     'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.execution_date="2016-01-01T00:00:00+00:00"'
+                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
                 ),
                 order_by="timestamp asc",
                 page_size=1000,
@@ -421,7 +421,7 @@ labels.try_number="3"'''
             'logName="projects/project_id/logs/airflow"',
             f'labels.task_id="{self.ti.task_id}"',
             f'labels.dag_id="{self.DAG_ID}"',
-            f'labels.execution_date="{self.ti.logical_date.isoformat()}"',
+            f'labels.logical_date="{self.ti.logical_date.isoformat()}"',
             f'labels.try_number="{self.ti.try_number}"',
         ]
         assert set(expected_filter) == set(filter_params)

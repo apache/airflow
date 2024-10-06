@@ -192,15 +192,15 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
-                return context["logical_date"], context["logical_date"] - self.execution_range
+                return context["execution_date"], context["execution_date"] - self.execution_range
             else:
-                return context["logical_date"] - self.execution_range, context["logical_date"]
+                return context["execution_date"] - self.execution_range, context["execution_date"]
         elif isinstance(self.execution_range, list) and len(self.execution_range) > 0:
             return self.execution_range[0], self.execution_range[1] if len(
                 self.execution_range
-            ) > 1 else context["logical_date"]
+            ) > 1 else context["execution_date"]
         else:
-            return context["logical_date"] - timedelta(1), context["logical_date"]
+            return context["execution_date"] - timedelta(1), context["execution_date"]
 
     def poke(self, context: Context) -> bool:
         start_date, end_date = self._get_logical_dates(context)
