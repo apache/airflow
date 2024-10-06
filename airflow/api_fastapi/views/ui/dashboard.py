@@ -80,8 +80,8 @@ async def historical_metrics_data(
         .group_by(TaskInstance.state)
     ).all()
 
-    # Combining historical data
-    data = {
+    # Combining historical metrics response as dictionary
+    historical_metrics = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
             **dict(dag_run_types),
@@ -97,4 +97,4 @@ async def historical_metrics_data(
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(data, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(historical_metrics, from_attributes=True)
