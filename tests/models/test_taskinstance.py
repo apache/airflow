@@ -3775,7 +3775,7 @@ class TestTaskInstance:
     def _env_var_check_callback(self):
         assert "test_echo_env_variables" == os.environ["AIRFLOW_CTX_DAG_ID"]
         assert "hive_in_python_op" == os.environ["AIRFLOW_CTX_TASK_ID"]
-        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_EXECUTION_DATE"]
+        assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
         assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
 
     def test_echo_env_variables(self, dag_maker):

@@ -99,7 +99,7 @@ class TestBashOperator:
                 f"echo $PYTHONPATH>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
                 f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
-                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
+                f"echo $AIRFLOW_CTX_LOGICAL_DATE>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
                 append_env=append_env,
                 env=user_defined_env,
