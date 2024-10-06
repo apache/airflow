@@ -108,6 +108,11 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: >
+          Remove incompatible Python ${{ matrix.python-version }} provider packages
+        run: |
+          echo "Removing Python 3.9-incompatible provider: cloudant"
+          rm -vf dist/apache_airflow_providers_cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
