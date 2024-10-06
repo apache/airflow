@@ -592,15 +592,15 @@ def client_dags_tis_logs(acl_app, user_dags_tis_logs):
 
 RENDERED_TEMPLATES_URL = (
     f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&"
-    f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
+    f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
 )
 TASK_URL = (
     f"task?task_id=runme_0&dag_id=example_bash_operator&"
-    f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
+    f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
 )
 XCOM_URL = (
     f"xcom?task_id=runme_0&dag_id=example_bash_operator&"
-    f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
+    f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
 )
 DURATION_URL = "duration?days=30&dag_id=example_bash_operator"
 TRIES_URL = "tries?days=30&dag_id=example_bash_operator"
@@ -609,7 +609,7 @@ GANTT_URL = "gantt?dag_id=example_bash_operator"
 GRID_DATA_URL = "object/grid_data?dag_id=example_bash_operator"
 LOG_URL = (
     f"log?task_id=runme_0&dag_id=example_bash_operator&"
-    f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
+    f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}"
 )
 
 
@@ -805,7 +805,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
 
 GET_LOGS_WITH_METADATA_URL = (
     f"get_logs_with_metadata?task_id=runme_0&dag_id=example_bash_operator&"
-    f"execution_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}&"
+    f"logical_date={urllib.parse.quote_plus(str(DEFAULT_DATE))}&"
     f"try_number=1&metadata=null"
 )
 

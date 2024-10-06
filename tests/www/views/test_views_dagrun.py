@@ -127,7 +127,7 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:06:03",
+        "logical_date": "2018-07-06 05:06:03",
         "run_id": "test_list_dagrun_includes_conf",
         "conf": '{"include": "me"}',
     }

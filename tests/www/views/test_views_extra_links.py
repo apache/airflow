@@ -145,7 +145,7 @@ def _reset_task_instances():
 def test_extra_links_works(dag_run, task_1, viewer_client, session):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=foo-bar",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=foo-bar",
         follow_redirects=True,
     )
 
@@ -159,7 +159,7 @@ def test_extra_links_works(dag_run, task_1, viewer_client, session):
 def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={dag_run.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=github",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=github",
         follow_redirects=True,
     )
 
@@ -173,7 +173,7 @@ def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
 def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -187,7 +187,7 @@ def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_
 def test_extra_links_error_raised(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=raise_error",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=raise_error",
         follow_redirects=True,
     )
 
@@ -201,7 +201,7 @@ def test_extra_links_error_raised(dag_run, task_1, viewer_client):
 def test_extra_links_no_response(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=no_response",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=no_response",
         follow_redirects=True,
     )
 
@@ -222,7 +222,7 @@ def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
     """
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_2.dag_id}&task_id={task_2.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -244,7 +244,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     """
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_2.dag_id}&task_id={task_2.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -256,7 +256,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
 
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -269,7 +269,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     # Also check that the other Operator Link defined for this operator exists
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
-        f"&execution_date={STR_DEFAULT_DATE}&link_name=google",
+        f"&logical_date={STR_DEFAULT_DATE}&link_name=google",
         follow_redirects=True,
     )
 

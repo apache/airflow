@@ -235,13 +235,13 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "logical_date": datetime.now()}
                 )
             )
 
             html_map_index_none = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "logical_date": datetime.now()}
                 )
             )
 
@@ -263,7 +263,7 @@ class TestUtils:
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
-            html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
+            html = str(utils.dag_link({"dag_id": "<a&1>", "logical_date": datetime.now()}))
 
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
