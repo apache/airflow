@@ -1,1 +1,1 @@
-Deprecated raw configuration view has been removed. Please use config get REST API instead.
+Deprecated raw ``configuration`` view has been removed. Please use ``config`` get REST API instead.
