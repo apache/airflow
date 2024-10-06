@@ -143,11 +143,11 @@ def test_trigger_dag_conf_not_dict(admin_client):
     assert run is None
 
 
-def test_trigger_dag_wrong_execution_date(admin_client):
+def test_trigger_dag_wrong_logical_date(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": "not_a_date"}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": "not_a_date"}
     )
     check_content_in_response("Invalid execution date", response)
 
@@ -161,7 +161,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     exec_date = timezone.utcnow()
 
     admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": exec_date.isoformat()}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": exec_date.isoformat()}
     )
 
     with create_session() as session:
