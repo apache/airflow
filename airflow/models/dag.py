@@ -1314,7 +1314,7 @@ class DAG(LoggingMixin):
     @provide_session
     def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
         """
-        Return the dag run for a given execution date or run_id if it exists, otherwise none.
+        Return the dag run for a given logical date or run_id if it exists, otherwise none.
 
         :param dag_id: The dag_id of the DAG to find.
         :param run_id: The run_id of the DagRun to find.

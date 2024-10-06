@@ -82,7 +82,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_k8s_executor_log_read",
             task_id="task_for_testing_k8s_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = state
         ti.triggerer_job = None

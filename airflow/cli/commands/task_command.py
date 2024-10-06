@@ -152,6 +152,7 @@ def _get_dag_run(
     if not logical_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `logical_date_or_run_id` if not `create_if_necessary`.")
 
+    logical_date = None
     if logical_date_or_run_id:
         dag_run, logical_date = _fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
@@ -494,9 +495,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     else:
         _dag = dag
     task = _dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id, pool=args.pool
-    )
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -545,7 +544,7 @@ def task_failed_deps(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     # tasks_failed-deps is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
@@ -572,7 +571,7 @@ def task_state(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     # task_state is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
@@ -630,11 +629,11 @@ def _guess_debugger() -> _SupportedDebugger:
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
     dag_run = session.scalar(
-        select(DagRun).where(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
+        select(DagRun).where(DagRun.run_id == args.logical_date_or_run_id, DagRun.dag_id == args.dag_id)
     )
     if not dag_run:
         try:
-            logical_date = timezone.parse(args.execution_date_or_run_id)
+            logical_date = timezone.parse(args.logical_date_or_run_id)
             dag_run = session.scalar(
                 select(DagRun).where(DagRun.logical_date == logical_date, DagRun.dag_id == args.dag_id)
             )
@@ -643,7 +642,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
 
     if dag_run is None:
         raise DagRunNotFound(
-            f"DagRun for {args.dag_id} with run_id or logical_date of {args.execution_date_or_run_id!r} "
+            f"DagRun for {args.dag_id} with run_id or logical_date of {args.logical_date_or_run_id!r} "
             "not found"
         )
 
@@ -701,7 +700,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
+        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
     )
     # task_test is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
@@ -754,7 +753,7 @@ def task_render(args, dag: DAG | None = None) -> None:
     ti, _ = _get_ti(
         task,
         args.map_index,
-        logical_date_or_run_id=args.execution_date_or_run_id,
+        logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
     )
     # task_render is executed with access to the database.

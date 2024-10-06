@@ -73,7 +73,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
         ti.try_number = 1

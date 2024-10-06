@@ -200,14 +200,12 @@ class TestCliTasks:
             dagbag.sync_to_db(session=session)
 
         logical_date = pendulum.now("UTC")
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             state=State.NONE,
             run_id="abc123",
             run_type=DagRunType.MANUAL,
             logical_date=logical_date,
-            data_interval=data_interval,
             session=session,
             **triggered_by_kwargs,
         )

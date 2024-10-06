@@ -159,7 +159,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             task_instance_related_annotations = {
                 "dag_id": annotations["dag_id"],
                 "task_id": annotations["task_id"],
-                "execution_date": annotations.get("execution_date"),
+                "logical_date": annotations.get("logical_date"),
                 "run_id": annotations.get("run_id"),
                 "try_number": annotations["try_number"],
             }

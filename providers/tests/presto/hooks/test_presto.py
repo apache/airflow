@@ -33,7 +33,7 @@ from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_cl
 def test_generate_airflow_presto_client_info_header():
     env_vars = {
         "AIRFLOW_CTX_DAG_ID": "dag_id",
-        "AIRFLOW_CTX_EXECUTION_DATE": "2022-01-01T00:00:00",
+        "AIRFLOW_CTX_LOGICAL_DATE": "2022-01-01T00:00:00",
         "AIRFLOW_CTX_TASK_ID": "task_id",
         "AIRFLOW_CTX_TRY_NUMBER": "1",
         "AIRFLOW_CTX_DAG_RUN_ID": "dag_run_id",

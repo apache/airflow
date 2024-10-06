@@ -152,7 +152,7 @@ class TestSmtpNotifier:
             EmptyOperator(task_id="task1")
         context = {
             "dag": dag,
-            "slas": [SlaMiss(task_id="op", dag_id=dag.dag_id, logical_date=timezone.datetime(2018, 1, 1))],
+            "slas": [SlaMiss(task_id="op", dag_id=dag.dag_id, execution_date=timezone.datetime(2018, 1, 1))],
             "task_list": [],
             "blocking_task_list": [],
             "blocking_tis": [],
@@ -180,7 +180,7 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
 
         with (
