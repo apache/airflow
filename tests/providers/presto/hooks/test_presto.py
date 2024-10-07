@@ -276,6 +276,13 @@ class TestPrestoHook:
 
         self.cur.execute.assert_called_once_with(statement, None)
 
+    def test_split_sql_string(self):
+        statement = "SELECT 1; SELECT 2"
+        result_sets = ["SELECT 1", "SELECT 2"]
+        self.cur.fetchall.return_value = result_sets
+
+        assert result_sets == self.db_hook.split_sql_string(statement)
+
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
         assert 1 == self.db_hook._serialize_cell(1, None)

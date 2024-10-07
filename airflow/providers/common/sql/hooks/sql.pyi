@@ -59,6 +59,7 @@ class ConnectorProtocol(Protocol):
 class DbApiHook(BaseHook):
     conn_name_attr: str
     default_conn_name: str
+    strip_semicolon: bool
     supports_autocommit: bool
     supports_executemany: bool
     connector: ConnectorProtocol | None
@@ -98,7 +99,7 @@ class DbApiHook(BaseHook):
     @staticmethod
     def strip_sql_string(sql: str) -> str: ...
     @staticmethod
-    def split_sql_string(sql: str) -> list[str]: ...
+    def split_sql_string(sql: str, strip_semicolon: bool = False) -> list[str]: ...
     @property
     def last_description(self) -> Sequence[Sequence] | None: ...
     @overload
