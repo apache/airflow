@@ -402,13 +402,13 @@ class TestGetAssetEvents(TestAssetEndpoint):
                     "id": 1,
                     "timestamp": self.default_time,
                     **common,
-                    "dataset_uri": d.uri,
+                    "asset_uri": d.uri,
                 },
                 {
                     "id": 2,
                     "timestamp": self.default_time,
                     **common,
-                    "dataset_uri": d.uri,
+                    "asset_uri": d.uri,
                 },
             ],
             "total_entries": 2,
@@ -465,7 +465,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
                 {
                     "id": 2,
                     "asset_id": 2,
-                    "dataset_uri": assets[1].uri,
+                    "asset_uri": assets[1].uri,
                     "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
@@ -543,7 +543,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
                 {
                     "id": 1,
                     "asset_id": 1,
-                    "dataset_uri": "s3://bucket/key",
+                    "asset_uri": "s3://bucket/key",
                     "extra": {},
                     "source_dag_id": None,
                     "source_task_id": None,
@@ -591,7 +591,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
         assert response_data == {
             "id": ANY,
             "created_dagruns": [],
-            "dataset_uri": event_payload["asset_uri"],
+            "asset_uri": event_payload["asset_uri"],
             "asset_id": ANY,
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
