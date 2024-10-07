@@ -21,6 +21,7 @@ import {
   Box,
   Flex,
   HStack,
+  Heading,
   SimpleGrid,
   Text,
   Tooltip,
@@ -60,9 +61,9 @@ export const DagCard = ({ dag }: Props) => {
       >
         <HStack>
           <Tooltip hasArrow label={dag.description}>
-            <Text color={dagIdColor} fontWeight="bold">
+            <Heading color={dagIdColor} fontSize="md">
               {dag.dag_display_name}
-            </Text>
+            </Heading>
           </Tooltip>
           {dag.tags.length ? (
             <HStack spacing={1}>
@@ -93,11 +94,11 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
       </Flex>
       <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
-        <Box />
+        <div />
         <VStack align="flex-start" spacing={1}>
-          <Text color="gray.500" fontSize="sm">
+          <Heading color="gray.500" fontSize="xs">
             Next Run
-          </Text>
+          </Heading>
           {Boolean(dag.next_dagrun) ? (
             <Text fontSize="sm">{dag.next_dagrun}</Text>
           ) : undefined}
@@ -111,8 +112,8 @@ export const DagCard = ({ dag }: Props) => {
             </Tooltip>
           ) : undefined}
         </VStack>
-        <Box />
-        <Box />
+        <div />
+        <div />
       </SimpleGrid>
     </Box>
   );

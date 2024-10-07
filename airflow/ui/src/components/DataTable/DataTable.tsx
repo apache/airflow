@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Progress, Text } from "@chakra-ui/react";
+import { Progress, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -93,7 +93,7 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
-  const extra = Boolean(isLoading)
+  const rest = Boolean(isLoading)
     ? createSkeletonMock(displayMode, skeletonCount, columns)
     : {};
 
@@ -109,7 +109,7 @@ export const DataTable = <TData,>({
     onStateChange: handleStateChange,
     rowCount: total,
     state: initialState,
-    ...extra,
+    ...rest,
   });
 
   ref.current.tableRef = table;
@@ -119,7 +119,7 @@ export const DataTable = <TData,>({
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
 
   return (
-    <Box>
+    <>
       <Progress
         isIndeterminate
         size="xs"
@@ -137,6 +137,6 @@ export const DataTable = <TData,>({
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       )}
       <TablePaginator table={table} />
-    </Box>
+    </>
   );
 };
