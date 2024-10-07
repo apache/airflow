@@ -56,7 +56,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.17.0
+  - apache-airflow-providers-common-sql>=1.17.1
   - pymssql>=2.3.0
   # The methodtools dependency can be removed with min airflow version >=2.9.1
   # as it was added in https://github.com/apache/airflow/pull/37757
