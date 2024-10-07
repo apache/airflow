@@ -24,7 +24,7 @@ import pendulum
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.standard.operators.python import ShortCircuitOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(

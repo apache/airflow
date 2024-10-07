@@ -48,7 +48,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import (
+from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,
     BranchPythonVirtualenvOperator,
@@ -352,7 +352,7 @@ class TestPythonOperator(BasePythonTest):
     def test_python_operator_has_default_logger_name(self):
         python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2))
 
-        logger_name: str = "airflow.task.operators.airflow.operators.python.PythonOperator"
+        logger_name: str = "airflow.task.operators.airflow.providers.standard.operators.python.PythonOperator"
         assert python_operator.log.name == logger_name
 
     def test_custom_logger_name_is_correctly_set(self):
@@ -1021,7 +1021,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context(self):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
@@ -1037,7 +1037,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1059,7 +1059,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
 
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1072,7 +1072,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
@@ -1080,7 +1080,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
 
-            from airflow.operators.python import PythonOperator  # noqa: F401
+            from airflow.providers.standard.operators.python import PythonOperator  # noqa: F401
 
             return []
 
@@ -1090,7 +1090,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
     def test_use_airflow_context_without_aip_44_error(self):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1523,7 +1523,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
@@ -1866,7 +1866,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
