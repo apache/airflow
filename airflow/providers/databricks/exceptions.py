@@ -19,7 +19,10 @@
 #       to be marked in an ERROR state
 """Exceptions used by Databricks Provider."""
 
+from __future__ import annotations
+
 from airflow.exceptions import AirflowException
+
 
 class AirflowTaskExecutionError(AirflowException):
     """Raised when there is an error in task execution."""
