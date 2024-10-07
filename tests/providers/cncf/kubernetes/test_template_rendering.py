@@ -25,6 +25,7 @@ from sqlalchemy.orm import make_transient
 from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
+from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
 from airflow.utils.session import create_session
 from airflow.version import version
 from tests.models import DEFAULT_DATE
@@ -82,7 +83,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         },
     }
 
-    assert ti.render_k8s_pod_yaml() == expected_pod_spec
+    assert render_k8s_pod_yaml(ti) == expected_pod_spec
     pod_mutation_hook.assert_called_once_with(mock.ANY)
 
 
@@ -100,7 +101,7 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
     session = mock.Mock()
 
     rtif_get_k8s_pod_yaml.return_value = fake_spec
-    assert ti.get_rendered_k8s_spec(session) == fake_spec
+    assert get_rendered_k8s_spec(ti, session=session) == fake_spec
 
     rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
     render_k8s_pod_yaml.assert_not_called()
@@ -109,7 +110,7 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
     rtif_get_k8s_pod_yaml.return_value = None
     render_k8s_pod_yaml.return_value = fake_spec
 
-    assert ti.get_rendered_k8s_spec(session) == fake_spec
+    assert get_rendered_k8s_spec(session) == fake_spec
 
     render_k8s_pod_yaml.assert_called_once()
 
