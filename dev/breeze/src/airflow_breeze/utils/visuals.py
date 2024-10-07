@@ -93,7 +93,7 @@ CHEATSHEET = f"""
 
           * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
           * Webserver: http://127.0.0.1:{WEBSERVER_HOST_PORT}
-          * FastAPI API:    http://127.0.0.1:{WEBSERVER_HOST_PORT}
+          * FastAPI API:    http://127.0.0.1:{FASTAPI_API_HOST_PORT}
           * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root
