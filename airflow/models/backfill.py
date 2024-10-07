@@ -173,7 +173,7 @@ def _create_backfill(
             try:
                 dr = dag.create_dagrun(
                     triggered_by=DagRunTriggeredByType.BACKFILL,
-                    execution_date=info.logical_date,
+                    logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     start_date=timezone.utcnow(),
                     state=DagRunState.QUEUED,

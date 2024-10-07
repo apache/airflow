@@ -29,7 +29,7 @@ const externalLogUrl = getMetaValue("external_log_url");
 interface Props {
   dagId: Dag["id"];
   taskId: TaskInstance["taskId"];
-  executionDate: DagRun["executionDate"];
+  logicalDate: DagRun["logicalDate"];
   isInternal?: boolean;
   tryNumber: TaskInstance["tryNumber"];
   mapIndex?: TaskInstance["mapIndex"];
@@ -38,7 +38,7 @@ interface Props {
 const LogLink = ({
   dagId,
   taskId,
-  executionDate,
+  logicalDate,
   isInternal,
   tryNumber,
   mapIndex,
@@ -47,8 +47,8 @@ const LogLink = ({
     isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)}&task_id=${encodeURIComponent(
     taskId
-  )}&execution_date=${encodeURIComponent(
-    executionDate
+  )}&logical_date=${encodeURIComponent(
+    logicalDate
   )}&map_index=${encodeURIComponent(
     mapIndex?.toString() ?? "-1"
   )}&try_number=${tryNumber}`;
