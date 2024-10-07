@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import urllib.parse
 import warnings
@@ -39,6 +40,9 @@ if TYPE_CHECKING:
 from airflow.configuration import conf
 
 __all__ = ["Asset", "AssetAll", "AssetAny"]
+
+
+log = logging.getLogger(__name__)
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -108,8 +112,16 @@ def _sanitize_uri(uri: str) -> str:
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
         try:
             parsed = normalizer(parsed)
-        except ValueError:
-            if conf.getboolean("core", "strict_asset_uri_validation", fallback=False):
+        except ValueError as exception:
+            if conf.getboolean("core", "strict_asset_uri_validation", fallback=True):
+                log.error(
+                    (
+                        "The Asset URI %s is not AIP-60 compliant: %s. "
+                        "Please check https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html"
+                    ),
+                    uri,
+                    exception,
+                )
                 raise
     return urllib.parse.urlunsplit(parsed)
 
