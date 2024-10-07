@@ -3405,53 +3405,6 @@ class TaskInstance(Base, LoggingMixin):
 
         return original_task
 
-    def render_k8s_pod_yaml(self) -> dict | None:
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
-                "and call it with TaskInstance as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_k8s_pod_yaml_from_provider(self)
-
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-                "and call it with `TaskInstance` as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_rendered_k8s_spec_from_provider(self, session=session)
-
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
     ) -> tuple[str, str, str]:
