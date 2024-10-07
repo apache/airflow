@@ -63,7 +63,6 @@ type DataTableProps<TData> = {
 
 const defaultGetRowCanExpand = () => false;
 
-// eslint-disable-next-line max-lines-per-function
 export const DataTable = <TData,>({
   columns,
   data,

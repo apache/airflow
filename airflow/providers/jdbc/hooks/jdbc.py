@@ -163,6 +163,19 @@ class JdbcHook(DbApiHook):
             database=conn.schema,
         )
 
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        engine_kwargs["creator"] = self.get_conn
+
+        return super().get_sqlalchemy_engine(engine_kwargs)
+
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(self.get_conn_id())
         host: str = conn.host

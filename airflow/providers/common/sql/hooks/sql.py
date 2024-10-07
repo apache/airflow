@@ -275,7 +275,6 @@ class DbApiHook(BaseHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        engine_kwargs["creator"] = self.get_conn
 
         try:
             url = self.sqlalchemy_url
