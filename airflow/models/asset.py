@@ -122,7 +122,7 @@ class AssetAliasModel(Base):
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
-    datasets = relationship(
+    assets = relationship(
         "AssetModel",
         secondary=alias_association_table,
         backref="aliases",

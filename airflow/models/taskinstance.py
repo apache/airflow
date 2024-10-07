@@ -2917,12 +2917,12 @@ class TaskInstance(Base, LoggingMixin):
                 select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
-        if missing_datasets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
+        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
             dataset_models.update(
                 (dataset_obj.uri, dataset_obj)
-                for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
+                for dataset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
-            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            self.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
         for (uri, extra_items), alias_names in asset_alias_names.items():

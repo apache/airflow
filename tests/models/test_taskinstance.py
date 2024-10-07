@@ -2575,8 +2575,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == alias_name_1
 
         asset_alias_obj = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == alias_name_1))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_asset_alias(self, dag_maker, session):
@@ -2649,8 +2649,8 @@ class TestTaskInstance:
         asset_alias_objs = session.scalars(select(AssetAliasModel)).all()
         assert len(asset_alias_objs) == 3
         for asset_alias_obj in asset_alias_objs:
-            assert len(asset_alias_obj.datasets) == 1
-            assert asset_alias_obj.datasets[0].uri == asset_uri
+            assert len(asset_alias_obj.assets) == 1
+            assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
@@ -2694,8 +2694,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
@@ -2734,8 +2734,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_asset_extra(self, dag_maker, session):
@@ -2798,7 +2798,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -2951,7 +2951,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 

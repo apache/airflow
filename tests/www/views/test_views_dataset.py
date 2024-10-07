@@ -63,7 +63,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
@@ -127,14 +127,14 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
-        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [2, 3]
+        assert [json_dict["id"] for json_dict in response.json["assets"]] == [2, 3]
 
         cutoff = today.add(days=-1).add(minutes=5).to_iso8601_string()
         response = admin_client.get(f"/object/datasets_summary?updated_before={cutoff}")
 
         assert response.status_code == 200
         assert response.json["total_entries"] == 2
-        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [1, 2]
+        assert [json_dict["id"] for json_dict in response.json["assets"]] == [1, 2]
 
     @pytest.mark.parametrize(
         "order_by, ordered_asset_ids",
@@ -168,7 +168,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
         assert response.status_code == 200
-        assert ordered_asset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
+        assert ordered_asset_ids == [json_dict["id"] for json_dict in response.json["assets"]]
         assert response.json["total_entries"] == len(ordered_asset_ids)
 
     def test_search_uri_pattern(self, admin_client, create_assets, session):
@@ -182,7 +182,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
@@ -199,7 +199,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
@@ -317,7 +317,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "datasets": [
+            "assets": [
                 {
                     "id": asset1_id,
                     "uri": "s3://bucket/key/1",
@@ -374,7 +374,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get(url)
 
         assert response.status_code == 200
-        asset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
+        asset_uris = [dataset["uri"] for dataset in response.json["assets"]]
         assert asset_uris == expected_asset_uris
 
     def test_should_respect_page_size_limit_default(self, admin_client, create_assets, session):
@@ -384,7 +384,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 25
+        assert len(response.json["assets"]) == 25
 
     def test_should_return_max_if_req_above(self, admin_client, create_assets, session):
         create_assets(range(1, 60))
@@ -393,7 +393,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary?limit=180")
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 50
+        assert len(response.json["assets"]) == 50
 
 
 class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
