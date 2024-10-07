@@ -33,8 +33,8 @@ def on_asset_created(asset: Asset):
 
 
 @hookspec
-def on_asset_alias_created(dataset_alias: AssetAlias):
-    """Execute when a new dataset alias is created."""
+def on_asset_alias_created(asset_alias: AssetAlias):
+    """Execute when a new asset alias is created."""
 
 
 @hookspec
