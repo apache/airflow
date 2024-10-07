@@ -1809,7 +1809,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                 {
                     "timestamp": event.timestamp.isoformat(),
                     "asset_id": asset1_id,
-                    "dataset_uri": asset1.uri,
+                    "asset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,

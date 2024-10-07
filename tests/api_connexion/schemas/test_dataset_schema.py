@@ -162,7 +162,7 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "asset_id": assetssetsset.id,
-            "dataset_uri": "s3://abc",
+            "asset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -193,7 +193,7 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "asset_id": asset.id,
-            "dataset_uri": "s3://abc",
+            "asset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": None,
             "source_task_id": None,
