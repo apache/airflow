@@ -559,7 +559,7 @@ class Test_AssetAliasCondition:
         """Example asset alias links to asset asset_alias_1."""
         asset_name = "test_name_2"
         asset_alias_2 = AssetAliasModel(name=asset_name)
-        asset_alias_2.datasets.append(asset_1)
+        asset_alias_2.assets.append(asset_1)
 
         session.add(asset_alias_2)
         session.commit()
