@@ -100,8 +100,8 @@ class TestQueuedEventEndpoint(TestAssetEndpoint):
 
         freezer.stop()
 
-    def _create_asset_dag_run_queues(self, dag_id, dataset_id, session):
-        ddrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+    def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
+        ddrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(ddrq)
         session.commit()
         return ddrq
@@ -112,8 +112,8 @@ class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
     def test_should_respond_200(self, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        dataset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, dataset_id, session)
+        asset_id = self._create_asset(session).id
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
         dataset_uri = "s3://bucket/key"
 
         response = self.client.get(
@@ -151,9 +151,9 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
         dataset_uri = "s3://bucket/key"
-        dataset_id = self._create_asset(session).id
+        asset_id = self._create_asset(session).id
 
-        ddrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        ddrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(ddrq)
         session.commit()
         conn = session.query(AssetDagRunQueue).all()
@@ -194,8 +194,8 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_200(self, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        dataset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, dataset_id, session)
+        asset_id = self._create_asset(session).id
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/assets/queuedEvent",
@@ -254,8 +254,8 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_respond_200(self, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        dataset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, dataset_id, session)
+        asset_id = self._create_asset(session).id
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
         dataset_uri = "s3://bucket/key"
 
         response = self.client.get(
@@ -296,8 +296,8 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        dataset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, dataset_id, session)
+        asset_id = self._create_asset(session).id
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
         dataset_uri = "s3://bucket/key"
 
         response = self.client.delete(

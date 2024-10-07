@@ -121,7 +121,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         # Update assets, one per day, starting with assets[0], ending with assets[2]
         asset_events = [
             AssetEvent(
-                dataset_id=assets[i].id,
+                asset_id=assets[i].id,
                 timestamp=today.add(days=-len(assets) + i + 1),
             )
             for i in range(len(assets))
@@ -164,15 +164,15 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.add_all(assets)
         asset_events = [
             AssetEvent(
-                dataset_id=assets[2].id,
+                asset_id=assets[2].id,
                 timestamp=pendulum.today("UTC").add(days=-3),
             ),
             AssetEvent(
-                dataset_id=assets[1].id,
+                asset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-2),
             ),
             AssetEvent(
-                dataset_id=assets[1].id,
+                asset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-1),
             ),
         ]
@@ -296,7 +296,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     AssetEvent(
-                        dataset_id=asset1_id,
+                        asset_id=asset1_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(3)
@@ -306,7 +306,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     AssetEvent(
-                        dataset_id=asset3_id,
+                        asset_id=asset3_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(3)
@@ -316,7 +316,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     AssetEvent(
-                        dataset_id=asset4_id,
+                        asset_id=asset4_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(4)
@@ -326,7 +326,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     AssetEvent(
-                        dataset_id=asset5_id,
+                        asset_id=asset5_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(5)

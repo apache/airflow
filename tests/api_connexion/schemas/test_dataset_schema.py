@@ -148,7 +148,7 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         session.commit()
         event = AssetEvent(
             id=1,
-            dataset_id=assetssetsset.id,
+            asset_id=assetssetsset.id,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
@@ -160,7 +160,7 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         serialized_data = asset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": assetssetsset.id,
+            "asset_id": assetssetsset.id,
             "dataset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
@@ -179,7 +179,7 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
         session.commit()
         event = AssetEvent(
             id=1,
-            dataset_id=asset.id,
+            asset_id=asset.id,
             extra={"foo": "bar"},
             source_dag_id=None,
             source_task_id=None,
@@ -191,7 +191,7 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
         serialized_data = asset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": asset.id,
+            "asset_id": asset.id,
             "dataset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": None,
@@ -206,7 +206,7 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
 class TestAssetEventCollectionSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         common = {
-            "dataset_id": 10,
+            "asset_id": 10,
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",

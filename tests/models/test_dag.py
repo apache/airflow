@@ -1034,7 +1034,7 @@ class TestDag:
             session.query(
                 TaskOutletAssetReference.task_id,
                 TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.dataset_id,
+                TaskOutletAssetReference.asset_id,
             )
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
@@ -1063,7 +1063,7 @@ class TestDag:
             session.query(
                 TaskOutletAssetReference.task_id,
                 TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.dataset_id,
+                TaskOutletAssetReference.asset_id,
             )
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
@@ -2451,7 +2451,7 @@ class TestDagModel:
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
         asset_model: AssetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2499,7 +2499,7 @@ class TestDagModel:
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
         asset_model: AssetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2676,7 +2676,7 @@ class TestDagModel:
 
             session.add(
                 AssetEvent(
-                    dataset_id=asset_id,
+                    asset_id=asset_id,
                     source_task_id="task",
                     source_dag_id=dr.dag_id,
                     source_run_id=dr.run_id,
@@ -2693,9 +2693,9 @@ class TestDagModel:
         session.flush()
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
                 AssetDagRunQueue(
-                    dataset_id=asset2_id,
+                    asset_id=asset2_id,
                     target_dag_id=dag.dag_id,
                     created_at=DEFAULT_DATE + timedelta(hours=1),
                 ),
@@ -3446,8 +3446,8 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
     session.bulk_save_objects(
         [
-            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
-            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
         ]
     )
     session.flush()

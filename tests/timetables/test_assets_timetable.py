@@ -213,8 +213,8 @@ def asset_events(mocker) -> list[AssetEvent]:
     mock_dag_run_later.data_interval_end = later
 
     # Create AssetEvent objects with mock source_dag_run
-    event_earlier = AssetEvent(timestamp=earlier, dataset_id=1)
-    event_later = AssetEvent(timestamp=later, dataset_id=1)
+    event_earlier = AssetEvent(timestamp=earlier, asset_id=1)
+    event_later = AssetEvent(timestamp=later, asset_id=1)
 
     # Use mocker to set the source_dag_run attribute to avoid SQLAlchemy's instrumentation
     mocker.patch.object(event_earlier, "source_dag_run", new=mock_dag_run_earlier)

@@ -1430,7 +1430,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetEvent)
                     .join(
                         DagScheduleAssetReference,
-                        AssetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
+                        AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                     )
                     .where(*asset_event_filters)
                 ).all()

@@ -56,11 +56,11 @@ async def next_run_assets(
                 AssetModel.uri,
                 func.max(AssetEvent.timestamp).label("lastUpdate"),
             )
-            .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == AssetModel.id)
+            .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
             .join(
                 AssetDagRunQueue,
                 and_(
-                    AssetDagRunQueue.dataset_id == AssetModel.id,
+                    AssetDagRunQueue.asset_id == AssetModel.id,
                     AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
@@ -68,7 +68,7 @@ async def next_run_assets(
             .join(
                 AssetEvent,
                 and_(
-                    AssetEvent.dataset_id == AssetModel.id,
+                    AssetEvent.asset_id == AssetModel.id,
                     (
                         AssetEvent.timestamp >= latest_run.execution_date
                         if latest_run and latest_run.execution_date
