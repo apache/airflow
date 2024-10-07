@@ -508,7 +508,7 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
             {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},

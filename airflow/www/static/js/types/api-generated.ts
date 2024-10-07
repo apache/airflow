@@ -1648,7 +1648,7 @@ export interface components {
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       /** @description Nested asset any/all conditions */
-      dataset_expression?: { [key: string]: unknown } | null;
+      asset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**

@@ -383,7 +383,7 @@ export const $DAGDetailsResponse = {
       ],
       title: "Dag Run Timeout",
     },
-    dataset_expression: {
+    asset_expression: {
       anyOf: [
         {
           type: "object",
@@ -538,7 +538,7 @@ export const $DAGDetailsResponse = {
     "owners",
     "catchup",
     "dag_run_timeout",
-    "dataset_expression",
+    "asset_expression",
     "doc_md",
     "start_date",
     "end_date",

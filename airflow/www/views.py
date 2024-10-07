@@ -1005,7 +1005,7 @@ class Airflow(AirflowBaseView):
                 .all()
             )
 
-            asset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
+            asset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.asset_expression is not None}
             if asset_triggered_dag_ids:
                 asset_triggered_next_run_info = get_asset_triggered_next_run_info(
                     asset_triggered_dag_ids, session=session
@@ -1219,7 +1219,7 @@ class Airflow(AirflowBaseView):
         dataset_triggered_dag_ids = session.scalars(
             select(DagModel.dag_id)
             .where(DagModel.dag_id.in_(filter_dag_ids))
-            .where(DagModel.dataset_expression.is_not(None))
+            .where(DagModel.asset_expression.is_not(None))
         ).all()
 
         asset_triggered_next_run_info = get_asset_triggered_next_run_info(
@@ -3455,7 +3455,7 @@ class Airflow(AirflowBaseView):
                     .order_by(AssetModel.uri)
                 )
             ]
-            data = {"dataset_expression": dag_model.dataset_expression, "events": events}
+            data = {"asset_expression": dag_model.asset_expression, "events": events}
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},

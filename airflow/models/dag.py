@@ -2843,7 +2843,7 @@ class DagModel(Base):
     # Timetable description
     timetable_description = Column(String(1000), nullable=True)
     # Dataset expression based on dataset triggers
-    dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -3186,7 +3186,7 @@ class DagModel(Base):
 
     @provide_session
     def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
-        if self.dataset_expression is None:
+        if self.asset_expression is None:
             return None
 
         # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns

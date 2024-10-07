@@ -1377,7 +1377,7 @@ components:
             format: duration
           - type: 'null'
           title: Dag Run Timeout
-        dataset_expression:
+        asset_expression:
           anyOf:
           - type: object
           - type: 'null'
@@ -1472,7 +1472,7 @@ components:
       - owners
       - catchup
       - dag_run_timeout
-      - dataset_expression
+      - asset_expression
       - doc_md
       - start_date
       - end_date
