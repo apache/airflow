@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-07T05:10:08.851544
+# This constraints file was automatically generated on 2024-10-07T13:45:47.160921
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -78,7 +78,7 @@ anyio==4.6.0
 apache-beam==2.59.0
 apispec==6.6.1
 apprise==1.9.0
-argcomplete==3.5.0
+argcomplete==3.5.1
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
@@ -308,7 +308,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.1
 jeepney==0.8.0
-jiter==0.5.0
+jiter==0.6.0
 jmespath==0.10.0
 joserfc==1.0.0
 json-merge-patch==0.2
@@ -645,9 +645,9 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.319.0
+yandexcloud==0.320.0
 yarl==1.13.1
-ydb==3.18.0
+ydb==3.18.1
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
