@@ -3105,12 +3105,12 @@ class DagModel(Base):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        dataset_triggered_dag_info = {}
+        asset_triggered_dag_info = {}
         for dag_id, records in by_dag.items():
             times = sorted(x.created_at for x in records)
-            dataset_triggered_dag_info[dag_id] = (times[0], times[-1])
+            asset_triggered_dag_info[dag_id] = (times[0], times[-1])
         del by_dag
-        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
+        dataset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
             exclusion_list = set(
                 session.scalars(
@@ -3124,8 +3124,8 @@ class DagModel(Base):
             )
             if exclusion_list:
                 dataset_triggered_dag_ids -= exclusion_list
-                dataset_triggered_dag_info = {
-                    k: v for k, v in dataset_triggered_dag_info.items() if k not in exclusion_list
+                asset_triggered_dag_info = {
+                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -3146,7 +3146,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            dataset_triggered_dag_info,
+            asset_triggered_dag_info,
         )
 
     def calculate_dagrun_date_fields(
