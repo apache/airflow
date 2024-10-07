@@ -103,7 +103,7 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
         ]
         asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
         for asset_alias in asset_aliases:
-            asset_alias.datasets.append(assets[0])
+            asset_alias.assets.append(assets[0])
         session.add_all(assets)
         session.add_all(asset_aliases)
         session.flush()

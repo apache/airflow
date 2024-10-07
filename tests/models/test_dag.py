@@ -2451,7 +2451,7 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        asset_model: AssetModel = dag_model.schedule_datasets[0]
+        asset_model: AssetModel = dag_model.schedule_assets[0]
         session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2479,7 +2479,7 @@ class TestDagModel:
         # link asset_alias hello_alias to asset hello
         asset_model = AssetModel(uri="hello")
         asset_alias_model = AssetAliasModel(name="hello_alias")
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -2499,7 +2499,7 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        asset_model: AssetModel = dag_model.schedule_datasets[0]
+        asset_model: AssetModel = dag_model.schedule_assets[0]
         session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)

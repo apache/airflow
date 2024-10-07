@@ -265,7 +265,7 @@ def test_summary(session: Session) -> None:
     table = AssetTriggeredTimetable(asset_alias)
     assert table.summary == "Unresolved AssetAlias"
 
-    asset_alias_model.datasets.append(asset_model)
+    asset_alias_model.assets.append(asset_model)
     session.add(asset_alias_model)
     session.commit()
 

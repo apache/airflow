@@ -3595,8 +3595,8 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset._mapping) for dataset in query]
-            data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
+            assets = [dict(dataset._mapping) for dataset in query]
+            data = {"assets": assets, "total_entries": session.scalar(count_query)}
 
             return (
                 htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
