@@ -56,10 +56,10 @@ class TestAssetSchema(TestAssetSchemaBase):
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
-        with dag_maker(dag_id="test_dataset_upstream_schema", serialized=True, session=session):
+        with dag_maker(dag_id="test_asset_upstream_schema", serialized=True, session=session):
             EmptyOperator(task_id="task1", outlets=[asset])
         with dag_maker(
-            dag_id="test_dataset_downstream_schema", schedule=[asset], serialized=True, session=session
+            dag_id="test_asset_downstream_schema", schedule=[asset], serialized=True, session=session
         ):
             EmptyOperator(task_id="task2")
 
@@ -75,7 +75,7 @@ class TestAssetSchema(TestAssetSchemaBase):
             "updated_at": self.timestamp,
             "consuming_dags": [
                 {
-                    "dag_id": "test_dataset_downstream_schema",
+                    "dag_id": "test_asset_downstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }
@@ -83,7 +83,7 @@ class TestAssetSchema(TestAssetSchemaBase):
             "producing_tasks": [
                 {
                     "task_id": "task1",
-                    "dag_id": "test_dataset_upstream_schema",
+                    "dag_id": "test_asset_upstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }

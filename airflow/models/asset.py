@@ -210,7 +210,7 @@ class AssetModel(Base):
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
 
-    __tablename__ = "dataset"
+    __tablename__ = "asset"
     __table_args__ = (
         Index("idx_asset_name_uri_unique", name, uri, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused

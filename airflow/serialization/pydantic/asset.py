@@ -69,6 +69,6 @@ class AssetEventPydantic(BaseModelPydantic):
     source_run_id: Optional[str]
     source_map_index: Optional[int]
     timestamp: datetime
-    dataset: Optional[AssetPydantic]
+    asset: Optional[AssetPydantic]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

@@ -468,7 +468,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
+                "has_outlet_assets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
@@ -1173,14 +1173,14 @@ class Airflow(AirflowBaseView):
             file_tokens=file_tokens,
         )
 
-    @expose("/datasets")
+    @expose("/assets")
     @auth.has_access_asset("GET")
-    def datasets(self):
+    def assets(self):
         """Assets view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
-            "airflow/datasets.html",
+            "airflow/assets.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
         )
@@ -1199,10 +1199,10 @@ class Airflow(AirflowBaseView):
             standalone_dag_processor=standalone_dag_processor,
         )
 
-    @expose("/next_run_datasets_summary", methods=["POST"])
+    @expose("/next_run_assets_summary", methods=["POST"])
     @provide_session
-    def next_run_datasets_summary(self, session: Session = NEW_SESSION):
-        """Next run info for dataset triggered DAGs."""
+    def next_run_assets_summary(self, session: Session = NEW_SESSION):
+        """Next run info for asset triggered DAGs."""
         allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         if not allowed_dag_ids:
@@ -1216,14 +1216,14 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = session.scalars(
+        asset_triggered_dag_ids = session.scalars(
             select(DagModel.dag_id)
             .where(DagModel.dag_id.in_(filter_dag_ids))
             .where(DagModel.asset_expression.is_not(None))
         ).all()
 
         asset_triggered_next_run_info = get_asset_triggered_next_run_info(
-            dataset_triggered_dag_ids, session=session
+            asset_triggered_dag_ids, session=session
         )
 
         return flask.json.jsonify(asset_triggered_next_run_info)
@@ -3406,12 +3406,12 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/next_run_datasets/<string:dag_id>")
+    @expose("/object/next_run_assets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @auth.has_access_asset("GET")
     @mark_fastapi_migration_done
-    def next_run_datasets(self, dag_id):
-        """Return datasets necessary, and their status, for the next dag run."""
+    def next_run_assets(self, dag_id):
+        """Return assets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             return {"error": f"can't find dag {dag_id}"}, 404
@@ -3461,10 +3461,10 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/dataset_dependencies")
+    @expose("/object/asset_dependencies")
     @auth.has_access_dag("GET", DagAccessEntity.DEPENDENCIES)
-    def dataset_dependencies(self):
-        """Return dataset dependencies graph."""
+    def asset_dependencies(self):
+        """Return asset dependencies graph."""
         nodes_dict: dict[str, Any] = {}
         edge_tuples: set[dict[str, str]] = set()
 
@@ -3507,15 +3507,15 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/datasets_summary")
+    @expose("/object/assets_summary")
     @auth.has_access_asset("GET")
-    def datasets_summary(self):
+    def assets_summary(self):
         """
-        Get a summary of datasets.
+        Get a summary of assets.
 
         Includes the datetime they were last updated and how many updates they've ever had.
         """
-        allowed_attrs = ["uri", "last_dataset_update"]
+        allowed_attrs = ["uri", "last_asset_update"]
 
         # Grab query parameters
         limit = int(request.args.get("limit", 25))
@@ -3545,7 +3545,7 @@ class Airflow(AirflowBaseView):
                     order_by = (AssetModel.uri.desc(),)
                 else:
                     order_by = (AssetModel.uri.asc(),)
-            elif lstripped_orderby == "last_dataset_update":
+            elif lstripped_orderby == "last_asset_update":
                 if order_by.startswith("-"):
                     order_by = (
                         func.max(AssetEvent.timestamp).desc(),
@@ -3569,7 +3569,7 @@ class Airflow(AirflowBaseView):
                 select(
                     AssetModel.id,
                     AssetModel.uri,
-                    func.max(AssetEvent.timestamp).label("last_dataset_update"),
+                    func.max(AssetEvent.timestamp).label("last_asset_update"),
                     func.sum(case((AssetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
                 .join(AssetEvent, AssetEvent.asset_id == AssetModel.id, isouter=not has_event_filters)
@@ -3595,7 +3595,7 @@ class Airflow(AirflowBaseView):
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            assets = [dict(dataset._mapping) for dataset in query]
+            assets = [dict(asset._mapping) for asset in query]
             data = {"assets": assets, "total_entries": session.scalar(count_query)}
 
             return (
