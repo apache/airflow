@@ -51,10 +51,15 @@ with DAG(
         path=FULL_FILE_PATH,
         poke_interval=10,
     )
-    def sftp_sensor_decorator():
+    def sftp_sensor_decorator(files_found: list[str]):
         print("Files were successfully found!")
-        # add your logic
-        return "done"
+        files_to_keep = []
+        for file in files_found:
+            print(f"Found file: {file}")
+            if 'example_test_sftp' in file:
+                print('Found the file we were looking for!')
+                files_to_keep.append(file)
+        return files_to_keep
 
     # [END howto_operator_sftp_sensor_decorator]
 
