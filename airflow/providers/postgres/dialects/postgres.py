@@ -25,7 +25,7 @@ class PostgresDialect(Dialect):
     """Postgres dialect implementation."""
 
     @lru_cache(maxsize=None)
-    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]:
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         """
         Get the table's primary key.
 

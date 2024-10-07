@@ -32,9 +32,11 @@ Definition of the public interface for airflow.providers.common.sql.hooks.dialec
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.utils.log.logging_mixin import LoggingMixin as LoggingMixin
-from sqlalchemy.engine import Inspector as Inspector
 from typing import Any, Callable, Iterable, Mapping, TypeVar
+
+from sqlalchemy.engine import Inspector as Inspector
+
+from airflow.utils.log.logging_mixin import LoggingMixin as LoggingMixin
 
 T = TypeVar("T")
 
@@ -45,8 +47,8 @@ class Dialect(LoggingMixin):
     def placeholder(self) -> str: ...
     @property
     def inspector(self) -> Inspector: ...
-    def get_column_names(self, table: str, schema: str | None = None) -> list[str]: ...
-    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]: ...
+    def get_column_names(self, table: str, schema: str | None = None) -> list[str] | None: ...
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None: ...
     def run(
         self,
         sql: str | Iterable[str],

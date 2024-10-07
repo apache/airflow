@@ -63,7 +63,7 @@ class Dialect(LoggingMixin):
         return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
 
     @lru_cache(maxsize=None)
-    def get_column_names(self, table: str, schema: str | None = None) -> list[str]:
+    def get_column_names(self, table: str, schema: str | None = None) -> list[str] | None:
         if schema is None:
             table, schema = self._extract_schema_from_table(table)
         column_names = list(
@@ -73,7 +73,7 @@ class Dialect(LoggingMixin):
         return column_names
 
     @lru_cache(maxsize=None)
-    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str]:
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         if schema is None:
             table, schema = self._extract_schema_from_table(table)
         primary_keys = self.inspector.get_pk_constraint(table_name=table, schema=schema).get(
