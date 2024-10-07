@@ -6477,4 +6477,4 @@ def test_mark_backfills_completed(dag_maker, session):
     session.commit()
     runner._mark_backfills_complete()
     b = session.get(Backfill, b.id)
-    assert b.completed_at.total_seconds() > 0
+    assert b.completed_at.timestamp() > 0
