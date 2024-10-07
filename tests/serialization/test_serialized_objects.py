@@ -43,7 +43,7 @@ from airflow.jobs.job import Job
 from airflow.models.asset import AssetEvent
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
-from airflow.models.dagrun import DagRun
+from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
@@ -53,7 +53,7 @@ from airflow.operators.python import PythonOperator
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dag_run import DagRunNotePydantic, DagRunPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -328,6 +328,7 @@ sample_objects = {
     DagTagPydantic: DagTag(),
     AssetPydantic: Asset("uri", {}),
     AssetEventPydantic: AssetEvent(),
+    DagRunNotePydantic: DagRunNote(content="test"),
 }
 
 
@@ -430,6 +431,7 @@ def test_all_pydantic_models_round_trip():
                 classes.add(obj)
     exclusion_list = {
         "AssetPydantic",
+        "DagRunNotePydantic",
         "DagTagPydantic",
         "DagScheduleAssetReferencePydantic",
         "TaskOutletAssetReferencePydantic",
