@@ -20,7 +20,6 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -145,45 +144,3 @@ class TestAwsBaseOperator:
         error_match = r"Class attribute 'SoWrongOperator.aws_hook_class' is not a subclass of AwsGenericHook"
         with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.parametrize(
-        "region, region_name, expected_region_name",
-        [
-            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
-            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
-        ],
-    )
-    @pytest.mark.db_test
-    def test_region_in_partial_operator(self, region, region_name, expected_region_name, dag_maker):
-        with dag_maker("test_region_in_partial_operator", serialized=True):
-            FakeS3Operator.partial(
-                task_id="fake-task-id",
-                region=region,
-                region_name=region_name,
-            ).expand(value=[1, 2, 3])
-
-        dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        warning_match = r"`region` is deprecated and will be removed"
-        for ti in dr.task_instances:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                ti.run()
-            assert ti.task.region_name == expected_region_name
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.db_test
-    def test_ambiguous_region_in_partial_operator(self, dag_maker):
-        with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
-            FakeS3Operator.partial(
-                task_id="fake-task-id",
-                region="eu-west-1",
-                region_name="us-east-1",
-            ).expand(value=[1, 2, 3])
-
-        dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        warning_match = r"`region` is deprecated and will be removed"
-        for ti in dr.task_instances:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
-                ValueError, match="Conflicting `region_name` provided"
-            ):
-                ti.run()
