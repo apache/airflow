@@ -31,7 +31,7 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow.assets import Asset, AssetAlias
@@ -327,7 +327,18 @@ class AssetModelOperation(NamedTuple):
         return orm_aliases
 
     def add_asset_active_references(self, assets: Collection[AssetModel], *, session: Session) -> None:
-        session.add_all(AssetActive(name=a.name, uri=a.uri) for a in assets if (a.name, a.uri))
+        existing_entries = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_(AssetActive.name, AssetActive.uri).in_((asset.name, asset.uri) for asset in assets)
+                )
+            )
+        )
+        session.add_all(
+            AssetActive(name=asset.name, uri=asset.uri)
+            for asset in assets
+            if (asset.name, asset.uri) not in existing_entries
+        )
 
     def add_dag_asset_references(
         self,
