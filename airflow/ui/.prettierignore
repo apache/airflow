@@ -3,3 +3,4 @@ templates/**/*.html
 dist/
 *.md
 *.yaml
+coverage/*

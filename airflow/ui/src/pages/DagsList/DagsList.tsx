@@ -85,7 +85,6 @@ const columns: Array<ColumnDef<DAGResponse>> = [
 
 const PAUSED_PARAM = "paused";
 
-// eslint-disable-next-line complexity
 export const DagsList = ({ cardView = false }) => {
   const [searchParams] = useSearchParams();
 
