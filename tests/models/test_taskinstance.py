@@ -2305,7 +2305,7 @@ class TestTaskInstance:
         assert event.dataset
 
         # check that one queue record created for each dag that depends on asset 1
-        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.dataset.id).order_by(
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.asset.id).order_by(
             AssetDagRunQueue.target_dag_id
         ).all() == [
             ("asset_consumes_1",),
@@ -2323,9 +2323,7 @@ class TestTaskInstance:
         ).one() == ("s3://dag1/output_1.txt",)
 
         # check that the asset event has an earlier timestamp than the ADRQ's
-        adrq_timestamps = (
-            session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.dataset.id).all()
-        )
+        adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
         assert all(
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
         ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
