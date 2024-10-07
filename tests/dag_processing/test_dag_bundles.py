@@ -37,19 +37,19 @@ def bundle_temp_dir(tmp_path):
 
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
-        bundle = LocalDagBundle(id="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
         assert bundle._dag_bundle_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
 class TestLocalDagBundle:
     def test_path(self):
-        bundle = LocalDagBundle(id="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
         assert bundle.path == Path("/hello")
 
     def test_does_not_support_versioning(self):
         assert LocalDagBundle.supports_versioning is False
 
-        bundle = LocalDagBundle(id="test", local_folder="/hello")
+        bundle = LocalDagBundle(name="test", local_folder="/hello")
 
         with pytest.raises(AirflowException):
             bundle.get_current_version()
@@ -73,12 +73,12 @@ class TestGitDagBundle:
 
     def test_uses_dag_bundle_storage_path(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(id="test", repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="master")
         assert str(bundle._dag_bundle_storage_path) in str(bundle.path)
 
     def test_get_current_version(self, git_repo):
         repo_path, repo = git_repo
-        bundle = GitDagBundle(id="test", repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="master")
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
 
@@ -93,7 +93,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(id="test", version=starting_commit.hexsha, repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", version=starting_commit.hexsha, repo_url=repo_path, head="master")
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -115,7 +115,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(id="test", version="test", repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", version="test", repo_url=repo_path, head="master")
 
         assert bundle.get_current_version() == starting_commit.hexsha
 
@@ -132,7 +132,7 @@ class TestGitDagBundle:
         repo.index.add([file_path])
         repo.index.commit("Another commit")
 
-        bundle = GitDagBundle(id="test", repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="master")
 
         assert bundle.get_current_version() != starting_commit.hexsha
 
@@ -143,7 +143,7 @@ class TestGitDagBundle:
         repo_path, repo = git_repo
         starting_commit = repo.head.commit
 
-        bundle = GitDagBundle(id="test", repo_url=repo_path, head="master")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="master")
 
         assert bundle.get_current_version() == starting_commit.hexsha
 

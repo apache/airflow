@@ -32,14 +32,14 @@ class BaseDagBundle(ABC):
       - In an ephemeral manner, essentially to run a task. This may mean a specific version of the DAG bundle is retrieved.
       - In an ongoing manner, by the DAG processor, to keep the DAGs in the bundle up to date.
 
-    :param id: String identifier for the DAG bundle
+    :param name: String identifier for the DAG bundle
     :param version: Version of the DAG bundle (Optional)
     """
 
     supports_versioning: bool = False
 
-    def __init__(self, *, id: str, version: str | None = None) -> None:
-        self.id = id
+    def __init__(self, *, name: str, version: str | None = None) -> None:
+        self.name = name
         self.version = version
 
     @property

@@ -47,7 +47,7 @@ class GitDagBundle(BaseDagBundle):
         self.repo_url = repo_url
         self.head = head
 
-        self.bare_repo_path = self._dag_bundle_storage_path / "git" / self.id
+        self.bare_repo_path = self._dag_bundle_storage_path / "git" / self.name
         self._ensure_bare_repo_exists()
         if self.version:
             self._ensure_version_in_bare_repo()
@@ -100,7 +100,7 @@ class GitDagBundle(BaseDagBundle):
     @property
     def path(self) -> Path:
         location = self.version or self.head
-        return self._dag_bundle_storage_path / "git" / f"{self.id}+{location}"
+        return self._dag_bundle_storage_path / "git" / f"{self.name}+{location}"
 
     @staticmethod
     def _has_version(repo: Repo, version: str) -> bool:
