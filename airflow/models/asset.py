@@ -44,7 +44,7 @@ alias_association_table = Table(
     "asset_alias_asset",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
-    Column("asset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
+    Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_asset_id", "asset_id"),
     ForeignKeyConstraint(
@@ -55,7 +55,7 @@ alias_association_table = Table(
     ),
     ForeignKeyConstraint(
         ("asset_id",),
-        ["dataset.id"],
+        ["asset.id"],
         name="a_aa_asset_id",
         ondelete="CASCADE",
     ),
@@ -299,7 +299,7 @@ class DagScheduleAssetReference(Base):
         PrimaryKeyConstraint(asset_id, dag_id, name="dsar_pkey"),
         ForeignKeyConstraint(
             (asset_id,),
-            ["dataset.id"],
+            ["asset.id"],
             name="dsar_asset_fkey",
             ondelete="CASCADE",
         ),
@@ -340,7 +340,7 @@ class TaskOutletAssetReference(Base):
     __table_args__ = (
         ForeignKeyConstraint(
             (asset_id,),
-            ["dataset.id"],
+            ["asset.id"],
             name="toar_asset_fkey",
             ondelete="CASCADE",
         ),
@@ -387,7 +387,7 @@ class AssetDagRunQueue(Base):
         PrimaryKeyConstraint(asset_id, target_dag_id, name="assetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (asset_id,),
-            ["dataset.id"],
+            ["asset.id"],
             name="adrq_asset_fkey",
             ondelete="CASCADE",
         ),
