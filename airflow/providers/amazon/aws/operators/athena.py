@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import urlparse
 
+import sqlparse
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
@@ -87,7 +89,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     def __init__(
         self,
         *,
-        query: str,
+        query: str | list[str],
         database: str,
         output_location: str | None = None,
         client_request_token: str | None = None,
@@ -99,6 +101,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         log_query: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         catalog: str = "AwsDataCatalog",
+        split_statements: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -115,6 +118,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         self.log_query: bool = log_query
         self.deferrable = deferrable
         self.catalog: str = catalog
+        self.split_statements: bool = split_statements
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
@@ -126,63 +130,97 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         self.query_execution_context["Catalog"] = self.catalog
         if self.output_location:
             self.result_configuration["OutputLocation"] = self.output_location
-        self.query_execution_id = self.hook.run_query(
-            self.query,
-            self.query_execution_context,
-            self.result_configuration,
-            self.client_request_token,
-            self.workgroup,
-        )
-        AthenaQueryResultsLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            query_execution_id=self.query_execution_id,
-        )
 
-        if self.deferrable:
-            self.defer(
-                trigger=AthenaTrigger(
-                    query_execution_id=self.query_execution_id,
-                    waiter_delay=self.sleep_time,
-                    waiter_max_attempts=self.max_polling_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                    region_name=self.region_name,
-                    verify=self.verify,
-                    botocore_config=self.botocore_config,
-                ),
-                method_name="execute_complete",
-            )
-        # implicit else:
-        query_status = self.hook.poll_query_status(
-            self.query_execution_id,
-            max_polling_attempts=self.max_polling_attempts,
-            sleep_time=self.sleep_time,
-        )
+        if isinstance(self.query, str):
+            if self.split_statements:
+                query_list = self._split_sql_string(self.query)
+            else:
+                query_list = [self.query] if self.query.strip() else []
+        else:
+            query_list = self.query
 
-        if query_status in AthenaHook.FAILURE_STATES:
-            error_message = self.hook.get_state_change_reason(self.query_execution_id)
-            raise AirflowException(
-                f"Final state of Athena job is {query_status}, query_execution_id is "
-                f"{self.query_execution_id}. Error: {error_message}"
+        query_list_len = len(query_list)
+
+        if not query_list_len:
+            raise AirflowException("No queries were found to execute.")
+
+        for query in query_list:
+            self.query_execution_id = self.hook.run_query(
+                query,
+                self.query_execution_context,
+                self.result_configuration,
+                self.client_request_token,
+                self.workgroup,
             )
-        elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
-            raise AirflowException(
-                f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
-                f"query_execution_id is {self.query_execution_id}."
+            AthenaQueryResultsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                query_execution_id=self.query_execution_id,
             )
+
+            if self.deferrable:
+                self.defer(
+                    trigger=AthenaTrigger(
+                        query_execution_id=self.query_execution_id,
+                        waiter_delay=self.sleep_time,
+                        waiter_max_attempts=self.max_polling_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
+                    ),
+                    kwargs={"query_list": query_list},
+                    method_name="execute_next_query",
+                )
+            # implicit else:
+            query_status = self.hook.poll_query_status(
+                self.query_execution_id,
+                max_polling_attempts=self.max_polling_attempts,
+                sleep_time=self.sleep_time,
+            )
+
+            if query_status in AthenaHook.FAILURE_STATES:
+                error_message = self.hook.get_state_change_reason(self.query_execution_id)
+                raise AirflowException(
+                    f"Final state of Athena job is {query_status}, query_execution_id is "
+                    f"{self.query_execution_id}. Error: {error_message}"
+                )
+            elif not query_status or query_status in AthenaHook.INTERMEDIATE_STATES:
+                raise AirflowException(
+                    f"Final state of Athena job is {query_status}. Max tries of poll status exceeded, "
+                    f"query_execution_id is {self.query_execution_id}."
+                )
 
         return self.query_execution_id
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_next_query(
+        self, context: Context, event: dict[str, Any] | None = None, query_list: list[str] | None = None
+    ) -> str:
+        # Validate if we can proceed with the next query
         event = validate_execute_complete_event(event)
-
-        if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
 
         # Save query_execution_id to be later used by listeners
         self.query_execution_id = event["value"]
+
+        # Handle errors if the operation status is not successful
+        if event["status"] != "success":
+            raise AirflowException(
+                f"Error while waiting for the operation on the cluster to complete: {event}"
+            )
+
+        # At this point, the last query was successful, so remove it from the list
+        if query_list:
+            query_list.pop(0)
+
+        # If there are more queries to execute, call `execute` again with the remaining queries
+        if query_list:
+            self.query = query_list
+            self.execute(
+                context
+            )  # TODO: Fix warning: `AthenaOperator.execute` cannot be called outside of `TaskInstance`.
+
         return event["value"]
 
     def on_kill(self) -> None:
@@ -326,3 +364,21 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         except Exception as e:
             self.log.error("Cannot retrieve table metadata from Athena.Client. %s", e)
             return None
+
+    @staticmethod
+    def _split_sql_string(sql: str) -> list[str]:
+        """
+        Split a SQL string into individual statements.
+
+        Args:
+            sql (str): The SQL string to be split.
+
+        Returns:
+            list[str]: A list of individual SQL statements.
+
+        This static method takes a SQL string, removes comments, and splits it into
+        individual SQL statements based on semicolons. It returns a list of these
+        individual statements.
+        """
+        splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
+        return [s for s in splits if s]
