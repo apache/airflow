@@ -762,6 +762,94 @@ class TaskDecoratorCollection:
         self, python_callable: Callable[FParams, FReturn] | None = None
     ) -> Task[FParams, FReturn]: ...
     @overload
+    def pyspark_submit(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        use_dill: bool = False,  # Added by _PysparkSubmitDecoratedOperator.
+        conf: dict[str, Any] | None = None,
+        conn_id: str = "spark_default",
+        files: str | None = None,
+        py_files: str | None = None,
+        archives: str | None = None,
+        driver_class_path: str | None = None,
+        jars: str | None = None,
+        java_class: str | None = None,
+        packages: str | None = None,
+        exclude_packages: str | None = None,
+        repositories: str | None = None,
+        total_executor_cores: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        driver_memory: str | None = None,
+        keytab: str | None = None,
+        principal: str | None = None,
+        proxy_user: str | None = None,
+        name: str = "arrow-spark",
+        num_executors: int | None = None,
+        status_poll_interval: int = 1,
+        env_vars: dict[str, Any] | None = None,
+        verbose: bool = False,
+        spark_binary: str | None = None,
+        properties_file: str | None = None,
+        yarn_queue: str | None = None,
+        deploy_mode: str | None = None,
+        use_krb5ccache: bool = False,
+        **kwargs,
+    ):
+        """
+        Wraps a Python function that is to be submitted to Spark.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill or pickle for serialization
+        :param conf: Arbitrary Spark configuration properties (templated)
+        :param conn_id: The :ref:`spark connection id <howto/connection:spark-submit>` as configured
+            in Airflow administration. When an invalid connection_id is supplied, it will default to yarn.
+        :param files: Upload additional files to the executor running the job, separated by a
+                      comma. Files will be placed in the working directory of each executor.
+                      For example, serialized objects. (templated)
+        :param py_files: Additional python files used by the job, can be .zip, .egg or .py. (templated)
+        :param jars: Submit additional jars to upload and place them in executor classpath. (templated)
+        :param driver_class_path: Additional, driver-specific, classpath settings. (templated)
+        :param java_class: the main class of the Java application
+        :param packages: Comma-separated list of maven coordinates of jars to include on the
+                         driver and executor classpaths. (templated)
+        :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
+                                 while resolving the dependencies provided in 'packages' (templated)
+        :param repositories: Comma-separated list of additional remote repositories to search
+                             for the maven coordinates given with 'packages'
+        :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
+                                     (Default: all the available cores on the worker)
+        :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
+        :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
+        :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+        :param keytab: Full path to the file that contains the keytab (templated)
+        :param principal: The name of the kerberos principal used for keytab (templated)
+        :param proxy_user: User to impersonate when submitting the application (templated)
+        :param name: Name of the job (default airflow-spark). (templated)
+        :param num_executors: Number of executors to launch
+        :param status_poll_interval: Seconds to wait between polls of driver status in cluster
+            mode (Default: 1)
+        :param env_vars: Environment variables for spark-submit. It supports yarn and k8s mode too. (templated)
+        :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
+        :param spark_binary: The command to use for spark submit.
+                             Some distros may use spark2-submit or spark3-submit.
+                             (will overwrite any spark_binary defined in the connection's extra JSON)
+        :param properties_file: Path to a file from which to load extra properties. If not
+                                  specified, this will look for conf/spark-defaults.conf.
+        :param yarn_queue: The name of the YARN queue to which the application is submitted.
+                            (will overwrite any yarn queue defined in the connection's extra JSON)
+        :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as a client.
+                            (will overwrite any deployment mode defined in the connection's extra JSON)
+        :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+                               on keytab for Kerberos login
+        """
+    @overload
+    def pyspark_submit(
+        self, python_callable: Callable[FParams, FReturn] | None = None
+    ) -> Task[FParams, FReturn]: ...
+    @overload
     def bash(  # type: ignore[misc]
         self,
         *,
