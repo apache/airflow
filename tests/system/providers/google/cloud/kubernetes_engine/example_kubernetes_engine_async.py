@@ -43,7 +43,7 @@ CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
 CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
+CLUSTER = {"name": CLUSTER_NAME, "node_pools": [{"initial_node_count": 1}]}
 
 with DAG(
     DAG_ID,
