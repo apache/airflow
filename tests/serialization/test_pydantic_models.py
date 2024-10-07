@@ -257,10 +257,10 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
 
     dag_asset_ref = DagScheduleAssetReference(dag_id=dag.dag_id)
     session.add(dag_asset_ref)
-    dag_asset_ref.dataset = ds1
+    dag_asset_ref.asset = ds1
     task_ds_ref = TaskOutletAssetReference(task_id=task1.task_id, dag_id=dag.dag_id)
     session.add(task_ds_ref)
-    task_ds_ref.dataset = ds1
+    task_ds_ref.asset = ds1
 
     dr.consumed_asset_events.append(asset1_event)
     dr.consumed_asset_events.append(asset2_event_1)
@@ -268,7 +268,7 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
     session.commit()
     TracebackSessionForTests.set_allow_db_access(session, False)
 
-    print(asset2_event_2.dataset.consuming_dags)
+    print(asset2_event_2.asset.consuming_dags)
     pydantic_dse1 = AssetEventPydantic.model_validate(asset1_event)
     json_string1 = pydantic_dse1.model_dump_json()
     print(json_string1)
@@ -284,14 +284,14 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
     deserialized_model1 = AssetEventPydantic.model_validate_json(json_string1)
     assert deserialized_model1.asset.id == 1
     assert deserialized_model1.asset.uri == "one"
-    assert len(deserialized_model1.dataset.consuming_dags) == 1
-    assert len(deserialized_model1.dataset.producing_tasks) == 1
+    assert len(deserialized_model1.asset.consuming_dags) == 1
+    assert len(deserialized_model1.asset.producing_tasks) == 1
 
     deserialized_model2 = AssetEventPydantic.model_validate_json(json_string2)
     assert deserialized_model2.asset.id == 2
     assert deserialized_model2.asset.uri == "two"
-    assert len(deserialized_model2.dataset.consuming_dags) == 0
-    assert len(deserialized_model2.dataset.producing_tasks) == 0
+    assert len(deserialized_model2.asset.consuming_dags) == 0
+    assert len(deserialized_model2.asset.producing_tasks) == 0
 
     deserialized_dr = DagRunPydantic.model_validate_json(json_string_dr)
     assert len(deserialized_dr.consumed_asset_events) == 3

@@ -376,7 +376,7 @@ class DAG(LoggingMixin):
 
     .. versionadded:: 2.4
         The *schedule* argument to specify either time-based scheduling logic
-        (timetable), or dataset-driven triggers.
+        (timetable), or asset-driven triggers.
 
     .. versionchanged:: 3.0
         The default value of *schedule* has been changed to *None* (no schedule).
@@ -2842,7 +2842,7 @@ class DagModel(Base):
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
     timetable_description = Column(String(1000), nullable=True)
-    # Dataset expression based on dataset triggers
+    # Asset expression based on asset triggers
     asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
@@ -2880,7 +2880,7 @@ class DagModel(Base):
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_assets = association_proxy("schedule_asset_references", "dataset")
+    schedule_assets = association_proxy("schedule_asset_references", "asset")
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
@@ -3110,20 +3110,20 @@ class DagModel(Base):
             times = sorted(x.created_at for x in records)
             asset_triggered_dag_info[dag_id] = (times[0], times[-1])
         del by_dag
-        dataset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
-        if dataset_triggered_dag_ids:
+        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+        if asset_triggered_dag_ids:
             exclusion_list = set(
                 session.scalars(
                     select(DagModel.dag_id)
                     .join(DagRun.dag_model)
                     .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
-                    .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .where(DagModel.dag_id.in_(asset_triggered_dag_ids))
                     .group_by(DagModel.dag_id)
                     .having(func.count() >= func.max(DagModel.max_active_runs))
                 )
             )
             if exclusion_list:
-                dataset_triggered_dag_ids -= exclusion_list
+                asset_triggered_dag_ids -= exclusion_list
                 asset_triggered_dag_info = {
                     k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
                 }
@@ -3137,7 +3137,7 @@ class DagModel(Base):
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
-                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                    cls.dag_id.in_(asset_triggered_dag_ids),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)
