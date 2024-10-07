@@ -40,10 +40,8 @@ type Props = {
 const MAX_TAGS = 3;
 
 export const DagCard = ({ dag }: Props) => {
-  const cardHeadBg = useColorModeValue("blue.50", "gray.900");
   const cardBorder = useColorModeValue("gray.100", "gray.700");
-  const dagIdColor = useColorModeValue("blue.600", "blue.400");
-  const tooltipBg = useColorModeValue("blue.100", "gray.700");
+  const tooltipBg = useColorModeValue("gray.200", "gray.700");
 
   return (
     <Box
@@ -54,14 +52,14 @@ export const DagCard = ({ dag }: Props) => {
     >
       <Flex
         alignItems="center"
-        bg={cardHeadBg}
+        bg="subtle-bg"
         justifyContent="space-between"
         px={3}
         py={2}
       >
         <HStack>
           <Tooltip hasArrow label={dag.description}>
-            <Heading color={dagIdColor} fontSize="md">
+            <Heading color="subtle-text" fontSize="md">
               {dag.dag_display_name}
             </Heading>
           </Tooltip>
