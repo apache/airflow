@@ -38,9 +38,6 @@ Airflow 2.10
 ~~~~~~~~~~~~
   * The image does not support Debian-Bullseye(11) anymore. The image is based on Debian-Bookworm (12).
 
-  * As of now, Python 3.8 is no longer supported by the Python community. Therefore, to use Airflow 2.10.3, you must ensure your Python version is
-    either 3.9, 3.10, 3.11 or 3.12.
-
 Airflow 2.9
 ~~~~~~~~~~~
 
