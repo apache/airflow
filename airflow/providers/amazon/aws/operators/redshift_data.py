@@ -40,7 +40,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     """
     Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
 
-    .. seealso::
+    ... see also::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:RedshiftDataOperator`
 
@@ -83,6 +83,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     )
     template_ext = (".sql",)
     template_fields_renderers = {"sql": "sql"}
+    statement_id: str
 
     def __init__(
         self,
@@ -146,7 +147,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         )
 
         if self.deferrable and self.wait_for_completion:
-            is_finished = self.hook.check_query_is_finished(self.statement_id)
+            is_finished: bool = self.hook.check_query_is_finished(self.statement_id)
             if not is_finished:
                 self.defer(
                     timeout=self.execution_timeout,

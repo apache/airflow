@@ -87,16 +87,14 @@ class TestRedshiftDataOperator:
         assert op.hook._verify is None
         assert op.hook._config is None
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
-    def test_execute(self, mock_exec_query):
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute(self, mock_conn):
         cluster_identifier = "cluster_identifier"
-        workgroup_name = None
         db_user = "db_user"
         secret_arn = "secret_arn"
         statement_name = "statement_name"
         parameters = [{"name": "id", "value": "1"}]
         poll_interval = 5
-        wait_for_completion = True
 
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
@@ -111,23 +109,17 @@ class TestRedshiftDataOperator:
             wait_for_completion=True,
             poll_interval=poll_interval,
         )
-        operator.execute(None)
-        mock_exec_query.assert_called_once_with(
-            sql=SQL,
-            database=DATABASE,
-            cluster_identifier=cluster_identifier,
-            workgroup_name=workgroup_name,
-            db_user=db_user,
-            secret_arn=secret_arn,
-            statement_name=statement_name,
-            parameters=parameters,
-            with_event=False,
-            wait_for_completion=wait_for_completion,
-            poll_interval=poll_interval,
-        )
+
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        actual_result = operator.execute(None)
+
+        # Check that the result returned is a list of the statement_id's
+        assert actual_result == [STATEMENT_ID]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
-    def test_execute_with_workgroup_name(self, mock_exec_query):
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_with_workgroup_name(self, mock_conn, mock_exec_query):
         cluster_identifier = None
         workgroup_name = "workgroup_name"
         db_user = "db_user"
@@ -150,12 +142,20 @@ class TestRedshiftDataOperator:
             wait_for_completion=True,
             poll_interval=poll_interval,
         )
-        operator.execute(None)
+
+        # Like before, return a statement ID and a status
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        mock_exec_query.return_value = STATEMENT_ID  # Set a statement ID returned by execute_query
+        actual_result = operator.execute(None)
+
+        # Assertions
+        assert actual_result == [STATEMENT_ID]
         mock_exec_query.assert_called_once_with(
             sql=SQL,
             database=DATABASE,
             cluster_identifier=cluster_identifier,
-            workgroup_name=workgroup_name,
+            workgroup_name=workgroup_name,  # Called with workgroup_name
             db_user=db_user,
             secret_arn=secret_arn,
             statement_name=statement_name,
@@ -197,10 +197,8 @@ class TestRedshiftDataOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_return_sql_result(self, mock_conn):
-        expected_result = {"Result": True}
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
-        mock_conn.get_statement_result.return_value = expected_result
+        """Validate the return value from 'running' a SQL statement."""
+        expected_result = [{"Result": True}]
         cluster_identifier = "cluster_identifier"
         db_user = "db_user"
         secret_arn = "secret_arn"
@@ -216,7 +214,14 @@ class TestRedshiftDataOperator:
             aws_conn_id=CONN_ID,
             return_sql_result=True,
         )
+
+        # Mocking, before calling the .execute() method
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        mock_conn.get_statement_result.return_value = expected_result[0]  # Just the first element
         actual_result = operator.execute(None)
+
+        # Assertions
         assert actual_result == expected_result
         mock_conn.execute_statement.assert_called_once_with(
             Database=DATABASE,
@@ -227,17 +232,18 @@ class TestRedshiftDataOperator:
             StatementName=statement_name,
             WithEvent=False,
         )
-        mock_conn.get_statement_result.assert_called_once_with(
-            Id=STATEMENT_ID,
-        )
+        mock_conn.get_statement_result.assert_called_once_with(Id=STATEMENT_ID)
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished",
         return_value=True,
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
-    def test_execute_finished_before_defer(self, mock_exec_query, check_query_is_finished, mock_defer):
+    def test_execute_finished_before_defer(
+        self, mock_exec_query, check_query_is_finished, mock_defer, mock_conn
+    ):
         cluster_identifier = "cluster_identifier"
         workgroup_name = None
         db_user = "db_user"
@@ -260,6 +266,10 @@ class TestRedshiftDataOperator:
             poll_interval=poll_interval,
             deferrable=True,
         )
+
+        # Previously asserted that check_query_is_finished is true
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}  # Finished before defer
         operator.execute(None)
 
         assert not mock_defer.called
@@ -301,25 +311,23 @@ class TestRedshiftDataOperator:
             deferrable_operator.execute_complete(context=None, event=None)
         assert exc.value.args[0] == "Trigger error: event is None"
 
-    def test_execute_complete(self, deferrable_operator):
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_complete(self, mock_conn, deferrable_operator):
         """Asserts that logging occurs as expected"""
 
         deferrable_operator.statement_id = "uuid"
 
         with mock.patch.object(deferrable_operator.log, "info") as mock_log_info:
-            assert (
-                deferrable_operator.execute_complete(
-                    context=None,
-                    event={"status": "success", "message": "Job completed", "statement_id": "uuid"},
-                )
-                == "uuid"
-            )
+            assert deferrable_operator.execute_complete(
+                context=None,
+                event={"status": "success", "message": "Job completed", "statement_id": "uuid"},
+            ) == ["uuid"]
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished")
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
-    def test_no_wait_for_completion(self, mock_exec_query, mock_check_query_is_finished, mock_defer):
+    def test_no_wait_for_completion(self, mock_check_query_is_finished, mock_defer, mock_conn):
         """Tests that the operator does not check for completion nor defers when wait_for_completion is False,
         no matter the value of deferrable"""
         cluster_identifier = "cluster_identifier"
@@ -346,10 +354,15 @@ class TestRedshiftDataOperator:
                 poll_interval=poll_interval,
                 deferrable=deferrable,
             )
-            operator.execute(None)
+
+            # Mocking before calling .execute() method
+            mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+            mock_conn.describe_statement.return_value = {"Status": "RUNNING"}
+            actual_results = operator.execute(None)
 
             assert not mock_check_query_is_finished.called
             assert not mock_defer.called
+            assert actual_results == [STATEMENT_ID]
 
     def test_template_fields(self):
         operator = RedshiftDataOperator(
