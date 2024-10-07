@@ -22,7 +22,6 @@ import sys
 import time
 from unittest import mock
 
-import psutil
 import pytest
 from rich.console import Console
 
@@ -89,9 +88,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 "[magenta]Terminating monitor process and expect "
                 "fastapi-api and gunicorn processes to terminate as well"
             )
-            proc = psutil.Process(pid_monitor)
-            proc.terminate()
-            assert proc.wait(120) in (0, None)
+            self._terminate_multiple_process([pid_fastapi_api, pid_monitor])
             self._check_processes(ignore_running=False)
             console.print("[magenta]All fastapi-api and gunicorn processes are terminated.")
         except Exception:
