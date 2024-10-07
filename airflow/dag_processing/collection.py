@@ -335,7 +335,7 @@ class AssetModelOperation(NamedTuple):
             )
         )
         session.add_all(
-            AssetActive(name=asset.name, uri=asset.uri)
+            AssetActive.for_asset(asset)
             for asset in assets
             if (asset.name, asset.uri) not in existing_entries
         )
