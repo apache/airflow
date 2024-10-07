@@ -43,9 +43,9 @@ alias_association_table = Table(
     "asset_alias_asset",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
-    Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
+    Column("asset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_alias_id", "alias_id"),
-    Index("idx_asset_alias_asset_asset_id", "dataset_id"),
+    Index("idx_asset_alias_asset_asset_id", "asset_id"),
     ForeignKeyConstraint(
         ("alias_id",),
         ["asset_alias.id"],
@@ -53,7 +53,7 @@ alias_association_table = Table(
         ondelete="CASCADE",
     ),
     ForeignKeyConstraint(
-        ("dataset_id",),
+        ("asset_id",),
         ["dataset.id"],
         name="a_aa_asset_id",
         ondelete="CASCADE",
@@ -351,7 +351,7 @@ class DagScheduleAssetAliasReference(Base):
 class DagScheduleAssetReference(Base):
     """References from a DAG to an asset of which it is a consumer."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    asset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
@@ -362,7 +362,7 @@ class DagScheduleAssetReference(Base):
     queue_records = relationship(
         "AssetDagRunQueue",
         primaryjoin="""and_(
-            DagScheduleAssetReference.dataset_id == foreign(AssetDagRunQueue.dataset_id),
+            DagScheduleAssetReference.asset_id == foreign(AssetDagRunQueue.asset_id),
             DagScheduleAssetReference.dag_id == foreign(AssetDagRunQueue.target_dag_id),
         )""",
         cascade="all, delete, delete-orphan",
@@ -370,9 +370,9 @@ class DagScheduleAssetReference(Base):
 
     __tablename__ = "dag_schedule_asset_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, dag_id, name="dsar_pkey"),
+        PrimaryKeyConstraint(asset_id, dag_id, name="dsar_pkey"),
         ForeignKeyConstraint(
-            (dataset_id,),
+            (asset_id,),
             ["dataset.id"],
             name="dsar_asset_fkey",
             ondelete="CASCADE",
@@ -388,7 +388,7 @@ class DagScheduleAssetReference(Base):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.dag_id == other.dag_id
+            return self.asset_id == other.asset_id and self.dag_id == other.dag_id
         return NotImplemented
 
     def __hash__(self):
@@ -402,7 +402,7 @@ class DagScheduleAssetReference(Base):
 class TaskOutletAssetReference(Base):
     """References from a task to an asset that it updates / produces."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    asset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
@@ -413,12 +413,12 @@ class TaskOutletAssetReference(Base):
     __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (
         ForeignKeyConstraint(
-            (dataset_id,),
+            (asset_id,),
             ["dataset.id"],
             name="toar_asset_fkey",
             ondelete="CASCADE",
         ),
-        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="toar_pkey"),
+        PrimaryKeyConstraint(asset_id, dag_id, task_id, name="toar_pkey"),
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
@@ -431,7 +431,7 @@ class TaskOutletAssetReference(Base):
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return (
-                self.dataset_id == other.dataset_id
+                self.asset_id == other.asset_id
                 and self.dag_id == other.dag_id
                 and self.task_id == other.task_id
             )
@@ -451,16 +451,16 @@ class TaskOutletAssetReference(Base):
 class AssetDagRunQueue(Base):
     """Model for storing asset events that need processing."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    asset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     dataset = relationship("AssetModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="assetdagrunqueue_pkey"),
+        PrimaryKeyConstraint(asset_id, target_dag_id, name="assetdagrunqueue_pkey"),
         ForeignKeyConstraint(
-            (dataset_id,),
+            (asset_id,),
             ["dataset.id"],
             name="adrq_asset_fkey",
             ondelete="CASCADE",
@@ -476,7 +476,7 @@ class AssetDagRunQueue(Base):
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.target_dag_id == other.target_dag_id
+            return self.asset_id == other.asset_id and self.target_dag_id == other.target_dag_id
         else:
             return NotImplemented
 
@@ -504,7 +504,7 @@ class AssetEvent(Base):
     """
     A table to store assets events.
 
-    :param dataset_id: reference to AssetModel record
+    :param asset_id: reference to AssetModel record
     :param extra: JSON field for arbitrary extra info
     :param source_task_id: the task_id of the TI which updated the asset
     :param source_dag_id: the dag_id of the TI which updated the asset
@@ -517,7 +517,7 @@ class AssetEvent(Base):
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_id = Column(Integer, nullable=False)
+    asset_id = Column(Integer, nullable=False)
     extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
     source_task_id = Column(StringID(), nullable=True)
     source_dag_id = Column(StringID(), nullable=True)
@@ -527,7 +527,7 @@ class AssetEvent(Base):
 
     __tablename__ = "asset_event"
     __table_args__ = (
-        Index("idx_asset_id_timestamp", dataset_id, timestamp),
+        Index("idx_asset_id_timestamp", asset_id, timestamp),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -567,7 +567,7 @@ class AssetEvent(Base):
     )
     dataset = relationship(
         AssetModel,
-        primaryjoin="AssetEvent.dataset_id == foreign(AssetModel.id)",
+        primaryjoin="AssetEvent.asset_id == foreign(AssetModel.id)",
         viewonly=True,
         lazy="select",
         uselist=False,
@@ -581,7 +581,7 @@ class AssetEvent(Base):
         args = []
         for attr in [
             "id",
-            "dataset_id",
+            "asset_id",
             "extra",
             "source_task_id",
             "source_dag_id",

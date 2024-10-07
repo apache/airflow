@@ -268,12 +268,12 @@ def get_asset_triggered_next_run_info(
             .join(
                 ADRQ,
                 and_(
-                    ADRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    ADRQ.asset_id == DagScheduleAssetReference.asset_id,
                     ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
-            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.dataset_id)
+            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id)
             .group_by(DagScheduleAssetReference.dag_id)
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()

@@ -251,9 +251,9 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
         data_interval=(execution_date, execution_date),
         **triggered_by_kwargs,
     )
-    asset1_event = AssetEvent(dataset_id=1)
-    asset2_event_1 = AssetEvent(dataset_id=2)
-    asset2_event_2 = AssetEvent(dataset_id=2)
+    asset1_event = AssetEvent(asset_id=1)
+    asset2_event_1 = AssetEvent(asset_id=2)
+    asset2_event_2 = AssetEvent(asset_id=2)
 
     dag_asset_ref = DagScheduleAssetReference(dag_id=dag.dag_id)
     session.add(dag_asset_ref)

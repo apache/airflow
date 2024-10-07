@@ -23,7 +23,7 @@ from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 class DagScheduleAssetReferencePydantic(BaseModelPydantic):
     """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel used by internal API."""
 
-    dataset_id: int
+    asset_id: int
     dag_id: str
     created_at: datetime
     updated_at: datetime
@@ -34,7 +34,7 @@ class DagScheduleAssetReferencePydantic(BaseModelPydantic):
 class TaskOutletAssetReferencePydantic(BaseModelPydantic):
     """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel used by internal API."""
 
-    dataset_id: int
+    asset_id: int
     dag_id: str
     task_id: str
     created_at: datetime
@@ -62,7 +62,7 @@ class AssetEventPydantic(BaseModelPydantic):
     """Serializable representation of the AssetEvent ORM SqlAlchemyModel used by internal API."""
 
     id: int
-    dataset_id: Optional[int]
+    asset_id: Optional[int]
     extra: dict
     source_task_id: Optional[str]
     source_dag_id: Optional[str]
