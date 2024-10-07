@@ -24,14 +24,14 @@ Microsoft Power BI Connection
 
 The Microsoft Power BI connection type enables the Power BI Integrations.
 
-The :class:`~airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook` and :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetOperator` requires a connection of type ``powerbi`` to authenticate with Power BI.
+The :class:`~airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook` and :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetOperator` requires a connection of type ``powerbi`` to authenticate with the Power BI.
 
 Authenticating to Power BI
 -------------------------------
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
-   i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
+   i.e. add specific credentials (client_id, client_secret, tenant_id) to the Airflow connection.
 
 Default Connection IDs
 ----------------------
@@ -47,12 +47,12 @@ Client ID
 
 
 Client Secret
-    Specify the ``secret`` used for the initial connection.
+    Specify the ``client_secret`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
 
 Tenant ID
-    Specify the ``tenantId`` used for the initial connection.
+    Specify the ``tenant_id`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
 
 .. spelling:word-list::
