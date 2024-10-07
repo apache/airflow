@@ -61,8 +61,9 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  # Apache Beam > 2.53.0 and pyarrow > 14.0.1 fix https://nvd.nist.gov/vuln/detail/CVE-2023-47248.
-  - apache-beam>=2.53.0
+  # Apache Beam 2.59.0 removes some problematic requests exclusions that were present in 2.58.*
+  # Limiting it to >= 2.59.0 will allow to speed up resolution of dependencies.
+  - apache-beam>=2.59.0
   - pyarrow>=14.0.1
 
 additional-extras:
@@ -70,9 +71,7 @@ additional-extras:
     dependencies:
       - apache-beam[gcp]
 
-# Apache Beam currently does not support Python 3.12
-# There is an issue tracking it https://github.com/apache/beam/issues/29149
-excluded-python-versions: ['3.12']
+excluded-python-versions: []
 
 integrations:
   - integration-name: Apache Beam
