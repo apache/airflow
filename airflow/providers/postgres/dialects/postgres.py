@@ -88,6 +88,9 @@ class PostgresDialect(Dialect):
 
         replace_index = kwargs.get("replace_index") or self.get_primary_keys(table)
 
+        if not replace_index:
+            raise ValueError("PostgreSQL ON CONFLICT upsert syntax requires an unique index")
+
         if isinstance(replace_index, str):
             replace_index = [replace_index]
 
