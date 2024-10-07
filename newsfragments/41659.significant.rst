@@ -1,0 +1,1 @@
+Removed deprecated ``name`` arg from ``StackdriverTaskHandler``. Please use ``gcp_log_name`` instead.

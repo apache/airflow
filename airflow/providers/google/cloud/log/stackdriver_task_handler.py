@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Collection
 from urllib.parse import urlencode
@@ -30,11 +29,9 @@ from google.cloud.logging.handlers.transports import BackgroundThreadTransport, 
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.trigger_handler import ctx_indiv_trigger
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -96,21 +93,11 @@ class StackdriverTaskHandler(logging.Handler):
         self,
         gcp_key_path: str | None = None,
         scopes: Collection[str] | None = _DEFAULT_SCOPESS,
-        name: str | ArgNotSet = NOTSET,
         transport: type[Transport] = BackgroundThreadTransport,
         resource: Resource = _GLOBAL_RESOURCE,
         labels: dict[str, str] | None = None,
         gcp_log_name: str = DEFAULT_LOGGER_NAME,
     ):
-        if name is not NOTSET:
-            warnings.warn(
-                "Param `name` is deprecated and will be removed in a future release. "
-                "Please use `gcp_log_name` instead. ",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            gcp_log_name = str(name)
-
         super().__init__()
         self.gcp_key_path: str | None = gcp_key_path
         self.scopes: Collection[str] | None = scopes
