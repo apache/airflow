@@ -2460,7 +2460,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -2508,7 +2508,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -3499,7 +3499,7 @@ def test_dag_uses_timetable_for_run_id(session):
 
 @pytest.mark.parametrize(
     "run_id_type",
-    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED],
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")

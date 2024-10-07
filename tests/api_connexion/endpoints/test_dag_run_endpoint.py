@@ -1793,7 +1793,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
             pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
         dr.consumed_asset_events.append(event)
 
         session.commit()

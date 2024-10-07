@@ -244,7 +244,7 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
-        run_type=DagRunType.DATASET_TRIGGERED,
+        run_type=DagRunType.ASSET_TRIGGERED,
         execution_date=execution_date,
         state=None,
         session=session,

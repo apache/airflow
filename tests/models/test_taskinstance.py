@@ -3194,7 +3194,7 @@ class TestTaskInstance:
         )
         dr = dag.create_dagrun(
             run_id="test2",
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             execution_date=execution_date,
             state=None,
             session=session,

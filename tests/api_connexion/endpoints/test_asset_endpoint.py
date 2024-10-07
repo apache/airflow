@@ -521,7 +521,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         dagrun = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,

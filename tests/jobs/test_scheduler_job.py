@@ -3939,7 +3939,13 @@ class TestSchedulerJob:
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, True),
-            (DagRunType.DATASET_TRIGGERED, False),
+            (DagRunType.ASSET_TRIGGERED, False),
+        ],
+        ids=[
+            DagRunType.MANUAL.name,
+            DagRunType.SCHEDULED.name,
+            DagRunType.BACKFILL_JOB.name,
+            DagRunType.ASSET_TRIGGERED.name,
         ],
     )
     def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
