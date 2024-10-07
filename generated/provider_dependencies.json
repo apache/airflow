@@ -418,7 +418,7 @@
   },
   "common.sql": {
     "deps": [
-      "apache-airflow>=2.8.0",
+      "apache-airflow>=3.0.0.dev0",
       "more-itertools>=9.0.0",
       "sqlparse>=0.4.2"
     ],
