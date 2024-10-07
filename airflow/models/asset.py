@@ -192,7 +192,7 @@ class AssetModel(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    active = relationship("AssetActive", lazy="joined", uselist=False, viewonly=True)
+    active = relationship("AssetActive", uselist=False, viewonly=True)
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="dataset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="dataset")
