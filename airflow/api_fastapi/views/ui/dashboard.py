@@ -81,7 +81,7 @@ async def historical_metrics(
     ).all()
 
     # Combining historical metrics response as dictionary
-    historical_metrics = {
+    historical_metrics_response = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
             **dict(dag_run_types),
@@ -97,4 +97,4 @@ async def historical_metrics(
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(historical_metrics, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(historical_metrics_response, from_attributes=True)
