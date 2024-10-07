@@ -481,22 +481,22 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
         asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
         adrq = AssetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID, asset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(adrq)
         asset_events = [
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
             ),
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
             ),
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
             ),

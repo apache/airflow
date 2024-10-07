@@ -375,7 +375,7 @@ class AssetModelOperation(NamedTuple):
                 if asset_id not in referenced_asset_ids:
                     session.delete(ref)
             session.bulk_save_objects(
-                DagScheduleAssetReference(dataset_id=asset_id, dag_id=dag_id)
+                DagScheduleAssetReference(asset_id=asset_id, dag_id=dag_id)
                 for asset_id in referenced_asset_ids
                 if asset_id not in orm_refs
             )
@@ -430,7 +430,7 @@ class AssetModelOperation(NamedTuple):
                 if key not in referenced_outlets:
                     session.delete(ref)
             session.bulk_save_objects(
-                TaskOutletAssetReference(dataset_id=asset_id, dag_id=dag_id, task_id=task_id)
+                TaskOutletAssetReference(asset_id=asset_id, dag_id=dag_id, task_id=task_id)
                 for task_id, asset_id in referenced_outlets
                 if (task_id, asset_id) not in orm_refs
             )

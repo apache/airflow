@@ -454,6 +454,7 @@
 <!-- dataset_alias_dataset -->
 <g id="node14" class="node">
 <title>dataset_alias_dataset</title>
+<<<<<<< HEAD
 <polygon fill="none" stroke="black" points="942.5,-5153 942.5,-5181 1182.5,-5181 1182.5,-5153 942.5,-5153"/>
 <text text-anchor="start" x="966" y="-5164.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dataset_alias_dataset</text>
 <polygon fill="none" stroke="black" points="942.5,-5128 942.5,-5153 1182.5,-5153 1182.5,-5128 942.5,-5128"/>
@@ -466,6 +467,20 @@
 <text text-anchor="start" x="1019.5" y="-5112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1024.5" y="-5112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <text text-anchor="start" x="1101.5" y="-5112.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+=======
+<polygon fill="none" stroke="black" points="942.5,-5049 942.5,-5077 1182.5,-5077 1182.5,-5049 942.5,-5049"/>
+<text text-anchor="start" x="966" y="-5060.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dataset_alias_dataset</text>
+<polygon fill="none" stroke="black" points="942.5,-5024 942.5,-5049 1182.5,-5049 1182.5,-5024 942.5,-5024"/>
+<text text-anchor="start" x="947.5" y="-5033.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">alias_id</text>
+<text text-anchor="start" x="999.5" y="-5033.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1004.5" y="-5033.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1081.5" y="-5033.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="942.5,-4999 942.5,-5024 1182.5,-5024 1182.5,-4999 942.5,-4999"/>
+<text text-anchor="start" x="947.5" y="-5008.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
+<text text-anchor="start" x="1019.5" y="-5008.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1024.5" y="-5008.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1101.5" y="-5008.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+>>>>>>> b86460e05c (feat: rename dataset_id as asset_id)
 </g>
 <!-- dataset_alias&#45;&#45;dataset_alias_dataset -->
 <g id="edge1" class="edge">
@@ -640,7 +655,7 @@
 <text text-anchor="start" x="967.5" y="-4929.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <text text-anchor="start" x="1088.5" y="-4929.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="911.5,-4895 911.5,-4920 1213.5,-4920 1213.5,-4895 911.5,-4895"/>
-<text text-anchor="start" x="916.5" y="-4904.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dataset_id</text>
+<text text-anchor="start" x="916.5" y="-4904.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
 <text text-anchor="start" x="988.5" y="-4904.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="993.5" y="-4904.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <text text-anchor="start" x="1070.5" y="-4904.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
@@ -673,7 +688,7 @@
 <text text-anchor="start" x="978.5" y="-4620.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <text text-anchor="start" x="1099.5" y="-4620.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="922.5,-4586 922.5,-4611 1203.5,-4611 1203.5,-4586 922.5,-4586"/>
-<text text-anchor="start" x="927.5" y="-4595.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dataset_id</text>
+<text text-anchor="start" x="927.5" y="-4595.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
 <text text-anchor="start" x="999.5" y="-4595.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="1004.5" y="-4595.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <text text-anchor="start" x="1081.5" y="-4595.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
@@ -706,7 +721,7 @@
 <polygon fill="none" stroke="black" points="909.5,-4457 909.5,-4485 1215.5,-4485 1215.5,-4457 909.5,-4457"/>
 <text text-anchor="start" x="957" y="-4468.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dataset_dag_run_queue</text>
 <polygon fill="none" stroke="black" points="909.5,-4432 909.5,-4457 1215.5,-4457 1215.5,-4432 909.5,-4432"/>
-<text text-anchor="start" x="914.5" y="-4441.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">dataset_id</text>
+<text text-anchor="start" x="914.5" y="-4441.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">asset_id</text>
 <text text-anchor="start" x="986.5" y="-4441.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="991.5" y="-4441.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <text text-anchor="start" x="1068.5" y="-4441.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>

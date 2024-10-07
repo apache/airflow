@@ -3429,11 +3429,11 @@ class Airflow(AirflowBaseView):
                         AssetModel.uri,
                         func.max(AssetEvent.timestamp).label("lastUpdate"),
                     )
-                    .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == AssetModel.id)
+                    .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
                     .join(
                         AssetDagRunQueue,
                         and_(
-                            AssetDagRunQueue.dataset_id == AssetModel.id,
+                            AssetDagRunQueue.asset_id == AssetModel.id,
                             AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                         ),
                         isouter=True,
@@ -3441,7 +3441,7 @@ class Airflow(AirflowBaseView):
                     .join(
                         AssetEvent,
                         and_(
-                            AssetEvent.dataset_id == AssetModel.id,
+                            AssetEvent.asset_id == AssetModel.id,
                             (
                                 AssetEvent.timestamp >= latest_run.execution_date
                                 if latest_run and latest_run.execution_date
@@ -3572,7 +3572,7 @@ class Airflow(AirflowBaseView):
                     func.max(AssetEvent.timestamp).label("last_dataset_update"),
                     func.sum(case((AssetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
-                .join(AssetEvent, AssetEvent.dataset_id == AssetModel.id, isouter=not has_event_filters)
+                .join(AssetEvent, AssetEvent.asset_id == AssetModel.id, isouter=not has_event_filters)
                 .group_by(
                     AssetModel.id,
                     AssetModel.uri,
@@ -3581,7 +3581,7 @@ class Airflow(AirflowBaseView):
             )
 
             if has_event_filters:
-                count_query = count_query.join(AssetEvent, AssetEvent.dataset_id == AssetModel.id)
+                count_query = count_query.join(AssetEvent, AssetEvent.asset_id == AssetModel.id)
 
             filters = [AssetModel.active.has()]
             if uri_pattern:
