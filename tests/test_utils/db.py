@@ -27,7 +27,6 @@ from airflow.models import (
     Log,
     Pool,
     RenderedTaskInstanceFields,
-    SlaMiss,
     TaskFail,
     TaskInstance,
     TaskReschedule,
@@ -106,11 +105,6 @@ def drop_tables_with_prefix(prefix):
 def clear_db_serialized_dags():
     with create_session() as session:
         session.query(SerializedDagModel).delete()
-
-
-def clear_db_sla_miss():
-    with create_session() as session:
-        session.query(SlaMiss).delete()
 
 
 def clear_db_pools():
@@ -235,7 +229,6 @@ def clear_all():
     clear_db_assets()
     clear_db_dags()
     clear_db_serialized_dags()
-    clear_db_sla_miss()
     clear_db_dag_code()
     clear_db_callbacks()
     clear_rendered_ti_fields()

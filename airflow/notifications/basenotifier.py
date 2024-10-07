@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.template.templater import Templater
 from airflow.utils.context import context_merge
 
@@ -87,20 +88,10 @@ class BaseNotifier(Templater):
 
         :param context: The airflow context
         """
-        # Currently, there are two ways a callback is invoked
-        # 1. callback(context) - for on_*_callbacks
-        # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
-        # we have to distinguish between the two calls so that we can prepare the correct context,
-        if len(args) == 1:
-            context = args[0]
-        else:
-            context = {
-                "dag": args[0],
-                "task_list": args[1],
-                "blocking_task_list": args[2],
-                "slas": args[3],
-                "blocking_tis": args[4],
-            }
+        if len(args) != 1:
+            self.log.exception("Too many args provided to notifier.")
+
+        context = args[0]
         self._update_context(context)
         self.render_template_fields(context)
         try:
