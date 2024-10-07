@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+  Support for identifying pods by execution_date during the upgrade from Airflow 1 to 2 has been removed. This may result in duplicate pods being launched for tasks originally started by Airflow 1, but only one of the task pods will succeed.
+
 8.4.2
 .....
 
