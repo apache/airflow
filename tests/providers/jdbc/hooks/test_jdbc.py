@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -36,19 +37,30 @@ pytestmark = pytest.mark.db_test
 jdbc_conn_mock = Mock(name="jdbc_conn")
 
 
-def get_hook(hook_params=None, conn_params=None):
+def get_hook(
+    hook_params=None,
+    conn_params=None,
+    login: str | None = "login",
+    password: str | None = "password",
+    host: str | None = "host",
+    schema: str | None = "schema",
+    port: int | None = 1234,
+):
     hook_params = hook_params or {}
     conn_params = conn_params or {}
     connection = Connection(
         **{
-            **dict(login="login", password="password", host="host", schema="schema", port=1234),
+            **dict(login=login, password=password, host=host, schema=schema, port=port),
             **conn_params,
         }
     )
 
-    hook = JdbcHook(**hook_params)
-    hook.get_connection = Mock()
-    hook.get_connection.return_value = connection
+    class MockedJdbcHook(JdbcHook):
+        @classmethod
+        def get_connection(cls, conn_id: str) -> Connection:
+            return connection
+
+    hook = MockedJdbcHook(**hook_params)
     return hook
 
 
@@ -201,3 +213,18 @@ class TestJdbcHook:
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
         assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
+
+    def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
+        jdbc_hook = get_hook(
+            conn_params=dict(extra={"sqlalchemy_scheme": "sqlite"}),
+            login=None,
+            password=None,
+            host=None,
+            schema=":memory:",
+            port=None,
+        )
+
+        with sqlite3.connect(":memory:") as connection:
+            jdbc_hook.get_conn = lambda: connection
+            engine = jdbc_hook.get_sqlalchemy_engine()
+            assert engine.connect().connection.connection == connection
