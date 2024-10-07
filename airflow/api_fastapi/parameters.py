@@ -216,7 +216,7 @@ class _OwnersFilter(BaseParam[List[str]]):
         if not self.value:
             return select
 
-        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        conditions = [DagModel.owners.in_(self.value)]
         return select.where(or_(*conditions))
 
     def depends(self, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
