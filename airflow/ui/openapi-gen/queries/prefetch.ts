@@ -30,7 +30,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
     queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
 /**
- * Historical Metrics Data
+ * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
  * @param data.startDate
@@ -38,7 +38,7 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * @returns HistoricalMetricDataResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDashboardServiceHistoricalMetricsData = (
+export const prefetchUseDashboardServiceHistoricalMetrics = (
   queryClient: QueryClient,
   {
     endDate,
@@ -49,12 +49,11 @@ export const prefetchUseDashboardServiceHistoricalMetricsData = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsDataKeyFn({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({
       endDate,
       startDate,
     }),
-    queryFn: () =>
-      DashboardService.historicalMetricsData({ endDate, startDate }),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
 /**
  * Get Dags

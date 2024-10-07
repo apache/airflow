@@ -44,7 +44,7 @@ dashboard_router = AirflowRouter(tags=["Dashboard"])
     include_in_schema=False,
     responses=create_openapi_http_exception_doc([400]),
 )
-async def historical_metrics_data(
+async def historical_metrics(
     start_date: DateTimeQuery,
     end_date: DateTimeQuery,
     session: Annotated[Session, Depends(get_session)],

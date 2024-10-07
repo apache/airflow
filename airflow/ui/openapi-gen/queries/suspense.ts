@@ -36,7 +36,7 @@ export const useAssetServiceNextRunAssetsSuspense = <
     ...options,
   });
 /**
- * Historical Metrics Data
+ * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
  * @param data.startDate
@@ -44,8 +44,8 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * @returns HistoricalMetricDataResponse Successful Response
  * @throws ApiError
  */
-export const useDashboardServiceHistoricalMetricsDataSuspense = <
-  TData = Common.DashboardServiceHistoricalMetricsDataDefaultResponse,
+export const useDashboardServiceHistoricalMetricsSuspense = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -60,12 +60,12 @@ export const useDashboardServiceHistoricalMetricsDataSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsDataKeyFn(
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
       { endDate, startDate },
       queryKey,
     ),
     queryFn: () =>
-      DashboardService.historicalMetricsData({ endDate, startDate }) as TData,
+      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
     ...options,
   });
 /**

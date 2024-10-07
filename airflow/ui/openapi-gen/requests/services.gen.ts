@@ -5,8 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
-  HistoricalMetricsDataData,
-  HistoricalMetricsDataResponse,
+  HistoricalMetricsData,
+  HistoricalMetricsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -49,7 +49,7 @@ export class AssetService {
 
 export class DashboardService {
   /**
-   * Historical Metrics Data
+   * Historical Metrics
    * Return cluster activity historical metrics.
    * @param data The data for the request.
    * @param data.startDate
@@ -57,9 +57,9 @@ export class DashboardService {
    * @returns HistoricalMetricDataResponse Successful Response
    * @throws ApiError
    */
-  public static historicalMetricsData(
-    data: HistoricalMetricsDataData,
-  ): CancelablePromise<HistoricalMetricsDataResponse> {
+  public static historicalMetrics(
+    data: HistoricalMetricsData,
+  ): CancelablePromise<HistoricalMetricsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/dashboard/historical_metrics_data",
