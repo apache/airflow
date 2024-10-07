@@ -341,6 +341,7 @@ class _VaultClient(LoggingMixin):
                     "access_key": credentials["Credentials"]["AccessKeyId"],
                     "secret_key": credentials["Credentials"]["SecretAccessKey"],
                     "session_token": credentials["Credentials"]["SessionToken"],
+                    "role": self.role_id,
                 }
             else:
                 session = boto3.Session()
@@ -349,6 +350,7 @@ class _VaultClient(LoggingMixin):
                     "access_key": credentials.access_key,
                     "secret_key": credentials.secret_key,
                     "session_token": credentials.token,
+                    "role": self.role_id,
                 }
 
         if self.auth_mount_point:
