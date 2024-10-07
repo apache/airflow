@@ -106,7 +106,7 @@ class DAGDetailsResponse(DAGResponse):
     dag_run_timeout: timedelta | None = Field(
         validation_alias=AliasChoices("dag_run_timeout", "dagrun_timeout")
     )
-    dataset_expression: dict | None
+    asset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None

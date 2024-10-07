@@ -258,7 +258,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "dag_id": dag_id,
         "dag_display_name": dag_display_name,
         "dag_run_timeout": None,
-        "dataset_expression": None,
+        "asset_expression": None,
         "default_view": "grid",
         "description": None,
         "doc_md": "details",
