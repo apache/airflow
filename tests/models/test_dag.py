@@ -2704,10 +2704,10 @@ class TestDagModel:
         )
         session.flush()
 
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert 1 == len(dataset_triggered_dag_info)
-        assert dag.dag_id in dataset_triggered_dag_info
-        first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(asset_triggered_dag_info)
+        assert dag.dag_id in asset_triggered_dag_info
+        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
