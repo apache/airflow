@@ -223,7 +223,7 @@ class DagModelOperation(NamedTuple):
             )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
-            dm.dataset_expression = dag.timetable.asset_condition.as_expression()
+            dm.asset_expression = dag.timetable.asset_condition.as_expression()
             dm.processor_subdir = processor_subdir
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)

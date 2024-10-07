@@ -2726,7 +2726,7 @@ class TestDagModel:
         )
         DAG.bulk_write_to_db([dag], session=session)
 
-        expression = session.scalars(select(DagModel.dataset_expression).filter_by(dag_id=dag.dag_id)).one()
+        expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
             "any": [
                 "s3://dag1/output_1.txt",
