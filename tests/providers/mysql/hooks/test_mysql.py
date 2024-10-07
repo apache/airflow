@@ -305,7 +305,6 @@ class TestMySqlHook:
 
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
-
     def test_bulk_load_custom(self):
         self.db_hook.bulk_load_custom(
             "table",
@@ -313,17 +312,12 @@ class TestMySqlHook:
             "IGNORE",
             """FIELDS TERMINATED BY ';'
             OPTIONALLY ENCLOSED BY '"'
-            IGNORE 1 LINES""",
+            IGNORE 1 LINES"""
         )
         self.cur.execute.assert_called_once_with(
-            "LOAD DATA LOCAL INFILE %s %s INTO TABLE table %s",
-            (
-                "/tmp/file",
-                "IGNORE",
-                """FIELDS TERMINATED BY ';'
-            OPTIONALLY ENCLOSED BY '"'
-            IGNORE 1 LINES""",
-            ),
+            "LOAD DATA LOCAL INFILE %s IGNORE INTO TABLE table FIELDS TERMINATED BY ';' "
+            "OPTIONALLY ENCLOSED BY '\"' IGNORE 1 LINES",
+            ("/tmp/file",),
         )
 
 
