@@ -350,7 +350,7 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
     records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:
-        dag_statuses[record.target_dag_id][record.dataset.uri] = True
+        dag_statuses[record.target_dag_id][record.asset.uri] = True
 
     serialized_dags = session.execute(
         select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
