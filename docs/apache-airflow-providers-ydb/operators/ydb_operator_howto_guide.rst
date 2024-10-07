@@ -17,7 +17,7 @@
 
 .. _howto/operators:ydb:
 
-How-to Guide for YDB using YDBExecuteQueryOperator
+How-to Guide for using YDB Operators
 ==================================================
 
 Introduction
@@ -29,7 +29,7 @@ workflow. Airflow is essentially a graph (Directed Acyclic Graph) made up of tas
 A task defined or implemented by a operator is a unit of work in your data pipeline.
 
 The purpose of this guide is to define tasks involving interactions with a YDB database with
-the :class:`~airflow.providers.ydb.operators.YDBExecuteQueryOperator`.
+the :class:`~airflow.providers.ydb.operators.YDBExecuteQueryOperator` and :class:`~airflow.providers.ydb.operators.YDBScanQueryOperator`.
 
 Common database operations with YDBExecuteQueryOperator
 -------------------------------------------------------
@@ -162,6 +162,26 @@ by creating a sql file.
   )
 
 
+Executing Scan Queries with YDBScanQueryOperator
+-------------------------------------------------------
+
+YDBScanQueryOperator executes YDB Scan Queries, which designed primarily for running analytical ad hoc queries. Parameters of the operators are:
+
+- ``sql`` - string with query;
+- ``conn_id`` - YDB connection id. Default value is ``ydb_default``;
+- ``params`` - parameters to be injected into query if it is Jinja template, more details about :doc:`params <apache-airflow:core-concepts/params>`
+
+Example of using YDBScanQueryOperator:
+
+.. code-block:: python
+
+  get_birth_date_scan = YDBScanQueryOperator(
+      task_id="get_birth_date_scan",
+      sql="sql/birth_date.sql",
+      params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
+  )
+
+
 The complete YDB Operator DAG
 -----------------------------
 
@@ -176,7 +196,7 @@ When we put everything together, our DAG should look like this:
 Conclusion
 ----------
 
-In this how-to guide we explored the Apache Airflow YDBExecuteQueryOperator to connect to YDB database. Let's quickly highlight the key takeaways.
+In this how-to guide we explored the Apache Airflow YDBExecuteQueryOperator and YDBScanQueryOperator to connect to YDB database. Let's quickly highlight the key takeaways.
 It is best practice to create subdirectory called ``sql`` in your ``dags`` directory where you can store your sql files.
 This will make your code more elegant and more maintainable.
 And finally, we looked at the templated version of sql script and usage of ``params`` attribute.

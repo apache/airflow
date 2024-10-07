@@ -29,6 +29,7 @@ class PluginSchema(Schema):
     executors = fields.List(fields.String(dump_only=True))
     macros = fields.List(fields.String(dump_only=True))
     flask_blueprints = fields.List(fields.String(dump_only=True))
+    fastapi_apps = fields.List(fields.Dict(dump_only=True))
     appbuilder_views = fields.List(fields.Dict(dump_only=True))
     appbuilder_menu_items = fields.List(fields.Dict(dump_only=True))
     global_operator_extra_links = fields.List(fields.String(dump_only=True))

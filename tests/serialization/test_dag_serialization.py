@@ -65,12 +65,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
-from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
 )
@@ -87,40 +85,9 @@ from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, Google
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.utils.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
-
-
-class CustomDepOperator(BashOperator):
-    """
-    Used for testing custom dependency detector.
-
-    TODO: remove in Airflow 3.0
-    """
-
-
-class CustomDependencyDetector(DependencyDetector):
-    """
-    Prior to deprecation of custom dependency detector, the return type as DagDependency | None.
-    This class verifies that custom dependency detector classes which assume that return type will still
-    work until support for them is removed in 3.0.
-
-    TODO: remove in Airflow 3.0
-    """
-
-    @staticmethod
-    def detect_task_dependencies(task: Operator) -> DagDependency | None:  # type: ignore
-        if isinstance(task, CustomDepOperator):
-            return DagDependency(
-                source=task.dag_id,
-                target="nothing",
-                dependency_type="abc",
-                dependency_id=task.task_id,
-            )
-        else:
-            return DependencyDetector().detect_task_dependencies(task)  # type: ignore
 
 
 executor_config_pod = k8s.V1Pod(
