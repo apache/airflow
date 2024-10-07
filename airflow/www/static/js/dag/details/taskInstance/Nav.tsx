@@ -31,24 +31,24 @@ const taskUrl = getMetaValue("task_url");
 
 interface Props {
   taskId: Task["id"];
-  executionDate: string;
+  logicalDate: string;
   isMapped?: boolean;
   mapIndex?: number;
 }
 
 const Nav = forwardRef<HTMLDivElement, Props>(
-  ({ taskId, executionDate, isMapped = false, mapIndex }, ref) => {
+  ({ taskId, logicalDate, isMapped = false, mapIndex }, ref) => {
     if (!taskId) return null;
     const params = new URLSearchParamsWrapper({
       task_id: taskId,
-      execution_date: executionDate,
+      logical_date: logicalDate,
       map_index: mapIndex ?? -1,
     });
     const detailsLink = `${taskUrl}&${params}`;
     const listParams = new URLSearchParamsWrapper({
       _flt_3_dag_id: dagId,
       _flt_3_task_id: taskId,
-      _oc_TaskInstanceModelView: "dag_run.execution_date",
+      _oc_TaskInstanceModelView: "dag_run.logical_date",
     });
 
     if (mapIndex !== undefined && mapIndex >= 0)

@@ -1784,8 +1784,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 },
             ],
             [
-                "Task instance not found for task 'print_the_context' on logical_date "
-                "2021-01-01 00:00:00+00:00",
+                "Task instance not found for task 'print_the_context' on DAG run with ID None",
                 404,
                 {
                     "dry_run": True,
@@ -1890,7 +1889,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
-    def test_should_raise_not_found_if_logical_date_is_wrong(self, mock_set_task_instance_state, session):
+    def test_should_raise_not_found_if_run_id_is_wrong(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
         date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
         response = self.client.post(
@@ -1909,7 +1908,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json["detail"] == (
-            f"Task instance not found for task 'print_the_context' on logical_date {date}"
+            "Task instance not found for task 'print_the_context' on DAG run with ID None"
         )
         assert mock_set_task_instance_state.call_count == 0
 

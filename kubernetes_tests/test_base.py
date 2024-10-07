@@ -207,7 +207,7 @@ class BaseK8STest:
             print(f"Received: {result}")
             state = None
             for dag_run in result_json["dag_runs"]:
-                if dag_run["execution_date"] == logical_date:
+                if dag_run["logical_date"] == logical_date:
                     state = dag_run["state"]
             check_call(["echo", f"Attempt {tries}: Current state of dag is {state}"])
             print(f"Attempt {tries}: Current state of dag is {state}")
