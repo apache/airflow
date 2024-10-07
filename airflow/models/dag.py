@@ -2880,7 +2880,7 @@ class DagModel(Base):
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy("schedule_asset_references", "dataset")
+    schedule_assets = association_proxy("schedule_asset_references", "dataset")
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
