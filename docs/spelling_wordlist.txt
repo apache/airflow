@@ -662,7 +662,7 @@ gapic
 gapped
 gbq
 gcc
-gchakra
+chakra
 gcloud
 Gcp
 gcp
