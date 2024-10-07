@@ -517,25 +517,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def _resolve_kerberos_principal(self, principal: str | None) -> str:
-        """
-        Resolve kerberos principal if airflow > 2.8.
+        """Resolve kerberos principal."""
+        from airflow.security.kerberos import get_kerberos_principle
 
-        TODO: delete when min airflow version >= 2.8 and import directly from airflow.security.kerberos
-        """
-        from packaging.version import Version
-
-        from airflow.version import version
-
-        if Version(version) < Version("2.8"):
-            from airflow.utils.net import get_hostname
-
-            return principal or airflow_conf.get_mandatory_value("kerberos", "principal").replace(
-                "_HOST", get_hostname()
-            )
-        else:
-            from airflow.security.kerberos import get_kerberos_principle
-
-            return get_kerberos_principle(principal)
+        return get_kerberos_principle(principal)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """
