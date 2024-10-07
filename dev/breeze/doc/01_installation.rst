@@ -313,7 +313,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.9. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
     case you should force-reinstall Breeze with ``pipx``:
 
         .. code-block:: bash

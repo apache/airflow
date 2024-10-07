@@ -601,28 +601,21 @@ All Tests are inside ./tests directory.
 
    root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.9.16, pytest-7.2.1, pluggy-1.0.0 -- /usr/local/bin/python
+   platform linux -- Python 3.9.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/local/bin/python
    cachedir: .pytest_cache
-   rootdir: /opt/airflow, configfile: pytest.ini
-   plugins: timeouts-1.2.1, capture-warnings-0.0.4, cov-4.0.0, requests-mock-1.10.0, rerunfailures-11.1.1, anyio-3.6.2, instafail-0.4.2, time-machine-2.9.0, asyncio-0.20.3, httpx-0.21.3, xdist-3.2.0
-   asyncio: mode=strict
+   rootdir: /opt/airflow
+   configfile: pyproject.toml
+   plugins: anyio-4.6.0, time-machine-2.15.0, icdiff-0.9, rerunfailures-14.0, instafail-0.5.0, custom-exit-code-0.3.0, xdist-3.6.1, mock-3.14.0, cov-5.0.0, asyncio-0.24.0, requests-mock-1.12.1, timeouts-1.2.1
+   asyncio: mode=strict, default_loop_scope=None
    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
-   collected 12 items
+   collected 4 items
 
-   tests/utils/test_dates.py::TestDates::test_days_ago PASSED                                                                               [  8%]
-   tests/utils/test_dates.py::TestDates::test_parse_execution_date PASSED                                                                   [ 16%]
-   tests/utils/test_dates.py::TestDates::test_round_time PASSED                                                                             [ 25%]
-   tests/utils/test_dates.py::TestDates::test_infer_time_unit PASSED                                                                        [ 33%]
-   tests/utils/test_dates.py::TestDates::test_scale_time_units PASSED                                                                       [ 41%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_no_delta PASSED                                                                 [ 50%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_end_date_before_start_date PASSED                                               [ 58%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_both_end_date_and_num_given PASSED                                              [ 66%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_invalid_delta PASSED                                                            [ 75%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_positive_num_given PASSED                                                       [ 83%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_negative_num_given PASSED                                                       [ 91%]
-   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_delta_cron_presets PASSED                                                       [100%]
+   tests/utils/test_dates.py::TestDates::test_parse_execution_date PASSED                                                                           [ 25%]
+   tests/utils/test_dates.py::TestDates::test_round_time PASSED                                                                                     [ 50%]
+   tests/utils/test_dates.py::TestDates::test_infer_time_unit PASSED                                                                                [ 75%]
+   tests/utils/test_dates.py::TestDates::test_scale_time_units PASSED                                                                               [100%]
 
-   ============================================================== 12 passed in 0.24s ==============================================================
+   ================================================================== 4 passed in 3.30s ===================================================================
 
 - Running All the test with Breeze by specifying required python version, backend, backend version
 
