@@ -301,7 +301,7 @@ class DbtCloudHook(HttpHook):
     def _paginate(
         self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
     ) -> list[Response]:
-        extra_options = {"proxies": proxies} if proxies is not None else {}
+        extra_options = {"proxies": proxies} if proxies is not None else None
         response = self.run(endpoint=endpoint, data=payload, extra_options=extra_options)
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
@@ -332,7 +332,7 @@ class DbtCloudHook(HttpHook):
         self.method = method
         full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
         proxies = self._get_proxies(self.connection)
-        extra_options = {"proxies": proxies} if proxies is not None else {}
+        extra_options = {"proxies": proxies} if proxies is not None else None
 
         if paginate:
             if isinstance(payload, str):
