@@ -103,7 +103,7 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
+from airflow.models import Connection, DagModel, DagTag, Log, Trigger, XCom
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.dag import get_asset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
@@ -3874,119 +3874,6 @@ class AirflowModelView(ModelView):
         action = self.actions.get(name)
         items = [self.datamodel.get(self._deserialize_pk_if_composite(pk)) for pk in pks]
         return action.func(items)
-
-
-class SlaMissModelView(AirflowModelView):
-    """View to show SlaMiss table."""
-
-    route_base = "/slamiss"
-
-    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # type: ignore
-
-    class_permission_name = permissions.RESOURCE_SLA_MISS
-    method_permission_name = {
-        "list": "read",
-        "action_muldelete": "delete",
-        "action_mulnotificationsent": "edit",
-        "action_mulnotificationsentfalse": "edit",
-        "action_mulemailsent": "edit",
-        "action_mulemailsentfalse": "edit",
-    }
-
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_ACCESS_MENU,
-    ]
-
-    list_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-
-    label_columns = {
-        "execution_date": "Logical Date",
-    }
-
-    add_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-    edit_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-    search_columns = ["dag_id", "task_id", "email_sent", "notification_sent", "timestamp", "execution_date"]
-    base_order = ("execution_date", "desc")
-    base_filters = [["dag_id", DagFilter, list]]
-
-    formatters_columns = {
-        "task_id": wwwutils.task_instance_link,
-        "execution_date": wwwutils.datetime_f("execution_date"),
-        "timestamp": wwwutils.datetime_f("timestamp"),
-        "dag_id": wwwutils.dag_link,
-        "map_index": wwwutils.format_map_index,
-    }
-
-    @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
-    @auth.has_access_dag_entities("DELETE", DagAccessEntity.SLA_MISS)
-    def action_muldelete(self, items):
-        """Multiple delete action."""
-        self.datamodel.delete_all(items)
-        self.update_redirect()
-        return redirect(self.get_redirect())
-
-    @action(
-        "mulnotificationsent",
-        "Set notification sent to true",
-        "Are you sure you want to set all these notifications to sent?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulnotificationsent(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "notification_sent", True)
-
-    @action(
-        "mulnotificationsentfalse",
-        "Set notification sent to false",
-        "Are you sure you want to mark these SLA alerts as notification not sent yet?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulnotificationsentfalse(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "notification_sent", False)
-
-    @action(
-        "mulemailsent",
-        "Set email sent to true",
-        "Are you sure you want to mark these SLA alerts as emails were sent?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulemailsent(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "email_sent", True)
-
-    @action(
-        "mulemailsentfalse",
-        "Set email sent to false",
-        "Are you sure you want to mark these SLA alerts as emails not sent yet?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulemailsentfalse(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "email_sent", False)
-
-    @provide_session
-    def _set_notification_property(
-        self,
-        items: list[SlaMiss],
-        attr: str,
-        new_value: bool,
-        session: Session = NEW_SESSION,
-    ):
-        try:
-            count = 0
-            for sla in items:
-                count += 1
-                setattr(sla, attr, new_value)
-                session.merge(sla)
-            session.commit()
-            flash(f"{count} SLAMisses had {attr} set to {new_value}.")
-        except Exception as ex:
-            flash(str(ex), "error")
-            flash("Failed to set state", "error")
-        self.update_redirect()
-        return redirect(self.get_default_url())
 
 
 class XComModelView(AirflowModelView):

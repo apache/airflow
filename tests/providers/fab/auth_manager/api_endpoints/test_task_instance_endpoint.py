@@ -34,7 +34,7 @@ from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+from tests.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = [
     pytest.mark.db_test,
@@ -123,7 +123,6 @@ class TestTaskInstanceEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
         self.dagbag = dagbag
 

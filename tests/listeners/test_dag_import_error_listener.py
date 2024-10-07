@@ -40,7 +40,6 @@ from tests.test_utils.db import (
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
-    clear_db_sla_miss,
 )
 from tests.test_utils.mock_executor import MockExecutor
 
@@ -75,7 +74,6 @@ class TestDagFileProcessor:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()
