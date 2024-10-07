@@ -26,36 +26,29 @@ type Props = {
   readonly setDisplay: (display: Display) => void;
 };
 
-export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
-  const setCardView = () => setDisplay("card");
-  const setTableView = () => setDisplay("table");
-
-  return (
-    <HStack pb={2} spacing={1}>
-      <IconButton
-        aria-label="Show card view"
-        colorScheme="blue"
-        height={8}
-        icon={<FiGrid />}
-        isActive={display === "card"}
-        minWidth={8}
-        // eslint-disable-next-line react/jsx-no-bind
-        onClick={setCardView}
-        variant="outline"
-        width={8}
-      />
-      <IconButton
-        aria-label="Show table view"
-        colorScheme="blue"
-        height={8}
-        icon={<FiAlignJustify />}
-        isActive={display === "table"}
-        minWidth={8}
-        // eslint-disable-next-line react/jsx-no-bind
-        onClick={setTableView}
-        variant="outline"
-        width={8}
-      />
-    </HStack>
-  );
-};
+export const ToggleTableDisplay = ({ display, setDisplay }: Props) => (
+  <HStack pb={2} spacing={1}>
+    <IconButton
+      aria-label="Show card view"
+      colorScheme="blue"
+      height={8}
+      icon={<FiGrid />}
+      isActive={display === "card"}
+      minWidth={8}
+      onClick={() => setDisplay("card")}
+      variant="outline"
+      width={8}
+    />
+    <IconButton
+      aria-label="Show table view"
+      colorScheme="blue"
+      height={8}
+      icon={<FiAlignJustify />}
+      isActive={display === "table"}
+      minWidth={8}
+      onClick={() => setDisplay("table")}
+      variant="outline"
+      width={8}
+    />
+  </HStack>
+);

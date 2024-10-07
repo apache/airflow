@@ -48,7 +48,6 @@ export const CardList = <TData,>({
           <Box
             _hover={onRowClick ? { cursor: "pointer" } : undefined}
             key={row.id}
-            // eslint-disable-next-line react/jsx-no-bind
             onClick={onRowClick ? (event) => onRowClick(event, row) : undefined}
             title={onRowClick ? "View details" : undefined}
           >
