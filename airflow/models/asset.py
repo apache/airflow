@@ -282,6 +282,10 @@ class AssetActive(Base):
         Index("idx_asset_active_uri_unique", uri, unique=True),
     )
 
+    @classmethod
+    def for_asset(cls, asset: AssetModel) -> AssetActive:
+        return cls(name=asset.name, uri=asset.uri)
+
 
 class DagScheduleAssetAliasReference(Base):
     """References from a DAG to an asset alias of which it is a consumer."""
