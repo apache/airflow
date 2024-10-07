@@ -137,7 +137,7 @@ class AssetEventSchema(SQLAlchemySchema):
 
     id = auto_field()
     asset_id = auto_field()
-    asset_uri = fields.String(attribute="dataset.uri", dump_only=True)
+    asset_uri = fields.String(attribute="asset.uri", dump_only=True)
     extra = JsonObjectField()
     source_task_id = auto_field()
     source_dag_id = auto_field()

@@ -2447,13 +2447,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2519,13 +2519,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2564,7 +2564,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert len(producer_event.source_aliases) == 1
         assert producer_event.extra == {}
         assert producer_event.source_aliases[0].name == alias_name_1
@@ -2623,7 +2623,7 @@ class TestTaskInstance:
             assert producer_event.source_dag_id == "producer_dag"
             assert producer_event.source_run_id == "test"
             assert producer_event.source_map_index == -1
-            assert producer_event.dataset.uri == asset_uri
+            assert producer_event.asset.uri == asset_uri
 
             if not producer_event.extra:
                 assert producer_event.extra == {}
@@ -2683,7 +2683,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
@@ -2723,7 +2723,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
