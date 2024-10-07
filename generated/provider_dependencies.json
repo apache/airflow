@@ -845,7 +845,7 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.17.0",
+      "apache-airflow-providers-common-sql>=1.17.1",
       "apache-airflow>=2.8.0",
       "methodtools>=0.4.7",
       "pymssql>=2.3.0"
@@ -1073,7 +1073,7 @@
   },
   "postgres": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.17.0",
+      "apache-airflow-providers-common-sql>=1.17.1",
       "apache-airflow>=2.8.0",
       "psycopg2-binary>=2.9.4"
     ],
