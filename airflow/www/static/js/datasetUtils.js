@@ -23,13 +23,13 @@ import { getMetaValue } from "./utils";
 
 export function openDatasetModal(dagId, summary, nextDatasets, error) {
   const assetEvents = nextDatasets.events || [];
-  const expression = nextDatasets.dataset_expression;
+  const expression = nextDatasets.asset_expression;
   const datasetsUrl = getMetaValue("datasets_url");
-  $("#dataset_expression").empty();
+  $("#asset_expression").empty();
   $("#datasets_tbody").empty();
   $("#datasets_error").hide();
   $("#dag_id").text(dagId);
-  $("#dataset_expression").text(JSON.stringify(expression, null, 2));
+  $("#asset_expression").text(JSON.stringify(expression, null, 2));
   $("#datasetNextRunModal").modal({});
   if (summary) $("#next_run_summary").text(summary);
   assetEvents.forEach((d) => {

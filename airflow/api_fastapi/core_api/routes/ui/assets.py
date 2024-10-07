@@ -82,5 +82,5 @@ async def next_run_assets(
             .order_by(AssetModel.uri)
         )
     ]
-    data = {"dataset_expression": dag_model.dataset_expression, "events": events}
+    data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data
