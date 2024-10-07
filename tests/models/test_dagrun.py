@@ -222,7 +222,6 @@ class TestDagRun:
 
         assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id) is not None
         assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id) is not None
-        assert DagRun.find_duplicate(dag_id=dag_id, run_id=None) is not None
         assert DagRun.find_duplicate(dag_id=dag_id, run_id=None) is None
 
     def test_dagrun_success_when_all_skipped(self, session):

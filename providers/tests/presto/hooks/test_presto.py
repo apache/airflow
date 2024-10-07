@@ -42,7 +42,7 @@ def test_generate_airflow_presto_client_info_header():
     expected = json.dumps(
         {
             "dag_id": "dag_id",
-            "execution_date": "2022-01-01T00:00:00",
+            "logical_date": "2022-01-01T00:00:00",
             "task_id": "task_id",
             "try_number": "1",
             "dag_run_id": "dag_run_id",
@@ -160,7 +160,7 @@ class TestPrestoHookConn:
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                "logical_date": "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",

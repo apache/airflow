@@ -169,7 +169,7 @@ interface RunLabelProps {
 
 const getDagRunLabel = ({
   dagRun,
-  ordering = ["dataIntervalStart", "executionDate"],
+  ordering = ["dataIntervalStart", "logicalDate"],
 }: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
 
 const getStatusBackgroundColor = (color: string, hasNote: boolean) =>
