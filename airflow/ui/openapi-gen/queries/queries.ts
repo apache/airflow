@@ -10,6 +10,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -342,6 +343,45 @@ export const useConnectionServiceDeleteConnection = <
     mutationFn: ({ connectionId }) =>
       ConnectionService.deleteConnection({
         connectionId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Variable
+ * Delete a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceDeleteVariable = <
+  TData = Common.VariableServiceDeleteVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ variableKey }) =>
+      VariableService.deleteVariable({
+        variableKey,
       }) as unknown as Promise<TData>,
     ...options,
   });
