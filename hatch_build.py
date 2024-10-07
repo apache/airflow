@@ -434,11 +434,6 @@ DEPENDENCIES = [
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
-    # We should remove this dependency when Providers are limited to Airflow 2.7+
-    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
-    # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
-    "unicodecsv>=0.14.1",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
