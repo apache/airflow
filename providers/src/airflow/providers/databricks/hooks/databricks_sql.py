@@ -41,8 +41,8 @@ from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
 )
-from airflow.providers.databricks.exceptions import AirflowTaskExecutionError, AirflowTaskExecutionTimeout
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.databricks.exceptions import AirflowTaskExecutionError, AirflowTaskExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
