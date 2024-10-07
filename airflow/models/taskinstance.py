@@ -1089,8 +1089,8 @@ def _get_template_context(
         asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
         for event in asset_events:
-            if event.dataset:
-                triggering_events[event.dataset.uri].append(event)
+            if event.asset:
+                triggering_events[event.asset.uri].append(event)
 
         return triggering_events
 
@@ -2935,7 +2935,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=self,
                 asset=asset_obj,
-                aliases=[AssetAlias(name) for name in alias_names],
+                aliases=[AssetAlias(name=name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
