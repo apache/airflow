@@ -66,7 +66,7 @@ export class DagService {
   ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -107,7 +107,7 @@ export class DagService {
   ): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         update_mask: data.updateMask,
         limit: data.limit,
