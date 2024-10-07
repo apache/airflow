@@ -134,14 +134,14 @@ def task_reschedules_for_ti():
 class CallbackWrapper:
     task_id: str | None = None
     dag_id: str | None = None
-    execution_date: datetime.datetime | None = None
+    logical_date: datetime.datetime | None = None
     task_state_in_callback: str | None = None
     callback_ran = False
 
     def wrap_task_instance(self, ti):
         self.task_id = ti.task_id
         self.dag_id = ti.dag_id
-        self.execution_date = ti.logical_date
+        self.logical_date = ti.logical_date
         self.task_state_in_callback = ""
         self.callback_ran = False
 
