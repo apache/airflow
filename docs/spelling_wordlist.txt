@@ -227,6 +227,7 @@ cgi
 Cgroups
 cgroups
 cgroupspy
+chakra
 Changelog
 changelog
 charset
@@ -662,7 +663,6 @@ gapic
 gapped
 gbq
 gcc
-chakra
 gcloud
 Gcp
 gcp
