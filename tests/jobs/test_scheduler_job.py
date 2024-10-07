@@ -34,7 +34,6 @@ import psutil
 import pytest
 import time_machine
 from sqlalchemy import func, select, update
-from sqlalchemy_utils.types.enriched_datetime.pendulum_date import pendulum
 
 import airflow.example_dags
 from airflow import settings
