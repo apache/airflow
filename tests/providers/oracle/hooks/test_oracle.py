@@ -369,7 +369,6 @@ class TestOracleHook:
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows("table", rows)
 
-
     def test_bulk_insert_sequence_field(self):
         rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
         target_fields = ["col1", "col2", "col3"]
