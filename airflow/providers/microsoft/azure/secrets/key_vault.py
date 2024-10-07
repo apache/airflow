@@ -31,9 +31,7 @@ from functools import cached_property
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -153,24 +151,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
-
-    @deprecated(
-        reason=(
-            "Method `AzureKeyVaultBackend.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Please use method `get_conn_value` instead."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_conn_uri(self, conn_id: str) -> str | None:
-        """
-        Return URI representation of Connection conn_id.
-
-        As of Airflow version 2.3.0 this method is deprecated.
-
-        :param conn_id: the connection id
-        :return: deserialized Connection
-        """
-        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:
         """
