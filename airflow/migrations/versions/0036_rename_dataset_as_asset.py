@@ -77,31 +77,13 @@ def _rename_pk_constraint(
 
 def upgrade():
     """Rename dataset as asset."""
-    op.rename_table("dataset_alias", "asset_alias")
-    with op.batch_alter_table("asset_alias", schema=None) as batch_op:
-        _rename_index(
-            batch_op=batch_op,
-            original_name="idx_dataset_alias_name_unique",
-            new_name="idx_asset_alias_name_unique",
-            columns=["name"],
-            unique=True,
-        )
-
-        # batch_op.drop_constraint("dataset_alias_pkey")
-        # batch_op.drop_constraint("dataset_alias_pkey")
-
-    op.rename_table("dataset_event", "asset_event")
-    with op.batch_alter_table("asset_event", schema=None) as batch_op:
-        _rename_index(
-            batch_op=batch_op,
-            original_name="idx_dataset_id_timestamp",
-            new_name="idx_asset_id_timestamp",
-            columns=["dataset_id", "timestamp"],
-            unique=False,
-        )
-
     op.rename_table("dataset_alias_dataset", "asset_alias_asset")
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+        #     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True)
+
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dataset_alias_dataset_alias_id",
@@ -138,28 +120,37 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="dataset_alias_dataset_dataset_id_fkey",
-            new_name="asset_alias_asset_dataset_id_fkey",
-            reference_table="dataset",
-            local_cols=["dataset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="dataset_alias_dataset_pkey",
-            new_name="asset_alias_asset_pkey",
-            columns=["alias_id", "dataset_id"],
-        )
-
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_dataset_id_fkey",
+        #     new_name="asset_alias_asset_dataset_id_fkey",
+        #     reference_table="dataset",
+        #     local_cols=["dataset_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_pkey",
+        #     new_name="asset_alias_asset_pkey",
+        #     columns=["alias_id", "dataset_id"],
+        # )
+        #
+        #
     op.rename_table("dataset_alias_dataset_event", "asset_alias_asset_event")
     with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+        #     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
+        #
+        #     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+        #     Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+
         _rename_index(
             batch_op=batch_op,
-            original_name="idx_dataset_alias_datasett_event_alias_id",
+            original_name="idx_dataset_alias_dataset_event_alias_id",
             new_name="idx_asset_alias_asset_event_alias_id",
             columns=["alias_id"],
             unique=False,
@@ -193,80 +184,54 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name=op.f("dataset_alias_dataset_event_event_id_fkey"),
-            new_name=op.f("asset_alias_asset_event_event_id_fkey"),
-            reference_table="asset_event",
-            local_cols=["event_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dataset_alias_dataset_event_event_id_fkey"),
+        #     new_name=op.f("asset_alias_asset_event_event_id_fkey"),
+        #     reference_table="asset_event",
+        #     local_cols=["event_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dataset_alias_dataset_event_alias_id_fkey"),
+        #     new_name=op.f("asset_alias_asset_event_alias_id_fkey"),
+        #     reference_table="asset_alias",
+        #     local_cols=["alias_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_event_pkey",
+        #     new_name="asset_alias_asset_event_pkey",
+        #     columns=["alias_id", "event_id"],
+        # )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name=op.f("dataset_alias_dataset_event_alias_id_fkey"),
-            new_name=op.f("asset_alias_asset_event_alias_id_fkey"),
-            reference_table="asset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="dataset_alias_dataset_event_pkey",
-            new_name="asset_alias_asset_event_pkey",
-            columns=["alias_id", "event_id"],
-        )
-
-    op.rename_table("dataset_dag_run_queue", "asset_dag_run_queue")
-    with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
+    op.rename_table("dataset_alias", "asset_alias")
+    with op.batch_alter_table("asset_alias", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
-            original_name="idx_dataset_dag_run_queue_target_dag_id",
-            new_name="idx_asset_dag_run_queue_target_dag_id",
-            columns=["target_dag_id"],
-            unique=False,
+            original_name="idx_dataset_alias_name_unique",
+            new_name="idx_asset_alias_name_unique",
+            columns=["name"],
+            unique=True,
         )
 
-        _rename_fk_constraint(
+    with op.batch_alter_table("dataset", schema=None) as batch_op:
+        _rename_index(
             batch_op=batch_op,
-            original_name="ddrq_dataset_fkey",
-            new_name="adrq_asset_fkey",
-            reference_table="dataset",
-            local_cols=["dataset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="ddrq_dag_fkey",
-            new_name="adrq_dag_fkey",
-            reference_table="dag",
-            local_cols=["target_dag_id"],
-            remote_cols=["dag_id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="datasetdagrunqueue_pkey",
-            new_name="assetdagrunqueue_pkey",
-            columns=["dataset_id", "target_dag_id"],
+            original_name="idx_dataset_name_uri_unique",
+            new_name="idx_asset_name_uri_unique",
+            columns=["name", "uri"],
+            unique=True,
         )
 
     op.rename_table("dag_schedule_dataset_alias_reference", "dag_schedule_asset_alias_reference")
     with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
-        _rename_index(
-            batch_op=batch_op,
-            original_name="idx_dag_schedule_dataset_alias_reference_dag_id",
-            new_name="idx_dag_schedule_asset_alias_reference_dag_id",
-            columns=["dag_id"],
-            unique=False,
-        )
-
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dsdar_dataset_alias_fkey",
@@ -277,14 +242,21 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-    op.rename_table("dag_schedule_dataset_reference", "dag_schedule_asset_reference")
-    with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
-            original_name="idx_dag_schedule_dataset_reference_dag_id",
-            new_name="idx_dag_schedule_asset_reference_dag_id",
+            original_name="idx_dag_schedule_dataset_alias_reference_dag_id",
+            new_name="idx_dag_schedule_asset_alias_reference_dag_id",
             columns=["dag_id"],
             unique=False,
+        )
+
+    op.rename_table("dag_schedule_dataset_reference", "dag_schedule_asset_reference")
+    with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dsdr_pkey",
+            new_name="dsar_pkey",
+            columns=["dataset_id", "dag_id"],
         )
 
         _rename_fk_constraint(
@@ -307,23 +279,16 @@ def upgrade():
             ondelete="CASCADE",
         )
 
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="dsdr_pkey",
-            new_name="dsar_pkey",
-            columns=["dataset_id", "dag_id"],
-        )
-
-    op.rename_table("task_outlet_dataset_reference", "task_outlet_asset_reference")
-    with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
-            original_name="idx_task_outlet_dataset_reference_dag_id",
-            new_name="idx_task_outlet_asset_reference_dag_id",
+            original_name="idx_dag_schedule_dataset_reference_dag_id",
+            new_name="idx_dag_schedule_asset_reference_dag_id",
             columns=["dag_id"],
             unique=False,
         )
 
+    op.rename_table("task_outlet_dataset_reference", "task_outlet_asset_reference")
+    with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="todr_dag_id_fkey",
@@ -351,8 +316,58 @@ def upgrade():
             columns=["dataset_id", "dag_id", "task_id"],
         )
 
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_task_outlet_dataset_reference_dag_id",
+            new_name="idx_task_outlet_asset_reference_dag_id",
+            columns=["dag_id"],
+            unique=False,
+        )
+
+    op.rename_table("dataset_dag_run_queue", "asset_dag_run_queue")
+    with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="datasetdagrunqueue_pkey",
+            new_name="assetdagrunqueue_pkey",
+            columns=["dataset_id", "target_dag_id"],
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="ddrq_dataset_fkey",
+            new_name="adrq_asset_fkey",
+            reference_table="dataset",
+            local_cols=["dataset_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="ddrq_dag_fkey",
+            new_name="adrq_dag_fkey",
+            reference_table="dag",
+            local_cols=["target_dag_id"],
+            remote_cols=["dag_id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dataset_dag_run_queue_target_dag_id",
+            new_name="idx_asset_dag_run_queue_target_dag_id",
+            columns=["target_dag_id"],
+            unique=False,
+        )
+
     op.rename_table("dagrun_dataset_event", "dagrun_asset_event")
     with op.batch_alter_table("dagrun_asset_event", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #       Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+        #       Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+        #
         _rename_index(
             batch_op=batch_op,
             original_name="idx_dagrun_dataset_events_dag_run_id",
@@ -369,86 +384,386 @@ def upgrade():
             unique=False,
         )
 
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dagrun_dataset_event_dag_run_id_fkey"),
+        #     new_name=op.f("dagrun_asset_event_dag_run_id_fkey"),
+        #     reference_table="dag_run",
+        #     local_cols=["dag_run_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dagrun_dataset_event_event_id_fkey"),
+        #     new_name=op.f("dagrun_asset_event_event_id_fkey"),
+        #     reference_table="asset_event",
+        #     local_cols=["event_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dagrun_dataset_event_pkey",
+        #     new_name="dagrun_asset_event_pkey",
+        #     columns=["dag_run_id", "event_id"],
+        # )
+
+    op.rename_table("dataset_event", "asset_event")
+    with op.batch_alter_table("asset_event", schema=None) as batch_op:
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dataset_id_timestamp",
+            new_name="idx_asset_id_timestamp",
+            columns=["dataset_id", "timestamp"],
+            unique=False,
+        )
+
+
+def downgrade():
+    """Unapply Rename dataset as asset."""
+    op.rename_table("dataset_alias_dataset", "asset_alias_asset")
+    with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True)
+        #     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_alias_asset_alias_id",
+            new_name="idx_dataset_alias_dataset_alias_id",
+            columns=["alias_id"],
+            unique=False,
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_alias_asset_asset_id",
+            new_name="idx_dataset_alias_dataset_dataset_id",
+            columns=["dataset_id"],
+            unique=False,
+        )
+
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name=op.f("dagrun_dataset_event_dag_run_id_fkey"),
-            new_name=op.f("dagrun_asset_event_dag_run_id_fkey"),
-            reference_table="dag_run",
-            local_cols=["dag_run_id"],
+            original_name="a_aa_alias_id",
+            new_name="ds_dsa_alias_id",
+            reference_table="asset_alias",
+            local_cols=["alias_id"],
             remote_cols=["id"],
             ondelete="CASCADE",
         )
 
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name=op.f("dagrun_dataset_event_event_id_fkey"),
-            new_name=op.f("dagrun_asset_event_event_id_fkey"),
+            original_name="a_aa_asset_id",
+            new_name="ds_dsa_dataset_id",
+            reference_table="dataset",
+            local_cols=["dataset_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_dataset_id_fkey",
+        #     new_name="asset_alias_asset_dataset_id_fkey",
+        #     reference_table="dataset",
+        #     local_cols=["dataset_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_pkey",
+        #     new_name="asset_alias_asset_pkey",
+        #     columns=["alias_id", "dataset_id"],
+        # )
+        #
+        #
+    op.rename_table("dataset_alias_dataset_event", "asset_alias_asset_event")
+    with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
+        #     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+        #
+        #     Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+        #     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_alias_asset_event_alias_id",
+            new_name="idx_dataset_alias_dataset_event_alias_id",
+            columns=["alias_id"],
+            unique=False,
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_alias_asset_event_event_id",
+            new_name="idx_dataset_alias_dataset_event_event_id",
+            columns=["event_id"],
+            unique=False,
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="dss_de_alias_id",
+            new_name="dss_de_dataset_id",
+            reference_table="asset_alias",
+            local_cols=["alias_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="dss_de_event_id",
+            new_name="dss_de_event_id",
             reference_table="asset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
             ondelete="CASCADE",
         )
 
-        _rename_pk_constraint(
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dataset_alias_dataset_event_event_id_fkey"),
+        #     new_name=op.f("asset_alias_asset_event_event_id_fkey"),
+        #     reference_table="asset_event",
+        #     local_cols=["event_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dataset_alias_dataset_event_alias_id_fkey"),
+        #     new_name=op.f("asset_alias_asset_event_alias_id_fkey"),
+        #     reference_table="asset_alias",
+        #     local_cols=["alias_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dataset_alias_dataset_event_pkey",
+        #     new_name="asset_alias_asset_event_pkey",
+        #     columns=["alias_id", "event_id"],
+        # )
+
+    op.rename_table("dataset_alias", "asset_alias")
+    with op.batch_alter_table("asset_alias", schema=None) as batch_op:
+        _rename_index(
             batch_op=batch_op,
-            original_name="dagrun_dataset_event_pkey",
-            new_name="dagrun_asset_event_pkey",
-            columns=["dag_run_id", "event_id"],
+            original_name="idx_asset_alias_name_unique",
+            new_name="idx_dataset_alias_name_unique",
+            columns=["name"],
+            unique=True,
         )
 
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
-            original_name="idx_dataset_name_uri_unique",
-            new_name="idx_asset_name_uri_unique",
+            original_name="idx_asset_name_uri_unique",
+            new_name="idx_dataset_name_uri_unique",
             columns=["name", "uri"],
             unique=True,
         )
 
+    op.rename_table("dag_schedule_dataset_alias_reference", "dag_schedule_asset_alias_reference")
+    with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="dsaar_asset_alias_fkey",
+            new_name="dsdar_dataset_alias_fkey",
+            reference_table="asset_alias",
+            local_cols=["alias_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
 
-def downgrade():
-    """Unapply Rename dataset as asset."""
-    # with op.batch_alter_table("dataset", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_name_uri_unique")
-    #     batch_op.create_index("idx_dataset_name_uri_unique", ["name", "uri"], unique=True)
-    #
-    # with op.batch_alter_table("dagrun_asset_event", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_dagrun_asset_events_event_id")
-    #     batch_op.drop_index("idx_dagrun_asset_events_dag_run_id")
-    #
-    # op.drop_table("dagrun_asset_event")
-    # with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_task_outlet_asset_reference_dag_id")
-    #
-    # op.drop_table("task_outlet_asset_reference")
-    # with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_dag_schedule_asset_reference_dag_id")
-    #
-    # op.drop_table("dag_schedule_asset_reference")
-    # with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_dag_schedule_asset_alias_reference_dag_id")
-    #
-    # op.drop_table("dag_schedule_asset_alias_reference")
-    # with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_dag_run_queue_target_dag_id")
-    #
-    # op.drop_table("asset_dag_run_queue")
-    # with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_alias_asset_event_event_id")
-    #     batch_op.drop_index("idx_asset_alias_asset_event_alias_id")
-    #
-    # op.drop_table("asset_alias_asset_event")
-    # with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_alias_asset_asset_id")
-    #     batch_op.drop_index("idx_asset_alias_asset_alias_id")
-    #
-    # op.drop_table("asset_alias_asset")
-    # with op.batch_alter_table("asset_event", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_id_timestamp")
-    #
-    # op.drop_table("asset_event")
-    # with op.batch_alter_table("asset_alias", schema=None) as batch_op:
-    #     batch_op.drop_index("idx_asset_alias_name_unique")
-    #
-    # op.drop_table("asset_alias")
-    # # ### end Alembic commands ###
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dag_schedule_asset_alias_reference_dag_id",
+            new_name="idx_dag_schedule_dataset_alias_reference_dag_id",
+            columns=["dag_id"],
+            unique=False,
+        )
+
+    op.rename_table("dag_schedule_dataset_reference", "dag_schedule_asset_reference")
+    with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="dsar_pkey",
+            new_name="dsdr_pkey",
+            columns=["dataset_id", "dag_id"],
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="dsar_dag_id_fkey",
+            new_name="dsdr_dag_id_fkey",
+            reference_table="dag",
+            local_cols=["dag_id"],
+            remote_cols=["dag_id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="dsar_asset_fkey",
+            new_name="dsdr_dataset_fkey",
+            reference_table="dataset",
+            local_cols=["dataset_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dag_schedule_asset_reference_dag_id",
+            new_name="idx_dag_schedule_dataset_reference_dag_id",
+            columns=["dag_id"],
+            unique=False,
+        )
+
+    op.rename_table("task_outlet_dataset_reference", "task_outlet_asset_reference")
+    with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="todr_dag_id_fkey",
+            new_name="todr_dag_id_fkey",
+            reference_table="dag",
+            local_cols=["dag_id"],
+            remote_cols=["dag_id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="todr_asset_fkey",
+            new_name="todr_dataset_fkey",
+            reference_table="dataset",
+            local_cols=["dataset_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="todr_pkey",
+            new_name="todr_pkey",
+            columns=["dataset_id", "dag_id", "task_id"],
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_task_outlet_asset_reference_dag_id",
+            new_name="idx_task_outlet_dataset_reference_dag_id",
+            columns=["dag_id"],
+            unique=False,
+        )
+
+    op.rename_table("dataset_dag_run_queue", "asset_dag_run_queue")
+    with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="assetdagrunqueue_pkey",
+            new_name="datasetdagrunqueue_pkey",
+            columns=["dataset_id", "target_dag_id"],
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="adrq_asset_fkey",
+            new_name="ddrq_dataset_fkey",
+            reference_table="dataset",
+            local_cols=["dataset_id"],
+            remote_cols=["id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="adrq_dag_fkey",
+            new_name="ddrq_dag_fkey",
+            reference_table="dag",
+            local_cols=["target_dag_id"],
+            remote_cols=["dag_id"],
+            ondelete="CASCADE",
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_dag_run_queue_target_dag_id",
+            new_name="idx_dataset_dag_run_queue_target_dag_id",
+            columns=["target_dag_id"],
+            unique=False,
+        )
+
+    op.rename_table("dagrun_dataset_event", "dagrun_asset_event")
+    with op.batch_alter_table("dagrun_asset_event", schema=None) as batch_op:
+        # TODO:
+        # alter column
+        #       Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
+        #       Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+        #
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dagrun_asset_events_dag_run_id",
+            new_name="idx_dagrun_dataset_events_dag_run_id",
+            columns=["dag_run_id"],
+            unique=False,
+        )
+
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_dagrun_asset_events_event_id",
+            new_name="idx_dagrun_dataset_events_event_id",
+            columns=["event_id"],
+            unique=False,
+        )
+
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dagrun_dataset_event_dag_run_id_fkey"),
+        #     new_name=op.f("dagrun_asset_event_dag_run_id_fkey"),
+        #     reference_table="dag_run",
+        #     local_cols=["dag_run_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+        #
+        # _rename_fk_constraint(
+        #     batch_op=batch_op,
+        #     original_name=op.f("dagrun_dataset_event_event_id_fkey"),
+        #     new_name=op.f("dagrun_asset_event_event_id_fkey"),
+        #     reference_table="asset_event",
+        #     local_cols=["event_id"],
+        #     remote_cols=["id"],
+        #     ondelete="CASCADE",
+        # )
+
+        # _rename_pk_constraint(
+        #     batch_op=batch_op,
+        #     original_name="dagrun_dataset_event_pkey",
+        #     new_name="dagrun_asset_event_pkey",
+        #     columns=["dag_run_id", "event_id"],
+        # )
+
+    op.rename_table("dataset_event", "asset_event")
+    with op.batch_alter_table("asset_event", schema=None) as batch_op:
+        _rename_index(
+            batch_op=batch_op,
+            original_name="idx_asset_id_timestamp",
+            new_name="idx_dataset_id_timestamp",
+            columns=["dataset_id", "timestamp"],
+            unique=False,
+        )
