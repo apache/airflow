@@ -1095,14 +1095,14 @@ class TestDag:
             non_orphaned_assets = [
                 asset.uri
                 for asset in session.query(AssetModel.uri)
-                .filter(AssetModel.active.any())
+                .filter(AssetModel.active.has())
                 .order_by(AssetModel.uri)
             ]
             assert non_orphaned_assets == ["ds1", "ds3"]
             orphaned_assets = [
                 asset.uri
                 for asset in session.query(AssetModel.uri)
-                .filter(~AssetModel.active.any())
+                .filter(~AssetModel.active.has())
                 .order_by(AssetModel.uri)
             ]
             assert orphaned_assets == ["ds2", "ds4"]
@@ -1114,9 +1114,9 @@ class TestDag:
             DAG.bulk_write_to_db([dag1], session=session)
 
             # and count the orphans and non-orphans
-            non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.any()).count()
+            non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
             assert non_orphaned_asset_count == 4
-            orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.any()).count()
+            orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
             assert orphaned_asset_count == 0
 
     def test_bulk_write_to_db_asset_aliases(self):

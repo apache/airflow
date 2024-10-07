@@ -2085,7 +2085,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(AssetModel.id)
-            .where(AssetModel.active.any())
+            .where(AssetModel.active.has())
             .having(
                 and_(
                     func.count(DagScheduleAssetReference.dag_id) == 0,
