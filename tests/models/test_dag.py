@@ -3463,9 +3463,9 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
 
 
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_assets):
-    dataset_alias1 = AssetAlias(name="alias")
-    with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
+def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker, clear_assets):
+    asset_alias1 = AssetAlias(name="alias")
+    with dag_maker(dag_id="dag-1", schedule=[asset_alias1]):
         pass
     dag1 = dag_maker.dag
     session = dag_maker.session

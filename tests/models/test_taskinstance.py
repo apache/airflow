@@ -2297,12 +2297,12 @@ class TestTaskInstance:
         # check that no other asset events recorded
         event = (
             session.query(AssetEvent)
-            .join(AssetEvent.dataset)
+            .join(AssetEvent.asset)
             .filter(AssetEvent.source_task_instance == ti)
             .one()
         )
         assert event
-        assert event.dataset
+        assert event.asset
 
         # check that one queue record created for each dag that depends on asset 1
         assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.asset.id).order_by(
@@ -2318,7 +2318,7 @@ class TestTaskInstance:
         ]
 
         # check that one event record created for asset1 and this TI
-        assert session.query(AssetModel.uri).join(AssetEvent.dataset).filter(
+        assert session.query(AssetModel.uri).join(AssetEvent.asset).filter(
             AssetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
