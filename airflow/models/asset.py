@@ -454,7 +454,7 @@ class AssetDagRunQueue(Base):
     asset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    dataset = relationship("AssetModel", viewonly=True)
+    asset = relationship("AssetModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
@@ -565,7 +565,7 @@ class AssetEvent(Base):
         lazy="select",
         uselist=False,
     )
-    dataset = relationship(
+    asset = relationship(
         AssetModel,
         primaryjoin="AssetEvent.asset_id == foreign(AssetModel.id)",
         viewonly=True,
@@ -575,7 +575,7 @@ class AssetEvent(Base):
 
     @property
     def uri(self):
-        return self.dataset.uri
+        return self.asset.uri
 
     def __repr__(self) -> str:
         args = []

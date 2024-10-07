@@ -3093,7 +3093,7 @@ class DagModel(Base):
         del all_records
         dag_statuses = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.dataset.uri: True for x in records}
+            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
         ser_dags = session.scalars(
             select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
         ).all()

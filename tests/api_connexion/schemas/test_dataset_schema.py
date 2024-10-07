@@ -52,18 +52,18 @@ class TestAssetSchemaBase:
 
 class TestAssetSchema(TestAssetSchemaBase):
     def test_serialize(self, dag_maker, session):
-        dataset = Asset(
+        asset = Asset(
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
         with dag_maker(dag_id="test_dataset_upstream_schema", serialized=True, session=session):
-            EmptyOperator(task_id="task1", outlets=[dataset])
+            EmptyOperator(task_id="task1", outlets=[asset])
         with dag_maker(
-            dag_id="test_dataset_downstream_schema", schedule=[dataset], serialized=True, session=session
+            dag_id="test_dataset_downstream_schema", schedule=[asset], serialized=True, session=session
         ):
             EmptyOperator(task_id="task2")
 
-        asset_model = session.query(AssetModel).filter_by(uri=dataset.uri).one()
+        asset_model = session.query(AssetModel).filter_by(uri=asset.uri).one()
 
         serialized_data = asset_schema.dump(asset_model)
         serialized_data["id"] = 1

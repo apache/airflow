@@ -283,13 +283,13 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
 
     deserialized_model1 = AssetEventPydantic.model_validate_json(json_string1)
     assert deserialized_model1.asset.id == 1
-    assert deserialized_model1.dataset.uri == "one"
+    assert deserialized_model1.asset.uri == "one"
     assert len(deserialized_model1.dataset.consuming_dags) == 1
     assert len(deserialized_model1.dataset.producing_tasks) == 1
 
     deserialized_model2 = AssetEventPydantic.model_validate_json(json_string2)
     assert deserialized_model2.asset.id == 2
-    assert deserialized_model2.dataset.uri == "two"
+    assert deserialized_model2.asset.uri == "two"
     assert len(deserialized_model2.dataset.consuming_dags) == 0
     assert len(deserialized_model2.dataset.producing_tasks) == 0
 
