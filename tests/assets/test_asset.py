@@ -343,7 +343,7 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
 
     # Add AssetDagRunQueue entries to simulate asset event processing
     for am in asset_models:
-        session.add(AssetDagRunQueue(dataset_id=am.id, target_dag_id=dag.dag_id))
+        session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
     session.commit()
 
     # Fetch and evaluate asset triggers for all DAGs affected by asset events

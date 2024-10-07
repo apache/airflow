@@ -378,7 +378,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
     def test_should_respond_200(self, session):
         d = self._create_asset(session)
         common = {
-            "dataset_id": 1,
+            "asset_id": 1,
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -441,7 +441,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         events = [
             AssetEvent(
                 id=i,
-                dataset_id=i,
+                asset_id=i,
                 source_dag_id=f"dag{i}",
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
@@ -464,7 +464,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
             "asset_events": [
                 {
                     "id": 2,
-                    "dataset_id": 2,
+                    "asset_id": 2,
                     "dataset_uri": assets[1].uri,
                     "extra": {},
                     "source_dag_id": "dag2",
@@ -482,7 +482,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 extra="{'foo': 'bar'}",
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -512,7 +512,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         event = AssetEvent(
             id=1,
-            dataset_id=1,
+            asset_id=1,
             timestamp=timezone.parse(self.default_time),
         )
         session.add(event)
@@ -542,7 +542,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
             "asset_events": [
                 {
                     "id": 1,
-                    "dataset_id": 1,
+                    "asset_id": 1,
                     "dataset_uri": "s3://bucket/key",
                     "extra": {},
                     "source_dag_id": None,
@@ -592,7 +592,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
             "id": ANY,
             "created_dagruns": [],
             "dataset_uri": event_payload["asset_uri"],
-            "dataset_id": ANY,
+            "asset_id": ANY,
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
             "source_task_id": None,
@@ -671,7 +671,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -693,7 +693,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -715,7 +715,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -746,7 +746,7 @@ class TestQueuedEventEndpoint(TestAssetEndpoint):
         freezer.stop()
 
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=asset_id)
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(adrq)
         session.commit()
         return adrq

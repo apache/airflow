@@ -4571,7 +4571,7 @@ components:
         *New in version 2.4.0*
       type: object
       properties:
-        dataset_id:
+        asset_id:
           type: integer
           description: The asset id
         dataset_uri:

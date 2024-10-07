@@ -1910,7 +1910,7 @@ export interface components {
      */
     AssetEvent: {
       /** @description The asset id */
-      dataset_id?: number;
+      asset_id?: number;
       /** @description The URI of the asset */
       dataset_uri?: string;
       /** @description The asset event extra */

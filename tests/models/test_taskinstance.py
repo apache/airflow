@@ -2305,7 +2305,7 @@ class TestTaskInstance:
         assert event.dataset
 
         # check that one queue record created for each dag that depends on asset 1
-        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.dataset.id).order_by(
             AssetDagRunQueue.target_dag_id
         ).all() == [
             ("asset_consumes_1",),
@@ -2324,7 +2324,7 @@ class TestTaskInstance:
 
         # check that the asset event has an earlier timestamp than the ADRQ's
         adrq_timestamps = (
-            session.query(AssetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
+            session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.dataset.id).all()
         )
         assert all(
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
@@ -3203,9 +3203,9 @@ class TestTaskInstance:
             data_interval=(execution_date, execution_date),
             **triggered_by_kwargs,
         )
-        ds1_event = AssetEvent(dataset_id=1)
-        ds2_event_1 = AssetEvent(dataset_id=2)
-        ds2_event_2 = AssetEvent(dataset_id=2)
+        ds1_event = AssetEvent(asset_id=1)
+        ds2_event_1 = AssetEvent(asset_id=2)
+        ds2_event_2 = AssetEvent(asset_id=2)
         dr.consumed_asset_events.append(ds1_event)
         dr.consumed_asset_events.append(ds2_event_1)
         dr.consumed_asset_events.append(ds2_event_2)
