@@ -355,7 +355,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_dataset_uris",
+        "url, expected_asset_uris",
         [
             # Limit test data
             ("/object/datasets_summary?limit=1", ["s3://bucket/key/1"]),
@@ -367,15 +367,15 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             ("/object/datasets_summary?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
-    def test_limit_and_offset(self, admin_client, create_assets, session, url, expected_dataset_uris):
+    def test_limit_and_offset(self, admin_client, create_assets, session, url, expected_asset_uris):
         create_assets(range(1, 10))
         session.commit()
 
         response = admin_client.get(url)
 
         assert response.status_code == 200
-        dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
-        assert dataset_uris == expected_dataset_uris
+        asset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
+        assert asset_uris == expected_asset_uris
 
     def test_should_respect_page_size_limit_default(self, admin_client, create_assets, session):
         create_assets(range(1, 60))
