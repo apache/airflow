@@ -49,6 +49,7 @@ DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
+DAG1_NOTE = "test_note"
 
 
 @pytest.fixture(autouse=True)
@@ -64,12 +65,14 @@ def setup(dag_maker, session=None):
         start_date=START_DATE,
     ):
         EmptyOperator(task_id="task_1")
-    dag_maker.create_dagrun(
+    dag1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
     )
+    dag1.note = (DAG1_NOTE, 1)
+
     dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
         state=DAG1_RUN2_STATE,
@@ -107,15 +110,15 @@ def setup(dag_maker, session=None):
 
 
 @pytest.mark.parametrize(
-    "dag_id, run_id, state, run_type, triggered_by",
+    "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
     [
-        (DAG1_ID, DAG1_RUN1_ID, DAG1_RUN1_STATE, DAG1_RUN1_RUN_TYPE, DAG1_RUN1_TRIGGERED_BY),
-        (DAG1_ID, DAG1_RUN2_ID, DAG1_RUN2_STATE, DAG1_RUN2_RUN_TYPE, DAG1_RUN2_TRIGGERED_BY),
-        (DAG2_ID, DAG2_RUN1_ID, DAG2_RUN1_STATE, DAG2_RUN1_RUN_TYPE, DAG2_RUN1_TRIGGERED_BY),
-        (DAG2_ID, DAG2_RUN2_ID, DAG2_RUN2_STATE, DAG2_RUN2_RUN_TYPE, DAG2_RUN2_TRIGGERED_BY),
+        (DAG1_ID, DAG1_RUN1_ID, DAG1_RUN1_STATE, DAG1_RUN1_RUN_TYPE, DAG1_RUN1_TRIGGERED_BY, DAG1_NOTE),
+        (DAG1_ID, DAG1_RUN2_ID, DAG1_RUN2_STATE, DAG1_RUN2_RUN_TYPE, DAG1_RUN2_TRIGGERED_BY, None),
+        (DAG2_ID, DAG2_RUN1_ID, DAG2_RUN1_STATE, DAG2_RUN1_RUN_TYPE, DAG2_RUN1_TRIGGERED_BY, None),
+        (DAG2_ID, DAG2_RUN2_ID, DAG2_RUN2_STATE, DAG2_RUN2_RUN_TYPE, DAG2_RUN2_TRIGGERED_BY, None),
     ],
 )
-def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by):
+def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by, dag_run_note):
     response = test_client.get(f"/public/dags/{dag_id}/dagRuns/{run_id}")
     assert response.status_code == 200
     body = response.json()
@@ -124,4 +127,4 @@ def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by)
     assert body["state"] == state
     assert body["run_type"] == run_type
     assert body["triggered_by"] == triggered_by.value
-    assert body["note"] is None
+    assert body["note"] == dag_run_note

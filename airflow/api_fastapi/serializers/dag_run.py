@@ -41,14 +41,4 @@ class DAGRunResponse(BaseModel):
     external_trigger: bool
     triggered_by: DagRunTriggeredByType
     conf: dict
-    note: DagRunNotePydantic | None
-
-
-class DagRunNotePydantic(BaseModel):
-    """Serializable representation of the DagRunNote ORM SqlAlchemyModel used by internal API."""
-
-    dag_run_id: str
-    content: str | None
-    created_at: datetime
-    updated_at: datetime
-    user_id: int | None
+    note: str | None
