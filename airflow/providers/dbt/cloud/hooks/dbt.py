@@ -244,26 +244,18 @@ class DbtCloudHook(HttpHook):
         endpoint = f"{account_id}/runs/{run_id}/"
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
-        proxies = self._get_proxies(self.connection)
+        proxies = self._get_proxies(self.connection) or {}
+
         async with aiohttp.ClientSession(headers=headers) as session:
-            if proxies is not None:
-                if url.startswith("https"):
-                    proxy = proxies.get("https")
-                else:
-                    proxy = proxies.get("http")
-                async with session.get(url, params=params, proxy=proxy) as response:
-                    try:
-                        response.raise_for_status()
-                        return await response.json()
-                    except aiohttp.ClientResponseError as e:
-                        raise AirflowException(f"{e.status}:{e.message}")
-            else:
-                async with session.get(url, params=params) as response:
-                    try:
-                        response.raise_for_status()
-                        return await response.json()
-                    except aiohttp.ClientResponseError as e:
-                        raise AirflowException(f"{e.status}:{e.message}")
+            proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
+            extra_request_args = {}
+
+            if proxy:
+                extra_request_args["proxy"] = proxy
+
+            async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
+                response.raise_for_status()
+                return await response.json()
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
