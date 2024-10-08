@@ -19,12 +19,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
 from sqlalchemy.engine import Inspector
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestPostgresDialect:
@@ -37,13 +35,13 @@ class TestPostgresDialect:
             {"name": "age"},
         ]
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
-        self.test_db_hook.run.side_effect = lambda *args: [("id",)]
+        self.test_db_hook.get_records.side_effect = lambda sql, parameters: [("id",)]
 
     def test_placeholder(self):
         assert PostgresDialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
-        assert PostgresDialect._extract_schema_from_table("hollywood.actors") == ["actors", "hollywood"]
+        assert PostgresDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
         assert PostgresDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
@@ -56,7 +54,6 @@ class TestPostgresDialect:
     def test_get_primary_keys(self):
         assert PostgresDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 3.0")
     def test_generate_replace_sql(self):
         values = [
             {"id": "id", "name": "Stallone", "firstname": "Sylvester", "age": "78"},
