@@ -590,6 +590,9 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # Allow relaxing ordering guarantees while preserving its uniqueness and identity
+  # podManagementPolicy: Parallel
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
