@@ -1019,3 +1019,38 @@ export const $ValidationError = {
   required: ["loc", "msg", "type"],
   title: "ValidationError",
 } as const;
+
+export const $VariableResponse = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+  },
+  type: "object",
+  required: ["key", "value", "description"],
+  title: "VariableResponse",
+  description: "Variable serializer for responses.",
+} as const;
