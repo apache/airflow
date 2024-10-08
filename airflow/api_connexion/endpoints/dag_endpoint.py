@@ -38,6 +38,7 @@ from airflow.api_connexion.schemas.dag_schema import (
 )
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dagrun import DagRun
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
@@ -129,15 +130,33 @@ def get_dags(
 
     total_entries = get_query_count(dags_query, session=session)
     dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
+
+    # Fetch the DAGs and join the DagRun to get last_dagrun
+    # Join with the DagRun table to get the most recent run (if exists)
+    dags_query = dags_query.outerjoin(DagRun, DagModel.dag_id == DagRun.dag_id)
+
+    # Group the query to select the most recent DagRun by max execution_date
+    dags_query = dags_query.group_by(DagModel.dag_id).order_by(DagRun.execution_date.desc())
+
     dags = session.scalars(dags_query.offset(offset).limit(limit)).all()
 
+    dags_with_last_run = []
+    for dag in dags:
+        dag_dict = dag.__dict__.copy()
+        last_dagrun = (
+            session.query(DagRun).filter_by(dag_id=dag.dag_id).order_by(DagRun.execution_date.desc()).first()
+        )
+        dag_dict["last_dagrun"] = last_dagrun.as_dict() if last_dagrun else None
+        dags_with_last_run.append(dag_dict)
     try:
         dags_collection_schema = (
             DAGCollectionSchema(only=[f"dags.{field}" for field in fields])
             if fields
             else DAGCollectionSchema()
         )
-        return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
+        return dags_collection_schema.dump(
+            DAGCollection(dags=dags_with_last_run, total_entries=total_entries)
+        )
     except ValueError as e:
         raise BadRequest("DAGCollectionSchema error", detail=str(e))
 
