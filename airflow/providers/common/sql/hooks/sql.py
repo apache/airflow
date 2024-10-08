@@ -29,11 +29,12 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     Protocol,
     Sequence,
     TypeVar,
     cast,
-    overload, MutableMapping,
+    overload,
 )
 from urllib.parse import urlparse
 
