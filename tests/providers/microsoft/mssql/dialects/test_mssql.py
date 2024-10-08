@@ -41,7 +41,7 @@ class TestMsSqlDialect:
         assert MsSqlDialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
-        assert MsSqlDialect._extract_schema_from_table("hollywood.actors") == ["actors", "hollywood"]
+        assert MsSqlDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
         assert MsSqlDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
