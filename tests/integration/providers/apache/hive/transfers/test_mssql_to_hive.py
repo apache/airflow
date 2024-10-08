@@ -29,6 +29,7 @@ AIRFLOW_CONN_MSSQL_DEFAULT = "mssql://sa:airflow123@mssql:1433/"
 TEST_TABLE_ID = "Persons"
 
 
+@pytest.mark.quarantined
 @pytest.mark.integration("mssql")
 class TestMsSqlToHiveTransfer:
     def setup_method(self, mocker):

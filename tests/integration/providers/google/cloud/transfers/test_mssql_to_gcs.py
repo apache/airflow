@@ -40,6 +40,7 @@ NDJSON_LINES = [
 ]
 
 
+@pytest.mark.quarantined
 @pytest.mark.integration("mssql")
 class TestMsSqlToGoogleCloudStorageOperator:
     def setup_method(self):

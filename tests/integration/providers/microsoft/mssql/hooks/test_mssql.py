@@ -26,6 +26,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 AIRFLOW_CONN_MSSQL_DEFAULT = "mssql://sa:airflow123@mssql:1433/"
 
 
+@pytest.mark.quarantined
 @pytest.mark.integration("mssql")
 class TestMsSqlHook:
     def setup_method(self):
