@@ -229,7 +229,7 @@ class WeaviateHook(BaseHook):
                         with attempt:
                             self.log.info(attempt)
                             client.collections.delete(collection_name)
-                except Exception as e:
+                except requests.exceptions.ConnectionError as e:
                     if if_error == "continue":
                         self.log.error(e)
                         failed_collection_list.append(collection_name)
