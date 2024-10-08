@@ -34,11 +34,10 @@ import sqlalchemy_jsonfield
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "c3389cd7793f"
-down_revision = "0d9e73a75ee4"
+revision = "05234396c6fc"
+down_revision = "c3389cd7793f"
 branch_labels = None
 depends_on = None
-airflow_version = "3.0.0"
 
 if TYPE_CHECKING:
     from alembic.operations.base import BatchOperations
