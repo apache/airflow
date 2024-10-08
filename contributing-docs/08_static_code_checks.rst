@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.8 locally.
+in our development workflow. To install and use it, you need at least Python 3.9 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -113,286 +113,288 @@ require Breeze Docker image to be built locally.
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ID                                                        | Description                                                  | Image   |
-+===========================================================+==============================================================+=========+
-| bandit                                                    | bandit                                                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| blacken-docs                                              | Run black on Python code blocks in documentation files       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used                |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-airflow-providers-bug-report-template               | Check airflow-bug-report provider list is sorted/unique      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-base-operator-usage                                 | * Check BaseOperator core imports                            |         |
-|                                                           | * Check BaseOperatorLink core imports                        |         |
-|                                                           | * Check BaseOperator[Link] other imports                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency           |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-breeze-top-dependencies-limited                     | Breeze should have small number of top-level dependencies    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-changelog-format                                    | Check changelog format                                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-code-deprecations                                   | Check deprecations categories in decorators                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-compat-cache-on-methods                             | Check that compat cache do not use on class methods          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-daysago-import-from-utils                           | Make sure days_ago is imported from airflow.utils.dates      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-deferrable-default-value                            | Check default value of deferrable attribute                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-docstring-param-types                               | Check that docstrings do not specify param types             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-example-dags-urls                                   | Check that example dags url include provider versions        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-executables-have-shebangs                           | Check that executables have shebang                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-extra-packages-references                           | Checks setup extra packages                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-extras-order                                        | Check order of extras in Dockerfile                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-fab-migrations                                      | Check no migration is done on FAB related table              |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-hatch-build-order                                   | Check order of dependencies in hatch_build.py                |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-init-decorator-arguments                            | Check model __init__ and decorator arguments are in sync     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-integrations-list-consistent                        | Sync integrations list with docs                             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-lazy-logging                                        | Check that all logging methods are lazy                      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-links-to-example-dags-do-not-use-hardcoded-versions | Verify example dags do not use hard-coded version numbers    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-merge-conflict                                      | Check that merge conflicts are not being committed           |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-newsfragments-are-valid                             | Check newsfragments are valid                                |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-no-providers-in-core-examples                       | No providers imports in core example DAGs                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-pre-commit-information-consistent                   | Validate hook IDs & names and sync with docs                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-provide-create-sessions-imports                     | Check provide_session and create_session imports             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-provider-docs-valid                                 | Validate provider doc files                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-provider-yaml-valid                                 | Validate provider.yaml files                                 | *       |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-providers-init-file-missing                         | Provider init file is missing                                |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-providers-subpackages-init-file-exist               | Provider subpackage init files are there                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date              |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-safe-filter-usage-in-html                           | Don't use safe in templates                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-sql-dependency-common-data-structure                | Check dependency of SQL Providers with common data structure |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-start-date-not-used-in-defaults                     | start_date not to be defined in default_args in example_dags |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-system-tests-present                                | Check if system tests have required segments of code         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-system-tests-tocs                                   | Check that system tests is properly added                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-taskinstance-tis-attrs                              | Check that TI and TIS have the same attributes               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-template-context-variable-in-sync                   | Check all template context variable references are in sync   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-tests-in-the-right-folders                          | Check if tests are in the right folders                      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-urlparse-usage-in-code                              | Don't use urlparse in code                                   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-usage-of-re2-over-re                                | Use re2 module instead of re                                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-xml                                                 | Check XML files with xmllint                                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| codespell                                                 | Run codespell to check for common misspellings in files      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-ui-assets                                         | Compile ui assets (manual)                                   |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-ui-assets-dev                                     | Compile ui assets in dev mode (manual)                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets                                        | Compile www assets (manual)                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| compile-www-assets-dev                                    | Compile www assets in dev mode (manual)                      |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| create-missing-init-py-files-tests                        | Create missing init.py files in tests                        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| debug-statements                                          | Detect accidentally committed debug statements               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| detect-private-key                                        | Detect if private key is added to the repository             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| doctoc                                                    | Add TOC for Markdown and RST files                           |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| end-of-file-fixer                                         | Make sure that there is an empty line at the end             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| flynt                                                     | Run flynt string format converter for Python                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| generate-airflow-diagrams                                 | Generate airflow diagrams                                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| generate-pypi-readme                                      | Generate PyPI README                                         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| identity                                                  | Print input to the static check hooks for troubleshooting    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| insert-license                                            | * Add license for all SQL files                              |         |
-|                                                           | * Add license for all RST files                              |         |
-|                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files           |         |
-|                                                           | * Add license for all JINJA template files                   |         |
-|                                                           | * Add license for all Shell files                            |         |
-|                                                           | * Add license for all toml files                             |         |
-|                                                           | * Add license for all Python files                           |         |
-|                                                           | * Add license for all XML files                              |         |
-|                                                           | * Add license for all Helm template files                    |         |
-|                                                           | * Add license for all YAML files except Helm templates       |         |
-|                                                           | * Add license for all Markdown files                         |         |
-|                                                           | * Add license for all other files                            |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| kubeconform                                               | Kubeconform check on our helm chart                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-chart-schema                                         | Lint chart/values.schema.json file                           |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-css                                                  | stylelint                                                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-dockerfile                                           | Lint Dockerfile                                              |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-helm-chart                                           | Lint Helm Chart                                              |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-json-schema                                          | * Lint JSON Schema files with JSON Schema                    |         |
-|                                                           | * Lint NodePort Service with JSON Schema                     |         |
-|                                                           | * Lint Docker compose files with JSON Schema                 |         |
-|                                                           | * Lint chart/values.schema.json file with JSON Schema        |         |
-|                                                           | * Lint chart/values.yaml file with JSON Schema               |         |
-|                                                           | * Lint config_templates/config.yml file with JSON Schema     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-markdown                                             | Run markdownlint                                             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| lint-openapi                                              | * Lint OpenAPI using spectral                                |         |
-|                                                           | * Lint OpenAPI using openapi-spec-validator                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)            |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-airflow                                              | * Run mypy for airflow                                       | *       |
-|                                                           | * Run mypy for airflow (manual)                              |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-dev                                                  | * Run mypy for dev                                           | *       |
-|                                                           | * Run mypy for dev (manual)                                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-docs                                                 | * Run mypy for /docs/ folder                                 | *       |
-|                                                           | * Run mypy for /docs/ folder (manual)                        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| mypy-providers                                            | * Run mypy for providers                                     | *       |
-|                                                           | * Run mypy for providers (manual)                            |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| pretty-format-json                                        | Format JSON files                                            |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| pylint                                                    | pylint                                                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| python-no-log-warn                                        | Check if there are no deprecate log warn                     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| replace-bad-characters                                    | Replace bad characters                                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| rst-backticks                                             | Check if RST files use double backticks for code             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff                                                      | Run 'ruff' for extremely fast Python linting                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ruff-format                                               | Run 'ruff format' for extremely fast Python formatting       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| shellcheck                                                | Check Shell scripts syntax correctness                       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| trailing-whitespace                                       | Remove trailing whitespace at end of line                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ts-compile-format-lint-ui                                 | TS types generation / ESLint / Prettier new UI files         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ts-compile-format-lint-www                                | TS types generation / ESLint / Prettier against UI files     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-black-version                                      | Update black versions everywhere (manual)                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-breeze-cmd-output                                  | Update output of breeze commands in Breeze documentation     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-build-dependencies                                 | Update build-dependencies to latest (manual)                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-chart-dependencies                                 | Update chart dependencies to latest (manual)                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-common-sql-api-stubs                               | Check and update common.sql API stubs                        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-er-diagram                                         | Update ER diagram                                            | *       |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-extras                                             | Update extras in documentation                               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-in-the-wild-to-be-sorted                           | Sort INTHEWILD.md alphabetically                             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-installed-providers-to-be-sorted                   | Sort alphabetically and uniquify installed_providers.txt     |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-installers                                         | Update installers to latest (manual)                         |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-local-yml-file                                     | Update mounts in the local yml file                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-migration-references                               | Update migration ref doc                                     | *       |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                        |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-providers-dependencies                             | Update dependencies for provider packages                    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds             |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-supported-versions                                 | Updates supported versions in documentation                  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-version                                            | Update version to the latest version in the documentation    |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| validate-operators-init                                   | Prevent templated field logic checks in operators' __init__  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| yamllint                                                  | Check YAML files with yamllint                               |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ID                                                        | Description                                            | Image   |
++===========================================================+========================================================+=========+
+| bandit                                                    | bandit                                                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| blacken-docs                                              | Run black on docs                                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-airflow-providers-bug-report-template               | Sort airflow-bug-report provider list                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-apache-license-rat                                  | Check if licenses are OK for Apache                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-base-operator-usage                                 | * Check BaseOperator core imports                      |         |
+|                                                           | * Check BaseOperatorLink core imports                  |         |
+|                                                           | * Check BaseOperator[Link] other imports               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-breeze-top-dependencies-limited                     | Check top-level breeze deps                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-builtin-literals                                    | Require literal syntax when initializing builtins      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-changelog-format                                    | Check changelog format                                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-code-deprecations                                   | Check deprecations categories in decorators            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-deferrable-default                                  | Check and fix default value of default_deferrable      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-docstring-param-types                               | Check that docstrings do not specify param types       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-example-dags-urls                                   | Check that example dags url include provider versions  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-executables-have-shebangs                           | Check that executables have shebang                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-extra-packages-references                           | Checks setup extra packages                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-extras-order                                        | Check order of extras in Dockerfile                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-fab-migrations                                      | Check no migration is done on FAB related table        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-for-inclusive-language                              | Check for language that we do not accept as community  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-get-lineage-collector-providers                     | Check providers import hook lineage code from compat   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-google-re2-as-dependency                            | Check google-re2 declared as dep                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-hatch-build-order                                   | Check order of dependencies in hatch_build.py          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-hooks-apply                                         | Check if all hooks apply to the repository             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-init-decorator-arguments                            | Sync model __init__ and decorator arguments            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-integrations-list-consistent                        | Sync integrations list with docs                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-lazy-logging                                        | Check that all logging methods are lazy                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-links-to-example-dags-do-not-use-hardcoded-versions | Verify no hard-coded version in example dags           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-merge-conflict                                      | Check that merge conflicts are not being committed     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-newsfragments-are-valid                             | Check newsfragments are valid                          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-no-providers-in-core-examples                       | No providers imports in core example DAGs              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-persist-credentials-disabled-in-github-workflows    | Check persistent creds in workflow files               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pre-commit-information-consistent                   | Validate hook IDs & names and sync with docs           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-provide-create-sessions-imports                     | Check provide_session and create_session imports       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-provider-docs-valid                                 | Validate provider doc files                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-provider-yaml-valid                                 | Validate provider.yaml files                           | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-providers-init-file-missing                         | Provider init file is missing                          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-safe-filter-usage-in-html                           | Don't use safe in templates                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-sql-dependency-common-data-structure                | Check dependency of SQL providers                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-start-date-not-used-in-defaults                     | start_date not in default_args                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-system-tests-present                                | Check if system tests have required segments of code   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-system-tests-tocs                                   | Check that system tests is properly added              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-taskinstance-tis-attrs                              | Check that TI and TIS have the same attributes         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-template-context-variable-in-sync                   | Sync template context variable refs                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-template-fields-valid                               | Check templated fields mapped in operators/sensors     | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-tests-in-the-right-folders                          | Check if tests are in the right folders                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Unit tests do not inherit from unittest.TestCase       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-urlparse-usage-in-code                              | Don't use urlparse in code                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-usage-of-re2-over-re                                | Use re2 module instead of re                           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-xml                                                 | Check XML files with xmllint                           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| codespell                                                 | Run codespell                                          |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| compile-ui-assets                                         | Compile ui assets (manual)                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| compile-ui-assets-dev                                     | Compile ui assets in dev mode (manual)                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| compile-www-assets                                        | Compile www assets (manual)                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| compile-www-assets-dev                                    | Compile www assets in dev mode (manual)                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| create-missing-init-py-files-tests                        | Create missing init.py files in tests                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| debug-statements                                          | Detect accidentally committed debug statements         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| detect-private-key                                        | Detect if private key is added to the repository       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| doctoc                                                    | Add TOC for Markdown and RST files                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| end-of-file-fixer                                         | Make sure that there is an empty line at the end       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| fix-encoding-pragma                                       | Remove encoding header from Python files               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| flynt                                                     | Run flynt string format converter for Python           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-airflow-diagrams                                 | Generate airflow diagrams                              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-openapi-spec                                     | Generate the FastAPI API spec                          | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| generate-pypi-readme                                      | Generate PyPI README                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| identity                                                  | Print checked files                                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| insert-license                                            | * Add license for all SQL files                        |         |
+|                                                           | * Add license for all RST files                        |         |
+|                                                           | * Add license for CSS/JS/JSX/PUML/TS/TSX               |         |
+|                                                           | * Add license for all JINJA template files             |         |
+|                                                           | * Add license for all Shell files                      |         |
+|                                                           | * Add license for all toml files                       |         |
+|                                                           | * Add license for all Python files                     |         |
+|                                                           | * Add license for all XML files                        |         |
+|                                                           | * Add license for all Helm template files              |         |
+|                                                           | * Add license for all YAML files except Helm templates |         |
+|                                                           | * Add license for all Markdown files                   |         |
+|                                                           | * Add license for all other files                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| kubeconform                                               | Kubeconform check on our helm chart                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-chart-schema                                         | Lint chart/values.schema.json file                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-css                                                  | stylelint                                              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-dockerfile                                           | Lint Dockerfile                                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-helm-chart                                           | Lint Helm Chart                                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-json-schema                                          | * Lint JSON Schema files                               |         |
+|                                                           | * Lint NodePort Service                                |         |
+|                                                           | * Lint Docker compose files                            |         |
+|                                                           | * Lint chart/values.schema.json                        |         |
+|                                                           | * Lint chart/values.yaml                               |         |
+|                                                           | * Lint config_templates/config.yml                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-markdown                                             | Run markdownlint                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| lint-openapi                                              | * Lint OpenAPI using spectral                          |         |
+|                                                           | * Lint OpenAPI using openapi-spec-validator            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-airflow                                              | * Run mypy for airflow                                 | *       |
+|                                                           | * Run mypy for airflow (manual)                        |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-dev                                                  | * Run mypy for dev                                     | *       |
+|                                                           | * Run mypy for dev (manual)                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-docs                                                 | * Run mypy for /docs/ folder                           | *       |
+|                                                           | * Run mypy for /docs/ folder (manual)                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-providers                                            | * Run mypy for providers                               | *       |
+|                                                           | * Run mypy for providers (manual)                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| pretty-format-json                                        | Format JSON files                                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| pylint                                                    | pylint                                                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| python-no-log-warn                                        | Check if there are no deprecate log warn               |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| replace-bad-characters                                    | Replace bad characters                                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| rst-backticks                                             | Check if RST files use double backticks for code       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ruff                                                      | Run 'ruff' for extremely fast Python linting           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ruff-format                                               | Run 'ruff format'                                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| shellcheck                                                | Check Shell scripts syntax correctness                 |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| trailing-whitespace                                       | Remove trailing whitespace at end of line              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ts-compile-format-lint-ui                                 | Compile / format / lint UI                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| ts-compile-format-lint-www                                | Compile / format / lint WWW                            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-black-version                                      | Update black versions everywhere (manual)              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-breeze-cmd-output                                  | Update breeze docs                                     |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-breeze-readme-config-hash                          | Update Breeze README.md with config files hash         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-build-dependencies                                 | Update build-dependencies to latest (manual)           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-chart-dependencies                                 | Update chart dependencies to latest (manual)           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-common-sql-api-stubs                               | Check and update common.sql API stubs                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-er-diagram                                         | Update ER diagram                                      | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-extras                                             | Update extras in documentation                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-in-the-wild-to-be-sorted                           | Sort INTHEWILD.md alphabetically                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-installed-providers-to-be-sorted                   | Sort and uniquify installed_providers.txt              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-installers                                         | Update installers to latest (manual)                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-local-yml-file                                     | Update mounts in the local yml file                    |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-migration-references                               | Update migration ref doc                               | *       |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-openapi-spec-tags-to-be-sorted                     | Sort alphabetically openapi spec tags                  |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-providers-dependencies                             | Update dependencies for provider packages              |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-reproducible-source-date-epoch                     | Update Source Date Epoch for reproducible builds       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-spelling-wordlist-to-be-sorted                     | Sort spelling_wordlist.txt                             |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-supported-versions                                 | Updates supported versions in documentation            |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| update-version                                            | Update versions in docs                                |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| validate-operators-init                                   | No templated field logic checks in operator __init__   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| yamllint                                                  | Check YAML files with yamllint                         |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 
   .. END AUTO-GENERATED STATIC CHECK LIST
 

@@ -34,7 +34,7 @@
     :caption: Guides
 
     Connection types <connections/ydb>
-    YDBExecuteQueryOperator types <operators/ydb_operator_howto_guide>
+    Operator types <operators/ydb_operator_howto_guide>
 
 
 .. toctree::

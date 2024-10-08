@@ -210,6 +210,18 @@ class DbApiHook(BaseHook):
             self._connection = self.get_connection(self.get_conn_id())
         return self._connection
 
+    @connection.setter
+    def connection(self, value: Any) -> None:
+        if value != self.connection:
+            self.log.warning(
+                "This setter is for backward compatibility and should not be used.\n"
+                "Since the introduction of connection property, the providers listed below "
+                "breaks due to assigning value to self.connection in their __init__ method.\n"
+                "* apache-airflow-providers-mysql<5.7.1\n"
+                "* apache-airflow-providers-elasticsearch<5.5.1\n"
+                "* apache-airflow-providers-postgres<5.13.0"
+            )
+
     @property
     def connection_extra(self) -> dict:
         return self.connection.extra_dejson
@@ -263,7 +275,6 @@ class DbApiHook(BaseHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        engine_kwargs["creator"] = self.get_conn
 
         try:
             url = self.sqlalchemy_url
@@ -487,6 +498,8 @@ class DbApiHook(BaseHook):
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+            # Logs all database messages or errors sent to the client
+            self.get_db_log_messages(conn)
 
         if handler is None:
             return None
@@ -761,3 +774,10 @@ class DbApiHook(BaseHook):
         else:
             authority = parsed.hostname
         return authority
+
+    def get_db_log_messages(self, conn) -> None:
+        """
+        Log all database messages sent to the client during the session.
+
+        :param conn: Connection object
+        """

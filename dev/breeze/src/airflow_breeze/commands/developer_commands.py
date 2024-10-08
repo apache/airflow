@@ -22,9 +22,9 @@ import shlex
 import shutil
 import sys
 import threading
+from collections.abc import Iterable
 from signal import SIGTERM
 from time import sleep
-from typing import Iterable
 
 import click
 
@@ -43,6 +43,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
@@ -273,6 +274,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_downgrade_pendulum
 @option_dry_run
 @option_executor_shell
+@option_excluded_providers
 @option_force_build
 @option_force_lowest_dependencies
 @option_forward_credentials
@@ -328,6 +330,7 @@ def shell(
     docker_host: str | None,
     executor: str,
     extra_args: tuple,
+    excluded_providers: str,
     force_build: bool,
     force_lowest_dependencies: bool,
     forward_credentials: bool,
@@ -394,6 +397,7 @@ def shell(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         docker_host=docker_host,
+        excluded_providers=excluded_providers,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,

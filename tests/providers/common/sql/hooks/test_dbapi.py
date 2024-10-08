@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import json
 import logging
+import logging.config
 from unittest import mock
 
 import pytest
 from pyodbc import Cursor
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
@@ -63,6 +65,12 @@ class TestDbApiHook:
 
             def get_conn(self):
                 return conn
+
+            def get_db_log_messages(self, conn) -> None:
+                return conn.get_messages()
+
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        logging.root.disabled = True
 
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
@@ -529,6 +537,11 @@ class TestDbApiHook:
         with pytest.raises(ValueError) as err:
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
+
+    def test_run_and_log_db_messages(self):
+        statement = "SQL"
+        self.db_hook.run(statement)
+        self.conn.get_messages.assert_called()
 
     def test_instance_check_works_for_provider_derived_hook(self):
         assert isinstance(DbApiHookInProvider(), DbApiHook)

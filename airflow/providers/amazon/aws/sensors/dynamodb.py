@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
+from botocore.exceptions import ClientError
+
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -102,14 +104,26 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
         table = self.hook.conn.Table(self.table_name)
         self.log.info("Table: %s", table)
         self.log.info("Key: %s", key)
-        response = table.get_item(Key=key)
+
         try:
-            item_attribute_value = response["Item"][self.attribute_name]
-            self.log.info("Response: %s", response)
-            self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-            self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
-            return item_attribute_value in (
-                [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
+            response = table.get_item(Key=key)
+        except ClientError as err:
+            self.log.error(
+                "Couldn't get %s from table %s.\nError Code: %s\nError Message: %s",
+                key,
+                self.table_name,
+                err.response["Error"]["Code"],
+                err.response["Error"]["Message"],
             )
-        except KeyError:
             return False
+        else:
+            try:
+                item_attribute_value = response["Item"][self.attribute_name]
+                self.log.info("Response: %s", response)
+                self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
+                self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
+                return item_attribute_value in (
+                    [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
+                )
+            except KeyError:
+                return False

@@ -28,13 +28,14 @@ import tempfile
 import textwrap
 import time
 from collections import defaultdict
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
 import click
 from rich.progress import Progress
@@ -2093,7 +2094,7 @@ def generate_issue_content_providers(
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
                 # Retrieve linked issues
-                if pull_requests[pr_number].body:
+                if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
                     linked_issue_numbers = {
                         int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)

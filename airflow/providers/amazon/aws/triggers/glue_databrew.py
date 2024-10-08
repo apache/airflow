@@ -27,8 +27,8 @@ class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
 
     :param job_name: Glue DataBrew job name
     :param run_id: the ID of the specific run to watch for that job
-    :param delay: Number of seconds to wait between two checks. Default is 10 seconds.
-    :param max_attempts: Maximum number of attempts to wait for the job to complete. Default is 60 attempts.
+    :param waiter_delay: Number of seconds to wait between two checks. Default is 30 seconds.
+    :param waiter_max_attempts: Maximum number of attempts to wait for the job to complete. Default is 60 attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -36,9 +36,9 @@ class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
         self,
         job_name: str,
         run_id: str,
-        aws_conn_id: str | None,
-        delay: int = 10,
-        max_attempts: int = 60,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(
@@ -50,10 +50,16 @@ class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
             status_queries=["State"],
             return_value=run_id,
             return_key="run_id",
-            waiter_delay=delay,
-            waiter_max_attempts=max_attempts,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> GlueDataBrewHook:
-        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
+        return GlueDataBrewHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

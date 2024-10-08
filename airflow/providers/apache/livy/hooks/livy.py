@@ -161,7 +161,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         batch_submit_body = json.dumps(self.build_post_batch_body(*args, **kwargs))
 
-        if self.base_url is None:
+        if not self.base_url:
             # need to init self.base_url
             self.get_conn()
         self.log.info("Submitting job %s to %s", batch_submit_body, self.base_url)

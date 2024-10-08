@@ -871,6 +871,22 @@ def test_task_decorator_has_wrapped_attr():
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
+def test_task_decorator_has_doc_attr():
+    """
+    Test @task original underlying function docstring
+    through the __doc__ attribute.
+    """
+
+    def org_test_func():
+        """Docstring"""
+
+    decorated_test_func = task_decorator(org_test_func)
+    assert hasattr(decorated_test_func, "__doc__"), "decorated function should have __doc__ attribute"
+    assert (
+        decorated_test_func.__doc__ == org_test_func.__doc__
+    ), "__doc__ attr should be the original docstring"
+
+
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
@@ -967,8 +983,8 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-def test_task_decorator_dataset(dag_maker, session):
-    from airflow.datasets import Dataset
+def test_task_decorator_asset(dag_maker, session):
+    from airflow.assets import Asset
 
     result = None
     uri = "s3://bucket/name"
@@ -976,11 +992,11 @@ def test_task_decorator_dataset(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @dag.task()
-        def up1() -> Dataset:
-            return Dataset(uri)
+        def up1() -> Asset:
+            return Asset(uri)
 
         @dag.task()
-        def up2(src: Dataset) -> str:
+        def up2(src: Asset) -> str:
             return src.uri
 
         @dag.task()

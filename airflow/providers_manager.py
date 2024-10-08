@@ -91,7 +91,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.datasets import Dataset
+    from airflow.assets import Asset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -426,9 +426,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
-        self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
-        self._dataset_factories: dict[str, Callable[..., Dataset]] = {}
-        self._dataset_to_openlineage_converters: dict[str, Callable] = {}
+        self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
+        self._asset_factories: dict[str, Callable[..., Asset]] = {}
+        self._asset_to_openlineage_converters: dict[str, Callable] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -525,11 +525,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_filesystems()
 
-    @provider_info_cache("dataset_uris")
-    def initialize_providers_dataset_uri_resources(self):
-        """Lazy initialization of provider dataset URI handlers, factories, converters etc."""
+    @provider_info_cache("asset_uris")
+    def initialize_providers_asset_uri_resources(self):
+        """Lazy initialization of provider asset URI handlers, factories, converters etc."""
         self.initialize_providers_list()
-        self._discover_dataset_uri_resources()
+        self._discover_asset_uri_resources()
 
     @provider_info_cache("hook_lineage_writers")
     @provider_info_cache("taskflow_decorators")
@@ -882,9 +882,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     self._fs_set.add(fs_module_name)
         self._fs_set = set(sorted(self._fs_set))
 
-    def _discover_dataset_uri_resources(self) -> None:
-        """Discovers and registers dataset URI handlers, factories, and converters for all providers."""
-        from airflow.datasets import normalize_noop
+    def _discover_asset_uri_resources(self) -> None:
+        """Discovers and registers asset URI handlers, factories, and converters for all providers."""
+        from airflow.assets import normalize_noop
 
         def _safe_register_resource(
             provider_package_name: str,
@@ -908,24 +908,24 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 resource_registry.update((scheme, resource) for scheme in schemes_list)
 
         for provider_name, provider in self._provider_dict.items():
-            for uri_info in provider.data.get("dataset-uris", []):
+            for uri_info in provider.data.get("asset-uris", []):
                 if "schemes" not in uri_info or "handler" not in uri_info:
                     continue  # Both schemas and handler must be explicitly set, handler can be set to null
                 common_args = {"schemes_list": uri_info["schemes"], "provider_package_name": provider_name}
                 _safe_register_resource(
                     resource_path=uri_info["handler"],
-                    resource_registry=self._dataset_uri_handlers,
+                    resource_registry=self._asset_uri_handlers,
                     default_resource=normalize_noop,
                     **common_args,
                 )
                 _safe_register_resource(
                     resource_path=uri_info.get("factory"),
-                    resource_registry=self._dataset_factories,
+                    resource_registry=self._asset_factories,
                     **common_args,
                 )
                 _safe_register_resource(
                     resource_path=uri_info.get("to_openlineage_converter"),
-                    resource_registry=self._dataset_to_openlineage_converters,
+                    resource_registry=self._asset_to_openlineage_converters,
                     **common_args,
                 )
 
@@ -1332,21 +1332,21 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._fs_set)
 
     @property
-    def dataset_factories(self) -> dict[str, Callable[..., Dataset]]:
-        self.initialize_providers_dataset_uri_resources()
-        return self._dataset_factories
+    def asset_factories(self) -> dict[str, Callable[..., Asset]]:
+        self.initialize_providers_asset_uri_resources()
+        return self._asset_factories
 
     @property
-    def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initialize_providers_dataset_uri_resources()
-        return self._dataset_uri_handlers
+    def asset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
+        self.initialize_providers_asset_uri_resources()
+        return self._asset_uri_handlers
 
     @property
-    def dataset_to_openlineage_converters(
+    def asset_to_openlineage_converters(
         self,
     ) -> dict[str, Callable]:
-        self.initialize_providers_dataset_uri_resources()
-        return self._dataset_to_openlineage_converters
+        self.initialize_providers_asset_uri_resources()
+        return self._asset_to_openlineage_converters
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:

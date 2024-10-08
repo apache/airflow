@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1723968989
+source-date-epoch: 1726859877
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.29.0
   - 8.28.0
   - 8.27.0
   - 8.26.0
@@ -108,6 +109,7 @@ dependencies:
   - asgiref>=2.3.0
   - PyAthena>=3.0.10
   - jmespath>=0.7.0
+  - python3-saml>=1.16.0
 
 additional-extras:
   - name: pandas
@@ -561,11 +563,19 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+asset-uris:
+  - schemes: [s3]
+    handler: airflow.providers.amazon.aws.assets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage
+    factory: airflow.providers.amazon.aws.assets.s3.create_asset
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
 dataset-uris:
   - schemes: [s3]
-    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
-    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_dataset_to_openlineage
-    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
+    handler: airflow.providers.amazon.aws.assets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage
+    factory: airflow.providers.amazon.aws.assets.s3.create_asset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

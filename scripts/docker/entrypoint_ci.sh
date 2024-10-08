@@ -40,7 +40,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -354,26 +354,26 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    EXTRA=""
+    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/')
+        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
+        export EXTRA
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
         echo
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+            echo
+            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo
+            exit 0
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
     fi
     set -x
-    # TODO: hard-code explicitly papermill on 3.12 but we should automate it
-    if [[ ${EXTRA}  == "[papermill]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
-        echo
-        echo "Skipping papermill check on Python 3.12!"
-        echo
-        exit 0
-    fi
     uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
     set +x
 }

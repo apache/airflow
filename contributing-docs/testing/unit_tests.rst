@@ -96,7 +96,7 @@ test types you want to use in various ``breeze testing`` sub-commands in three w
 Those test types are defined:
 
 * ``Always`` - those are tests that should be always executed (always sub-folder)
-* ``API`` - Tests for the Airflow API (api, api_connexion, api_internal, api_ui sub-folders)
+* ``API`` - Tests for the Airflow API (api, api_connexion, api_internal, api_fastapi sub-folders)
 * ``CLI`` - Tests for the Airflow CLI (cli folder)
 * ``Core`` - for the core Airflow functionality (core, executors, jobs, models, ti_deps, utils sub-folders)
 * ``Operators`` - tests for the operators (operators folder with exception of Virtualenv Operator tests and
@@ -209,7 +209,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 
 .. code-block:: bash
 
-    breeze shell --backend none --python 3.8
+    breeze shell --backend none --python 3.9
     > pytest tests --skip-db-tests -n auto
 
 
@@ -251,7 +251,7 @@ You can also run DB tests with ``breeze`` dockerized environment. You can choose
 ``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
 You can also select backend version and Python version to use. You can specify the ``test-type`` to run -
 breeze will list the test types you can run with ``--help`` and provide auto-complete for them. Example
-below runs the ``Core`` tests with ``postgres`` backend and ``3.8`` Python version:
+below runs the ``Core`` tests with ``postgres`` backend and ``3.9`` Python version:
 
 We have a dedicated, opinionated ``breeze testing db-tests`` command as well that runs DB tests
 (it is also used in CI to run the DB tests, where you do not have to specify extra flags for
@@ -286,7 +286,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 .. code-block:: bash
 
-    breeze shell --backend postgres --python 3.8
+    breeze shell --backend postgres --python 3.9
     > pytest tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
@@ -296,7 +296,7 @@ you use ``breeze testing db-tests`` command):
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -1096,10 +1096,10 @@ can also decide to only run tests with ``-m quarantined`` flag to run only those
 
 
 Compatibility Provider unit tests against older airflow releases
-................................................................
+----------------------------------------------------------------
 
 Why we run provider compatibility tests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.......................................
 
 Our CI runs provider tests for providers with previous compatible airflow releases. This allows to check
 if the providers still work when installed for older airflow versions.
@@ -1122,7 +1122,7 @@ taken that the tests implemented for providers in the sources allow to run it ag
 of Airflow and against Airflow installed from PyPI package rather than from the sources.
 
 Running the compatibility tests locally
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.......................................
 
 Running tests can be easily done locally by running appropriate ``breeze`` command. In CI the command
 is slightly different as it is run using providers build using wheel packages, but it is faster
@@ -1133,7 +1133,7 @@ directly to the container.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Enter breeze environment by selecting the appropriate airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
@@ -1160,7 +1160,7 @@ directly to the container.
    In such case you should follow the ``CI`` way of running the tests (see below).
 
 Implementing compatibility for provider tests for older Airflow versions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+........................................................................
 
 When you implement tests for providers, you should make sure that they are compatible with older
 
@@ -1184,11 +1184,11 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from tests.test_utils.compat import AIRFLOW_V_2_7_PLUS
+  from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
-  @pytest.mark.skipif(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
-  def some_test_that_only_works_for_airflow_2_7_plus():
+  @pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="The tests should be skipped for Airflow < 2.8")
+  def some_test_that_only_works_for_airflow_2_8_plus():
       pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
@@ -1221,7 +1221,7 @@ are not part of the public API. We deal with it in one of the following ways:
    top-level import into a local import, so that Pytest parser does not fail on collection.
 
 Running provider compatibility tests in CI
-------------------------------------------
+..........................................
 
 In CI those tests are run in a slightly more complex way because we want to run them against the build
 provider packages, rather than mounted from sources.
@@ -1241,7 +1241,7 @@ Herr id how to reproduce it.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Build providers from latest sources:
 
@@ -1309,7 +1309,7 @@ This is run in order to check whether we are not using a feature that is not ava
 older version of some dependencies.
 
 Tests with lowest-direct dependency resolution for Airflow
-----------------------------------------------------------
+..........................................................
 
 You can test minimum dependencies that are installed by Airflow by running (for example to run "Core" tests):
 
@@ -1338,7 +1338,7 @@ command as a sequence of downgrades like this:
 
 
 Tests with lowest-direct dependency resolution for a Provider
--------------------------------------------------------------
+.............................................................
 
 Similarly we can test if the provider tests are working for lowest dependencies of specific provider.
 
@@ -1381,7 +1381,7 @@ downgraded dependencies will contain both Airflow and Google Provider dependenci
 
 
 How to fix failing lowest-direct dependency resolution tests
-------------------------------------------------------------
+............................................................
 
 When your tests pass in regular test, but fail in "lowest-direct" dependency resolution tests, you need
 to figure out the lower-bindings missing in  ``hatch_build.py``  (for Airflow core dependencies) or

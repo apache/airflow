@@ -133,7 +133,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_ui"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
         "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
@@ -224,7 +224,6 @@ def convert_test_type_to_pytest_args(
     *,
     test_type: str,
     skip_provider_tests: bool,
-    python_version: str,
     helm_test_package: str | None = None,
 ) -> list[str]:
     if test_type == "None":
@@ -313,7 +312,6 @@ def generate_args_for_pytest(
             test_type=test_type,
             skip_provider_tests=skip_provider_tests,
             helm_test_package=helm_test_package,
-            python_version=python_version,
         )
     args.extend(
         [
@@ -324,8 +322,7 @@ def generate_args_for_pytest(
             "--color=yes",
             f"--junitxml={result_log_file}",
             # timeouts in seconds for individual tests
-            "--timeouts-order",
-            "moi",
+            "--timeouts-order=moi",
             f"--setup-timeout={test_timeout}",
             f"--execution-timeout={test_timeout}",
             f"--teardown-timeout={test_timeout}",
@@ -402,7 +399,6 @@ def convert_parallel_types_to_folders(
                 test_type=_test_type,
                 skip_provider_tests=skip_provider_tests,
                 helm_test_package=None,
-                python_version=python_version,
             )
         )
     # leave only folders, strip --pytest-args that exclude some folders with `-' prefix

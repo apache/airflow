@@ -41,6 +41,15 @@ Breaking changes
   The ``token_url`` parameter is optional and it is used to create the access token, the default value is ``v1/applications/token`` used by Airbyte Cloud.
   You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
 
+* ``Update provider to use Airbyte API Python SDK (#41122)``
+
+Misc
+~~~~
+
+* ``Fix wrong casing in airbyte hook. (#42170)``
+* ``Pin airbyte-api to 0.51.0 (#42155)``
+* ``remove deprecated soft_fail from providers (#41710)``
+
 3.9.0
 .....
 

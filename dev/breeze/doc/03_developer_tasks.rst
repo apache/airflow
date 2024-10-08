@@ -34,12 +34,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
-For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.9 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.8 --backend mysql --mysql-version 8.0
+    breeze --python 3.9 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -55,7 +55,7 @@ Try adding ``--builder=default`` to your command. For example:
 
 .. code-block:: bash
 
-    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8.0
+    breeze --builder=default --python 3.9 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -113,7 +113,7 @@ When you run Airflow Breeze, the following ports are automatically forwarded:
 
     * 12322 -> forwarded to Airflow ssh server -> airflow:22
     * 28080 -> forwarded to Airflow webserver -> airflow:8080
-    * 29091 -> forwarded to Airflow UI API -> airflow:9091
+    * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
     * 25555 -> forwarded to Flower dashboard -> airflow:5555
     * 25433 -> forwarded to Postgres database -> postgres:5432
     * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -126,7 +126,7 @@ You can connect to these ports/databases using:
 
     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
     * Webserver: http://127.0.0.1:28080
-    * UI API:    http://127.0.0.1:29091
+    * FastAPI API:    http://127.0.0.1:29091
     * Flower:    http://127.0.0.1:25555
     * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
     * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
@@ -156,7 +156,7 @@ You can change the used host port numbers by setting appropriate environment var
 
 * ``SSH_PORT``
 * ``WEBSERVER_HOST_PORT``
-* ``UI_API_HOST_PORT``
+* ``FASTAPI_API_HOST_PORT``
 * ``POSTGRES_HOST_PORT``
 * ``MYSQL_HOST_PORT``
 * ``MSSQL_HOST_PORT``
@@ -331,7 +331,7 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.8 --backend mysql start-airflow
+    breeze --python 3.9 --backend mysql start-airflow
 
 You can also use it to start different executor.
 
@@ -344,7 +344,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.7.0
+    breeze start-airflow --python 3.9 --backend mysql --use-airflow-version 2.7.0
 
 When you are installing version from PyPI, it's also possible to specify extras that should be used
 when installing Airflow - you can provide several extras separated by coma - for example to install

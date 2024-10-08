@@ -61,8 +61,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
-
 
 TI = TaskInstance
 
@@ -403,6 +401,8 @@ def task_instance_link(attr):
     task_id = attr.get("task_id")
     run_id = attr.get("run_id")
     map_index = attr.get("map_index", None)
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
     if map_index == -1:
         map_index = None
 
@@ -412,6 +412,7 @@ def task_instance_link(attr):
         task_id=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     url_root = url_for(
@@ -421,6 +422,7 @@ def task_instance_link(attr):
         root=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     return Markup(
@@ -500,10 +502,10 @@ def json_f(attr_name):
 def dag_link(attr):
     """Generate a URL to the Graph view for a Dag."""
     dag_id = attr.get("dag_id")
-    execution_date = attr.get("execution_date")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
     if not dag_id:
         return Markup("None")
-    url = url_for("Airflow.graph", dag_id=dag_id, execution_date=execution_date)
+    url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
     return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
@@ -511,10 +513,15 @@ def dag_run_link(attr):
     """Generate a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
+    if not dag_id:
+        return Markup("None")
 
     url = url_for(
         "Airflow.grid",
         dag_id=dag_id,
+        execution_date=execution_date,
         dag_run_id=run_id,
         tab="graph",
     )
@@ -522,7 +529,7 @@ def dag_run_link(attr):
 
 
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
-    expr = DagRun.__table__.columns[name]
+    expr = DagRun.__mapper__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
@@ -915,21 +922,16 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
+    def should_show(self) -> bool:
         """
         Determine if the user should see the message.
 
-        The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
-        set in ``webserver_config.py``, An anonymous user would have the
-        ``AUTH_ROLE_PUBLIC`` role.
+        The decision is based on the user's role.
         """
         if self.roles:
             current_user = get_auth_manager().get_user()
             if current_user is not None:
                 user_roles = {r.name for r in getattr(current_user, "roles", [])}
-            elif "AUTH_ROLE_PUBLIC" in appbuilder.get_app.config:
-                # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
-                user_roles = {appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
             else:
                 # Unable to obtain user role - default to not showing
                 return False

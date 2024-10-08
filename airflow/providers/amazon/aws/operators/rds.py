@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import json
-import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.triggers.rds import (
@@ -55,30 +54,17 @@ class RdsBaseOperator(BaseOperator):
         *args,
         aws_conn_id: str | None = "aws_conn_id",
         region_name: str | None = None,
-        hook_params: dict | None = None,
         **kwargs,
     ):
-        if hook_params is not None:
-            warnings.warn(
-                "The parameter hook_params is deprecated and will be removed. "
-                "Note that it is also incompatible with deferrable mode. "
-                "You can use the region_name parameter to specify the region. "
-                "If you were using hook_params for other purposes, please get in touch either on "
-                "airflow slack, or by opening a github issue on the project. "
-                "You can mention https://github.com/apache/airflow/pull/32352",
-                AirflowProviderDeprecationWarning,
-                stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
-            )
-        self.hook_params = hook_params or {}
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name or self.hook_params.pop("region_name", None)
+        self.region_name = region_name
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
 
     @cached_property
     def hook(self) -> RdsHook:
-        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, **self.hook_params)
+        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context) -> str:
         """Different implementations for snapshots, tasks and events."""

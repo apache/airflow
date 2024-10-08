@@ -21,10 +21,11 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from enum import Enum
-from functools import cached_property, lru_cache
+from functools import cache, cached_property
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar
+from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -75,11 +76,12 @@ DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+LEGACY_UI_LABEL = "legacy ui"
+LEGACY_API_LABEL = "legacy api"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
-
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
@@ -102,11 +104,12 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
+    LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    WWW_FILES = "www_files"
+    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
@@ -122,7 +125,7 @@ class FileGroupForCi(Enum):
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
 
 
-class HashableDict(Dict[T, List[str]]):
+class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 
@@ -157,6 +160,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^clients/gen",
         ],
+        FileGroupForCi.LEGACY_API_FILES: [
+            r"^airflow/api_connexion/",
+        ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
             r"^airflow/kubernetes",
@@ -185,7 +191,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/[^/]+\.json$",
             r"^airflow/ui/.*\.lock$",
         ],
-        FileGroupForCi.WWW_FILES: [
+        FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
             r"^airflow/www/[^/]+\.json$",
@@ -233,6 +239,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
+            r"^tests/test_utils/",
         ],
     }
 )
@@ -264,11 +271,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
-            r"^airflow/api_ui/",
+            r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
             r"^tests/api_internal/",
-            r"^tests/api_ui/",
+            r"^tests/api_fastapi/",
         ],
         SelectiveUnitTestTypes.CLI: [
             r"^airflow/cli/",
@@ -341,7 +348,7 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
                 matched_files.remove(file)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _matching_files(
     files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
 ) -> list[str]:
@@ -680,7 +687,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.WWW_FILES)
+        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -873,7 +880,9 @@ class SelectiveChecks:
         current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
-            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            current_test_types.update(
+                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+            )
         if self.skip_provider_tests:
             current_test_types = {
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")
@@ -1053,7 +1062,9 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not self._matching_files(
+            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
@@ -1271,6 +1282,18 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def excluded_providers_as_string(self) -> str:
+        providers_to_exclude = defaultdict(list)
+        for provider, provider_info in DEPENDENCIES.items():
+            if "excluded-python-versions" in provider_info:
+                for python_version in provider_info["excluded-python-versions"]:
+                    providers_to_exclude[python_version].append(provider)
+        sorted_providers_to_exclude = dict(
+            sorted(providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1]))
+        )  # ^ sort by Python minor version
+        return json.dumps(sorted_providers_to_exclude)
+
+    @cached_property
     def testable_integrations(self) -> list[str]:
         return TESTABLE_INTEGRATIONS
 
@@ -1340,3 +1363,32 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
+
+    @cached_property
+    def is_legacy_ui_api_labeled(self) -> bool:
+        # Selective check for legacy UI/API updates.
+        # It is to ping the maintainer to add the label and make them aware of the changes.
+        if (
+            self._matching_files(
+                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            and LEGACY_API_LABEL not in self._pr_labels
+        ):
+            get_console().print(
+                f"[error]Please ask maintainer to assign "
+                f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
+            )
+            sys.exit(1)
+        elif (
+            self._matching_files(
+                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            and LEGACY_UI_LABEL not in self._pr_labels
+        ):
+            get_console().print(
+                f"[error]Please ask maintainer to assign "
+                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
+            )
+            sys.exit(1)
+        else:
+            return True
