@@ -558,6 +558,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+
+asyncio_default_fixture_loop_scope = "function"
+
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
