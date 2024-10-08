@@ -74,15 +74,11 @@ class TaskInstanceSchema(SQLAlchemySchema):
     triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
-        if attr == "sla_miss":
-            # Object is a tuple of task_instance and slamiss
-            # and the get_value expects a dict with key, value
-            # corresponding to the attr.
-            slamiss_instance = {"sla_miss": obj[1]}
-            return get_value(slamiss_instance, attr, default)
-        elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-        return get_value(obj[0], attr, default)
+        ti = obj if isinstance(obj, TaskInstance) else obj[0]
+
+        if attr == "rendered_fields":
+            return get_value(ti, "rendered_task_instance_fields.rendered_fields", default)
+        return get_value(ti, attr, default)
 
 
 class TaskInstanceHistorySchema(SQLAlchemySchema):

@@ -639,16 +639,14 @@ def set_task_instance_note(
         query = query.where(TI.map_index == map_index)
 
     try:
-        result = session.execute(query).one_or_none()
+        ti = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
-    if result is None:
+    if ti is None:
         error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
         raise NotFound(error_message)
-
-    ti = result[0]
 
     current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
@@ -657,7 +655,7 @@ def set_task_instance_note(
         ti.task_instance_note.content = new_note
         ti.task_instance_note.user_id = current_user_id
     session.commit()
-    return task_instance_schema.dump((ti,))
+    return task_instance_schema.dump(ti)
 
 
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
