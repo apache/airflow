@@ -205,6 +205,7 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def placeholder(self):
+        """Return SQL placeholder"""
         placeholder = self.connection_extra.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
