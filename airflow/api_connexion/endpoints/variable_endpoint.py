@@ -31,6 +31,7 @@ from airflow.api_connexion.parameters import apply_sorting, check_limit, format_
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
 from airflow.security import permissions
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "variable"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("DELETE")
 @action_logging(
     event=action_event_from_permission(

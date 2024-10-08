@@ -5,6 +5,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
@@ -118,4 +119,7 @@ export type DagServicePatchDagMutationResult = Awaited<
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
+>;
+export type VariableServiceDeleteVariableMutationResult = Awaited<
+  ReturnType<typeof VariableService.deleteVariable>
 >;
