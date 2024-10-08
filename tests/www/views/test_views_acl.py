@@ -339,7 +339,7 @@ def _setup_paused_dag():
         ("paused", "example_branch_operator", "example_branch_labels"),
     ],
 )
-@pytest.mark.usefixtures("setup_paused_dag")
+@pytest.mark.usefixtures("_setup_paused_dag")
 def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
     with client_all_dags.session_transaction() as flask_session:
         flask_session[FILTER_STATUS_COOKIE] = status
