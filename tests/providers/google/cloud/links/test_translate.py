@@ -161,6 +161,12 @@ class TestTranslationLegacyModelPredictLink:
         ti.task.model = Model(dataset_id=DATASET, display_name=MODEL)
         session.add(ti)
         session.commit()
-        link.persist(context={"ti": ti}, task_instance=ti.task, model_id=MODEL, project_id=GCP_PROJECT_ID)
+        link.persist(
+            context={"ti": ti},
+            task_instance=ti.task,
+            model_id=MODEL,
+            project_id=GCP_PROJECT_ID,
+            dataset_id=DATASET,
+        )
         actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
         assert actual_url == expected_url
