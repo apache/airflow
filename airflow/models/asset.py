@@ -319,7 +319,7 @@ class DagScheduleAssetAliasReference(Base):
 
     __tablename__ = "dag_schedule_asset_alias_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(alias_id, dag_id, name="dsdar_pkey"),
+        PrimaryKeyConstraint(alias_id, dag_id, name="asaar_pkey"),
         ForeignKeyConstraint(
             (alias_id,),
             ["asset_alias.id"],
@@ -329,7 +329,7 @@ class DagScheduleAssetAliasReference(Base):
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="dsdar_dag_fkey",
+            name="dsaar_dag_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_dag_schedule_asset_alias_reference_dag_id", dag_id),

@@ -466,7 +466,7 @@ def downgrade():
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dsaar_asset_alias_fkey",
-            new_name="dsdar_dataset_alias_fkey",
+            new_name="dsaar_dataset_alias_fkey",
             reference_table="asset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
