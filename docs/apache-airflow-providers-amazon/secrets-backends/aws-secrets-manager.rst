@@ -177,6 +177,6 @@ If you are using the key dictionary.
   {"extra": {"keyfile_dict": "<copy & paste the service account json here>",
   "scope": "https://www.googleapis.com/auth/devstorage.read_only"}}
 
-Either way you can edit the `Key/value` pairs directly on the UI
+Either way you can edit the ``Key/value`` pairs directly on the UI
 
 .. image:: /img/aws-secrets-manager-gcp.png
