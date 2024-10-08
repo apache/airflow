@@ -211,7 +211,7 @@ class StreamedOperator(BaseOperator):
         self.log.debug("index: %s", index)
         kwargs = {
             **self.partial_kwargs,
-            **{"task_id": f"{self.partial_kwargs.get('task_id')}_{index}"},
+            **{"task_id": f"{self.task_id}_{index}"},
             **self._mapped_kwargs[index],
         }
         self.log.debug("kwargs: %s", kwargs)
