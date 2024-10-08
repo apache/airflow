@@ -23,9 +23,9 @@ import re
 import sys
 from collections import defaultdict
 from enum import Enum
-from functools import cached_property, lru_cache
+from functools import cache, cached_property
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar
+from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -125,7 +125,7 @@ class FileGroupForCi(Enum):
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
 
 
-class HashableDict(Dict[T, List[str]]):
+class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 
@@ -348,7 +348,7 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
                 matched_files.remove(file)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _matching_files(
     files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
 ) -> list[str]:
