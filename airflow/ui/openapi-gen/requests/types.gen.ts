@@ -240,7 +240,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags": {
+  "/public/dags/": {
     get: {
       req: GetDagsData;
       res: {
