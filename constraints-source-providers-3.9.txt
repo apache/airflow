@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-08T02:09:41.626160
+# This constraints file was automatically generated on 2024-10-08T13:43:28.162604
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -301,14 +301,14 @@ iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.18.1
-isodate==0.6.1
+isodate==0.7.0
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.1
 jeepney==0.8.0
-jiter==0.6.0
+jiter==0.6.1
 jmespath==0.10.0
 joserfc==1.0.0
 json-merge-patch==0.2
@@ -434,6 +434,7 @@ presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
 prompt_toolkit==3.0.48
+propcache==0.2.0
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
@@ -525,7 +526,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.15.0
+sentry-sdk==2.16.0
 setproctitle==1.3.3
 shapely==2.0.6
 shellingham==1.5.4
@@ -583,7 +584,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.15.0
 tomli==2.0.2
-tomli_w==1.0.0
+tomli_w==1.1.0
 tomlkit==0.13.2
 tornado==6.4.1
 towncrier==24.8.0
@@ -646,7 +647,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
-yarl==1.13.1
+yarl==1.14.0
 ydb==3.18.1
 zeep==4.2.1
 zenpy==2.0.53
