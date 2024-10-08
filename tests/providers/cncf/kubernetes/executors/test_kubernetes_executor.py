@@ -29,7 +29,11 @@ from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.executors.executor_constants import CELERY_KUBERNETES_EXECUTOR, KUBERNETES_EXECUTOR
+from airflow.executors.executor_constants import (
+    CELERY_EXECUTOR,
+    CELERY_KUBERNETES_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+)
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
@@ -1492,6 +1496,47 @@ class TestKubernetesExecutor:
 
         ti.refresh_from_db()
         assert ti.executor == "CeleryExecutor"
+        assert ti.state == State.QUEUED
+        assert mock_kube_client.list_namespaced_pod.call_count == 0
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(TaskInstance, "executor"), reason="Hybrid executor added in later version"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @conf_vars({("core", "executor"): CELERY_EXECUTOR})
+    def test_clear_not_launched_queued_tasks_not_launched_other_default_executor(
+        self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session
+    ):
+        """Queued TI has no pod, but it is not queued for the k8s executor"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value.items = []
+
+        # This is hack to use overridden conf vars as it seems executors loaded before conf override.
+        if hasattr(TaskInstance, "executor"):
+            import importlib
+
+            from airflow.executors import executor_loader
+
+            importlib.reload(executor_loader)
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 1
+
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
         assert ti.state == State.QUEUED
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
