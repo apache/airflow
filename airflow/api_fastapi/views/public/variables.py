@@ -17,49 +17,26 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.serializers.connections import ConnectionResponse
 from airflow.api_fastapi.views.router import AirflowRouter
-from airflow.models import Connection
+from airflow.models.variable import Variable
 
-connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
+variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
 
-@connections_router.delete(
-    "/{connection_id}",
+@variables_router.delete(
+    "/{variable_key}",
     status_code=204,
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
-async def delete_connection(
-    connection_id: str,
+async def delete_variable(
+    variable_key: str,
     session: Annotated[Session, Depends(get_session)],
 ):
-    """Delete a connection entry."""
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
-
-    if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
-
-    session.delete(connection)
-
-
-@connections_router.get(
-    "/{connection_id}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
-)
-async def get_connection(
-    connection_id: str,
-    session: Annotated[Session, Depends(get_session)],
-) -> ConnectionResponse:
-    """Get a connection entry."""
-    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
-
-    if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
-
-    return ConnectionResponse.model_validate(connection, from_attributes=True)
+    """Delete a variable entry."""
+    if Variable.delete(variable_key, session) == 0:
+        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
