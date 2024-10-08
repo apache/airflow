@@ -67,7 +67,7 @@ class CommonBuildParams:
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
-    python: str = "3.8"
+    python: str = "3.9"
     tag_as_latest: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
