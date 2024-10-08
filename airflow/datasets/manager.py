@@ -226,7 +226,8 @@ class DatasetManager(LoggingMixin):
                 return None
             return req.fileloc
 
-        [_send_dag_priority_parsing_request_if_needed(fileloc) for fileloc in file_locs]
+        for fileloc in file_locs:
+            _send_dag_priority_parsing_request_if_needed(fileloc)
 
     @classmethod
     def _postgres_send_dag_priority_parsing_request(cls, file_locs: Iterable[str], session: Session) -> None:
