@@ -212,14 +212,15 @@ class DbApiHook(BaseHook):
 
     @connection.setter
     def connection(self, value: Any) -> None:
-        # This setter is for backward compatibility and should not be used.
-        # Since the introduction of connection property, the providers listed below
-        # breaks due to assigning value to self.connection
-        #
-        # apache-airflow-providers-mysql<5.7.1
-        # apache-airflow-providers-elasticsearch<5.5.1
-        # apache-airflow-providers-postgres<5.13.0
-        pass
+        if value != self.connection:
+            self.log.warning(
+                "This setter is for backward compatibility and should not be used.\n"
+                "Since the introduction of connection property, the providers listed below "
+                "breaks due to assigning value to self.connection in their __init__ method.\n"
+                "* apache-airflow-providers-mysql<5.7.1\n"
+                "* apache-airflow-providers-elasticsearch<5.5.1\n"
+                "* apache-airflow-providers-postgres<5.13.0"
+            )
 
     @property
     def connection_extra(self) -> dict:
@@ -274,7 +275,6 @@ class DbApiHook(BaseHook):
         """
         if engine_kwargs is None:
             engine_kwargs = {}
-        engine_kwargs["creator"] = self.get_conn
 
         try:
             url = self.sqlalchemy_url
