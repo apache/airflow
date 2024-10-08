@@ -23,6 +23,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 from tests.providers.microsoft.conftest import load_file
 
 try:
@@ -274,3 +275,11 @@ class TestMsSqlHook:
             replace=True,
         )
         assert sql == load_file("resources", "replace.sql")
+
+    def test_dialect_name(self):
+        hook = MsSqlHook()
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect(self):
+        hook = MsSqlHook()
+        assert isinstance(hook.dialect, MsSqlDialect)
