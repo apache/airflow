@@ -16,30 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { SimpleGridProps } from "@chakra-ui/react";
-import type {
-  ColumnDef,
-  PaginationState,
-  SortingState,
-} from "@tanstack/react-table";
-import type { ReactNode } from "react";
+import { Skeleton } from "@chakra-ui/react";
 
-export type TableState = {
-  pagination: PaginationState;
-  sorting: SortingState;
+import type { MetaColumn } from "./types";
+
+export const createSkeletonMock = <TData,>(
+  mode: "card" | "table",
+  skeletonCount: number,
+  columnDefs: Array<MetaColumn<TData>>,
+) => {
+  const colDefs = columnDefs.map((colDef) => ({
+    ...colDef,
+    cell: () => {
+      if (mode === "table") {
+        return (
+          colDef.meta?.customSkeleton ?? (
+            <Skeleton
+              data-testid="skeleton"
+              display="inline-block"
+              height="16px"
+              width={colDef.meta?.skeletonWidth ?? 200}
+            />
+          )
+        );
+      }
+
+      return undefined;
+    },
+  }));
+
+  const data = [...Array<TData>(skeletonCount)].map(() => ({}));
+
+  return { columns: colDefs, data };
 };
-
-export type CardDef<TData> = {
-  card: (props: { row: TData }) => ReactNode;
-  gridProps?: SimpleGridProps;
-  meta?: {
-    customSkeleton?: JSX.Element;
-  };
-};
-
-export type MetaColumn<TData> = {
-  meta?: {
-    customSkeleton?: ReactNode;
-    skeletonWidth?: number;
-  } & ColumnDef<TData>["meta"];
-} & ColumnDef<TData>;
