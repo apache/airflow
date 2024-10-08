@@ -119,7 +119,6 @@ PIP package                                 Version required
 ``watchtower``                              ``>=3.0.0,!=3.3.0,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.0.918``
-``sqlalchemy_redshift``                     ``>=0.8.6``
 ``asgiref``                                 ``>=2.3.0``
 ``PyAthena``                                ``>=3.0.10``
 ``jmespath``                                ``>=0.7.0``
