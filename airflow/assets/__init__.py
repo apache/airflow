@@ -115,7 +115,7 @@ def _sanitize_uri(uri: str) -> str:
 
 
 def _validate_identifier(instance, attribute, value):
-    if not value or not isinstance(value, str):
+    if isinstance(value, str):
         raise ValueError(f"{type(instance).__name__} {attribute.name} must be a non-empty string")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
@@ -268,7 +268,8 @@ class Asset(os.PathLike, BaseAsset):
     )
     group: str = attr.field(
         kw_only=True,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(1500), _validate_identifier],
+        default="",
+        validator=[attr.validators.max_len(1500), _validate_identifier],
     )
     extra: dict[str, Any] = attr.field(
         kw_only=True,
