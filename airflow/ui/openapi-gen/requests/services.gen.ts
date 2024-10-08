@@ -17,6 +17,8 @@ import type {
   DeleteConnectionResponse,
   GetConnectionData,
   GetConnectionResponse,
+  DeleteVariableData,
+  DeleteVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
 } from "./types.gen";
@@ -68,7 +70,7 @@ export class DagService {
   ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -109,7 +111,7 @@ export class DagService {
   ): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         update_mask: data.updateMask,
         limit: data.limit,
@@ -238,6 +240,34 @@ export class ConnectionService {
       url: "/public/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class VariableService {
+  /**
+   * Delete Variable
+   * Delete a variable entry.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteVariable(
+    data: DeleteVariableData,
+  ): CancelablePromise<DeleteVariableResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
       },
       errors: {
         401: "Unauthorized",

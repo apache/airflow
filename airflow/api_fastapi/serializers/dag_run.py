@@ -21,9 +21,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from airflow.serialization.pydantic.dag_run import DagRunNotePydantic
-
-# from airflow.models.dagrun import DagRunNote
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -45,3 +42,13 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: DagRunNotePydantic | None
+
+
+class DagRunNotePydantic(BaseModel):
+    """Serializable representation of the DagRunNote ORM SqlAlchemyModel used by internal API."""
+
+    dag_run_id: str
+    content: str | None
+    created_at: datetime
+    updated_at: datetime
+    user_id: int | None

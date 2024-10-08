@@ -273,7 +273,7 @@ def push_packages_to_pypi(version):
             "Install it with the appropriate constraint file, adapt python version: "
             f"pip install apache-airflow=={version} --constraint "
             f"https://raw.githubusercontent.com/apache/airflow/"
-            f"constraints-{version}/constraints-3.8.txt"
+            f"constraints-{version}/constraints-3.9.txt"
         )
         confirm_action(
             "I have tested the package I uploaded to PyPI. "
