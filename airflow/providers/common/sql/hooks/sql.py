@@ -290,7 +290,7 @@ class DbApiHook(BaseHook):
     def dialect(self) -> Dialect:
         from airflow.utils.module_loading import import_string
 
-        dialect_info = self.get_dialects.get(self.dialect_name)
+        dialect_info = self.get_dialects().get(self.dialect_name)
 
         self.log.debug("dialect_info: %s", dialect_info)
 
