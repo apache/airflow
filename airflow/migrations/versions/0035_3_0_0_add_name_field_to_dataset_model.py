@@ -58,7 +58,6 @@ def upgrade():
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.drop_index("idx_name_unique")
         batch_op.create_index("idx_dataset_alias_name_unique", ["name"], unique=True)
-        batch_op.alter_column("name", type_=_STRING_COLUMN_TYPE, nullable=False)
     # Add 'name' column. Set it to nullable for now.
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
@@ -95,11 +94,3 @@ def downgrade():
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         batch_op.drop_index("idx_dataset_alias_name_unique")
         batch_op.create_index("idx_name_unique", ["name"], unique=True)
-        batch_op.alter_column(
-            "name",
-            type_=sa.String(length=3000).with_variant(
-                sa.String(length=3000, collation="latin1_general_cs"),
-                dialect_name="mysql",
-            ),
-            nullable=False,
-        )
