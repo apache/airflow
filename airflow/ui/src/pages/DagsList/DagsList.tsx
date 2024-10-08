@@ -123,9 +123,8 @@ export const DagsList = () => {
   const handleSearchBarChange = useDebouncedCallback(
     ({ target }: SyntheticEvent<HTMLInputElement>) => {
       const { value } = target as HTMLInputElement;
-      const updatedSearchParams = new URLSearchParams(searchParams.toString());
-      updatedSearchParams.set(NAME_PATTERN_PARAM, value);
-      setSearchParams(updatedSearchParams);
+      searchParams.set(NAME_PATTERN_PARAM, value);
+      setSearchParams(searchParams);
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
