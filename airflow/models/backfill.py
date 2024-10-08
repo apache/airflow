@@ -32,9 +32,7 @@ from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
 from airflow.models.base import Base, StringID
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -129,6 +127,8 @@ def _create_backfill(
     reverse: bool,
     dag_run_conf: dict | None,
 ) -> Backfill | None:
+    from airflow.models.serialized_dag import SerializedDagModel
+
     with create_session() as session:
         serdag = session.get(SerializedDagModel, dag_id)
         if not serdag:
@@ -214,6 +214,8 @@ def _cancel_backfill(backfill_id) -> Backfill:
             b.is_paused = True
 
         session.commit()
+
+        from airflow.models import DagRun
 
         # now, let's mark all queued dag runs as failed
         query = (
