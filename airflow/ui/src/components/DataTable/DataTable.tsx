@@ -16,60 +16,60 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Progress, Text } from "@chakra-ui/react";
 import {
-  Table as ChakraTable,
-  TableContainer,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
-  useColorModeValue,
-} from "@chakra-ui/react";
-import {
-  flexRender,
   getCoreRowModel,
   getExpandedRowModel,
   getPaginationRowModel,
   useReactTable,
-  type ColumnDef,
   type OnChangeFn,
   type TableState as ReactTableState,
   type Row,
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { Fragment, useCallback, useRef } from "react";
-import {
-  TiArrowSortedDown,
-  TiArrowSortedUp,
-  TiArrowUnsorted,
-} from "react-icons/ti";
+import React, { type ReactNode, useCallback, useRef } from "react";
 
+import { CardList } from "./CardList";
+import { TableList } from "./TableList";
 import { TablePaginator } from "./TablePaginator";
-import type { TableState } from "./types";
+import { createSkeletonMock } from "./skeleton";
+import type { CardDef, MetaColumn, TableState } from "./types";
 
 type DataTableProps<TData> = {
-  readonly columns: Array<ColumnDef<TData>>;
+  readonly cardDef?: CardDef<TData>;
+  readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
+  readonly displayMode?: "card" | "table";
   readonly getRowCanExpand?: (row: Row<TData>) => boolean;
   readonly initialState?: TableState;
+  readonly isFetching?: boolean;
+  readonly isLoading?: boolean;
+  readonly modelName?: string;
+  readonly noRowsMessage?: ReactNode;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: {
     row: Row<TData>;
   }) => React.ReactElement;
+  readonly skeletonCount?: number;
   readonly total?: number;
 };
 
 const defaultGetRowCanExpand = () => false;
 
 export const DataTable = <TData,>({
+  cardDef,
   columns,
   data,
+  displayMode = "table",
   getRowCanExpand = defaultGetRowCanExpand,
   initialState,
+  isFetching,
+  isLoading,
+  modelName,
+  noRowsMessage,
   onStateChange,
-  renderSubComponent,
+  skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
@@ -93,6 +93,10 @@ export const DataTable = <TData,>({
     [onStateChange],
   );
 
+  const rest = Boolean(isLoading)
+    ? createSkeletonMock(displayMode, skeletonCount, columns)
+    : {};
+
   const table = useReactTable({
     columns,
     data,
@@ -105,87 +109,34 @@ export const DataTable = <TData,>({
     onStateChange: handleStateChange,
     rowCount: total,
     state: initialState,
+    ...rest,
   });
 
   ref.current.tableRef = table;
 
-  const theadBg = useColorModeValue("white", "gray.800");
+  const { rows } = table.getRowModel();
+
+  const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
 
   return (
-    <TableContainer maxH="calc(100vh - 10rem)" overflowY="auto">
-      <ChakraTable colorScheme="blue">
-        <Thead bg={theadBg} position="sticky" top={0} zIndex={1}>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <Tr key={headerGroup.id}>
-              {headerGroup.headers.map(
-                ({ colSpan, column, getContext, id, isPlaceholder }) => {
-                  const sort = column.getIsSorted();
-                  const canSort = column.getCanSort();
-
-                  return (
-                    <Th
-                      colSpan={colSpan}
-                      cursor={column.getCanSort() ? "pointer" : undefined}
-                      key={id}
-                      onClick={column.getToggleSortingHandler()}
-                      whiteSpace="nowrap"
-                    >
-                      {isPlaceholder ? undefined : (
-                        <>{flexRender(column.columnDef.header, getContext())}</>
-                      )}
-                      {canSort && sort === false ? (
-                        <TiArrowUnsorted
-                          aria-label="unsorted"
-                          size="1em"
-                          style={{ display: "inline" }}
-                        />
-                      ) : undefined}
-                      {canSort && sort !== false ? (
-                        sort === "desc" ? (
-                          <TiArrowSortedDown
-                            aria-label="sorted descending"
-                            size="1em"
-                            style={{ display: "inline" }}
-                          />
-                        ) : (
-                          <TiArrowSortedUp
-                            aria-label="sorted ascending"
-                            size="1em"
-                            style={{ display: "inline" }}
-                          />
-                        )
-                      ) : undefined}
-                    </Th>
-                  );
-                },
-              )}
-            </Tr>
-          ))}
-        </Thead>
-        <Tbody>
-          {table.getRowModel().rows.map((row) => (
-            <Fragment key={row.id}>
-              <Tr>
-                {/* first row is a normal row */}
-                {row.getVisibleCells().map((cell) => (
-                  <Td key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </Td>
-                ))}
-              </Tr>
-              {row.getIsExpanded() && (
-                <Tr>
-                  {/* 2nd row is a custom 1 cell row */}
-                  <Td colSpan={row.getVisibleCells().length}>
-                    {renderSubComponent?.({ row })}
-                  </Td>
-                </Tr>
-              )}
-            </Fragment>
-          ))}
-        </Tbody>
-      </ChakraTable>
+    <>
+      <Progress
+        isIndeterminate
+        size="xs"
+        visibility={
+          Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
+        }
+      />
+      {!Boolean(isLoading) && !rows.length && (
+        <Text fontSize="small">
+          {noRowsMessage ?? `No ${modelName}s found.`}
+        </Text>
+      )}
+      {display === "table" && <TableList table={table} />}
+      {display === "card" && cardDef !== undefined && (
+        <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
+      )}
       <TablePaginator table={table} />
-    </TableContainer>
+    </>
   );
 };

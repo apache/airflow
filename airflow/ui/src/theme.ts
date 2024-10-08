@@ -24,39 +24,33 @@ import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 const { defineMultiStyleConfig, definePartsStyle } =
   createMultiStyleConfigHelpers(tableAnatomy.keys);
 
-const baseStyle = definePartsStyle((props) => {
-  const { colorMode, colorScheme } = props;
-
-  return {
-    tbody: {
-      tr: {
-        "&:nth-of-type(even)": {
-          "th, td": {
-            borderBottomWidth: "0px",
-          },
+const baseStyle = definePartsStyle(() => ({
+  tbody: {
+    tr: {
+      "&:nth-of-type(even)": {
+        "th, td": {
+          borderBottomWidth: "0px",
         },
-        "&:nth-of-type(odd)": {
-          td: {
-            background:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
-          "th, td": {
-            borderBottomWidth: "0px",
-            borderColor:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
+      },
+      "&:nth-of-type(odd)": {
+        td: {
+          background: "subtle-bg",
+        },
+        "th, td": {
+          borderBottomWidth: "0px",
+          borderColor: "subtle-bg",
         },
       },
     },
-    thead: {
-      tr: {
-        th: {
-          borderBottomWidth: 0,
-        },
+  },
+  thead: {
+    tr: {
+      th: {
+        borderBottomWidth: 0,
       },
     },
-  };
-});
+  },
+}));
 
 export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
@@ -71,6 +65,12 @@ const theme = extendTheme({
   },
   config: {
     useSystemColorMode: true,
+  },
+  semanticTokens: {
+    colors: {
+      "subtle-bg": { _dark: "gray.900", _light: "blue.50" },
+      "subtle-text": { _dark: "blue.500", _light: "blue.600" },
+    },
   },
   styles: {
     global: {
