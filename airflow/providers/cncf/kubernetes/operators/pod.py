@@ -751,6 +751,8 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        pod_status = None
+
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
@@ -760,26 +762,10 @@ class KubernetesPodOperator(BaseOperator):
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            if self.callbacks and event["status"] != "running":
-                self.callbacks.on_operator_resuming(
-                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
-                )
-
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
-            if event["status"] in ("error", "failed", "timeout"):
-                # fetch some logs when pod is failed
-                if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
-
-                if self.do_xcom_push:
-                    _ = self.extract_xcom(pod=self.pod)
-
-                message = event.get("stack_trace", event["message"])
-                raise AirflowException(message)
-
-            elif event["status"] == "running":
+            if event["status"] == "running":
                 if self.get_logs:
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
@@ -792,12 +778,31 @@ class KubernetesPodOperator(BaseOperator):
 
                     if pod_log_status.running:
                         self.log.info("Container still running; deferring again.")
+                        pod_status = "running"
                         self.invoke_defer_method(pod_log_status.last_log_time)
+                    else:
+                        last_log_time = pod_log_status.last_log_time
+                        pod_status = "success" if pod_log_status.success else "failed"
                 else:
                     self.invoke_defer_method()
 
-            elif event["status"] == "success":
-                # fetch some logs when pod is executed successfully
+            if self.callbacks and (event["status"] != "running" or pod_status != "running"):
+                self.callbacks.on_operator_resuming(
+                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                )
+
+            if pod_status == "failed" or event["status"] in ("error", "failed", "timeout"):
+                # fetch logs when pod is failed
+                if self.get_logs:
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+
+                if self.do_xcom_push:
+                    _ = self.extract_xcom(pod=self.pod)
+
+                message = event.get("stack_trace") or event.get("message") or "pod failure"
+                raise AirflowException(message)
+            elif pod_status == "success" or event["status"] == "success":
+                # fetch logs when pod is executed successfully
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
@@ -808,10 +813,10 @@ class KubernetesPodOperator(BaseOperator):
         except TaskDeferred:
             raise
         finally:
-            self._clean(event)
+            self._clean(event, pod_status)
 
-    def _clean(self, event: dict[str, Any]) -> None:
-        if event["status"] == "running":
+    def _clean(self, event: dict[str, Any], pod_status: str | None) -> None:
+        if pod_status == "running" or (event["status"] == "running" and not pod_status):
             return
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang

@@ -293,6 +293,7 @@ class PodLoggingStatus:
 
     running: bool
     last_log_time: DateTime | None
+    success: bool | None = None
 
 
 class PodManager(LoggingMixin):
@@ -507,8 +508,13 @@ class PodManager(LoggingMixin):
         last_log_time = since_time
         while True:
             last_log_time, exc = consume_logs(since_time=last_log_time)
-            if not self.container_is_running(pod, container_name=container_name):
-                return PodLoggingStatus(running=False, last_log_time=last_log_time)
+            remote_pod = self.read_pod(pod)
+            if not container_is_running(remote_pod, container_name=container_name):
+                return PodLoggingStatus(
+                    running=False,
+                    success=container_is_succeeded(remote_pod, container_name=container_name),
+                    last_log_time=last_log_time,
+                )
             if not follow:
                 return PodLoggingStatus(running=True, last_log_time=last_log_time)
             else:

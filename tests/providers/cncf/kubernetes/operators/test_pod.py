@@ -2266,6 +2266,45 @@ class TestKubernetesPodOperatorAsync:
                 op.execute_complete(fake_context, fake_event)
         mocked_trigger_reentry.assert_called_once_with(context=fake_context, event=fake_event)
 
+    @patch(f"{HOOK_CLASS}.get_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    def test_completion_during_log_collection(
+        self,
+        cleanup,
+        container_running,
+        container_succeeded,
+        get_pod,
+    ):
+        """When the container completes during a log collection, handle the pods exit status"""
+        pod = MagicMock()
+        get_pod.return_value = pod
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True, logging_interval=10)
+
+        container_running.return_value = True
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(
+                create_context(op),
+                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+            )
+
+        container_running.return_value = False
+        container_succeeded.return_value = False
+        with pytest.raises(AirflowException):
+            op.trigger_reentry(
+                create_context(op),
+                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+            )
+
+        container_succeeded.return_value = True
+        op.trigger_reentry(
+            create_context(op),
+            event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+        )
+
+        assert cleanup.call_count == 2
+
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
