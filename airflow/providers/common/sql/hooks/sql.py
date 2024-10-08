@@ -50,6 +50,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import (
     fetch_all_handler,
     fetch_one_handler,
@@ -61,7 +62,6 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import URL
 
     from airflow.models import Connection
-    from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
