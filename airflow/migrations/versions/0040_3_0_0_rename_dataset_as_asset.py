@@ -38,7 +38,6 @@ revision = "05234396c6fc"
 down_revision = "3a8972ecb8f9"
 branch_labels = None
 depends_on = None
-airflow_version = "3.0.0"
 
 if TYPE_CHECKING:
     from alembic.operations.base import BatchOperations
