@@ -25,17 +25,17 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 
 const PAUSED_PARAM = "paused";
-const STATE_PARAM = "lastrun";
+const STATE_PARAM = "last_dag_run_state";
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const state = searchParams.get(STATE_PARAM);
-  const isAll = state === null || state === "all";
-  const isRunning = Boolean(state) && state === "running";
-  const isFailed = Boolean(state) && state === "failed";
-  const isSuccess = Boolean(state) && state === "success";
+  const isAll = state === null;
+  const isRunning = state === "running";
+  const isFailed = state === "failed";
+  const isSuccess = state === "success";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -59,17 +59,19 @@ export const DagsFilters = () => {
 
   const handleStateChange: React.MouseEventHandler<HTMLButtonElement> =
     useCallback(
-      ({ target }) => {
-        const { value } = target as HTMLButtonElement;
-
+      ({ currentTarget: { value } }) => {
         if (value === "all") {
           searchParams.delete(STATE_PARAM);
         } else {
           searchParams.set(STATE_PARAM, value);
         }
         setSearchParams(searchParams);
+        setTableURLState({
+          pagination: { ...pagination, pageIndex: 0 },
+          sorting,
+        });
       },
-      [searchParams, setSearchParams],
+      [pagination, searchParams, setSearchParams, setTableURLState, sorting],
     );
 
   return (

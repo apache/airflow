@@ -97,7 +97,7 @@ const cardDef: CardDef<DAGResponse> = {
 };
 
 const PAUSED_PARAM = "paused";
-const STATE_PARAM = "lastrun";
+const STATE_PARAM = "last_dag_run_state";
 
 export const DagsList = () => {
   const [searchParams] = useSearchParams();
