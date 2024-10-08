@@ -96,6 +96,8 @@ jobs:
           key: "\
             k8s-env-${{ steps.breeze.outputs.host-python-version }}-\
             ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','hatch_build.py') }}"
+      - name: test
+        run: ls -altr && uv pip show local-providers; uv pip show apache-airflow
       - name: Run complete K8S tests ${{ inputs.kubernetes-combos-list-as-string }}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
         env:

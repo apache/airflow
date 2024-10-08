@@ -72,7 +72,6 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
 
