@@ -27,6 +27,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
+    from airflow.models.param import Param
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +83,13 @@ class BaseHook(LoggingMixin):
         raise NotImplementedError()
 
     @classmethod
+    def get_connection_form(cls) -> dict[str, Param]:
+        """Define with the *new* way how form parameters are defined."""
+        return {}
+
+    @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Define with the *legacy* way of defining parameter."""
         return {}
 
     @classmethod
