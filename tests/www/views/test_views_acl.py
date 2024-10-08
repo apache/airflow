@@ -142,7 +142,7 @@ def _reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def _init_dagruns(acl_app, reset_dagruns):
+def _init_dagruns(acl_app, _reset_dagruns):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
