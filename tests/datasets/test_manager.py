@@ -24,11 +24,19 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import DatasetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.models.dataset import (
+    DagScheduleDatasetAliasReference,
+    DagScheduleDatasetReference,
+    DatasetAliasModel,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+)
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 
@@ -36,6 +44,15 @@ pytestmark = pytest.mark.db_test
 
 
 pytest.importorskip("pydantic", minversion="2.0.0")
+
+
+@pytest.fixture
+def clear_datasets():
+    from tests.test_utils.db import clear_db_datasets
+
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
 
 
 @pytest.fixture
@@ -126,6 +143,40 @@ class TestDatasetManager:
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
         assert session.query(DatasetDagRunQueue).count() == 2
+
+    @pytest.mark.usefixtures("clear_datasets")
+    def test_register_dataset_change_with_alias(self, session, dag_maker, mock_task_instance):
+        consumer_dag_1 = DagModel(dag_id="conumser_1", is_active=True, fileloc="dag1.py")
+        consumer_dag_2 = DagModel(dag_id="conumser_2", is_active=True, fileloc="dag2.py")
+        session.add_all([consumer_dag_1, consumer_dag_2])
+
+        dsm = DatasetModel(uri="test_dataset_uri")
+        session.add(dsm)
+
+        dsam = DatasetAliasModel(name="test_dataset_name")
+        session.add(dsam)
+        dsam.consuming_dags = [
+            DagScheduleDatasetAliasReference(dag_id=dag.dag_id) for dag in (consumer_dag_1, consumer_dag_2)
+        ]
+        session.execute(delete(DatasetDagRunQueue))
+        session.flush()
+
+        dataset = Dataset(uri="test_dataset_uri")
+        dataset_alias = DatasetAlias(name="test_dataset_name")
+        dataset_manager = DatasetManager()
+        dataset_manager.register_dataset_change(
+            task_instance=mock_task_instance,
+            dataset=dataset,
+            aliases=[dataset_alias],
+            source_alias_names=["test_dataset_name"],
+            session=session,
+        )
+        session.flush()
+
+        # Ensure we've created an asset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert session.query(DatasetDagRunQueue).count() == 2
+        assert session.query(DagPriorityParsingRequest).count() == 2
 
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
         dsem = DatasetManager()
