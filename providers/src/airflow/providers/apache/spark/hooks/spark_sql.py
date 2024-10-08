@@ -82,7 +82,7 @@ class SparkSqlHook(BaseHook):
     def __init__(
         self,
         sql: str,
-        conf: str | None = None,
+        conf: dict[str, Any] | None = None,
         conn_id: str = default_conn_name,
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
@@ -143,8 +143,8 @@ class SparkSqlHook(BaseHook):
         """
         connection_cmd = ["spark-sql"]
         if self._conf:
-            for conf_el in self._conf.split(","):
-                connection_cmd += ["--conf", conf_el]
+            for key in self._conf:
+                connection_cmd += ["--conf", f"{key}={self._conf[key]}"]
         if self._total_executor_cores:
             connection_cmd += ["--total-executor-cores", str(self._total_executor_cores)]
         if self._executor_cores:
