@@ -117,6 +117,10 @@ export const useDagServiceGetDags = <
         paused,
         tags,
       }) as TData,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnReconnect: false,
     ...options,
   });
 /**
