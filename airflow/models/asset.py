@@ -293,7 +293,7 @@ class AssetActive(Base):
         PrimaryKeyConstraint(name, uri, name="asset_active_pkey"),
         ForeignKeyConstraint(
             columns=[name, uri],
-            refcolumns=["dataset.name", "dataset.uri"],
+            refcolumns=["asset.name", "asset.uri"],
             name="asset_active_asset_name_uri_fkey",
             ondelete="CASCADE",
         ),
