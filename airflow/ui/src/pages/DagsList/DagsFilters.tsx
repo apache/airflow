@@ -59,11 +59,13 @@ export const DagsFilters = () => {
 
   const handleStateChange: React.MouseEventHandler<HTMLButtonElement> =
     useCallback(
-      ({ target: { value } }) => {
+      ({ target }) => {
+        const { value } = target as HTMLButtonElement;
+
         if (value === "all") {
           searchParams.delete(STATE_PARAM);
         } else {
-          searchParams.set(STATE_PARAM, value as string);
+          searchParams.set(STATE_PARAM, value);
         }
         setSearchParams(searchParams);
       },
