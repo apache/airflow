@@ -612,7 +612,7 @@ def test_invalid_dates(app, admin_client, url, content):
 @patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
 @patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
-@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8")
+@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.9")
 @patch("airflow.utils.usage_data_collection.get_plugin_counts")
 def test_build_scarf_url(
     get_plugin_counts,
@@ -634,7 +634,7 @@ def test_build_scarf_url(
         result = build_scarf_url(5)
         expected_url = (
             "https://apacheairflow.gateway.scarf.sh/webserver/"
-            f"{airflow_version}/3.8/Linux/x86_64/postgres/12.3/SequentialExecutor/1-5"
+            f"{airflow_version}/3.9/Linux/x86_64/postgres/12.3/SequentialExecutor/1-5"
             f"/6-10/15/20/25/21-50"
         )
         if enabled:
