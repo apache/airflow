@@ -54,7 +54,6 @@ from airflow.providers.common.sql.hooks.handlers import (
     fetch_one_handler,
     return_single_query_results,
 )
-from airflow.providers_manager import DialectInfo
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -70,6 +69,36 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
+
+
+def resolve_dialects() -> MutableMapping[str, MutableMapping]:
+    from airflow.providers_manager import ProvidersManager
+
+    providers_manager = ProvidersManager()
+
+    # TODO: this check can be removed once common sql provider depends on Airflow 3.0 or higher,
+    #       we could then also use DialectInfo and won't need to convert it to a dict.
+    if hasattr(providers_manager, "dialects"):
+        return {key: dict(value._asdict()) for key, value in providers_manager.dialects.items()}
+
+    # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
+    return {
+        "default": dict(
+            name="default",
+            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+            provider_name="apache-airflow-providers-common-sql",
+        ),
+        "mssql": dict(
+            name="mssql",
+            dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
+            provider_name="apache-airflow-providers-microsoft-mssql",
+        ),
+        "postgres": dict(
+            name="postgres",
+            dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
+            provider_name="apache-airflow-providers-postgres",
+        ),
+    }
 
 
 class ConnectorProtocol(Protocol):
@@ -116,24 +145,7 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
-    # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
-    _dialects: MutableMapping[str, DialectInfo] = {
-        "default": DialectInfo(
-            name="default",
-            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
-            provider_name="apache-airflow-providers-common-sql",
-        ),
-        "mssql": DialectInfo(
-            name="mssql",
-            dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
-            provider_name="apache-airflow-providers-microsoft-mssql",
-        ),
-        "postgres": DialectInfo(
-            name="postgres",
-            dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
-            provider_name="apache-airflow-providers-postgres",
-        ),
-    }
+    _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -274,29 +286,17 @@ class DbApiHook(BaseHook):
                 return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
             return config.get("dialect", "default")
 
-    def get_dialects(self) -> MutableMapping[str, DialectInfo]:
-        from airflow.providers_manager import ProvidersManager
-
-        providers_manager = ProvidersManager()
-
-        # TODO: this check can be removed once common sql provider depends on Airflow 3.0 or higher
-        if hasattr(providers_manager, "dialects"):
-            return providers_manager.dialects
-
-        # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
-        return self._dialects
-
     @cached_property
     def dialect(self) -> Dialect:
         from airflow.utils.module_loading import import_string
 
-        dialect_info = self.get_dialects().get(self.dialect_name)
+        dialect_info = self._dialects.get(self.dialect_name)
 
         self.log.debug("dialect_info: %s", dialect_info)
 
         if dialect_info:
             try:
-                return import_string(dialect_info.dialect_class_name)(self)
+                return import_string(dialect_info["dialect_class_name"])(self)
             except ImportError:
                 raise AirflowOptionalProviderFeatureException(
                     f"{dialect_info.dialect_class_name} not found, run: pip install "

@@ -30,7 +30,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
 from airflow.utils.session import provide_session
 from tests.providers.common.sql.test_utils import mock_hook
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
@@ -307,7 +307,7 @@ class TestDbApiHook:
 
         # Check if the current Airflow version is 3.0.0 or higher
         if min_airflow_version[0] >= 3:
-            method_source = inspect.getsource(DbApiHook.get_dialects)
+            method_source = inspect.getsource(resolve_dialects)
             raise AirflowProviderDeprecationWarning(
-                f"Check TODO's to remove obsolete code in get_dialects method of DbApiHook:\n\r\n\r\t\t\t{method_source}"
+                f"Check TODO's to remove obsolete code in resolve_dialects method:\n\r\n\r\t\t\t{method_source}"
             )
