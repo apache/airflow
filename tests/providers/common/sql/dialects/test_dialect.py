@@ -34,14 +34,14 @@ class TestDialect:
             {"name": "firstname"},
             {"name": "age"},
         ]
-        inspector.get_pk_constraint.side_effect = lambda *args: {"constrained_columns": ["id"]}
+        inspector.get_pk_constraint.side_effect = lambda table_name, schema: {"constrained_columns": ["id"]}
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
 
     def test_placeholder(self):
         assert Dialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
-        assert Dialect._extract_schema_from_table("schema.table") == ["table", "schema"]
+        assert Dialect._extract_schema_from_table("schema.table") == ("table", "schema")
 
     def test_get_column_names(self):
         assert Dialect(self.test_db_hook).get_column_names("schema.table") == [
