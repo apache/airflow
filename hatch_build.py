@@ -97,7 +97,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "ldap3>=2.5.1",
         "python-ldap",
     ],
     "leveldb": [
