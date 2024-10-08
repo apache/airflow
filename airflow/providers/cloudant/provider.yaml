@@ -51,10 +51,9 @@ dependencies:
 
 excluded-python-versions:
   # ibmcloudant transitively brings in urllib3 2.x, but the snowflake provider has a dependency that pins
-  # urllib3 to 1.x on Python 3.8 and 3.9; thus we exclude those Python versions from taking the update
+  # urllib3 to 1.x on Python 3.9; thus we exclude those Python versions from taking the update
   # to ibmcloudant.
   # See #21004, #41555, and https://github.com/snowflakedb/snowflake-connector-python/issues/2016
-  - "3.8"
   - "3.9"
 
 integrations:
