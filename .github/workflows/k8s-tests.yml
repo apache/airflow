@@ -97,9 +97,9 @@ jobs:
             k8s-env-${{ steps.breeze.outputs.host-python-version }}-\
             ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','hatch_build.py') }}"
       - name: test
-        run: ls -altr && uv pip show local-providers; uv pip show apache-airflow
+        run: ls -altr . providers/
       - name: Run complete K8S tests ${{ inputs.kubernetes-combos-list-as-string }}
-        run: breeze k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
+        run: breeze -v k8s run-complete-tests --run-in-parallel --upgrade --no-copy-local-sources
         env:
           PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
           KUBERNETES_VERSIONS: ${{ inputs.kubernetes-versions-list-as-string }}
