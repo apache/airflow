@@ -789,8 +789,9 @@ class KubernetesPodOperator(BaseOperator):
                         follow=follow,
                         since_time=last_log_time,
                     )
-
+                    print("hadar")
                     self.invoke_defer_method(pod_log_status.last_log_time)
+                    print("hadar1")
                 else:
                     self.invoke_defer_method()
 
