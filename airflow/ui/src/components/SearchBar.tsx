@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { forwardRef } from "react";
 import {
   Button,
   type ButtonProps,
@@ -28,20 +29,16 @@ import {
 } from "@chakra-ui/react";
 import { FiSearch } from "react-icons/fi";
 
-export const SearchBar = ({
-  buttonProps,
-  groupProps,
-  inputProps,
-}: {
-  readonly buttonProps?: ButtonProps;
-  readonly groupProps?: InputGroupProps;
-  readonly inputProps?: InputProps;
-}) => (
+export const SearchBar = forwardRef<HTMLInputElement, {
+  buttonProps?: ButtonProps;
+  groupProps?: InputGroupProps;
+  inputProps?: InputProps;
+}>(({ buttonProps, groupProps, inputProps }, ref) => (
   <InputGroup {...groupProps}>
     <InputLeftElement pointerEvents="none">
       <FiSearch />
     </InputLeftElement>
-    <Input placeholder="Search DAGs" pr={150} {...inputProps} />
+    <Input placeholder="Search DAGs" pr={150} {...inputProps} ref={ref} />
     <InputRightElement width={150}>
       <Button
         colorScheme="blue"
@@ -55,4 +52,4 @@ export const SearchBar = ({
       </Button>
     </InputRightElement>
   </InputGroup>
-);
+));
