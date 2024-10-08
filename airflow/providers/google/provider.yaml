@@ -781,6 +781,10 @@ dataset-uris:
     handler: null
   - schemes: [bigquery]
     handler: airflow.providers.google.datasets.bigquery.sanitize_uri
+  - schemes: [gs]
+    handler: airflow.providers.google.datasets.gcs.sanitize_uri
+    factory: airflow.providers.google.datasets.gcs.create_dataset
+    to_openlineage_converter: airflow.providers.google.datasets.gcs.convert_dataset_to_openlineage
 
 hooks:
   - integration-name: Google Ads
