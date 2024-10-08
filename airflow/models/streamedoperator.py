@@ -180,7 +180,7 @@ class StreamedOperator(BaseOperator):
     _operator_class: type[BaseOperator]
     expand_input: ExpandInput
     partial_kwargs: dict[str, Any]
-    shallow_copy_attrs: Sequence[str] = ("expand_input",)
+    shallow_copy_attrs: Sequence[str] = ("expand_input", "partial_kwargs", "_log", "_semaphore")
 
     def __init__(
         self,
