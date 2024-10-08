@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 import pymssql
 from pymssql import Connection as PymssqlConnection
 
-
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
