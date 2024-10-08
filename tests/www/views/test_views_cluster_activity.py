@@ -39,7 +39,7 @@ def examples_dag_bag():
 
 
 @pytest.fixture(autouse=True)
-def clean():
+def _clean():
     clear_db_runs()
     yield
     clear_db_runs()
@@ -47,12 +47,12 @@ def clean():
 
 # freeze time fixture so that it is applied before `make_dag_runs` is!
 @pytest.fixture
-def freeze_time_for_dagruns(time_machine):
+def _freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2023-05-02T00:00:00+00:00", tick=False)
 
 
 @pytest.fixture
-def make_dag_runs(dag_maker, session, time_machine):
+def _make_dag_runs(dag_maker, session, time_machine):
     with dag_maker(
         dag_id="test_dag_id",
         serialized=True,

@@ -117,7 +117,7 @@ def log_app(backup_modules, log_path):
 
 
 @pytest.fixture(autouse=True)
-def reset_modules_after_every_test(backup_modules):
+def _reset_modules_after_every_test(backup_modules):
     yield
     # Remove any new modules imported during the test run.
     # This lets us import the same source files for more than one test.

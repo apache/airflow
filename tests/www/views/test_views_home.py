@@ -42,7 +42,7 @@ def clean_db():
 
 
 @pytest.fixture(autouse=True)
-def setup():
+def _setup():
     clean_db()
     yield
     clean_db()
@@ -204,7 +204,7 @@ def _process_file(file_path):
 
 
 @pytest.fixture
-def working_dags(tmp_path):
+def _working_dags(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
     for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
         path = tmp_path / f"{dag_id}.py"
@@ -213,7 +213,7 @@ def working_dags(tmp_path):
 
 
 @pytest.fixture
-def working_dags_with_read_perm(tmp_path):
+def _working_dags_with_read_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
@@ -229,7 +229,7 @@ def working_dags_with_read_perm(tmp_path):
 
 
 @pytest.fixture
-def working_dags_with_edit_perm(tmp_path):
+def _working_dags_with_edit_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'])"
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', schedule=None, tags=['{}'], "
@@ -245,7 +245,7 @@ def working_dags_with_edit_perm(tmp_path):
 
 
 @pytest.fixture
-def broken_dags(tmp_path, working_dags):
+def _broken_dags(tmp_path, working_dags):
     for dag_id in TEST_FILTER_DAG_IDS:
         path = tmp_path / f"{dag_id}.py"
         path.write_text("airflow DAG")
@@ -253,7 +253,7 @@ def broken_dags(tmp_path, working_dags):
 
 
 @pytest.fixture
-def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
+def _broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
     for dag_id in TEST_FILTER_DAG_IDS:
         path = tmp_path / f"{dag_id}.py"
         path.write_text("airflow DAG")
@@ -261,7 +261,7 @@ def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
 
 
 @pytest.fixture
-def broken_dags_after_working(tmp_path):
+def _broken_dags_after_working(tmp_path):
     # First create and process a DAG file that works
     path = tmp_path / "all_in_one.py"
     contents = "from airflow import DAG\n"
