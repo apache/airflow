@@ -67,7 +67,7 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
 WARNING_MESSAGE: str
 
-def resolve_dialects() -> MutableMapping[str, MutableMapping]:
+def resolve_dialects() -> MutableMapping[str, MutableMapping]: ...
 
 
 class ConnectorProtocol(Protocol):
