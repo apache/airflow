@@ -70,13 +70,13 @@ asset_alias_asset_event_assocation_table = Table(
     ForeignKeyConstraint(
         ("alias_id",),
         ["asset_alias.id"],
-        name="dss_de_alias_id",
+        name="aa_ae_alias_id",
         ondelete="CASCADE",
     ),
     ForeignKeyConstraint(
         ("event_id",),
         ["asset_event.id"],
-        name="dss_de_event_id",
+        name="aa_ae_event_id",
         ondelete="CASCADE",
     ),
 )
