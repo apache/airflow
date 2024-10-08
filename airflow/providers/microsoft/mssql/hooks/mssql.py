@@ -24,7 +24,9 @@ from typing import Any
 import pymssql
 from pymssql import Connection as PymssqlConnection
 
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 
 class MsSqlHook(DbApiHook):
@@ -65,6 +67,10 @@ class MsSqlHook(DbApiHook):
     @property
     def dialect_name(self) -> str:
         return "mssql"
+
+    @property
+    def dialect(self) -> Dialect:
+        return MsSqlDialect(self)
 
     def get_uri(self) -> str:
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit

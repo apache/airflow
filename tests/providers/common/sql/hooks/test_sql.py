@@ -18,6 +18,7 @@
 #
 from __future__ import annotations
 
+import inspect
 import logging
 import logging.config
 import warnings
@@ -32,6 +33,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
 from tests.providers.common.sql.test_utils import mock_hook
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
@@ -281,3 +283,20 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_code(self):
+        """
+        Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
+        for this provider, you should remove the obsolete code in the get_dialects method of the DbApiHook
+        and remove this test.  This test was added to make sure to not forget to remove the fallback code
+        for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
+        Airflow 3.0.0 or higher.
+        """
+        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
+
+        # Check if the current Airflow version is 3.0.0 or higher
+        if min_airflow_version[0] >= 3:
+            method_source = inspect.getsource(DbApiHook.get_dialects)
+            raise AirflowProviderDeprecationWarning(
+                "Check TODO's to remove obsolete code in get_dialects method of DbApiHook:\n\r\n\r\t\t\t{}".format(method_source)
+            )

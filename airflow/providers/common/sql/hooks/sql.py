@@ -33,11 +33,12 @@ from typing import (
     Sequence,
     TypeVar,
     cast,
-    overload,
+    overload, MutableMapping,
 )
 from urllib.parse import urlparse
 
 import sqlparse
+from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
@@ -54,6 +55,7 @@ from airflow.providers.common.sql.hooks.handlers import (
     fetch_one_handler,
     return_single_query_results,
 )
+from airflow.providers_manager import DialectInfo
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -256,12 +258,40 @@ class DbApiHook(BaseHook):
                 return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
             return config.get("dialect", "default")
 
+    @lru_cache(maxsize=None)
+    def get_dialects(self) -> MutableMapping[str, DialectInfo]:
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+
+        # TODO: this check can be removed once common sql provider depends on Airflow 3.0 or higher
+        if hasattr(providers_manager, "dialects"):
+            return providers_manager.dialects
+
+        # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
+        return {
+            "default": DialectInfo(
+                name="default",
+                dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+                provider_name="apache-airflow-providers-common-sql",
+            ),
+            "mssql": DialectInfo(
+                name="mssql",
+                dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
+                provider_name="apache-airflow-providers-microsoft-mssql",
+            ),
+            "postgres": DialectInfo(
+                name="postgres",
+                dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
+                provider_name="apache-airflow-providers-postgres",
+            ),
+        }
+
     @cached_property
     def dialect(self) -> Dialect:
-        from airflow.providers_manager import ProvidersManager
         from airflow.utils.module_loading import import_string
 
-        dialect_info = ProvidersManager().dialects.get(self.dialect_name)
+        dialect_info = self.get_dialects.get(self.dialect_name)
 
         self.log.debug("dialect_info: %s", dialect_info)
 

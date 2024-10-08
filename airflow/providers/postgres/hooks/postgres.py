@@ -31,7 +31,9 @@ from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
 if TYPE_CHECKING:
     from psycopg2.extensions import connection
@@ -136,6 +138,10 @@ class PostgresHook(DbApiHook):
     @property
     def dialect_name(self) -> str:
         return "postgres"
+
+    @property
+    def dialect(self) -> Dialect:
+        return PostgresDialect(self)
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
