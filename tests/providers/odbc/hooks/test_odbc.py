@@ -26,6 +26,7 @@ from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
 import pytest
+from sqlalchemy.exc import ArgumentError
 
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 from tests.providers.common.sql.test_utils import mock_hook
@@ -74,6 +75,10 @@ def pyodbc_instancecheck():
         pass
 
     return PyodbcRow
+
+
+def raise_argument_error():
+    raise ArgumentError()
 
 
 class TestOdbcHook:
@@ -339,3 +344,23 @@ class TestOdbcHook:
         hook = mock_hook(OdbcHook)
         result = hook.run("SQL")
         assert result is None
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_uri(self):
+        hook = mock_hook(OdbcHook)
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect_name_when_resolved_from_conn_type(self):
+        hook = mock_hook(OdbcHook)
+        hook.get_conn().conn_type = "sqlite"
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "default"
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_scheme_in_extra(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"sqlalchemy_scheme": "mssql+pymssql"}})
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect_name_when_resolved_from_dialect_in_extra(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"dialect": "oracle"}})
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "oracle"
