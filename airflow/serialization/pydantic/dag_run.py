@@ -115,3 +115,15 @@ class DagRunPydantic(BaseModelPydantic):
 
 
 DagRunPydantic.model_rebuild()
+
+
+class DagRunNotePydantic(BaseModelPydantic):
+    """Serializable representation of the DagRunNote ORM SqlAlchemyModel used by internal API."""
+
+    dag_run_id: str
+    content: str | None
+    created_at: datetime
+    updated_at: datetime
+    user_id: int | None
+
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

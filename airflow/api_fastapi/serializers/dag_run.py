@@ -21,6 +21,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from airflow.serialization.pydantic.dag_run import DagRunNotePydantic
+
 # from airflow.models.dagrun import DagRunNote
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -42,4 +44,4 @@ class DAGRunResponse(BaseModel):
     external_trigger: bool
     triggered_by: DagRunTriggeredByType
     conf: dict
-    # note: DagRunNote
+    note: DagRunNotePydantic | None

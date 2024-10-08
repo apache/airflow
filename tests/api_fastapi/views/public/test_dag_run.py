@@ -97,7 +97,6 @@ def setup(dag_maker, session=None):
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
         execution_date=EXECUTION_DATE,
-        note="hello!",
     )
 
     dag_maker.dagbag.sync_to_db()
@@ -125,3 +124,4 @@ def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by)
     assert body["state"] == state
     assert body["run_type"] == run_type
     assert body["triggered_by"] == triggered_by.value
+    assert body["note"] is None

@@ -890,6 +890,16 @@ export const $DAGRunResponse = {
       type: "object",
       title: "Conf",
     },
+    note: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagRunNotePydantic",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: [
@@ -906,9 +916,56 @@ export const $DAGRunResponse = {
     "external_trigger",
     "triggered_by",
     "conf",
+    "note",
   ],
   title: "DAGRunResponse",
   description: "DAG Run serializer for responses.",
+} as const;
+
+export const $DagRunNotePydantic = {
+  properties: {
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
+    },
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+    user_id: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "User Id",
+    },
+  },
+  type: "object",
+  required: ["dag_run_id", "content", "created_at", "updated_at", "user_id"],
+  title: "DagRunNotePydantic",
+  description:
+    "Serializable representation of the DagRunNote ORM SqlAlchemyModel used by internal API.",
 } as const;
 
 export const $DagRunState = {

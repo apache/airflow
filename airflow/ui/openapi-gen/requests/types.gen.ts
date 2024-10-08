@@ -139,6 +139,18 @@ export type DAGRunResponse = {
   conf: {
     [key: string]: unknown;
   };
+  note: DagRunNotePydantic | null;
+};
+
+/**
+ * Serializable representation of the DagRunNote ORM SqlAlchemyModel used by internal API.
+ */
+export type DagRunNotePydantic = {
+  dag_run_id: string;
+  content: string | null;
+  created_at: string;
+  updated_at: string;
+  user_id: number | null;
 };
 
 /**
