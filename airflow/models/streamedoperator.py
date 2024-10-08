@@ -35,6 +35,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
+    is_mappable,
     _needs_run_time_resolution,
 )
 from airflow.models.taskinstance import TaskInstance
@@ -224,7 +225,7 @@ class StreamedOperator(BaseOperator):
                 if _needs_run_time_resolution(value):
                     value = value.resolve(context=context, session=session)
 
-                    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+                    if is_mappable(value):
                         value = list(value)
 
                     self.log.debug("resolved_value: %s", value)
