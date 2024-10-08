@@ -41,7 +41,6 @@ PRE_COMMIT_LIST = [
     "check-cncf-k8s-only-for-executors",
     "check-code-deprecations",
     "check-common-compat-used-for-openlineage",
-    "check-compat-cache-on-methods",
     "check-core-deprecation-classes",
     "check-daysago-import-from-utils",
     "check-decorated-operator-implements-custom-name",

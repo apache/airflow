@@ -1790,9 +1790,7 @@ class AirflowConfigParser(ConfigParser):
                     )
         self._default_values = create_default_config_parser(self.configuration_description)
         # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
-        # the cached values, and it will be refreshed on next access. This has been an implementation
-        # detail in Python 3.8 but as of Python 3.9 it is documented behaviour.
-        # See https://docs.python.org/3/library/functools.html#functools.cached_property
+        # the cached values, and it will be refreshed on next access.
         try:
             del self.sensitive_config_values
         except AttributeError:

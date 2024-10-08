@@ -86,7 +86,7 @@ from the PyPI package:
 .. code-block:: bash
 
   pip install "apache-airflow[google,amazon,async]==2.2.5" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.9.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
 extras.
@@ -98,7 +98,7 @@ requirements).
 .. code-block:: bash
 
   pip install -e ".[devel]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
 
 
 This also works with extras - for example:
@@ -106,7 +106,7 @@ This also works with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
@@ -118,7 +118,7 @@ using ``constraints-no-providers`` constraint files as well.
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``

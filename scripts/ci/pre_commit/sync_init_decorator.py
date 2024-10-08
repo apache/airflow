@@ -74,13 +74,6 @@ def _find_tg_deco(mod: ast.Module) -> ast.FunctionDef:
     )
 
 
-# The new unparse() output is much more readable; fallback to dump() otherwise.
-if hasattr(ast, "unparse"):
-    _reveal = ast.unparse  # type: ignore[attr-defined]
-else:
-    _reveal = ast.dump
-
-
 def _match_arguments(
     init_def: tuple[str, list[ast.arg]],
     deco_def: tuple[str, list[ast.arg]],
@@ -111,7 +104,7 @@ def _match_arguments(
         if ini.annotation and dec.annotation and ast.dump(ini.annotation) != ast.dump(dec.annotation):
             yield (
                 f"Type annotations differ on argument {ini.arg} between {init_name} and @{deco_name}: "
-                f"{_reveal(ini.annotation)} != {_reveal(dec.annotation)}"
+                f"{ast.unparse(ini.annotation)} != {ast.unparse(dec.annotation)}"
             )
         else:
             if not ini.annotation:
@@ -131,7 +124,7 @@ def _match_defaults(
         if ast.dump(ini) != ast.dump(dec):  # Poorly implemented equality check.
             yield (
                 f"Argument {arg_names[i]!r} default mismatch: "
-                f"{init_name} has {_reveal(ini)} but @{deco_name} has {_reveal(dec)}"
+                f"{init_name} has {ast.unparse(ini)} but @{deco_name} has {ast.unparse(dec)}"
             )
 
 

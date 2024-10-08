@@ -39,9 +39,9 @@ files_changed = False
 
 
 if __name__ == "__main__":
-    python38_bin = shutil.which("python3.8")
+    python38_bin = shutil.which("python3.9")
     if not python38_bin:
-        print("Python 3.8 is required to run this script.")
+        print("Python 3.9 is required to run this script.")
         sys.exit(1)
     temp_dir = Path(tempfile.mkdtemp())
     hatchling_spec = ""

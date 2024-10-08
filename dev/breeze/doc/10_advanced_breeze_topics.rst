@@ -33,8 +33,8 @@ For testing, you can create your own virtual environment, or use the one that ``
 already installed breeze following the recommended ``pipx install -e ./dev/breeze`` command.
 
 For local virtualenv, you can use ``pyenv`` or any other virtualenv wrapper. For example with ``pyenv``,
-you can use ``pyenv virtualenv 3.8.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
-with Python 3.8.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
+you can use ``pyenv virtualenv 3.9.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
+with Python 3.9.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
 in editable mode with ``pip install -e ./dev/breeze``.
 
 For ``pipx`` virtualenv, you can use the virtualenv that ``pipx`` created for you. You can find the name
@@ -56,7 +56,7 @@ make sure to follow these steps:
   this will bypass the check we run in Breeze to see if there are new requirements to install for it
 
 See example configuration for PyCharm which has run/debug configuration for
-``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.8``
+``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.9``
 
 .. raw:: html
 

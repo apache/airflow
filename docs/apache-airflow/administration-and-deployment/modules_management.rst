@@ -57,10 +57,10 @@ by running an interactive terminal as in the example below:
     >>> from pprint import pprint
     >>> pprint(sys.path)
     ['',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
+     '/home/arch/.pyenv/versions/3.9.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.9.4/lib/python3.9',
+     '/home/arch/.pyenv/versions/3.9.4/lib/python3.9/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.9/site-packages']
 
 ``sys.path`` is initialized during program startup. The first precedence is
 given to the current directory, i.e, ``path[0]`` is the directory containing
@@ -230,7 +230,7 @@ specified by this command may be as follows:
 
 .. code-block:: none
 
-    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.8/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
+    Python PATH: [/home/rootcss/venvs/airflow/bin:/usr/lib/python38.zip:/usr/lib/python3.9:/usr/lib/python3.9/lib-dynload:/home/rootcss/venvs/airflow/lib/python3.9/site-packages:/home/rootcss/airflow/dags:/home/rootcss/airflow/config:/home/rootcss/airflow/plugins]
 
 Below is the sample output of the ``airflow info`` command:
 
@@ -245,7 +245,7 @@ Below is the sample output of the ``airflow info`` command:
     architecture    | x86_64
     uname           | uname_result(system='Linux', node='85cd7ab7018e', release='4.19.76-linuxkit', version='#1 SMP Tue May 26 11:42:35 UTC 2020', machine='x86_64', processor='')
     locale          | ('en_US', 'UTF-8')
-    python_version  | 3.8.6 (default, Nov 25 2020, 02:47:44)  [GCC 8.3.0]
+    python_version  | 3.9.6 (default, Nov 25 2020, 02:47:44)  [GCC 8.3.0]
     python_location | /usr/local/bin/python
 
     Tools info
@@ -261,8 +261,8 @@ Below is the sample output of the ``airflow info`` command:
     Paths info
     airflow_home    | /root/airflow
     system_path     | /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/
-                    | local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/files/dags:/root/airflow/conf
+    python_path     | /usr/local/bin:/opt/airflow:/files/plugins:/usr/local/lib/python38.zip:/usr/local/lib/python3.9:/usr/
+                    | local/lib/python3.9/lib-dynload:/usr/local/lib/python3.9/site-packages:/files/dags:/root/airflow/conf
                     | ig:/root/airflow/plugins
     airflow_on_path | True
 
@@ -303,10 +303,10 @@ The ``sys.path`` variable will look like below:
     >>> pprint(sys.path)
     ['',
      '/home/arch/projects/airflow_operators'
-     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
-     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
+     '/home/arch/.pyenv/versions/3.9.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.9.4/lib/python3.9',
+     '/home/arch/.pyenv/versions/3.9.4/lib/python3.9/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.9/site-packages']
 
 As we can see that our provided directory is now added to the path, let's
 try to import the package now:
@@ -329,7 +329,7 @@ value as shown below:
 
 .. code-block:: none
 
-    Python PATH: [/home/arch/venv/bin:/home/arch/projects/airflow_operators:/usr/lib/python38.zip:/usr/lib/python3.8:/usr/lib/python3.8/lib-dynload:/home/arch/venv/lib/python3.8/site-packages:/home/arch/airflow/dags:/home/arch/airflow/config:/home/arch/airflow/plugins]
+    Python PATH: [/home/arch/venv/bin:/home/arch/projects/airflow_operators:/usr/lib/python38.zip:/usr/lib/python3.9:/usr/lib/python3.9/lib-dynload:/home/arch/venv/lib/python3.9/site-packages:/home/arch/airflow/dags:/home/arch/airflow/config:/home/arch/airflow/plugins]
 
 Creating a package in Python
 ----------------------------

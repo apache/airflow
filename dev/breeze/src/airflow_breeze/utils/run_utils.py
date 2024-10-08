@@ -28,9 +28,10 @@ import signal
 import stat
 import subprocess
 import sys
-from functools import lru_cache
+from collections.abc import Mapping
+from functools import cache
 from pathlib import Path
-from typing import Mapping, Union
+from typing import Union
 
 from rich.markup import escape
 
@@ -362,7 +363,7 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)

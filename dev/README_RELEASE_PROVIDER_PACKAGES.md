@@ -1031,7 +1031,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.8 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.9 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 

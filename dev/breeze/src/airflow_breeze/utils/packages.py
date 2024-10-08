@@ -22,10 +22,11 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple
+from typing import Any, NamedTuple
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -542,7 +543,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.8"
+    python_requires = "~=3.9"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
