@@ -19,12 +19,12 @@ from __future__ import annotations
 import inspect
 
 import pytest
+from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView
 
 from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
-from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
@@ -50,6 +50,10 @@ class MockOperatorLink(BaseOperatorLink):
 
 
 bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
+
+app = FastAPI()
+
+app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "App name"}
 
 
 class MockView(BaseView): ...
@@ -90,6 +94,7 @@ class MyCustomListener:
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
+    fastapi_apps = [app_with_metadata]
     appbuilder_views = [{"view": mockview}]
     appbuilder_menu_items = [appbuilder_menu_items]
     global_operator_extra_links = [MockOperatorLink()]
@@ -105,17 +110,16 @@ class MockPlugin(AirflowPlugin):
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestPluginsEndpoint:
@@ -143,6 +147,13 @@ class TestGetPlugins(TestPluginsEndpoint):
                     "executors": [],
                     "flask_blueprints": [
                         f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
+                    ],
+                    "fastapi_apps": [
+                        {
+                            "app": "fastapi.applications.FastAPI",
+                            "name": "App name",
+                            "url_prefix": "/some_prefix",
+                        }
                     ],
                     "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "hooks": [qualname(PluginHook)],

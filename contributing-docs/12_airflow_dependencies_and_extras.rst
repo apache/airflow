@@ -86,7 +86,7 @@ from the PyPI package:
 .. code-block:: bash
 
   pip install "apache-airflow[google,amazon,async]==2.2.5" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.9.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
 extras.
@@ -98,7 +98,7 @@ requirements).
 .. code-block:: bash
 
   pip install -e ".[devel]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
 
 
 This also works with extras - for example:
@@ -106,7 +106,7 @@ This also works with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
@@ -118,7 +118,7 @@ using ``constraints-no-providers`` constraint files as well.
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
@@ -165,8 +165,8 @@ Those extras are available as regular core airflow extras - they install optiona
   .. START CORE EXTRAS HERE
 
 aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
-statsd, uv, virtualenv
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+virtualenv
 
   .. END CORE EXTRAS HERE
 
@@ -182,12 +182,12 @@ airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.dr
 apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
-dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
 hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
-teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
+telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
 

@@ -25,13 +25,33 @@
 Changelog
 ---------
 
+1.17.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/common/sql): add dummy connection setter for backward compatibility (#42490)``
+* ``Changed type hinting for handler function (#42275)``
+
 1.17.0
 ......
 
 Features
 ~~~~~~~~
 
-* ``Connection in DB Hook is now cached to avoid multiple lookups when properties from extras have to be resolved``
+.. note::
+  Connection in DB Hook is now cached to avoid multiple lookups when properties
+  from extras have to be resolved.
+
+* ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
+
+Misc
+~~~~
+
+* ``feat: log client db messages for provider postgres (#40171)``
+* ``remove deprecated soft_fail from providers (#41710)``
+
 
 1.16.0
 ......

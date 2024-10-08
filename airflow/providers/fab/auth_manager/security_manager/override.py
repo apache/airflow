@@ -115,6 +115,12 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
 
 log = logging.getLogger(__name__)
 
@@ -234,7 +240,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -253,7 +259,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -273,7 +279,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_user_perms]
 
@@ -302,8 +308,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_op_perms]
 
@@ -609,7 +615,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
 
     @property
     def oauth_providers(self):
@@ -832,7 +838,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app = self.appbuilder.get_app
         # Base Security Config
         app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
-        app.config.setdefault("AUTH_ROLE_PUBLIC", "Public")
         app.config.setdefault("AUTH_TYPE", AUTH_DB)
         # Self Registration
         app.config.setdefault("AUTH_USER_REGISTRATION", False)
@@ -955,7 +960,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.add_role(role_name)
             if self.auth_role_admin not in self._builtin_roles:
                 self.add_role(self.auth_role_admin)
-            self.add_role(self.auth_role_public)
+            if self.auth_role_public:
+                self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception:

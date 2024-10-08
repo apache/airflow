@@ -54,7 +54,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_ui"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -151,13 +151,13 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "Other",
             [
+                "tests/assets",
                 "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",
                 "tests/config_templates",
                 "tests/dag_processing",
-                "tests/datasets",
                 "tests/decorators",
                 "tests/hooks",
                 "tests/io",
@@ -234,7 +234,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
     [
         (
             "API",
-            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_ui"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -250,7 +250,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
                 "tests/api",
                 "tests/api_connexion",
                 "tests/api_internal",
-                "tests/api_ui",
+                "tests/api_fastapi",
                 "tests/cli",
             ],
             False,

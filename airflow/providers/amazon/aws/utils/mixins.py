@@ -27,19 +27,14 @@ This module contains different mixin classes for internal use within the Amazon 
 
 from __future__ import annotations
 
-import warnings
-from functools import cached_property
+from functools import cache, cached_property
 from typing import Any, Generic, NamedTuple, TypeVar
 
-from deprecated import deprecated
 from typing_extensions import final
 
-from airflow.compat.functools import cache
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 AwsHookType = TypeVar("AwsHookType", bound=AwsGenericHook)
-REGION_MSG = "`region` is deprecated and will be removed in the future. Please use `region_name` instead."
 
 
 class AwsHookParams(NamedTuple):
@@ -90,13 +85,6 @@ class AwsHookParams(NamedTuple):
                     self.botocore_config = params.botocore_config
                     self.foo = foo
         """
-        if region := additional_params.pop("region", None):
-            warnings.warn(REGION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
-            if region_name and region_name != region:
-                raise ValueError(
-                    f"Conflicting `region_name` provided, region_name={region_name!r}, region={region!r}."
-                )
-            region_name = region
         return cls(aws_conn_id, region_name, verify, botocore_config)
 
 
@@ -159,16 +147,6 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
         should consider to overwrite ``_hook_parameters`` method instead.
         """
         return self.aws_hook_class(**self._hook_parameters)
-
-    @property
-    @final
-    @deprecated(
-        reason="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def region(self) -> str | None:
-        """Alias for ``region_name``, used for compatibility (deprecated)."""
-        return self.region_name
 
 
 @cache

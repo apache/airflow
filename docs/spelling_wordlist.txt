@@ -88,6 +88,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -600,6 +602,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -828,8 +831,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -973,6 +983,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1442,6 +1453,7 @@ Seedlist
 seedlist
 seekable
 segmentGranularity
+selectin
 Sendgrid
 sendgrid
 sentimentMax
@@ -1480,6 +1492,9 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
 somecollection
 somedatabase
 sortable
@@ -1533,6 +1548,7 @@ stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1680,6 +1696,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage
@@ -1796,6 +1813,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm

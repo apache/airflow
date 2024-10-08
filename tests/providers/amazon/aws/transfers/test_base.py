@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils import timezone
@@ -54,15 +53,3 @@ class TestAwsToAwsBaseOperator:
         ti.render_templates()
         assert "2020-01-01" == getattr(operator, "source_aws_conn_id")
         assert "2020-01-01" == getattr(operator, "dest_aws_conn_id")
-
-    def test_deprecation(self):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="The aws_conn_id parameter has been deprecated."
-            " Use the source_aws_conn_id parameter instead.",
-        ):
-            AwsToAwsBaseOperator(
-                task_id="transfer",
-                dag=self.dag,
-                aws_conn_id="my_conn",
-            )

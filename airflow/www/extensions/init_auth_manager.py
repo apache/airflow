@@ -54,6 +54,7 @@ def init_auth_manager(appbuilder: AirflowAppBuilder) -> BaseAuthManager:
     global auth_manager
     auth_manager_cls = get_auth_manager_cls()
     auth_manager = auth_manager_cls(appbuilder)
+    auth_manager.init()
     return auth_manager
 
 

@@ -49,7 +49,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "cloudsql"
 
@@ -62,8 +62,6 @@ FILE_NAME_DEFERRABLE = f"{DAG_ID}_{ENV_ID}_def_exportImportTestFile".replace("-"
 FILE_URI = f"gs://{BUCKET_NAME}/{FILE_NAME}"
 FILE_URI_DEFERRABLE = f"gs://{BUCKET_NAME}/{FILE_NAME_DEFERRABLE}"
 
-FAILOVER_REPLICA_NAME = f"{INSTANCE_NAME}-failover-replica"
-READ_REPLICA_NAME = f"{INSTANCE_NAME}-read-replica"
 CLONED_INSTANCE_NAME = f"{INSTANCE_NAME}-clone"
 
 # Bodies below represent Cloud SQL instance resources:
@@ -86,29 +84,14 @@ body = {
         "locationPreference": {"zone": "europe-west4-a"},
         "maintenanceWindow": {"hour": 5, "day": 7, "updateTrack": "canary"},
         "pricingPlan": "PER_USE",
-        "replicationType": "ASYNCHRONOUS",
         "storageAutoResize": True,
         "storageAutoResizeLimit": 0,
         "userLabels": {"my-key": "my-value"},
     },
-    "failoverReplica": {"name": FAILOVER_REPLICA_NAME},
     "databaseVersion": "MYSQL_5_7",
     "region": "europe-west4",
 }
 # [END howto_operator_cloudsql_create_body]
-
-# [START howto_operator_cloudsql_create_replica]
-read_replica_body = {
-    "name": READ_REPLICA_NAME,
-    "settings": {
-        "tier": "db-n1-standard-1",
-    },
-    "databaseVersion": "MYSQL_5_7",
-    "region": "europe-west4",
-    "masterInstanceName": INSTANCE_NAME,
-}
-# [END howto_operator_cloudsql_create_replica]
-
 
 # [START howto_operator_cloudsql_patch_body]
 patch_body = {
@@ -168,12 +151,6 @@ with DAG(
         body=body, instance=INSTANCE_NAME, task_id="sql_instance_create_task"
     )
     # [END howto_operator_cloudsql_create]
-
-    sql_instance_read_replica_create = CloudSQLCreateInstanceOperator(
-        body=read_replica_body,
-        instance=READ_REPLICA_NAME,
-        task_id="sql_instance_read_replica_create",
-    )
 
     # ############################################## #
     # ### MODIFYING INSTANCE AND ITS DATABASE ###### #
@@ -277,20 +254,6 @@ with DAG(
     # ### INSTANCES TEAR DOWN ###################### #
     # ############################################## #
 
-    # [START howto_operator_cloudsql_replicas_delete]
-    sql_instance_failover_replica_delete_task = CloudSQLDeleteInstanceOperator(
-        instance=FAILOVER_REPLICA_NAME,
-        task_id="sql_instance_failover_replica_delete_task",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    sql_instance_read_replica_delete_task = CloudSQLDeleteInstanceOperator(
-        instance=READ_REPLICA_NAME,
-        task_id="sql_instance_read_replica_delete_task",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-    # [END howto_operator_cloudsql_replicas_delete]
-
     sql_instance_clone_delete_task = CloudSQLDeleteInstanceOperator(
         instance=CLONED_INSTANCE_NAME,
         task_id="sql_instance_clone_delete_task",
@@ -312,7 +275,6 @@ with DAG(
         create_bucket
         # TEST BODY
         >> sql_instance_create_task
-        >> sql_instance_read_replica_create
         >> sql_instance_patch_task
         >> sql_db_create_task
         >> sql_db_patch_task
@@ -323,8 +285,6 @@ with DAG(
         >> sql_import_task
         >> sql_instance_clone
         >> sql_db_delete_task
-        >> sql_instance_failover_replica_delete_task
-        >> sql_instance_read_replica_delete_task
         >> sql_instance_clone_delete_task
         >> sql_instance_delete_task
         # TEST TEARDOWN

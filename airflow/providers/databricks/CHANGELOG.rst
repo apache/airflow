@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+6.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``(feat) databricks repair run with reason match and appropriate new settings (#41412)``
+
+Misc
+~~~~
+
+* ``Removed deprecated method referance airflow.www.auth.has_access when min airflow version >= 2.8.0 (#41747)``
+* ``remove deprecated soft_fail from providers (#41710)``
+
 6.9.0
 .....
 

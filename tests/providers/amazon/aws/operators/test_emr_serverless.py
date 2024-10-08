@@ -23,7 +23,7 @@ from uuid import UUID
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -326,51 +327,27 @@ class TestEmrServerlessCreateApplicationOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
+        "waiter_delay, waiter_max_attempts, expected",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
-            (30, 10, NOTSET, NOTSET, [30, 10], False),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
-            (10, 20, 30, 40, [10, 20], True),
+            (NOTSET, NOTSET, [60, 25]),
+            (30, 10, [30, 10]),
         ],
     )
     def test_create_application_waiter_params(
         self,
         waiter_delay,
         waiter_max_attempts,
-        waiter_countdown,
-        waiter_check_interval_seconds,
         expected,
-        warning,
     ):
-        if warning:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
-            ):
-                operator = EmrServerlessCreateApplicationOperator(
-                    task_id=task_id,
-                    release_label=release_label,
-                    job_type=job_type,
-                    client_request_token=client_request_token,
-                    config=config,
-                    waiter_delay=waiter_delay,
-                    waiter_max_attempts=waiter_max_attempts,
-                    waiter_countdown=waiter_countdown,
-                    waiter_check_interval_seconds=waiter_check_interval_seconds,
-                )
-        else:
-            operator = EmrServerlessCreateApplicationOperator(
-                task_id=task_id,
-                release_label=release_label,
-                job_type=job_type,
-                client_request_token=client_request_token,
-                config=config,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-                waiter_countdown=waiter_countdown,
-                waiter_check_interval_seconds=waiter_check_interval_seconds,
-            )
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
@@ -392,6 +369,25 @@ class TestEmrServerlessCreateApplicationOperator:
 
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+
+    def test_template_fields(self):
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+            waiter_max_attempts=3,
+            waiter_delay=0,
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEmrServerlessStartJobOperator:
@@ -768,51 +764,27 @@ class TestEmrServerlessStartJobOperator:
         )
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
+        "waiter_delay, waiter_max_attempts, expected",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
-            (30, 10, NOTSET, NOTSET, [30, 10], False),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
-            (10, 20, 30, 40, [10, 20], True),
+            (NOTSET, NOTSET, [60, 25]),
+            (30, 10, [30, 10]),
         ],
     )
     def test_start_job_waiter_params(
         self,
         waiter_delay,
         waiter_max_attempts,
-        waiter_countdown,
-        waiter_check_interval_seconds,
         expected,
-        warning,
     ):
-        if warning:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
-            ):
-                operator = EmrServerlessStartJobOperator(
-                    task_id=task_id,
-                    application_id=application_id,
-                    execution_role_arn=execution_role_arn,
-                    job_driver=job_driver,
-                    configuration_overrides=configuration_overrides,
-                    waiter_delay=waiter_delay,
-                    waiter_max_attempts=waiter_max_attempts,
-                    waiter_countdown=waiter_countdown,
-                    waiter_check_interval_seconds=waiter_check_interval_seconds,
-                )
-        else:
-            operator = EmrServerlessStartJobOperator(
-                task_id=task_id,
-                application_id=application_id,
-                execution_role_arn=execution_role_arn,
-                job_driver=job_driver,
-                configuration_overrides=configuration_overrides,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-                waiter_countdown=waiter_countdown,
-                waiter_check_interval_seconds=waiter_check_interval_seconds,
-            )
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
@@ -1163,6 +1135,24 @@ class TestEmrServerlessStartJobOperator:
             job_run_id=job_run_id,
         )
 
+    def test_template_fields(self):
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEmrServerlessDeleteOperator:
     @mock.patch.object(EmrServerlessHook, "get_waiter")
@@ -1222,45 +1212,24 @@ class TestEmrServerlessDeleteOperator:
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
     @pytest.mark.parametrize(
-        "waiter_delay, waiter_max_attempts, waiter_countdown, waiter_check_interval_seconds, expected, warning",
+        "waiter_delay, waiter_max_attempts, expected",
         [
-            (NOTSET, NOTSET, NOTSET, NOTSET, [60, 25], False),
-            (30, 10, NOTSET, NOTSET, [30, 10], False),
-            (NOTSET, NOTSET, 30 * 15, 15, [15, 30], True),
-            (10, 20, 30, 40, [10, 20], True),
+            (NOTSET, NOTSET, [60, 25]),
+            (30, 10, [30, 10]),
         ],
     )
     def test_delete_application_waiter_params(
         self,
         waiter_delay,
         waiter_max_attempts,
-        waiter_countdown,
-        waiter_check_interval_seconds,
         expected,
-        warning,
     ):
-        if warning:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="The parameter waiter_.* has been deprecated to standardize naming conventions.  Please use waiter_.* instead. .*In the future this will default to None and defer to the waiter's default value.",
-            ):
-                operator = EmrServerlessDeleteApplicationOperator(
-                    task_id=task_id,
-                    application_id=application_id,
-                    waiter_delay=waiter_delay,
-                    waiter_max_attempts=waiter_max_attempts,
-                    waiter_countdown=waiter_countdown,
-                    waiter_check_interval_seconds=waiter_check_interval_seconds,
-                )
-        else:
-            operator = EmrServerlessDeleteApplicationOperator(
-                task_id=task_id,
-                application_id=application_id,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-                waiter_countdown=waiter_countdown,
-                waiter_check_interval_seconds=waiter_check_interval_seconds,
-            )
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+        )
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
@@ -1276,6 +1245,19 @@ class TestEmrServerlessDeleteOperator:
         )
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+
+    def test_template_fields(self):
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id, application_id=application_id_delete_operator
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEmrServerlessStopOperator:
@@ -1344,3 +1326,10 @@ class TestEmrServerlessStopOperator:
             operator.execute({})
 
         assert "no running jobs found with application ID test" in caplog.messages
+
+    def test_template_fields(self):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", deferrable=True, force_stop=True
+        )
+
+        validate_template_fields(operator)

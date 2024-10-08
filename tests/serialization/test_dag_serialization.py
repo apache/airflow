@@ -42,7 +42,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -65,12 +65,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
-from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
 )
@@ -87,40 +85,9 @@ from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, Google
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.utils.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
-
-
-class CustomDepOperator(BashOperator):
-    """
-    Used for testing custom dependency detector.
-
-    TODO: remove in Airflow 3.0
-    """
-
-
-class CustomDependencyDetector(DependencyDetector):
-    """
-    Prior to deprecation of custom dependency detector, the return type as DagDependency | None.
-    This class verifies that custom dependency detector classes which assume that return type will still
-    work until support for them is removed in 3.0.
-
-    TODO: remove in Airflow 3.0
-    """
-
-    @staticmethod
-    def detect_task_dependencies(task: Operator) -> DagDependency | None:  # type: ignore
-        if isinstance(task, CustomDepOperator):
-            return DagDependency(
-                source=task.dag_id,
-                target="nothing",
-                dependency_type="abc",
-                dependency_id=task.task_id,
-            )
-        else:
-            return DependencyDetector().detect_task_dependencies(task)  # type: ignore
 
 
 executor_config_pod = k8s.V1Pod(
@@ -143,7 +110,6 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": {"__type": "timedelta", "__var": 300.0},
                 "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
-                "sla": {"__type": "timedelta", "__var": 100.0},
             },
         },
         "start_date": 1564617600.0,
@@ -179,7 +145,6 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "sla": 100.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
                     "ui_color": "#f0ede4",
@@ -218,7 +183,6 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "sla": 100.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
                     "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
@@ -260,6 +224,7 @@ serialized_simple_dag_ground_truth = {
         "edge_info": {},
         "dag_dependencies": [],
         "params": [],
+        "tags": [],
     },
 }
 
@@ -289,7 +254,6 @@ def make_simple_dag():
             "retry_delay": timedelta(minutes=5),
             "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
-            "sla": timedelta(seconds=100),
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
@@ -587,7 +551,7 @@ class TestStringifiedDAGs:
         roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
 
-    def validate_deserialized_dag(self, serialized_dag, dag):
+    def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
@@ -1298,7 +1262,6 @@ class TestStringifiedDAGs:
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": False,
             "run_as_user": None,
-            "sla": None,
             "task_id": "10",
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
@@ -1660,16 +1623,16 @@ class TestStringifiedDAGs:
             ]
 
     @pytest.mark.db_test
-    def test_dag_deps_datasets_with_duplicate_dataset(self):
+    def test_dag_deps_assets_with_duplicate_asset(self):
         """
-        Check that dag_dependencies node is populated correctly for a DAG with duplicate datasets.
+        Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
             ExternalTaskSensor(
@@ -1677,13 +1640,13 @@ class TestStringifiedDAGs:
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
 
             @dag.task(outlets=[d4])
-            def other_dataset_writer(x):
+            def other_asset_writer(x):
                 pass
 
-            other_dataset_writer.expand(x=[1, 2])
+            other_asset_writer.expand(x=[1, 2])
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -1691,8 +1654,8 @@ class TestStringifiedDAGs:
             [
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d4",
                 },
                 {
@@ -1703,44 +1666,44 @@ class TestStringifiedDAGs:
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d3",
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d2",
                 },
                 {
-                    "source": "dataset",
+                    "source": "asset",
                     "target": "test",
-                    "dependency_type": "dataset",
+                    "dependency_type": "asset",
                     "dependency_id": "d1",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
             ],
@@ -1749,16 +1712,16 @@ class TestStringifiedDAGs:
         assert actual == expected
 
     @pytest.mark.db_test
-    def test_dag_deps_datasets(self):
+    def test_dag_deps_assets(self):
         """
-        Check that dag_dependencies node is populated correctly for a DAG with datasets.
+        Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
             ExternalTaskSensor(
@@ -1766,13 +1729,13 @@ class TestStringifiedDAGs:
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d3])
 
             @dag.task(outlets=[d4])
-            def other_dataset_writer(x):
+            def other_asset_writer(x):
                 pass
 
-            other_dataset_writer.expand(x=[1, 2])
+            other_asset_writer.expand(x=[1, 2])
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -1780,8 +1743,8 @@ class TestStringifiedDAGs:
             [
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d4",
                 },
                 {
@@ -1792,20 +1755,20 @@ class TestStringifiedDAGs:
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d3",
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d2",
                 },
                 {
-                    "source": "dataset",
+                    "source": "asset",
                     "target": "test",
-                    "dependency_type": "dataset",
+                    "dependency_type": "asset",
                     "dependency_id": "d1",
                 },
             ],

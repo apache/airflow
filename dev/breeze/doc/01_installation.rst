@@ -234,8 +234,19 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 
 Installation
 ============
+First, clone the Airflow repository, but make sure not to clone it into your home directory. Cloning it into your home directory will cause the following error:
+``Your Airflow sources are checked out in /Users/username/airflow, which is also your AIRFLOW_HOME where Airflow writes logs and database files. This setup is problematic because Airflow might overwrite or clean up your source code and .git repository.``
 
-Set your working directory to root of (this) cloned repository.
+.. code-block:: bash
+
+    git clone https://github.com/apache/airflow.git
+
+Set your working directory to the root of this cloned repository.
+
+.. code-block:: bash
+
+    cd  airflow
+
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
@@ -302,7 +313,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
     case you should force-reinstall Breeze with ``pipx``:
 
         .. code-block:: bash
@@ -331,14 +342,14 @@ that Breeze works on
 
         .. code-block:: bash
 
-            pipx reinstall --python /Users/airflow/.pyenv/versions/3.8.16/bin/python apache-airflow-breeze
+            pipx reinstall --python /Users/airflow/.pyenv/versions/3.9.16/bin/python apache-airflow-breeze
 
         Or you can uninstall breeze and install it with a specific python version:
 
         .. code-block:: bash
 
             pipx uninstall apache-airflow-breeze
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python
 
 
 Running Breeze for the first time

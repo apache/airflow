@@ -48,7 +48,6 @@ from airflow.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -62,11 +61,20 @@ from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import (
+            RESOURCE_DATASET as RESOURCE_ASSET,
+        )
+
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
-    "is_authorized_dataset": RESOURCE_DATASET,
+    "is_authorized_asset": RESOURCE_ASSET,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
@@ -120,13 +128,24 @@ class TestFabAuthManager:
 
         assert auth_manager.get_user() == user
 
+    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
-    def test_is_logged_in(self, mock_get_user, auth_manager):
+    def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
         user.is_anonymous.return_value = True
         mock_get_user.return_value = user
 
-        assert auth_manager.is_logged_in() is False
+        assert auth_manager_with_appbuilder.is_logged_in() is False
+
+    @pytest.mark.db_test
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
+        user = Mock()
+        user.is_anonymous.return_value = False
+        user.is_active.return_value = True
+        mock_get_user.return_value = user
+
+        assert auth_manager_with_appbuilder.is_logged_in() is False
 
     @pytest.mark.parametrize(
         "api_name, method, user_permissions, expected_result",

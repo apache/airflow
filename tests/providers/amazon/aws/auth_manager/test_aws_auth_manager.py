@@ -23,10 +23,24 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
+from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
+from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
+from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.security.permissions import (
+    RESOURCE_AUDIT_LOG,
+    RESOURCE_CLUSTER_ACTIVITY,
+    RESOURCE_CONNECTION,
+    RESOURCE_VARIABLE,
+)
+from airflow.www import app as application
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
+from tests.test_utils.config import conf_vars
+from tests.test_utils.www import check_content_in_response
 
 try:
     from airflow.auth.managers.models.resource_details import (
@@ -35,7 +49,6 @@ try:
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
@@ -47,24 +60,18 @@ except ImportError:
         )
     else:
         raise
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
-from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
-from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
-from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-from airflow.security.permissions import (
-    RESOURCE_AUDIT_LOG,
-    RESOURCE_CLUSTER_ACTIVITY,
-    RESOURCE_CONNECTION,
-    RESOURCE_DATASET,
-    RESOURCE_VARIABLE,
-)
-from airflow.www import app as application
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),
@@ -324,12 +331,12 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, None, ANY, None),
-            (DatasetDetails(uri="uri"), mock, mock, "uri"),
+            (AssetDetails(uri="uri"), mock, mock, "uri"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    def test_is_authorized_dataset(
+    def test_is_authorized_asset(
         self,
         mock_get_user,
         mock_avp_facade,
@@ -343,12 +350,12 @@ class TestAwsAuthManager:
         mock_avp_facade.is_authorized = is_authorized
 
         method: ResourceMethod = "GET"
-        result = auth_manager.is_authorized_dataset(method=method, details=details, user=user)
+        result = auth_manager.is_authorized_asset(method=method, details=details, user=user)
 
         if not user:
             mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
-            method=method, entity_type=AvpEntities.DATASET, user=expected_user, entity_id=expected_entity_id
+            method=method, entity_type=AvpEntities.ASSET, user=expected_user, entity_id=expected_entity_id
         )
         assert result
 
@@ -611,7 +618,7 @@ class TestAwsAuthManager:
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Datasets"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": RESOURCE_ASSET},
                 },
                 "decision": "DENY",
             },
@@ -649,7 +656,7 @@ class TestAwsAuthManager:
         result = auth_manager.filter_permitted_menu_items(
             [
                 MenuItem("Category1", childs=[MenuItem(RESOURCE_CONNECTION), MenuItem(RESOURCE_VARIABLE)]),
-                MenuItem("Category2", childs=[MenuItem(RESOURCE_DATASET)]),
+                MenuItem("Category2", childs=[MenuItem(RESOURCE_ASSET)]),
                 MenuItem(RESOURCE_CLUSTER_ACTIVITY),
                 MenuItem(RESOURCE_AUDIT_LOG),
                 MenuItem("CustomPage"),
@@ -679,7 +686,7 @@ class TestAwsAuthManager:
                 {
                     "method": "MENU",
                     "entity_type": AvpEntities.MENU,
-                    "entity_id": "Datasets",
+                    "entity_id": RESOURCE_ASSET,
                 },
                 {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Cluster Activity"},
                 {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Audit Logs"},
@@ -790,7 +797,6 @@ class TestAwsAuthManager:
         "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
     )
     def test_register_views(self, mock_get_mandatory_value, auth_manager_with_appbuilder):
-        pytest.importorskip("onelogin")
         from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
         with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):

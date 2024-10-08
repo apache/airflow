@@ -18,20 +18,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
 
-from airflow.datasets import BaseDataset
+from airflow.assets import BaseAsset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.datasets import Dataset
+    from airflow.assets import Asset, AssetAlias
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.utils.types import DagRunType
 
 
-class _NullDataset(BaseDataset):
+class _NullAsset(BaseAsset):
     """
-    Sentinel type that represents "no datasets".
+    Sentinel type that represents "no assets".
 
     This is only implemented to make typing easier in timetables, and not
     expected to be used anywhere else.
@@ -42,10 +42,10 @@ class _NullDataset(BaseDataset):
     def __bool__(self) -> bool:
         return False
 
-    def __or__(self, other: BaseDataset) -> BaseDataset:
+    def __or__(self, other: BaseAsset) -> BaseAsset:
         return NotImplemented
 
-    def __and__(self, other: BaseDataset) -> BaseDataset:
+    def __and__(self, other: BaseAsset) -> BaseAsset:
         return NotImplemented
 
     def as_expression(self) -> Any:
@@ -54,7 +54,10 @@ class _NullDataset(BaseDataset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return False
 
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+        return iter(())
+
+    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
 
     def iter_dag_dependencies(self, source, target) -> Iterator[DagDependency]:
@@ -186,11 +189,11 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    dataset_condition: BaseDataset = _NullDataset()
-    """The dataset condition that triggers a DAG using this timetable.
+    asset_condition: BaseAsset = _NullAsset()
+    """The asset condition that triggers a DAG using this timetable.
 
-    If this is not *None*, this should be a dataset, or a combination of, that
-    controls the DAG's dataset triggers.
+    If this is not *None*, this should be an asset, or a combination of, that
+    controls the DAG's asset triggers.
     """
 
     @classmethod
