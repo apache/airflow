@@ -1172,7 +1172,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 for perm in existing_dag_perms:
                     non_admin_roles = [role for role in perm.role if role.name != "Admin"]
                     for role in non_admin_roles:
-                        target_perms_for_role = access_control.get(role.name, {}).get(resource_name, set())
+                        access_control_role = access_control.get(role.name)
+                        target_perms_for_role = set()
+                        if access_control_role:
+                            if isinstance(access_control_role, set):
+                                target_perms_for_role = access_control_role
+                            elif isinstance(access_control_role, dict):
+                                target_perms_for_role = access_control.get(role.name, {}).get(resource_name,
+                                                                                              set())
                         if perm.action.name not in target_perms_for_role:
                             self.log.info(
                                 "Revoking '%s' on DAG '%s' for role '%s'",
