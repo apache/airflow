@@ -24,7 +24,6 @@ export const LIMIT_PARAM = "limit";
 export const OFFSET_PARAM = "offset";
 export const SORT_PARAM = "sort";
 
-// eslint-disable-next-line max-statements
 export const stateToSearchParams = (
   state: TableState,
   defaultTableState?: TableState,
