@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_batch_deferrable"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 REGION = "europe-north1"
@@ -65,6 +65,7 @@ with DAG(
         batch_id=BATCH_ID,
         deferrable=True,
         result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
     # [END how_to_cloud_dataproc_create_batch_operator_async]
 

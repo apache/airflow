@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, PropertyMock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
@@ -37,8 +37,8 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
@@ -172,6 +172,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "overrides",
             "launch_type",
             "capacity_provider_strategy",
+            "volume_configurations",
             "group",
             "placement_constraints",
             "placement_strategy",
@@ -682,54 +683,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="test_cluster", tasks=["my_arn"])
 
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "region, region_name, expected_region_name",
-        [
-            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
-            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
-        ],
-    )
-    def test_partial_deprecated_region(self, region, region_name, expected_region_name, dag_maker, session):
-        with dag_maker(dag_id="test_partial_deprecated_region_ecs", session=session):
-            EcsRunTaskOperator.partial(
-                task_id="fake-task-id",
-                region=region,
-                region_name=region_name,
-                cluster="foo",
-                task_definition="bar",
-            ).expand(overrides=[{}, {}, {}])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"`region` is deprecated and will be removed"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                    ti.render_templates()
-                assert ti.task.region_name == expected_region_name
-
-    @pytest.mark.db_test
-    def test_partial_ambiguous_region(self, dag_maker, session):
-        with dag_maker("test_partial_ambiguous_region_ecs", session=session):
-            EcsRunTaskOperator.partial(
-                task_id="fake-task-id",
-                region="eu-west-1",
-                region_name="us-west-1",
-                cluster="foo",
-                task_definition="bar",
-            ).expand(overrides=[{}, {}, {}])
-
-        dr = dag_maker.create_dagrun(session=session)
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"`region` is deprecated and will be removed"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
-                    ValueError, match="Conflicting `region_name` provided"
-                ):
-                    ti.render_templates()
-
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
@@ -792,6 +745,17 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
             mock_client_method.assert_called_once_with(clusterName=CLUSTER_NAME)
         patch_hook_waiters.assert_not_called()
         assert result is not None
+
+    def test_template_fields(self):
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        validate_template_fields(op)
 
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
@@ -857,10 +821,19 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         patch_hook_waiters.assert_not_called()
         assert result is not None
 
+    def test_template_fields(self):
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        validate_template_fields(op)
+
 
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
-    warn_message = "'wait_for_completion' and waiter related params have no effect"
-
     def test_execute_immediate_delete(self):
         """Test if task definition deleted during initial request."""
         op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
@@ -872,51 +845,13 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
             mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
         assert result == "foo-bar"
 
-    def test_deprecation(self):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-            EcsDeregisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)
+    def test_template_fields(self):
+        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
 
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "wait_for_completion, waiter_delay, waiter_max_attempts",
-        [
-            pytest.param(True, 10, 42, id="all-params"),
-            pytest.param(False, None, None, id="wait-for-completion-only"),
-            pytest.param(None, 10, None, id="waiter-delay-only"),
-            pytest.param(None, None, 42, id="waiter-max-attempts-delay-only"),
-        ],
-    )
-    def test_partial_deprecation_waiters_params(
-        self, wait_for_completion, waiter_delay, waiter_max_attempts, dag_maker, session
-    ):
-        op_kwargs = {}
-        if wait_for_completion is not None:
-            op_kwargs["wait_for_completion"] = wait_for_completion
-        if waiter_delay is not None:
-            op_kwargs["waiter_delay"] = waiter_delay
-        if waiter_max_attempts is not None:
-            op_kwargs["waiter_max_attempts"] = waiter_max_attempts
-
-        with dag_maker(dag_id="test_partial_deprecation_waiters_params_dereg_ecs", session=session):
-            EcsDeregisterTaskDefinitionOperator.partial(
-                task_id="fake-task-id",
-                **op_kwargs,
-            ).expand(task_definition=["foo", "bar"])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-                    ti.render_templates()
-                assert not hasattr(ti.task, "wait_for_completion")
-                assert not hasattr(ti.task, "waiter_delay")
-                assert not hasattr(ti.task, "waiter_max_attempts")
+        validate_template_fields(op)
 
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
-    warn_message = "'wait_for_completion' and waiter related params have no effect"
-
     def test_execute_immediate_create(self):
         """Test if task definition created during initial request."""
         mock_ti = mock.MagicMock(name="MockedTaskInstance")
@@ -947,46 +882,7 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
         mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value="foo-bar")
         assert result == "foo-bar"
 
-    def test_deprecation(self):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-            EcsRegisterTaskDefinitionOperator(
-                task_id="id", wait_for_completion=True, **TASK_DEFINITION_CONFIG
-            )
+    def test_template_fields(self):
+        op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
 
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "wait_for_completion, waiter_delay, waiter_max_attempts",
-        [
-            pytest.param(True, 10, 42, id="all-params"),
-            pytest.param(False, None, None, id="wait-for-completion-only"),
-            pytest.param(None, 10, None, id="waiter-delay-only"),
-            pytest.param(None, None, 42, id="waiter-max-attempts-delay-only"),
-        ],
-    )
-    def test_partial_deprecation_waiters_params(
-        self, wait_for_completion, waiter_delay, waiter_max_attempts, dag_maker, session
-    ):
-        op_kwargs = {}
-        if wait_for_completion is not None:
-            op_kwargs["wait_for_completion"] = wait_for_completion
-        if waiter_delay is not None:
-            op_kwargs["waiter_delay"] = waiter_delay
-        if waiter_max_attempts is not None:
-            op_kwargs["waiter_max_attempts"] = waiter_max_attempts
-
-        with dag_maker(dag_id="test_partial_deprecation_waiters_params_reg_ecs", session=session):
-            EcsRegisterTaskDefinitionOperator.partial(
-                task_id="fake-task-id",
-                family="family_name",
-                **op_kwargs,
-            ).expand(container_definitions=[{}, {}])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-                    ti.render_templates()
-                assert not hasattr(ti.task, "wait_for_completion")
-                assert not hasattr(ti.task, "waiter_delay")
-                assert not hasattr(ti.task, "waiter_max_attempts")
+        validate_template_fields(op)

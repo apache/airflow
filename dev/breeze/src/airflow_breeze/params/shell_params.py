@@ -39,6 +39,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -52,7 +53,6 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
-    UI_API_HOST_PORT,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     GithubEvents,
@@ -332,7 +332,9 @@ class ShellParams:
                     get_console().print(
                         "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
                     )
-                    self.airflow_extras = ",".join(current_extras.split(",") + ["celery"])
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
@@ -575,7 +577,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
-        _set_var(_env, "UI_API_HOST_PORT", None, UI_API_HOST_PORT)
+        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

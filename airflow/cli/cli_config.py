@@ -234,9 +234,6 @@ ARG_SKIP_SERVE_LOGS = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_REQ_FLAG = Arg(
-    ("-d", "--dag-id"), required=True, help="The id of the dag"
-)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
@@ -780,39 +777,39 @@ ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
 )
 
 
-# ui-api
-ARG_UI_API_PORT = Arg(
+# fastapi-api
+ARG_FASTAPI_API_PORT = Arg(
     ("-p", "--port"),
     default=9091,
     type=int,
     help="The port on which to run the server",
 )
-ARG_UI_API_WORKERS = Arg(
+ARG_FASTAPI_API_WORKERS = Arg(
     ("-w", "--workers"),
     default=4,
     type=int,
-    help="Number of workers to run the UI API-on",
+    help="Number of workers to run the FastAPI API-on",
 )
-ARG_UI_API_WORKER_TIMEOUT = Arg(
+ARG_FASTAPI_API_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
     default=120,
     type=int,
-    help="The timeout for waiting on UI API workers",
+    help="The timeout for waiting on FastAPI API workers",
 )
-ARG_UI_API_HOSTNAME = Arg(
+ARG_FASTAPI_API_HOSTNAME = Arg(
     ("-H", "--hostname"),
     default="0.0.0.0",  # nosec
     help="Set the hostname on which to run the web server",
 )
-ARG_UI_API_ACCESS_LOGFILE = Arg(
+ARG_FASTAPI_API_ACCESS_LOGFILE = Arg(
     ("-A", "--access-logfile"),
     help="The logfile to store the access log. Use '-' to print to stdout",
 )
-ARG_UI_API_ERROR_LOGFILE = Arg(
+ARG_FASTAPI_API_ERROR_LOGFILE = Arg(
     ("-E", "--error-logfile"),
     help="The logfile to store the error log. Use '-' to print to stderr",
 )
-ARG_UI_API_ACCESS_LOGFORMAT = Arg(
+ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
@@ -1096,7 +1093,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
-            ARG_DAG_ID_REQ_FLAG,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
             ARG_OUTPUT,
@@ -1981,21 +1978,21 @@ core_commands: list[CLICommand] = [
         ),
     ),
     ActionCommand(
-        name="ui-api",
-        help="Start an Airflow UI API instance",
-        func=lazy_load_command("airflow.cli.commands.ui_api_command.ui_api"),
+        name="fastapi-api",
+        help="Start an Airflow FastAPI API instance",
+        func=lazy_load_command("airflow.cli.commands.fastapi_api_command.fastapi_api"),
         args=(
-            ARG_UI_API_PORT,
-            ARG_UI_API_WORKERS,
-            ARG_UI_API_WORKER_TIMEOUT,
-            ARG_UI_API_HOSTNAME,
+            ARG_FASTAPI_API_PORT,
+            ARG_FASTAPI_API_WORKERS,
+            ARG_FASTAPI_API_WORKER_TIMEOUT,
+            ARG_FASTAPI_API_HOSTNAME,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
             ARG_STDERR,
-            ARG_UI_API_ACCESS_LOGFILE,
-            ARG_UI_API_ERROR_LOGFILE,
-            ARG_UI_API_ACCESS_LOGFORMAT,
+            ARG_FASTAPI_API_ACCESS_LOGFILE,
+            ARG_FASTAPI_API_ERROR_LOGFILE,
+            ARG_FASTAPI_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,

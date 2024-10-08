@@ -30,13 +30,13 @@ import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
+from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
-from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -234,7 +234,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
-        self._dataset_events = context_get_outlet_events(context)
+        self._asset_events = context_get_outlet_events(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -253,7 +253,7 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
+        runner = ExecutionCallableRunner(self.python_callable, self._asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -424,7 +424,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_dataset_events",
+        "triggering_asset_events",
     }
 
     def __init__(

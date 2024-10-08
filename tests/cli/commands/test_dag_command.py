@@ -625,7 +625,6 @@ class TestCliDags:
             [
                 "dags",
                 "list-runs",
-                "--dag-id",
                 "example_bash_operator",
                 "--no-backfill",
                 "--start-date",

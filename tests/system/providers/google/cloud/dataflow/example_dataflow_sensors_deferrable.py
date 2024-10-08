@@ -38,7 +38,7 @@ from airflow.providers.google.cloud.sensors.dataflow import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_sensors_deferrable"
 
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"

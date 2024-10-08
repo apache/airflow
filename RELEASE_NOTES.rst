@@ -21,11 +21,97 @@
 
 .. towncrier release notes start
 
+Airflow 2.10.2 (2024-09-18)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Revert "Fix: DAGs are not marked as stale if the dags folder change" (#42220, #42217)
+- Add missing open telemetry span and correct scheduled slots documentation (#41985)
+- Fix require_confirmation_dag_change (#42063) (#42211)
+- Only treat null/undefined as falsy when rendering XComEntry (#42199) (#42213)
+- Add extra and ``renderedTemplates`` as keys to skip ``camelCasing`` (#42206) (#42208)
+- Do not ``camelcase`` xcom entries (#42182) (#42187)
+- Fix task_instance and dag_run links from list views (#42138) (#42143)
+- Support multi-line input for Params of type string in trigger UI form (#40414) (#42139)
+- Fix details tab log url detection (#42104) (#42114)
+- Add new type of exception to catch timeout (#42064) (#42078)
+- Rewrite how DAG to dataset / dataset alias are stored (#41987) (#42055)
+- Allow dataset alias to add more than one dataset events (#42189) (#42247)
+
+Miscellaneous
+"""""""""""""
+- Limit universal-pathlib below ``0.2.4`` as it breaks our integration (#42101)
+- Auto-fix default deferrable with ``LibCST`` (#42089)
+- Deprecate ``--tree`` flag for ``tasks list`` cli command (#41965)
+
+Doc Only Changes
+""""""""""""""""
+- Update ``security_model.rst`` to clear unauthenticated endpoints exceptions (#42085)
+- Add note about dataclasses and attrs to XComs page (#42056)
+- Improve docs on markdown docs in DAGs (#42013)
+- Add warning that listeners can be dangerous (#41968)
+
+
+Airflow 2.10.1 (2024-09-05)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Handle Example dags case when checking for missing files (#41874)
+- Fix logout link in "no roles" error page (#41845)
+- Set end_date and duration for triggers completed with end_from_trigger as True. (#41834)
+- DAGs are not marked as stale if the dags folder change (#41829)
+- Fix compatibility with FAB provider versions <1.3.0 (#41809)
+- Don't Fail LocalTaskJob on heartbeat (#41810)
+- Remove deprecation warning for cgitb in Plugins Manager (#41793)
+- Fix log for notifier(instance) without ``__name__`` (#41699)
+- Splitting syspath preparation into stages (#41694)
+- Adding url sanitization for extra links (#41680)
+- Fix InletEventsAccessors type stub (#41607)
+- Fix UI rendering when XCom is INT, FLOAT, BOOL or NULL (#41605)
+- Fix try selector refresh (#41503)
+- Incorrect try number subtraction producing invalid span id for OTEL airflow (#41535)
+- Add WebEncoder for trigger page rendering to avoid render failure (#41485)
+- Adding ``tojson`` filter to example_inlet_event_extra example dag (#41890)
+- Add backward compatibility check for executors that don't inherit BaseExecutor (#41927)
+
+Miscellaneous
+"""""""""""""
+- Bump webpack from 5.76.0 to 5.94.0 in /airflow/www (#41879)
+- Adding rel property to hyperlinks in logs (#41783)
+- Field Deletion Warning when editing Connections (#41504)
+- Make Scarf usage reporting in major+minor versions and counters in buckets (#41900)
+- Lower down universal-pathlib minimum to 0.2.2 (#41943)
+- Protect against None components of universal pathlib xcom backend (#41938)
+
+Doc Only Changes
+""""""""""""""""
+- Remove Debian bullseye support (#41569)
+- Add an example for auth with ``keycloak`` (#41791)
+
+
 Airflow 2.10.0 (2024-08-15)
 ---------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
+
+Scarf based telemetry: Airflow now collect telemetry data (#39510)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by
+setting the ``[usage_data_collection]enabled`` option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+See :ref:`Usage data collection FAQ <usage-data-collection>` for more information.
 
 Datasets no longer trigger inactive DAGs (#38891)
 """""""""""""""""""""""""""""""""""""""""""""""""
@@ -74,12 +160,6 @@ Using Multiple Executors Concurrently (#40701)
 Previously known as hybrid executors, this new feature allows Airflow to use multiple executors concurrently. DAGs, or even individual tasks, can be configured
 to use a specific executor that suits its needs best. A single DAG can contain tasks all using different executors. Please see the Airflow documentation for
 more details. Note: This feature is still experimental. See `documentation on Executor <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_ for a more detailed description.
-
-Scarf based telemetry: Does Airflow collect any telemetry data? (#39510)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by setting the ``[usage_data_collection]enabled`` option to False, or the SCARF_ANALYTICS=false environment variable.
-See `FAQ on this <https://airflow.apache.org/docs/apache-airflow/stable/faq.html#does-airflow-collect-any-telemetry-data>`_ for more information.
-
 
 New Features
 """"""""""""
@@ -562,7 +642,7 @@ Dataset URIs are now validated on input (#37005)
 
 Datasets must use a URI that conform to rules laid down in AIP-60, and the value
 will be automatically normalized when the DAG file is parsed. See
-`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/datasets.html>`_ for
+`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/2.9.0/authoring-and-scheduling/datasets.html>`_ for
 a more detailed description on the rules.
 
 You may need to change your Dataset identifiers if they look like a URI, but are
@@ -3184,7 +3264,7 @@ If you have the producer and consumer in different files you do not need to use 
 Datasets represent the abstract concept of a dataset, and (for now) do not have any direct read or write
 capability - in this release we are adding the foundational feature that we will build upon.
 
-For more info on Datasets please see :doc:`/authoring-and-scheduling/datasets`.
+For more info on Datasets please see `Datasets documentation <https://airflow.apache.org/docs/apache-airflow/2.4.0/authoring-and-scheduling/datasets.html>`_.
 
 Expanded dynamic task mapping support
 """""""""""""""""""""""""""""""""""""

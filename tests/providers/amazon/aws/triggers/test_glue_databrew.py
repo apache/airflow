@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
 
 TEST_JOB_NAME = "test_job_name"
@@ -45,24 +44,3 @@ class TestGlueDataBrewJobCompleteTrigger:
 
         assert class_path == class_path2
         assert args == args2
-
-    def test_serialize_with_deprecated_parameters(self, trigger):
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            class_path, args = GlueDataBrewJobCompleteTrigger(
-                aws_conn_id="aws_default",
-                job_name=TEST_JOB_NAME,
-                run_id=TEST_JOB_RUN_ID,
-                delay=1,
-                max_attempts=1,
-            ).serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
-        assert args.get("waiter_delay") == 1
-        assert args.get("waiter_max_attempts") == 1

@@ -21,12 +21,12 @@ Visuals displayed to the user when entering Breeze shell.
 from __future__ import annotations
 
 from airflow_breeze.global_constants import (
+    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
-    UI_API_HOST_PORT,
     WEBSERVER_HOST_PORT,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -83,7 +83,7 @@ CHEATSHEET = f"""
         Ports are forwarded to the running docker containers for webserver and database
           * {SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22
           * {WEBSERVER_HOST_PORT} -> forwarded to Airflow webserver -> airflow:8080
-          * {UI_API_HOST_PORT} -> forwarded to Airflow UI API -> airflow:9091
+          * {FASTAPI_API_HOST_PORT} -> forwarded to Airflow FastAPI API -> airflow:9091
           * {FLOWER_HOST_PORT} -> forwarded to Flower dashboard -> airflow:5555
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
@@ -93,7 +93,7 @@ CHEATSHEET = f"""
 
           * ssh connection for remote debugging: ssh -p {SSH_PORT} airflow@127.0.0.1 (password: airflow)
           * Webserver: http://127.0.0.1:{WEBSERVER_HOST_PORT}
-          * UI API:    http://127.0.0.1:{WEBSERVER_HOST_PORT}
+          * FastAPI API:    http://127.0.0.1:{FASTAPI_API_HOST_PORT}
           * Flower:    http://127.0.0.1:{FLOWER_HOST_PORT}
           * Postgres:  jdbc:postgresql://127.0.0.1:{POSTGRES_HOST_PORT}/airflow?user=postgres&password=airflow
           * Mysql:     jdbc:mysql://127.0.0.1:{MYSQL_HOST_PORT}/airflow?user=root

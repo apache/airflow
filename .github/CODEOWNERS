@@ -1,10 +1,10 @@
 # Core
-/airflow/executors/ @kaxil @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala
-/airflow/jobs/ @kaxil @ashb @XD-DENG
-/airflow/models/ @kaxil @XD-DENG @ashb
+/airflow/executors/ @XD-DENG @ashb @o-nikolas @pierrejeambrun @hussein-awala
+/airflow/jobs/ @ashb @XD-DENG
+/airflow/models/ @XD-DENG @ashb
 
 # DAG Serialization
-/airflow/serialization/ @kaxil @ashb @bolkedebruin
+/airflow/serialization/ @ashb @bolkedebruin
 
 # DAG Parsing
 /airflow/dag_processing @jedcunningham @ephraimbuddy
@@ -17,7 +17,7 @@
 /chart/ @dstandish @jedcunningham @hussein-awala
 
 # Docs (without Providers)
-/docs/*.py @kaxil @potiuk
+/docs/*.py @potiuk
 /docs/apache-airflow @potiuk
 /docs/docker-stack @potiuk
 /docs/helm-chart @dstandish @jedcunningham
@@ -25,17 +25,18 @@
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun
 /airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
+/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
 
 # WWW
-/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
+/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun @jscheffl
 
 # UI
-/airflow/ui/ @bbovenzi @pierrejeambrun
+/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
 # Security/Permissions
-/airflow/api_connexion/security.py @jhtimmins
-/airflow/security/permissions.py @jhtimmins
-/airflow/www/security.py @jhtimmins
+/airflow/api_connexion/security.py @vincbeck
+/airflow/security/permissions.py @vincbeck
+/airflow/www/security.py @vincbeck
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
@@ -57,7 +58,7 @@
 /docs/apache-airflow/concepts/deferring.rst @dstandish @hussein-awala
 
 # Secrets Backends
-/airflow/secrets  @dstandish @kaxil @potiuk @ashb
+/airflow/secrets  @dstandish @potiuk @ashb
 
 # Providers
 /airflow/providers/amazon/ @eladkal @o-nikolas
@@ -65,6 +66,7 @@
 /airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
 /airflow/providers/common/sql/ @eladkal
 /airflow/providers/dbt/cloud/ @josh-fell
+/airflow/providers/edge @jscheffl
 /airflow/providers/hashicorp/ @hussein-awala
 /airflow/providers/openlineage/ @mobuchowski
 /airflow/providers/slack/ @eladkal
@@ -83,7 +85,7 @@
 /tests/system/providers/amazon/ @eladkal @o-nikolas
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb @kaxil
+/.github/workflows/ @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
 /docker_tests/ @potiuk @ashb
 /provider_packages/ @potiuk @ashb
@@ -93,7 +95,7 @@ Dockerfile.ci @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
 /dev/PROJECT_GUIDELINES.md  @kaxil
-/dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil
+/dev/PROVIDER_PACKAGE_DETAILS.md  @eladkal
 /dev/README.md  @kaxil
 /dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
