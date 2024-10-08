@@ -38,7 +38,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urlencode, urljoin, urlparse, urlsplit
 
-import configupdater
 import flask.json
 import lazy_object_proxy
 import re2
@@ -90,7 +89,7 @@ from airflow.api.common.mark_tasks import (
 from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -3670,34 +3669,8 @@ class ConfigurationView(AirflowBaseView):
     @auth.has_access_configuration("GET")
     def conf(self):
         """Show configuration."""
-        raw = request.args.get("raw") == "true"
         title = "Airflow Configuration"
         expose_config = conf.get("webserver", "expose_config").lower()
-
-        # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
-        if raw:
-            if expose_config == "non-sensitive-only":
-                updater = configupdater.ConfigUpdater()
-                updater.read(AIRFLOW_CONFIG)
-                for sect, key in conf.sensitive_config_values:
-                    if updater.has_option(sect, key):
-                        updater[sect][key].value = "< hidden >"
-                config = str(updater)
-            elif expose_config in {"true", "t", "1"}:
-                with open(AIRFLOW_CONFIG) as file:
-                    config = file.read()
-            else:
-                config = (
-                    "# Your Airflow administrator chose not to expose the configuration, "
-                    "most likely for security reasons."
-                )
-
-            return Response(
-                response=config,
-                status=200,
-                mimetype="application/text",
-                headers={"Deprecation": "Endpoint will be removed in Airflow 3.0, use the REST API instead."},
-            )
 
         if expose_config in {"non-sensitive-only", "true", "t", "1"}:
             display_sensitive = expose_config != "non-sensitive-only"
