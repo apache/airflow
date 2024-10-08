@@ -26,7 +26,6 @@ from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, Sequence, Set, TypeVar, cast
 
 import aiohttp
-from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
 from requests.sessions import Session
@@ -182,9 +181,12 @@ class DbtCloudHook(HttpHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Build custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
-            "hidden_fields": ["schema", "port", "extra"],
+            "hidden_fields": ["schema", "port"],
             "relabeling": {"login": "Account ID", "password": "API Token", "host": "Tenant"},
-            "placeholders": {"host": "Defaults to 'cloud.getdbt.com'."},
+            "placeholders": {
+                "host": "Defaults to 'cloud.getdbt.com'.",
+                "extra": "Optional JSON-formatted extra.",
+            },
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
@@ -194,6 +196,10 @@ class DbtCloudHook(HttpHook):
     @staticmethod
     def _get_tenant_domain(conn: Connection) -> str:
         return conn.host or "cloud.getdbt.com"
+
+    @staticmethod
+    def _get_proxies(conn: Connection) -> dict[str, str] | None:
+        return conn.extra_dejson.get("proxies", None)
 
     @staticmethod
     def get_request_url_params(
@@ -238,14 +244,26 @@ class DbtCloudHook(HttpHook):
         endpoint = f"{account_id}/runs/{run_id}/"
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
-        async with aiohttp.ClientSession(headers=headers) as session, session.get(
-            url, params=params
-        ) as response:
-            try:
-                response.raise_for_status()
-                return await response.json()
-            except ClientResponseError as e:
-                raise AirflowException(f"{e.status}:{e.message}")
+        proxies = self._get_proxies(self.connection)
+        async with aiohttp.ClientSession(headers=headers) as session:
+            if proxies is not None:
+                if url.startswith("https"):
+                    proxy = proxies.get("https")
+                else:
+                    proxy = proxies.get("http")
+                async with session.get(url, params=params, proxy=proxy) as response:
+                    try:
+                        response.raise_for_status()
+                        return await response.json()
+                    except aiohttp.ClientResponseError as e:
+                        raise AirflowException(f"{e.status}:{e.message}")
+            else:
+                async with session.get(url, params=params) as response:
+                    try:
+                        response.raise_for_status()
+                        return await response.json()
+                    except aiohttp.ClientResponseError as e:
+                        raise AirflowException(f"{e.status}:{e.message}")
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
@@ -280,8 +298,11 @@ class DbtCloudHook(HttpHook):
 
         return session
 
-    def _paginate(self, endpoint: str, payload: dict[str, Any] | None = None) -> list[Response]:
-        response = self.run(endpoint=endpoint, data=payload)
+    def _paginate(
+        self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
+    ) -> list[Response]:
+        extra_options = {"proxies": proxies} if proxies is not None else None
+        response = self.run(endpoint=endpoint, data=payload, extra_options=extra_options)
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
@@ -292,7 +313,7 @@ class DbtCloudHook(HttpHook):
             _paginate_payload["offset"] = limit
 
             while num_current_results < num_total_results:
-                response = self.run(endpoint=endpoint, data=_paginate_payload)
+                response = self.run(endpoint=endpoint, data=_paginate_payload, extra_options=extra_options)
                 resp_json = response.json()
                 results.append(response)
                 num_current_results += resp_json["extra"]["pagination"]["count"]
@@ -310,17 +331,20 @@ class DbtCloudHook(HttpHook):
     ) -> Any:
         self.method = method
         full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
+        proxies = self._get_proxies(self.connection)
+        extra_options = {"proxies": proxies} if proxies is not None else None
 
         if paginate:
             if isinstance(payload, str):
                 raise ValueError("Payload cannot be a string to paginate a response.")
 
             if full_endpoint:
-                return self._paginate(endpoint=full_endpoint, payload=payload)
+                return self._paginate(endpoint=full_endpoint, payload=payload, proxies=proxies)
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        return self.run(endpoint=full_endpoint, data=payload)
+        # breakpoint()
+        return self.run(endpoint=full_endpoint, data=payload, extra_options=extra_options)
 
     def list_accounts(self) -> list[Response]:
         """
