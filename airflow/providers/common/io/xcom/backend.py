@@ -19,12 +19,13 @@ from __future__ import annotations
 import contextlib
 import json
 import uuid
+from functools import cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
@@ -38,22 +39,6 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 SECTION = "common.io"
-
-
-def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
-    """
-    Return whether or not this path is relative to the other path.
-
-    This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8.
-    """
-    if hasattr(o, "is_relative_to"):
-        return o.is_relative_to(other)
-
-    try:
-        o.relative_to(other)
-        return True
-    except ValueError:
-        return False
 
 
 def _get_compression_suffix(compression: str) -> str:
@@ -111,7 +96,7 @@ class XComObjectStorageBackend(BaseXCom):
             raise TypeError(f"Not a valid url: {data}") from None
 
         if url.scheme:
-            if not _is_relative_to(ObjectStoragePath(data), p):
+            if not Path.is_relative_to(ObjectStoragePath(data), p):
                 raise ValueError(f"Invalid key: {data}")
             return p / data.replace(str(p), "", 1).lstrip("/")
 
