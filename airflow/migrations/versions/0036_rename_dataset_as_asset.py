@@ -148,7 +148,7 @@ def upgrade():
 
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name="dss_de_dataset_id",
+            original_name="aa_ae_dataset_id",
             new_name="dss_de_alias_id",
             reference_table="asset_alias",
             local_cols=["alias_id"],
@@ -158,7 +158,7 @@ def upgrade():
 
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name="dss_de_event_id",
+            original_name="aa_ae_event_id",
             new_name="dss_de_event_id",
             reference_table="asset_event",
             local_cols=["event_id"],
@@ -424,7 +424,7 @@ def downgrade():
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dss_de_alias_id",
-            new_name="dss_de_alias_id",
+            new_name="aa_ae_alias_id",
             reference_table="asset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
@@ -434,7 +434,7 @@ def downgrade():
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="dss_de_event_id",
-            new_name="dss_de_event_id",
+            new_name="aa_ae_event_id",
             reference_table="asset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
