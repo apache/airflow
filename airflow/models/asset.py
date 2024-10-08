@@ -205,7 +205,7 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
-        return cls(uri=obj.uri, extra=obj.extra)
+        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=obj.extra)
 
     def __init__(self, uri: str, **kwargs):
         try:
@@ -229,7 +229,7 @@ class AssetModel(Base):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
-        return Asset(uri=self.uri, extra=self.extra)
+        return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
 
 
 class AssetActive(Base):
