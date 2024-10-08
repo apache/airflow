@@ -161,10 +161,22 @@ For example, if you want to only lookup connections starting by "m" in AWS Secre
 
 Example of storing Google Secrets in AWS Secrets Manager
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-For connecting to a google cloud conn, all the fields must be in the extra field, and their names follow the pattern
-``extra_google_cloud_platform__value``. For example:
+For connecting to a google cloud connection, all the fields must be in the extra field. For example:
+
+If you are using the key file:
 
 .. code-block:: ini
 
-  {'key_path': '/opt/airflow/service_account.json',
-  'scope': 'https://www.googleapis.com/auth/devstorage.read_only'}
+  {"extra": {"key_path": "/opt/airflow/service_account.json",
+  "scope": "https://www.googleapis.com/auth/devstorage.read_only"}}
+
+If you are using the key dictionary.
+
+.. code-block:: ini
+
+  {"extra": {"keyfile_dict": "<copy & paste the service account json here>",
+  "scope": "https://www.googleapis.com/auth/devstorage.read_only"}}
+
+Either way you can edit the `Key/value` pairs directly on the UI
+
+.. image:: /img/aws-secrets-manager-gcp.png
