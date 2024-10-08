@@ -29,6 +29,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import sqlalchemy as sa
+import sqlalchemy_jsonfield
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -149,8 +151,8 @@ def upgrade():
 
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name="aa_ae_dataset_id",
-            new_name="dss_de_alias_id",
+            original_name="dss_de_dataset_id",
+            new_name="aa_de_alias_id",
             reference_table="asset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
@@ -159,8 +161,8 @@ def upgrade():
 
         _rename_fk_constraint(
             batch_op=batch_op,
-            original_name="aa_ae_event_id",
-            new_name="dss_de_event_id",
+            original_name="dss_de_event_id",
+            new_name="aa_se_event_id",
             reference_table="asset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
@@ -177,6 +179,7 @@ def upgrade():
             unique=True,
         )
 
+    op.rename_table("dataset", "asset")
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
@@ -208,6 +211,8 @@ def upgrade():
 
     op.rename_table("dag_schedule_dataset_reference", "dag_schedule_asset_reference")
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
+        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer())
+
         _rename_pk_constraint(
             batch_op=batch_op,
             original_name="dsdr_pkey",
@@ -245,6 +250,13 @@ def upgrade():
 
     op.rename_table("task_outlet_dataset_reference", "task_outlet_asset_reference")
     with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="todr_pkey",
+            new_name="todr_pkey",
+            columns=["asset_id", "dag_id", "task_id"],
+        )
+
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="todr_dag_id_fkey",
@@ -263,13 +275,6 @@ def upgrade():
             local_cols=["asset_id"],
             remote_cols=["id"],
             ondelete="CASCADE",
-        )
-
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="todr_pkey",
-            new_name="todr_pkey",
-            columns=["asset_id", "dag_id", "task_id"],
         )
 
         _rename_index(
@@ -348,6 +353,13 @@ def upgrade():
             new_name="idx_asset_id_timestamp",
             columns=["asset_id", "timestamp"],
             unique=False,
+        )
+
+    with op.batch_alter_table("dag", schema=None) as batch_op:
+        batch_op.alter_column(
+            "dataset_expression",
+            new_column_name="asset_expression",
+            type_=sqlalchemy_jsonfield.JSONField(json=json),
         )
 
 
@@ -520,6 +532,8 @@ def downgrade():
 
     op.rename_table("task_outlet_dataset_reference", "task_outlet_asset_reference")
     with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
+        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer())
+
         _rename_fk_constraint(
             batch_op=batch_op,
             original_name="todr_dag_id_fkey",
@@ -528,6 +542,13 @@ def downgrade():
             local_cols=["dag_id"],
             remote_cols=["dag_id"],
             ondelete="CASCADE",
+        )
+
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="todr_pkey",
+            new_name="todr_pkey",
+            columns=["dataset_id", "dag_id", "task_id"],
         )
 
         _rename_fk_constraint(
@@ -540,13 +561,6 @@ def downgrade():
             ondelete="CASCADE",
         )
 
-        _rename_pk_constraint(
-            batch_op=batch_op,
-            original_name="todr_pkey",
-            new_name="todr_pkey",
-            columns=["dataset_id", "dag_id", "task_id"],
-        )
-
         _rename_index(
             batch_op=batch_op,
             original_name="idx_task_outlet_asset_reference_dag_id",
@@ -557,6 +571,8 @@ def downgrade():
 
     op.rename_table("dataset_dag_run_queue", "asset_dag_run_queue")
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
+        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer())
+
         _rename_pk_constraint(
             batch_op=batch_op,
             original_name="assetdagrunqueue_pkey",
@@ -617,6 +633,8 @@ def downgrade():
 
     op.rename_table("dataset_event", "asset_event")
     with op.batch_alter_table("asset_event", schema=None) as batch_op:
+        batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer())
+
         _rename_index(
             batch_op=batch_op,
             original_name="idx_asset_id_timestamp",
