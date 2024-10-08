@@ -38,7 +38,6 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
@@ -117,6 +116,24 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
+    # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
+    _dialects: MutableMapping[str, DialectInfo] = {
+        "default": DialectInfo(
+            name="default",
+            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+            provider_name="apache-airflow-providers-common-sql",
+        ),
+        "mssql": DialectInfo(
+            name="mssql",
+            dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
+            provider_name="apache-airflow-providers-microsoft-mssql",
+        ),
+        "postgres": DialectInfo(
+            name="postgres",
+            dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
+            provider_name="apache-airflow-providers-postgres",
+        ),
+    }
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -257,7 +274,6 @@ class DbApiHook(BaseHook):
                 return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
             return config.get("dialect", "default")
 
-    @lru_cache(maxsize=None)
     def get_dialects(self) -> MutableMapping[str, DialectInfo]:
         from airflow.providers_manager import ProvidersManager
 
@@ -268,23 +284,7 @@ class DbApiHook(BaseHook):
             return providers_manager.dialects
 
         # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
-        return {
-            "default": DialectInfo(
-                name="default",
-                dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
-                provider_name="apache-airflow-providers-common-sql",
-            ),
-            "mssql": DialectInfo(
-                name="mssql",
-                dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
-                provider_name="apache-airflow-providers-microsoft-mssql",
-            ),
-            "postgres": DialectInfo(
-                name="postgres",
-                dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
-                provider_name="apache-airflow-providers-postgres",
-            ),
-        }
+        return self._dialects
 
     @cached_property
     def dialect(self) -> Dialect:

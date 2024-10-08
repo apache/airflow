@@ -29,6 +29,7 @@ import pytest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
 from tests.providers.common.sql.test_utils import mock_hook
@@ -283,6 +284,16 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    def test_dialect_name(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.dialect_name == "default"
+
+    @pytest.mark.db_test
+    def test_dialect(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert isinstance(dbapi_hook.dialect, Dialect)
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_code(self):
         """
