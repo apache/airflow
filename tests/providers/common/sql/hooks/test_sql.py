@@ -309,5 +309,5 @@ class TestDbApiHook:
         if min_airflow_version[0] >= 3:
             method_source = inspect.getsource(DbApiHook.get_dialects)
             raise AirflowProviderDeprecationWarning(
-                "Check TODO's to remove obsolete code in get_dialects method of DbApiHook:\n\r\n\r\t\t\t{}".format(method_source)
+                f"Check TODO's to remove obsolete code in get_dialects method of DbApiHook:\n\r\n\r\t\t\t{method_source}"
             )

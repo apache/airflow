@@ -47,10 +47,22 @@ from airflow.providers.common.sql.hooks.handlers import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
+from airflow.providers_manager import DialectInfo as DialectInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import Inspector, URL as URL
-from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
@@ -88,6 +100,7 @@ class DbApiHook(BaseHook):
     def inspector(self) -> Inspector: ...
     @cached_property
     def dialect_name(self) -> str: ...
+    def get_dialects(self) -> MutableMapping[str, DialectInfo]: ...
     @cached_property
     def dialect(self) -> Dialect: ...
     def get_pandas_df(
