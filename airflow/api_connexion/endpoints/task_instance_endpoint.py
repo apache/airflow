@@ -475,8 +475,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             isouter=True,
         )
         .add_columns(SlaMiss)
-        .offset(data["offset"])
-        .limit(data["limit"])
+        .offset(data["page_offset"])
+        .limit(data["page_limit"])
     )
 
     ti_query = base_query.options(
