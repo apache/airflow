@@ -69,7 +69,7 @@ class TestTaskInstanceSchema:
         session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
-        serialized_ti = task_instance_schema.dump((ti, None, None))
+        serialized_ti = task_instance_schema.dump(ti)
         expected_json = {
             "dag_id": "TEST_DAG_ID",
             "duration": 10000.0,
