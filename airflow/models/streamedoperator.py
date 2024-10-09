@@ -35,8 +35,8 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
-    is_mappable,
     _needs_run_time_resolution,
+    is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import run_trigger
