@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/cassandra/index>
+    System Tests <_api/tests/system/apache/cassandra/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/|version|/tests/system/providers/apache/cassandra>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/|version|/providers/tests/system/apache/cassandra>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
     Installing from sources <installing-providers-from-sources>
 

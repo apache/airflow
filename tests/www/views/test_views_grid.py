@@ -35,9 +35,10 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_assets, clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from dev.tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
 

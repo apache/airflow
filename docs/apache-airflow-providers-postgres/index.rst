@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/postgres/index>
+    System Tests <_api/tests/system/postgres/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/tests/system/providers/postgres>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-postgres/|version|/providers/tests/system/postgres>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-postgres/>
     Installing from sources <installing-providers-from-sources>
 

@@ -38,7 +38,7 @@ Amazon S3 Glacier To GCS transfer operator
 To transfer data from an Amazon Glacier vault to Google Cloud Storage you can use
 :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glacier_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_glacier_to_gcs]
