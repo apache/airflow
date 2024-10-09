@@ -18,14 +18,18 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
+from pendulum.parsing.exceptions import ParserError
+from pydantic import AfterValidator
 from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -235,6 +239,24 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+def _safe_parse_datetime(date_to_check: str) -> datetime:
+    """
+    Parse datetime and raise error for invalid dates.
+
+    :param date_to_check: the string value to be parsed
+    """
+    if not date_to_check:
+        raise ValueError(f"{date_to_check} cannot be None.")
+    try:
+        return timezone.parse(date_to_check, strict=True)
+    except (TypeError, ParserError):
+        raise HTTPException(
+            400, f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value."
+        )
+
+
+# Common Safe DateTime
+DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
