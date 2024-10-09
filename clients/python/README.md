@@ -248,7 +248,7 @@ For more information, please visit [https://airflow.apache.org](https://airflow.
 
 ## Requirements.
 
-Python >=3.8
+Python >=3.9
 
 ## Installation & Usage
 

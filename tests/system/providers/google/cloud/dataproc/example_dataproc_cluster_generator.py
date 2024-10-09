@@ -72,6 +72,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
     num_preemptible_workers=1,
     preemptibility="PREEMPTIBLE",
+    internal_ip_only=False,
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
@@ -106,6 +107,7 @@ with DAG(
         region=REGION,
         cluster_config=CLUSTER_GENERATOR_CONFIG,
         retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
 
     # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config_operator]

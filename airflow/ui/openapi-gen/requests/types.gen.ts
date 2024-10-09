@@ -240,6 +240,12 @@ export type GetConnectionData = {
 
 export type GetConnectionResponse = ConnectionResponse;
 
+export type DeleteVariableData = {
+  variableKey: string;
+};
+
+export type DeleteVariableResponse = void;
+
 export type ListDagWarningsData = {
   dagIdPattern?: string | null;
   limit?: number;
@@ -268,7 +274,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags": {
+  "/public/dags/": {
     get: {
       req: GetDagsData;
       res: {
@@ -407,6 +413,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/{variable_key}": {
+    delete: {
+      req: DeleteVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
         /**
          * Unauthorized
          */

@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.8 locally.
+in our development workflow. To install and use it, you need at least Python 3.9 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -151,8 +151,6 @@ require Breeze Docker image to be built locally.
 | check-code-deprecations                                   | Check deprecations categories in decorators            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes  |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-compat-cache-on-methods                             | Check that compat cache do not use on class methods    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

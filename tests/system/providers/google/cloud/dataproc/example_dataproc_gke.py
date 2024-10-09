@@ -113,6 +113,7 @@ with DAG(
         cluster_name=CLUSTER_NAME,
         virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
         retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
     # [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 

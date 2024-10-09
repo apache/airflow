@@ -428,6 +428,7 @@ Currently, **officially** using Airflow:
 1. [Revolut](https://www.revolut.com/) [[@sztanko](https://github.com/sztanko) & [@nautilus28](https://github.com/nautilus28)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
 1. [RushOwl](https://www.rushowl.sg) [[@songyanho](https://github.com/songyanho)]
+1. [SailPoint](https://www.sailpoint.com/) [[@andrew-stein-sp](https://github.com/andrew-stein-sp)]
 1. [Scaleway](https://scaleway.com) [[@kdeldycke](https://github.com/kdeldycke)]
 1. [Scribd](https://www.scribd.com) [[@houqp](https://github.com/houqp), [@dimonchik-suvorov](https://github.com/dimonchik-suvorov) & [@zbstof](https://github.com/zbstof)]
 1. [Seasoned](https://www.seasoned.co/) [[@joshuacano](https://github.com/joshuacano)] & [[@mmyers](https://github.com/mmyers5)] & [[@tjward](https://github.com/tjward)]

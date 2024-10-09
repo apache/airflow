@@ -821,6 +821,7 @@ class TestPodGenerator:
         )
         labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
         assert labels == {**expected, **extra_expected}
+        del labels["airflow_version"]  # excluded from selector in case upgrade
         items = [f"{k}={v}" for k, v in sorted(labels.items())]
         if "airflow_worker" not in extra:
             items.append("airflow-worker")

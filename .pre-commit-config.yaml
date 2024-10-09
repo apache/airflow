@@ -240,7 +240,7 @@ repos:
         alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -1066,13 +1066,6 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-compat-cache-on-methods
-        name: Check that compat cache do not use on class methods
-        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
-        language: python
-        pass_filenames: true
-        files: ^airflow/.*\.py$
-        exclude: ^.*/.*_vendor/
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
         entry: ./scripts/ci/pre_commit/check_deprecations.py

@@ -40,9 +40,11 @@ pytestmark = pytest.mark.db_test
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"
 SINGLE_TENANT_CONN = "single_tenant_conn"
+PROXY_CONN = "proxy_conn"
 DEFAULT_ACCOUNT_ID = 11111
 ACCOUNT_ID = 22222
 SINGLE_TENANT_DOMAIN = "single.tenant.getdbt.com"
+EXTRA_PROXIES = {"proxies": {"https": "http://myproxy:1234"}}
 TOKEN = "token"
 PROJECT_ID = 33333
 JOB_ID = 4444
@@ -136,9 +138,20 @@ class TestDbtCloudHook:
             host=SINGLE_TENANT_DOMAIN,
         )
 
+        # Connection with a proxy set in extra parameters
+        proxy_conn = Connection(
+            conn_id=PROXY_CONN,
+            conn_type=DbtCloudHook.conn_type,
+            login=DEFAULT_ACCOUNT_ID,
+            password=TOKEN,
+            host=SINGLE_TENANT_DOMAIN,
+            extra=EXTRA_PROXIES,
+        )
+
         db.merge_conn(account_id_conn)
         db.merge_conn(no_account_id_conn)
         db.merge_conn(host_conn)
+        db.merge_conn(proxy_conn)
 
     @pytest.mark.parametrize(
         argnames="conn_id, url",
@@ -196,7 +209,7 @@ class TestDbtCloudHook:
         hook.list_accounts()
 
         assert hook.method == "GET"
-        hook.run.assert_called_once_with(endpoint=None, data=None)
+        hook.run.assert_called_once_with(endpoint=None, data=None, extra_options=None)
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -213,7 +226,9 @@ class TestDbtCloudHook:
         assert hook.method == "GET"
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
-        hook.run.assert_called_once_with(endpoint=f"api/v2/accounts/{_account_id}/", data=None)
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/", data=None, extra_options=None
+        )
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -232,7 +247,7 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_not_called()
         hook._paginate.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/", payload=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/", payload=None, proxies=None
         )
 
     @pytest.mark.parametrize(
@@ -250,7 +265,7 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/", data=None
+            endpoint=f"api/v3/accounts/{_account_id}/projects/{PROJECT_ID}/", data=None, extra_options=None
         )
         hook._paginate.assert_not_called()
 
@@ -269,7 +284,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook._paginate.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/jobs/", payload={"order_by": None, "project_id": None}
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/",
+            payload={"order_by": None, "project_id": None},
+            proxies=None,
         )
         hook.run.assert_not_called()
 
@@ -290,6 +307,7 @@ class TestDbtCloudHook:
         hook._paginate.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/",
             payload={"order_by": "-id", "project_id": PROJECT_ID},
+            proxies=None,
         )
         hook.run.assert_not_called()
 
@@ -307,7 +325,9 @@ class TestDbtCloudHook:
         assert hook.method == "GET"
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
-        hook.run.assert_called_once_with(endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}", data=None)
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}", data=None, extra_options=None
+        )
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -328,6 +348,7 @@ class TestDbtCloudHook:
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
             data=json.dumps({"cause": cause, "steps_override": None, "schema_override": None}),
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -359,6 +380,7 @@ class TestDbtCloudHook:
             data=json.dumps(
                 {"cause": cause, "steps_override": steps_override, "schema_override": schema_override}
             ),
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -393,6 +415,7 @@ class TestDbtCloudHook:
                     "generate_docs_override": False,
                 }
             ),
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -422,6 +445,7 @@ class TestDbtCloudHook:
         hook.run.assert_called_once_with(
             endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
             data=json.dumps({"cause": expected_cause, "steps_override": None, "schema_override": None}),
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -467,7 +491,9 @@ class TestDbtCloudHook:
             hook._paginate.assert_not_called()
             if should_use_rerun:
                 hook.run.assert_called_once_with(
-                    endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/rerun/", data=None
+                    endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/rerun/",
+                    data=None,
+                    extra_options=None,
                 )
             else:
                 hook.run.assert_called_once_with(
@@ -479,7 +505,30 @@ class TestDbtCloudHook:
                             "schema_override": None,
                         }
                     ),
+                    extra_options=None,
                 )
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, account_id",
+        argvalues=[(PROXY_CONN, ACCOUNT_ID)],
+        ids=["proxy_connection"],
+    )
+    @patch.object(DbtCloudHook, "run")
+    @patch.object(DbtCloudHook, "_paginate")
+    def test_trigger_job_run_with_proxy(self, mock_http_run, mock_paginate, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        cause = ""
+        hook.trigger_job_run(job_id=JOB_ID, cause=cause, account_id=account_id)
+
+        assert hook.method == "POST"
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/jobs/{JOB_ID}/run/",
+            data=json.dumps({"cause": cause, "steps_override": None, "schema_override": None}),
+            extra_options={"proxies": {"https": "http://myproxy:1234"}},
+        )
+        hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
@@ -503,6 +552,7 @@ class TestDbtCloudHook:
                 "job_definition_id": None,
                 "order_by": None,
             },
+            proxies=None,
         )
 
     @pytest.mark.parametrize(
@@ -529,6 +579,7 @@ class TestDbtCloudHook:
                 "job_definition_id": JOB_ID,
                 "order_by": "id",
             },
+            proxies=None,
         )
 
     @pytest.mark.parametrize(
@@ -544,7 +595,9 @@ class TestDbtCloudHook:
         assert hook.method == "GET"
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
-        hook.run.assert_called_once_with(endpoint=f"api/v2/accounts/{_account_id}/runs/", data=None)
+        hook.run.assert_called_once_with(
+            endpoint=f"api/v2/accounts/{_account_id}/runs/", data=None, extra_options=None
+        )
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
@@ -561,7 +614,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/", data={"include_related": None}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/",
+            data={"include_related": None},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -580,7 +635,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/", data={"include_related": ["triggers"]}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/",
+            data={"include_related": ["triggers"]},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -645,7 +702,7 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/cancel/", data=None
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/cancel/", data=None, extra_options=None
         )
         hook._paginate.assert_not_called()
 
@@ -664,7 +721,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/", data={"step": None}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/",
+            data={"step": None},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -683,7 +742,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/", data={"step": 2}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/",
+            data={"step": 2},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -703,7 +764,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/{path}", data={"step": None}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/{path}",
+            data={"step": None},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 
@@ -723,7 +786,9 @@ class TestDbtCloudHook:
 
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
-            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/{path}", data={"step": 2}
+            endpoint=f"api/v2/accounts/{_account_id}/runs/{RUN_ID}/artifacts/{path}",
+            data={"step": 2},
+            extra_options=None,
         )
         hook._paginate.assert_not_called()
 

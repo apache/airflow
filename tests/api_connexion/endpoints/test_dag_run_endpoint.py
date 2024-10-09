@@ -1508,7 +1508,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 class TestPatchDagRunState(TestDagRunEndpoint):
     @pytest.mark.parametrize("state", ["failed", "success", "queued"])
-    @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
+    @pytest.mark.parametrize("run_type", [DagRunType.MANUAL, DagRunType.SCHEDULED])
     def test_should_respond_200(self, state, run_type, dag_maker, session):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"

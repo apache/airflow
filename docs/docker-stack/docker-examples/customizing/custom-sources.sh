@@ -32,7 +32,7 @@ export DOCKER_BUILDKIT=1
 docker build . -f Dockerfile \
     --pull \
     --platform 'linux/amd64' \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \

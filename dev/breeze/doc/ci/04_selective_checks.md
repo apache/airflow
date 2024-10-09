@@ -169,8 +169,8 @@ Github Actions to pass the list of parameters to a command to execute
 | Output                                 | Meaning of the output                                                                                | Example value                             | List as string |
 |----------------------------------------|------------------------------------------------------------------------------------------------------|-------------------------------------------|----------------|
 | affected-providers-list-as-string      | List of providers affected when they are selectively affected.                                       | airbyte http                              | *              |
-| all-python-versions                    | List of all python versions there are available in the form of JSON array                            | ['3.8', '3.9', '3.10']                    |                |
-| all-python-versions-list-as-string     | List of all python versions there are available in the form of space separated string                | 3.8 3.9 3.10                              | *              |
+| all-python-versions                    | List of all python versions there are available in the form of JSON array                            | ['3.9', '3.10']                           |                |
+| all-python-versions-list-as-string     | List of all python versions there are available in the form of space separated string                | 3.9 3.10                                  | *              |
 | all-versions                           | If set to true, then all python, k8s, DB versions are used for tests.                                | false                                     |                |
 | basic-checks-only                      | Whether to run all static checks ("false") or only basic set of static checks ("true")               | false                                     |                |
 | build_system_changed_in_pyproject_toml | When builds system dependencies changed in pyproject.toml changed in the PR.                         | false                                     |                |
@@ -184,7 +184,7 @@ Github Actions to pass the list of parameters to a command to execute
 | default-kubernetes-version             | Which Kubernetes version to use as default                                                           | v1.25.2                                   |                |
 | default-mysql-version                  | Which MySQL version to use as default                                                                | 5.7                                       |                |
 | default-postgres-version               | Which Postgres version to use as default                                                             | 10                                        |                |
-| default-python-version                 | Which Python version to use as default                                                               | 3.8                                       |                |
+| default-python-version                 | Which Python version to use as default                                                               | 3.9                                       |                |
 | docker-cache                           | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                  |                |
 | docs-build                             | Whether to build documentation ("true"/"false")                                                      | true                                      |                |
 | docs-list-as-string                    | What filter to apply to docs building - based on which documentation packages should be built        | apache-airflow helm-chart google          |                |
@@ -200,7 +200,7 @@ Github Actions to pass the list of parameters to a command to execute
 | is-self-hosted-runner                  | Whether the runner is self-hosted                                                                    | false                                     |                |
 | is-vm-runner                           | Whether the runner uses VM to run                                                                    | true                                      |                |
 | kind-version                           | Which Kind version to use for tests                                                                  | v0.16.0                                   |                |
-| kubernetes-combos-list-as-string       | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.8-v1.25.2 3.9-v1.26.4                   | *              |
+| kubernetes-combos-list-as-string       | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.9-v1.25.2 3.9-v1.26.4                   | *              |
 | kubernetes-versions                    | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                               |                |
 | kubernetes-versions-list-as-string     | All Kubernetes versions to use for tests as space-separated string                                   | v1.25.2                                   | *              |
 | mypy-folders                           | List of folders to be considered for mypy                                                            | []                                        |                |
@@ -219,8 +219,8 @@ Github Actions to pass the list of parameters to a command to execute
 | prod-image-build                       | Whether PROD image build is needed                                                                   | true                                      |                |
 | providers-compatibility-checks         | List of dicts: (python_version, airflow_version, removed_providers) for compatibility checks         | []                                        |                |
 | pyproject-toml-changed                 | When pyproject.toml changed in the PR.                                                               | false                                     |                |
-| python-versions                        | List of python versions to use for that build                                                        | ['3.8']                                   | *              |
-| python-versions-list-as-string         | Which versions of MySQL to use for tests as space-separated string                                   | 3.8                                       | *              |
+| python-versions                        | List of python versions to use for that build                                                        | ['3.9']                                   | *              |
+| python-versions-list-as-string         | Which versions of MySQL to use for tests as space-separated string                                   | 3.9                                       | *              |
 | run-amazon-tests                       | Whether Amazon tests should be run ("true"/"false")                                                  | true                                      |                |
 | run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
 | run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |

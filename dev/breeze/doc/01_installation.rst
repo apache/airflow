@@ -313,7 +313,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
     case you should force-reinstall Breeze with ``pipx``:
 
         .. code-block:: bash
@@ -342,14 +342,14 @@ that Breeze works on
 
         .. code-block:: bash
 
-            pipx reinstall --python /Users/airflow/.pyenv/versions/3.8.16/bin/python apache-airflow-breeze
+            pipx reinstall --python /Users/airflow/.pyenv/versions/3.9.16/bin/python apache-airflow-breeze
 
         Or you can uninstall breeze and install it with a specific python version:
 
         .. code-block:: bash
 
             pipx uninstall apache-airflow-breeze
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.8.16/bin/python
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python
 
 
 Running Breeze for the first time

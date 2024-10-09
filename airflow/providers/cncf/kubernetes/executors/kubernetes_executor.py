@@ -179,6 +179,36 @@ class KubernetesExecutor(BaseExecutor):
             return pod_generator.datetime_to_label_safe_datestring(input_value)
         return pod_generator.make_safe_label_value(input_value)
 
+    def get_pod_combined_search_str_to_pod_map(self) -> dict[str, k8s.V1Pod]:
+        """
+        List the worker pods owned by this scheduler and create a map containing pod combined search str -> pod.
+
+        For every pod, it creates two below entries in the map
+        dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker},<map_index={map_index}>,run_id={run_id}
+        """
+        # airflow worker label selector batch call
+        kwargs = {"label_selector": f"airflow-worker={self._make_safe_label_value(str(self.job_id))}"}
+        if self.kube_config.kube_client_request_args:
+            kwargs.update(self.kube_config.kube_client_request_args)
+        pod_list = self._list_pods(kwargs)
+
+        # create a set against pod query label fields
+        pod_combined_search_str_to_pod_map = {}
+        for pod in pod_list:
+            dag_id = pod.metadata.annotations.get("dag_id", None)
+            task_id = pod.metadata.annotations.get("task_id", None)
+            map_index = pod.metadata.annotations.get("map_index", None)
+            run_id = pod.metadata.annotations.get("run_id", None)
+            if dag_id is None or task_id is None:
+                continue
+            search_base_str = f"dag_id={dag_id},task_id={task_id}"
+            if map_index is not None:
+                search_base_str += f",map_index={map_index}"
+            if run_id is not None:
+                search_str = f"{search_base_str},run_id={run_id}"
+                pod_combined_search_str_to_pod_map[search_str] = pod
+        return pod_combined_search_str_to_pod_map
+
     @provide_session
     def clear_not_launched_queued_tasks(self, session: Session = NEW_SESSION) -> None:
         """
@@ -218,32 +248,7 @@ class KubernetesExecutor(BaseExecutor):
             if not queued_tis:
                 return
 
-            # airflow worker label selector batch call
-            kwargs = {"label_selector": f"airflow-worker={self._make_safe_label_value(str(self.job_id))}"}
-            if self.kube_config.kube_client_request_args:
-                kwargs.update(self.kube_config.kube_client_request_args)
-            pod_list = self._list_pods(kwargs)
-
-            # create a set against pod query label fields
-            label_search_set = set()
-            for pod in pod_list:
-                dag_id = pod.metadata.labels.get("dag_id", None)
-                task_id = pod.metadata.labels.get("task_id", None)
-                airflow_worker = pod.metadata.labels.get("airflow-worker", None)
-                map_index = pod.metadata.labels.get("map_index", None)
-                run_id = pod.metadata.labels.get("run_id", None)
-                execution_date = pod.metadata.labels.get("execution_date", None)
-                if dag_id is None or task_id is None or airflow_worker is None:
-                    continue
-                label_search_base_str = f"dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker}"
-                if map_index is not None:
-                    label_search_base_str += f",map_index={map_index}"
-                if run_id is not None:
-                    label_search_str = f"{label_search_base_str},run_id={run_id}"
-                    label_search_set.add(label_search_str)
-                if execution_date is not None:
-                    label_search_str = f"{label_search_base_str},execution_date={execution_date}"
-                    label_search_set.add(label_search_str)
+            pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
 
             for ti in queued_tis:
                 self.log.debug("Checking task instance %s", ti)
@@ -253,24 +258,13 @@ class KubernetesExecutor(BaseExecutor):
                     continue
 
                 # Build the pod selector
-                base_label_selector = (
-                    f"dag_id={self._make_safe_label_value(ti.dag_id)},"
-                    f"task_id={self._make_safe_label_value(ti.task_id)},"
-                    f"airflow-worker={self._make_safe_label_value(str(ti.queued_by_job_id))}"
-                )
+                base_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
                 if ti.map_index >= 0:
                     # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
-                    base_label_selector += f",map_index={ti.map_index}"
+                    base_selector += f",map_index={ti.map_index}"
 
-                # Try run_id first
-                label_search_str = f"{base_label_selector},run_id={self._make_safe_label_value(ti.run_id)}"
-                if label_search_str in label_search_set:
-                    continue
-                # Fallback to old style of using execution_date
-                label_search_str = (
-                    f"{base_label_selector},execution_date={self._make_safe_label_value(ti.execution_date)}"
-                )
-                if label_search_str in label_search_set:
+                search_str = f"{base_selector},run_id={ti.run_id}"
+                if search_str in pod_combined_search_str_to_pod_map:
                     continue
                 self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
                 session.execute(
@@ -603,34 +597,27 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
-        readable_tis = []
+        readable_tis: list[str] = []
+        if not tis:
+            return readable_tis
+        pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         for ti in tis:
-            selector = PodGenerator.build_selector_for_k8s_executor_pod(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                try_number=ti.try_number,
-                map_index=ti.map_index,
-                run_id=ti.run_id,
-                airflow_worker=ti.queued_by_job_id,
-            )
-            namespace = self._get_pod_namespace(ti)
-            pod_list = self.kube_client.list_namespaced_pod(
-                namespace=namespace,
-                label_selector=selector,
-            ).items
-            if not pod_list:
+            # Build the pod selector
+            base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
+            if ti.map_index >= 0:
+                # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
+                base_label_selector += f",map_index={ti.map_index}"
+
+            search_str = f"{base_label_selector},run_id={ti.run_id}"
+            pod = pod_combined_search_str_to_pod_map.get(search_str, None)
+            if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
-            elif len(pod_list) > 1:
-                self.log.warning("Found multiple pods for ti %s: %s", ti, pod_list)
-                continue
             readable_tis.append(repr(ti))
-            self.kube_scheduler.delete_pod(pod_name=pod_list[0].metadata.name, namespace=namespace)
+            self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
         return readable_tis
 
     def adopt_launched_task(

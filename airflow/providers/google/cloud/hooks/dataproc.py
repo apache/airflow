@@ -59,6 +59,10 @@ if TYPE_CHECKING:
     from google.type.interval_pb2 import Interval
 
 
+class DataprocResourceIsNotReadyError(AirflowException):
+    """Raise when resource is not ready for create Dataproc cluster."""
+
+
 class DataProcJobBuilder:
     """A helper class for building Dataproc job."""
 
@@ -281,6 +285,8 @@ class DataprocHook(GoogleBaseHook):
             return operation.result(timeout=timeout, retry=result_retry)
         except Exception:
             error = operation.exception(timeout=timeout)
+            if self.check_error_for_resource_is_not_ready_msg(error.message):
+                raise DataprocResourceIsNotReadyError(error.message)
             raise AirflowException(error)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1191,6 +1197,11 @@ class DataprocHook(GoogleBaseHook):
                 )
 
         return result
+
+    def check_error_for_resource_is_not_ready_msg(self, error_msg: str) -> bool:
+        """Check that reason of error is resource is not ready."""
+        key_words = ["The resource", "is not ready"]
+        return all([word in error_msg for word in key_words])
 
 
 class DataprocAsyncHook(GoogleBaseHook):

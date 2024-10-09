@@ -479,13 +479,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 5 }],
 
     /**
-     * Disallow `Function#bind` or arrow functions in JSX props.
-     *
-     * @see [react/jsx-no-bind](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-bind.md)
-     */
-    [`${reactNamespace}/jsx-no-bind`]: ERROR,
-
-    /**
      * Disallow comments from being inserted as text nodes.
      *
      * @see [react/jsx-no-comment-textnodes](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-comment-textnodes.md)

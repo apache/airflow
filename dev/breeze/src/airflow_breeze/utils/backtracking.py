@@ -38,7 +38,7 @@ def print_backtracking_candidates():
 
     all_latest_dependencies_response = requests.get(
         "https://raw.githubusercontent.com/apache/airflow/"
-        "constraints-main/constraints-source-providers-3.8.txt"
+        "constraints-main/constraints-source-providers-3.9.txt"
     )
     all_latest_dependencies_response.raise_for_status()
     constraints_text = all_latest_dependencies_response.text

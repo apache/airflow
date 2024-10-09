@@ -548,3 +548,4 @@ The telemetry data collected is limited to the following:
 - Number of DAGs
 - Number of Airflow plugins
 - Number of timetables, Flask blueprints, Flask AppBuilder views, and Flask Appbuilder menu items from Airflow plugins
+- and information from tracking pixels like URL / IP-address as documented in the `Scarf Privacy Policy <https://about.scarf.sh/privacy-policy>`__.

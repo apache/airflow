@@ -37,7 +37,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.8, 3.9, 3.10, 3.11, 3.12)
+* Python (One of: 3.9, 3.10, 3.11, 3.12)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -187,9 +187,7 @@ This is what it shows currently:
 +-------------+---------+---------------------------------------------------------------+
 | Name        | Type    | Description                                                   |
 +=============+=========+===============================================================+
-| default     | virtual | Default environment with Python 3.8 for maximum compatibility |
-+-------------+---------+---------------------------------------------------------------+
-| airflow-38  | virtual | Environment with Python 3.8. No devel installed.              |
+| default     | virtual | Default environment with Python 3.9 for maximum compatibility |
 +-------------+---------+---------------------------------------------------------------+
 | airflow-39  | virtual | Environment with Python 3.9. No devel installed.              |
 +-------------+---------+---------------------------------------------------------------+
@@ -200,7 +198,7 @@ This is what it shows currently:
 | airflow-312 | virtual | Environment with Python 3.12. No devel installed              |
 +-------------+---------+---------------------------------------------------------------+
 
-The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.8
+The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.9
 virtualenv for maximum compatibility. You can install devel set of dependencies with it
 by running:
 
@@ -381,12 +379,12 @@ to avoid "works-for-me" syndrome, where you use different version of dependencie
 that are used in main, CI tests and by other contributors.
 
 There are different constraint files for different python versions. For example this command will install
-all basic devel requirements and requirements of google provider as last successfully tested for Python 3.8:
+all basic devel requirements and requirements of google provider as last successfully tested for Python 3.9:
 
 .. code:: bash
 
     pip install -e ".[devel,google]" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.9.txt"
 
 Make sure to use latest main for such installation, those constraints are "development constraints" and they
 are refreshed several times a day to make sure they are up to date with the latest changes in the main branch.
@@ -403,7 +401,7 @@ and install to latest supported ones by pure airflow core.
 .. code:: bash
 
     pip install -e ".[devel]" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
 
 These are examples of the development options available with the local virtualenv in your IDE:
 
