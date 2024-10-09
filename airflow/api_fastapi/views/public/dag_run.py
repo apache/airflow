@@ -28,7 +28,7 @@ from airflow.api_fastapi.serializers.dag_run import DAGRunResponse
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import DagRun
 
-dag_run_router = AirflowRouter(tags=["DagRun"])
+dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
 
 @dag_run_router.get(
