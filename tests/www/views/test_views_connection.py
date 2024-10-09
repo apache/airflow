@@ -47,7 +47,7 @@ def conn_with_extra() -> dict[str, Any]:
 
 
 @pytest.fixture(autouse=True)
-def clear_connections():
+def _clear_connections():
     with create_session() as session:
         session.query(Connection).delete()
 
