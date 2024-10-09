@@ -295,6 +295,7 @@ class TestDbApiHook:
         dbapi_hook = mock_hook(DbApiHook)
         assert isinstance(dbapi_hook.dialect, Dialect)
 
+    @pytest.mark.db_test
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_code(self):
         """
         Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
