@@ -136,11 +136,11 @@ class MongoHook(BaseHook):
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
 
-        self.allow_insecure = self.extras.pop("allow_insecure", "false").lower() == "true"
-        self.ssl_enabled = (
-            self.extras.get("ssl", "false").lower() == "true"
-            or self.extras.get("tls", "false").lower() == "true"
-        )
+        allow_insecure = self.extras.pop("allow_insecure", "false")
+        if isinstance(allow_insecure, str):
+            self.allow_insecure = allow_insecure.lower() == "true"
+        else:
+            self.allow_insecure = bool(allow_insecure)
 
         if self.ssl_enabled and not self.allow_insecure:
             # Case: HTTPS
