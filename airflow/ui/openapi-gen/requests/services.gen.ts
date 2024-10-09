@@ -19,6 +19,8 @@ import type {
   DeleteConnectionResponse,
   GetConnectionData,
   GetConnectionResponse,
+  GetConnectionsData,
+  GetConnectionsResponse,
   DeleteVariableData,
   DeleteVariableResponse,
   GetVariableData,
@@ -270,6 +272,36 @@ export class ConnectionService {
       url: "/public/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connections
+   * Get all connection entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConnections(
+    data: GetConnectionsData = {},
+  ): CancelablePromise<GetConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",

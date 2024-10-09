@@ -26,12 +26,9 @@ from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
-from pendulum.parsing.exceptions import ParserError
-from pydantic import AfterValidator
-from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
-from airflow.models import Connection, Base
+from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -156,6 +153,7 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 # SortParam Implementations
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
+
     attr_mapping = {
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
@@ -166,6 +164,7 @@ class SortParam(BaseParam[str]):
         "port": Connection.port,
         "id": Connection.id,
     }
+
     def __init__(
         self,
         allowed_attrs: list[str],
@@ -174,7 +173,6 @@ class SortParam(BaseParam[str]):
         super().__init__()
         self.allowed_attrs = allowed_attrs
         self.model = model
-
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -191,7 +189,9 @@ class SortParam(BaseParam[str]):
                 f"the attribute does not exist on the model",
             )
 
-        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
+        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(
+            self.model, lstriped_orderby
+        )
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
