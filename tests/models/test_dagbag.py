@@ -46,9 +46,10 @@ from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils import db
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

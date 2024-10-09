@@ -44,7 +44,7 @@ Create an Amazon Managed Service for Apache Flink Application
 To create an Amazon Managed Service for Apache Flink application, you can use
 :class:`~airflow.providers.amazon.aws.operators.kinesis_analytics.KinesisAnalyticsV2CreateApplicationOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_kinesis_analytics.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_kinesis_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_application]
@@ -58,7 +58,7 @@ Start an Amazon Managed Service for Apache Flink Application
 To start an Amazon Managed Service for Apache Flink application, you can use
 :class:`~airflow.providers.amazon.aws.operators.kinesis_analytics.KinesisAnalyticsV2StartApplicationOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_kinesis_analytics.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_kinesis_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_application]
@@ -72,7 +72,7 @@ Stop an Amazon Managed Service for Apache Flink Application
 To stop an Amazon Managed Service for Apache Flink application, you can use
 :class:`~airflow.providers.amazon.aws.operators.kinesis_analytics.KinesisAnalyticsV2StopApplicationOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_kinesis_analytics.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_kinesis_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_stop_application]
@@ -89,7 +89,7 @@ Wait for an Amazon Managed Service for Apache Flink Application to start
 To wait on the state of an Amazon Managed Service for Apache Flink Application to start you can use
 :class:`~airflow.providers.amazon.aws.sensors.kinesis_analytics.KinesisAnalyticsV2StartApplicationCompletedSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_kinesis_analytics.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_kinesis_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_start_application]
@@ -103,7 +103,7 @@ Wait for an Amazon Managed Service for Apache Flink Application to stop
 To wait on the state of an Amazon Managed Service for Apache Flink Application to stop you can use
 :class:`~airflow.providers.amazon.aws.sensors.kinesis_analytics.KinesisAnalyticsV2StopApplicationCompletedSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_kinesis_analytics.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_kinesis_analytics.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_stop_application]

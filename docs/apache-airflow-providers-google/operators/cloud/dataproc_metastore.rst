@@ -33,7 +33,7 @@ For more information about the available fields to pass when creating a service,
 
 A simple service configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_metastore_create_service]
@@ -42,7 +42,7 @@ A simple service configuration can look as followed:
 With this configuration we can create the service:
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreCreateServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_create_service_operator]
@@ -55,7 +55,7 @@ To get a service you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreGetServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_get_service_operator]
@@ -69,7 +69,7 @@ For more information on updateMask and other parameters take a look at `Dataproc
 
 An example of a new service config and the updateMask:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_metastore_update_service]
@@ -78,7 +78,7 @@ An example of a new service config and the updateMask:
 To update a service you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreUpdateServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_update_service_operator]
@@ -91,7 +91,7 @@ To delete a service you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_delete_service_operator]
@@ -104,7 +104,7 @@ To export metadata you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreExportMetadataOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_export_metadata_operator]
@@ -117,7 +117,7 @@ To restore a service you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreRestoreServiceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_restore_service_operator]
@@ -131,7 +131,7 @@ For more information about the available fields to pass when creating a metadata
 
 A simple metadata import configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_metastore_create_metadata_import]
@@ -140,7 +140,7 @@ A simple metadata import configuration can look as followed:
 To create a metadata import you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreCreateMetadataImportOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_create_metadata_import_operator]
@@ -154,7 +154,7 @@ For more information about the available fields to pass when creating a backup, 
 
 A simple backup configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_metastore_create_backup]
@@ -163,7 +163,7 @@ A simple backup configuration can look as followed:
 With this configuration we can create the backup:
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreCreateBackupOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_create_backup_operator]
@@ -176,7 +176,7 @@ To delete a backup you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDeleteBackupOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_delete_backup_operator]
@@ -189,7 +189,7 @@ To list backups you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreListBackupsOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_backup.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_list_backups_operator]
@@ -201,7 +201,7 @@ Check Hive partitions existence
 To check that Hive partitions have been created in the Metastore for a given table you can use:
 :class:`~airflow.providers.google.cloud.sensors.dataproc_metastore.MetastoreHivePartitionSensor`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_hive_partition_sensor.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataproc_metastore/example_dataproc_metastore_hive_partition_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_hive_partition_sensor]

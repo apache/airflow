@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/trino/index>
+    System Tests <_api/tests/system/trino/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-trino/|version|/tests/system/providers/trino>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-trino/|version|/providers/tests/system/trino>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-trino/>
     Installing from sources <installing-providers-from-sources>
 

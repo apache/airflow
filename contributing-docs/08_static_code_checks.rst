@@ -212,8 +212,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                           | *       |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-providers-init-file-missing                         | Provider init file is missing                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left    |         |

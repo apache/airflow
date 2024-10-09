@@ -41,7 +41,7 @@ The object can be presented as a compatible dictionary also.
 
 Here is an example of instance
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :start-after: [START howto_operator_memcached_instance]
     :end-before: [END howto_operator_memcached_instance]
@@ -56,7 +56,7 @@ Create a instance is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedCreateInstanceOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_instance_memcached]
@@ -72,7 +72,7 @@ Delete an instance is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedDeleteInstanceOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_instance_memcached]
@@ -88,7 +88,7 @@ Get an instance is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedGetInstanceOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_instance_memcached]
@@ -104,7 +104,7 @@ List instances is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedListInstancesOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_instances_memcached]
@@ -120,7 +120,7 @@ Updating an instance is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedUpdateInstanceOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_instance_memcached]
@@ -138,7 +138,7 @@ and
 :class:`~airflow.providers.google.cloud.operators.cloud_memorystore.CloudMemorystoreMemcachedApplyParametersOperator`
 operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_memorystore/example_cloud_memorystore_memcached.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_and_apply_parameters_memcached]

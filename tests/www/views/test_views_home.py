@@ -27,10 +27,15 @@ from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
 from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
-from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
-from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
-from tests.test_utils.permissions import _resource_name
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
+from dev.tests_common.test_utils.permissions import _resource_name
+from dev.tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 pytestmark = pytest.mark.db_test
 

@@ -51,7 +51,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/opensearch/index>
+    System Tests <_api/tests/system/opensearch/index>
 
 .. toctree::
     :hidden:

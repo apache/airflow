@@ -22,7 +22,8 @@ from unittest import mock
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
 

@@ -34,7 +34,7 @@ Use the
 
 Below is an example of using this operator to get a Sharepoint site.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msgraph.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_msgraph.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_graph_site]
@@ -42,7 +42,7 @@ Below is an example of using this operator to get a Sharepoint site.
 
 Below is an example of using this operator to get a Sharepoint site pages.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msgraph.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_msgraph.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_graph_site_pages]
@@ -50,7 +50,7 @@ Below is an example of using this operator to get a Sharepoint site pages.
 
 Below is an example of using this operator to get PowerBI workspaces.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_powerbi.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_powerbi_workspaces]
@@ -58,7 +58,7 @@ Below is an example of using this operator to get PowerBI workspaces.
 
 Below is an example of using this operator to get PowerBI workspaces info.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_powerbi.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_powerbi_workspaces_info]
@@ -66,7 +66,7 @@ Below is an example of using this operator to get PowerBI workspaces info.
 
 Below is an example of using this operator to refresh PowerBI dataset.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_powerbi.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_powerbi_refresh_dataset]
@@ -74,7 +74,7 @@ Below is an example of using this operator to refresh PowerBI dataset.
 
 Below is an example of using this operator to create an item schedule in Fabric.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msfabric.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_msfabric.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_ms_fabric_create_item_schedule]

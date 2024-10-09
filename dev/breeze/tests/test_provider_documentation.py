@@ -217,7 +217,7 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
 def test_verify_changelog_exists():
     assert (
         _verify_changelog_exists("asana")
-        == AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / "asana" / "CHANGELOG.rst"
+        == AIRFLOW_SOURCES_ROOT / "providers" / "src" / "airflow" / "providers" / "asana" / "CHANGELOG.rst"
     )
 
 

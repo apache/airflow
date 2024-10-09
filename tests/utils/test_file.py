@@ -27,7 +27,8 @@ import pytest
 from airflow.utils import file as file_utils
 from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 
 def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None):

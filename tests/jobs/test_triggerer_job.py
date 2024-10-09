@@ -47,7 +47,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import reset_logging
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 

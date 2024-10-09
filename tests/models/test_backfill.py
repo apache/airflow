@@ -33,7 +33,13 @@ from airflow.models.backfill import (
 )
 from airflow.operators.python import PythonOperator
 from airflow.utils.state import DagRunState
-from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+from dev.tests_common.test_utils.db import (
+    clear_db_backfills,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

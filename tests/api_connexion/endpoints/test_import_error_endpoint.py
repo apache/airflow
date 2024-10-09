@@ -23,10 +23,11 @@ import pytest
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.compat import ParseImportError
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_import_errors
+
+from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from dev.tests_common.test_utils.compat import ParseImportError
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

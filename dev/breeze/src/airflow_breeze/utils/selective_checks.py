@@ -59,7 +59,7 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     AIRFLOW_SOURCES_ROOT,
     DOCS_DIR,
     SYSTEM_TESTS_PROVIDERS_ROOT,
@@ -177,7 +177,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers",
+            r"^providers/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -200,9 +200,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^airflow/providers/cncf/kubernetes/",
-            r"^tests/providers/cncf/kubernetes/",
-            r"^tests/system/providers/cncf/kubernetes/",
+            r"^providers/src/airflow/providers/cncf/kubernetes/",
+            r"^providers/tests/cncf/kubernetes/",
+            r"^providers/tests/system/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r".*\.py$",
@@ -211,9 +211,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r".*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
-            r"^airflow/providers/.*\.py$",
-            r"^tests/providers/.*\.py$",
-            r"^tests/system/providers/.*\.py$",
+            r"^providers/src/airflow/providers/.*\.py$",
+            r"^providers/tests/.*\.py$",
+            r"^providers/tests/system/.*\.py$",
         ],
         FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
             r"^docs/.*\.py$",
@@ -225,6 +225,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^.pre-commit-config.yaml$",
             r"^airflow",
             r"^chart",
+            r"^providers/src/",
+            r"^providers/tests/",
             r"^tests",
             r"^kubernetes_tests",
         ],
@@ -239,7 +241,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests/test_utils/",
+            r"^dev/tests_common/.*\.py$",
         ],
     }
 )
@@ -249,12 +251,12 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^airflow/providers/.*",
+            r"^providers/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
             r"^provider_packages/.*",
-            r"^tests/providers/.*",
-            r"^tests/system/providers/.*",
+            r"^providers/tests/.*",
+            r"^providers/tests/system/.*",
             r"^tests/dags/test_imports.py",
         ]
     }
@@ -286,9 +288,9 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
-            r"^airflow/providers/",
-            r"^tests/system/providers/",
-            r"^tests/providers/",
+            r"^providers/src/airflow/providers/",
+            r"^providers/tests/system/",
+            r"^providers/tests/",
         ],
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
@@ -308,7 +310,7 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
+    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
         try:
             file_path.relative_to(provider_root)
             relative_base_path = provider_root
@@ -329,7 +331,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
         if parent_dir_path == relative_base_path:
             break
         relative_path = parent_dir_path.relative_to(relative_base_path)
-        if (AIRFLOW_PROVIDERS_ROOT / relative_path / "provider.yaml").exists():
+        if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
             return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"

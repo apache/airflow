@@ -41,7 +41,7 @@ The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries again
 To execute a single SQL query against an Amazon Athena without bringing back the results to Airflow,
 please use ``AthenaOperator`` instead.
 
-.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_execute_query.py
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_execute_query]
@@ -51,7 +51,7 @@ Also, if you need to do simple data quality tests with Amazon Athena, you can us
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 
-.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]

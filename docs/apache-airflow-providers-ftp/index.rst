@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/ftp/index>
+    System Tests <_api/tests/system/ftp/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-ftp/|version|/tests/system/providers/ftp/example_ftp.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-ftp/|version|/providers/tests/system/ftp/example_ftp.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/ftp/index>
+    System Tests <_api/tests/system/ftp/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

@@ -39,7 +39,7 @@ Defining tasks
 
 In the following code we submit Spark Pi and Spark Logistic regression applications.
 
-.. exampleinclude:: /../../tests/system/providers/alibaba/example_adb_spark_batch.py
+.. exampleinclude:: /../../providers/tests/system/alibaba/example_adb_spark_batch.py
     :language: python
     :start-after: [START howto_operator_adb_spark_batch]
     :end-before: [END howto_operator_adb_spark_batch]

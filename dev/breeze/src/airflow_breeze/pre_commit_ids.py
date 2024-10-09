@@ -71,7 +71,6 @@ PRE_COMMIT_LIST = [
     "check-provide-create-sessions-imports",
     "check-provider-docs-valid",
     "check-provider-yaml-valid",
-    "check-providers-init-file-missing",
     "check-providers-subpackages-init-file-exist",
     "check-pydevd-left-in-code",
     "check-revision-heads-map",

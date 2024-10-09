@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/livy/index>
+    System Tests <_api/tests/system/apache/livy/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/tests/system/providers/apache/livy/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/providers/tests/system/apache/livy/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-livy/>
     Installing from sources <installing-providers-from-sources>
 

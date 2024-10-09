@@ -40,7 +40,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/beam/index>
+    System Tests <_api/tests/system/apache/beam/index>
 
 .. toctree::
     :hidden:
@@ -48,7 +48,7 @@
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-beam/>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/tests/system/providers/apache/beam>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-beam/|version|/providers/tests/system/apache/beam>
 
 .. toctree::
     :hidden:

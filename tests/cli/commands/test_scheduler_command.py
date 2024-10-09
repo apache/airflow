@@ -29,7 +29,8 @@ from airflow.cli.commands import scheduler_command
 from airflow.executors import executor_loader
 from airflow.utils.scheduler_health import HealthServer, serve_health_check
 from airflow.utils.serve_logs import serve_logs
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

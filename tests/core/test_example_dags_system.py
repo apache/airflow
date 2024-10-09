@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.test_utils.system_tests_class import SystemTest
+from dev.tests_common.test_utils.system_tests_class import SystemTest
 
 
 @pytest.mark.system("core")

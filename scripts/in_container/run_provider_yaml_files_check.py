@@ -74,6 +74,7 @@ if __name__ != "__main__":
     )
 
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
+PROVIDERS_SRC = ROOT_DIR / "providers" / "src"
 DOCS_DIR = ROOT_DIR.joinpath("docs")
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR.joinpath("airflow", "provider.yaml.schema.json")
 PROVIDER_ISSUE_TEMPLATE_PATH = ROOT_DIR.joinpath(
@@ -97,11 +98,13 @@ suspended_logos: set[str] = set()
 suspended_integrations: set[str] = set()
 
 
-def _filepath_to_module(filepath: pathlib.Path) -> str:
-    p = filepath.resolve().relative_to(ROOT_DIR).as_posix()
-    if p.endswith(".py"):
-        p = p[:-3]
-    return p.replace("/", ".")
+def _filepath_to_module(filepath: pathlib.Path | str) -> str:
+    if isinstance(filepath, str):
+        filepath = pathlib.Path(filepath)
+    if filepath.name == "provider.yaml":
+        filepath = filepath.parent
+    p = filepath.resolve().relative_to(PROVIDERS_SRC).with_suffix("")
+    return p.as_posix().replace("/", ".")
 
 
 def _load_schema() -> dict[str, Any]:
@@ -270,8 +273,8 @@ def check_if_objects_exist_and_belong_to_package(
 
 
 def parse_module_data(provider_data, resource_type, yaml_file_path):
-    package_dir = ROOT_DIR.joinpath(yaml_file_path).parent
-    provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+    provider_dir = pathlib.Path(yaml_file_path).parent
+    package_dir = ROOT_DIR.joinpath(provider_dir)
     py_files = itertools.chain(
         package_dir.glob(f"**/{resource_type}/*.py"),
         package_dir.glob(f"{resource_type}/*.py"),
@@ -280,7 +283,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
     )
     expected_modules = {_filepath_to_module(f) for f in py_files if f.name != "__init__.py"}
     resource_data = provider_data.get(resource_type, [])
-    return expected_modules, provider_package, resource_data
+    return expected_modules, _filepath_to_module(provider_dir), resource_data
 
 
 def run_check(title: str):
@@ -398,12 +401,9 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]) -> tupl
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
         try:
-            package_name = os.fspath(ROOT_DIR.joinpath(yaml_file_path).parent.relative_to(ROOT_DIR)).replace(
-                "/", "."
-            )
             assert_sets_equal(
                 set(expected_modules),
-                f"Found list of transfer modules in provider package: {package_name}",
+                f"Found list of transfer modules in provider package: {provider_package}",
                 set(current_modules),
                 f"Currently configured list of transfer modules in {yaml_file_path}",
             )
@@ -423,7 +423,7 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
     num_errors = 0
     num_connection_types = 0
     for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        provider_package = _filepath_to_module(yaml_file_path)
         connection_types = provider_data.get(resource_type)
         if connection_types:
             num_connection_types += len(connection_types)
@@ -440,7 +440,7 @@ def check_plugin_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_plugins = 0
     for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        provider_package = _filepath_to_module(yaml_file_path)
         plugins = provider_data.get(resource_type)
         if plugins:
             num_plugins += len(plugins)
@@ -460,7 +460,7 @@ def check_extra_link_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_extra_links = 0
     for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        provider_package = _filepath_to_module(yaml_file_path)
         extra_links = provider_data.get(resource_type)
         if extra_links:
             num_extra_links += len(extra_links)
@@ -476,7 +476,7 @@ def check_notification_classes(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_notifications = 0
     for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        provider_package = _filepath_to_module(yaml_file_path)
         notifications = provider_data.get(resource_type)
         if notifications:
             num_notifications += len(notifications)
@@ -692,7 +692,9 @@ if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
+    provider_files_pattern = pathlib.Path(ROOT_DIR, "providers", "src", "airflow", "providers").rglob(
+        "provider.yaml"
+    )
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
     if len(sys.argv) > 1:
         paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]

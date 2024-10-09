@@ -53,14 +53,14 @@ an Integrated Developer Environment (IDE).
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/dbt/cloud/index>
+    System Tests <_api/tests/system/dbt/cloud/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/tests/system/providers/dbt/cloud/example_dbt_cloud.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/providers/tests/system/dbt/cloud/example_dbt_cloud.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dbt-cloud/>
     Installing from sources <installing-providers-from-sources>
 

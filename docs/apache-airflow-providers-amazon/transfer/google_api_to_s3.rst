@@ -38,7 +38,7 @@ Google Sheets to Amazon S3 transfer operator
 
 This example loads data from Google Sheets and save it to an Amazon S3 file.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_google_api_sheets_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_google_api_sheets_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_google_api_sheets_to_s3]
@@ -57,7 +57,7 @@ It searches for up to 50 videos (due to pagination) in a given time range
 (``YOUTUBE_VIDEO_PUBLISHED_AFTER``, ``YOUTUBE_VIDEO_PUBLISHED_BEFORE``) on a YouTube channel (``YOUTUBE_CHANNEL_ID``)
 saves the response in Amazon S3 and also pushes the data to xcom.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_google_api_youtube_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_google_api_youtube_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_google_api_youtube_search_to_s3]
@@ -66,7 +66,7 @@ saves the response in Amazon S3 and also pushes the data to xcom.
 It passes over the YouTube IDs to the next request which then gets the
 information (``YOUTUBE_VIDEO_FIELDS``) for the requested videos and saves them in Amazon S3 (``S3_BUCKET_NAME``).
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_google_api_youtube_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_google_api_youtube_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_google_api_youtube_list_to_s3]

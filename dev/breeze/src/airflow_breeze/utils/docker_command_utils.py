@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+from functools import lru_cache
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 from typing import TYPE_CHECKING
 
@@ -91,6 +92,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
+    ("providers", "/opt/airflow/providers"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
     ("scripts", "/opt/airflow/scripts"),
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
@@ -502,6 +504,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
         get_console().print("[success]Executable permissions on entrypoints are OK[/]")
 
 
+@lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
     check_docker_version(quiet)

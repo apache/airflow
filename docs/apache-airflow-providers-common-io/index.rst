@@ -51,14 +51,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/common/io/index>
+    System Tests <_api/tests/system/common/io/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/tests/system/providers/common/io>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/providers/tests/system/common/io>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-io/>
     Installing from sources <installing-providers-from-sources>
 

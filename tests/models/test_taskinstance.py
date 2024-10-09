@@ -99,11 +99,12 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_connections, clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+
+from dev.tests_common.test_utils import db
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from dev.tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

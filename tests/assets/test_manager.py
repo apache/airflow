@@ -48,7 +48,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 @pytest.fixture
 def clear_assets():
-    from tests.test_utils.db import clear_db_assets
+    from dev.tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield

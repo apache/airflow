@@ -46,7 +46,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited read permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
@@ -55,7 +55,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
@@ -64,7 +64,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
@@ -74,7 +74,7 @@ Admin
 ``Admin`` users have all possible permissions, including granting or revoking permissions from
 other users. ``Admin`` users have ``Op`` permission plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_admin_perms]
     :end-before: [END security_admin_perms]

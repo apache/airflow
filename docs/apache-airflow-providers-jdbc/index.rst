@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/jdbc/index>
+    System Tests <_api/tests/system/jdbc/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/|version|/tests/system/providers/jdbc/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/|version|/providers/tests/system/jdbc/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 

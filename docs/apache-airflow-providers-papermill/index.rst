@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/papermill/index>
+    System Tests <_api/tests/system/papermill/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/tests/system/providers/papermill>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/providers/tests/system/papermill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
     Installing from sources <installing-providers-from-sources>
 

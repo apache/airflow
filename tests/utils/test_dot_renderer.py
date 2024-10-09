@@ -29,8 +29,9 @@ from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
-from tests.test_utils.compat import BashOperator
-from tests.test_utils.db import clear_db_dags
+
+from dev.tests_common.test_utils.compat import BashOperator
+from dev.tests_common.test_utils.db import clear_db_dags
 
 START_DATE = timezone.utcnow()
 
