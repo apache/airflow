@@ -45,7 +45,7 @@ def _clean():
     clear_db_runs()
 
 
-# freeze time fixture so that it is applied before `make_dag_runs` is!
+# freeze time fixture so that it is applied before `_make_dag_runs` is!
 @pytest.fixture
 def _freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2023-05-02T00:00:00+00:00", tick=False)
@@ -99,7 +99,7 @@ def _make_dag_runs(dag_maker, session, time_machine):
     session.flush()
 
 
-@pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+@pytest.mark.usefixtures("_freeze_time_for_dagruns", "_make_dag_runs")
 def test_historical_metrics_data(admin_client, session, time_machine):
     resp = admin_client.get(
         "/object/historical_metrics_data?start_date=2023-01-01T00:00&end_date=2023-08-02T00:00",
@@ -127,7 +127,7 @@ def test_historical_metrics_data(admin_client, session, time_machine):
     }
 
 
-@pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
+@pytest.mark.usefixtures("_freeze_time_for_dagruns", "_make_dag_runs")
 def test_historical_metrics_data_date_filters(admin_client, session):
     resp = admin_client.get(
         "/object/historical_metrics_data?start_date=2023-02-02T00:00&end_date=2023-06-02T00:00",

@@ -191,7 +191,7 @@ def _freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
 
 
-@pytest.mark.usefixtures("freeze_time_for_dagruns")
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
 def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
