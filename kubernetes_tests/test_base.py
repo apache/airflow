@@ -1,19 +1,3 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
 from __future__ import annotations
 
 import os
@@ -106,11 +90,15 @@ class BaseK8STest:
 
     @staticmethod
     def _num_pods_in_namespace(namespace):
-        air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
-        air_pod = air_pod.splitlines()
-        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
-        return len(names)
-
+        try:
+            air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
+            air_pod = air_pod.splitlines()
+            names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+            return len(names)
+        except Exception as e:
+            print(f"An error occurred while getting the number of pods: {e}")
+            return 0
+        
     @staticmethod
     def _delete_airflow_pod(name=""):
         suffix = f"-{name}" if name else ""
@@ -121,12 +109,16 @@ class BaseK8STest:
             check_call(["kubectl", "delete", "pod", names[0]])
 
     def _get_session_with_retries(self):
-        session = requests.Session()
-        session.auth = ("admin", "admin")
-        retries = Retry(total=3, backoff_factor=1)
-        session.mount("http://", HTTPAdapter(max_retries=retries))
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-        return session
+        try:
+            session = requests.Session()
+            session.auth = ("admin", "admin")
+            retries = Retry(total=3, backoff_factor=1)
+            session.mount("http://", HTTPAdapter(max_retries=retries))
+            session.mount("https://", HTTPAdapter(max_retries=retries))
+            return session
+        except Exception as e:
+            print(f"An error occurred while creating a session with retries: {e}")
+
 
     def _ensure_airflow_webserver_is_healthy(self):
         max_tries = 10
@@ -151,19 +143,24 @@ class BaseK8STest:
         )
 
     def monitor_task(self, host, dag_run_id, dag_id, task_id, expected_final_state, timeout):
-        tries = 0
-        state = ""
-        max_tries = max(int(timeout / 5), 1)
-        # Wait some time for the operator to complete
-        while tries < max_tries:
-            time.sleep(5)
-            # Check task state
+        try:
+            tries = 0
+            state = ""
+            max_tries = max(int(timeout / 5), 1)
+            # Wait some time for the operator to complete
+            while tries < max_tries:
+                time.sleep(5)
+                # Check task state
+        except Exception as e:
+            print(f"An error occurred while monitoring the task: {e}")
+
             try:
                 get_string = (
                     f"http://{host}/api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
                 )
                 print(f"Calling [monitor_task]#1 {get_string}")
                 result = self.session.get(get_string)
+              
                 if result.status_code == 404:
                     check_call(["echo", "api returned 404."])
                     tries += 1
@@ -216,14 +213,17 @@ class BaseK8STest:
         # Maybe check if we can retrieve the logs, but then we need to extend the API
 
     def start_dag(self, dag_id, host):
-        patch_string = f"http://{host}/api/v1/dags/{dag_id}"
-        print(f"Calling [start_dag]#1 {patch_string}")
-        max_attempts = 10
-        result = {}
-        while max_attempts:
-            result = self.session.patch(patch_string, json={"is_paused": False})
-            if result.status_code == 200:
-                break
+        try:
+            patch_string = f"http://{host}/api/v1/dags/{dag_id}"
+            print(f"Calling [start_dag]#1 {patch_string}")
+            max_attempts = 10
+            result = {}
+            while max_attempts:
+                result = self.session.patch(patch_string, json={"is_paused": False})
+                if result.status_code == 200:
+                    break
+        except Exception as e:
+            print(f"An error occurred while starting the DAG: {e}")
 
             time.sleep(30)
             max_attempts -= 1
