@@ -35,6 +35,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import get_creden
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.trigger_handler import ctx_indiv_trigger
 from airflow.utils.types import NOTSET, ArgNotSet
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from google.auth.credentials import Credentials
@@ -82,7 +83,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     LABEL_TASK_ID = "task_id"
     LABEL_DAG_ID = "dag_id"
-    LABEL_LOGICAL_DATE = "logical_date"
+    LABEL_LOGICAL_DATE = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
     LABEL_TRY_NUMBER = "try_number"
     LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
     LOG_NAME = "Google Stackdriver"
@@ -338,7 +339,9 @@ class StackdriverTaskHandler(logging.Handler):
         return {
             cls.LABEL_TASK_ID: ti.task_id,
             cls.LABEL_DAG_ID: ti.dag_id,
-            cls.LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat()),
+            cls.LABEL_LOGICAL_DATE: str(ti.logical_date.isoformat())
+            if AIRFLOW_V_3_0_PLUS
+            else str(ti.execution_date.isoformat()),
             cls.LABEL_TRY_NUMBER: str(ti.try_number),
         }
 
