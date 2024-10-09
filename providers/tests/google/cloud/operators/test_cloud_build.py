@@ -21,6 +21,7 @@ This module contains various unit tests for GCP Cloud Build Operators
 
 from __future__ import annotations
 
+import functools
 import json
 import tempfile
 from copy import deepcopy
@@ -404,18 +405,37 @@ class TestBuildProcessor:
         assert body == expected_body
 
 
+@pytest.fixture
+def create_task_instance(create_task_instance_of_operator, session):
+    return functools.partial(
+        create_task_instance_of_operator,
+        session=session,
+        operator_class=CloudBuildCreateBuildOperator,
+        dag_id="adhoc_airflow",
+        logical_date=datetime(2022, 1, 1, 0, 0, 0),
+    )
+
+
+def set_execute_complete(session, ti, **next_kwargs):
+    ti.next_method = "execute_complete"
+    ti.next_kwargs = next_kwargs
+    session.flush()
+
+
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
-def test_async_create_build_fires_correct_trigger_should_execute_successfully(mock_hook):
+def test_async_create_build_fires_correct_trigger_should_execute_successfully(
+    mock_hook, create_task_instance, session
+):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
 
-    operator = CloudBuildCreateBuildOperator(
+    ti = create_task_instance(
         build=BUILD,
         task_id="id",
         deferrable=True,
     )
 
     with pytest.raises(TaskDeferred) as exc:
-        operator.execute(create_context(operator))
+        ti.task.execute({"ti": ti})
 
     assert isinstance(
         exc.value.trigger, CloudBuildCreateBuildTrigger
@@ -444,18 +464,21 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
 
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
-def test_async_create_build_correct_logging_should_execute_successfully(mock_hook):
+def test_async_create_build_correct_logging_should_execute_successfully(
+    mock_hook, create_task_instance, session
+):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
     mock_hook.return_value.get_build.return_value = Build()
 
-    operator = CloudBuildCreateBuildOperator(
+    ti = create_task_instance(
         build=BUILD,
         task_id="id",
         deferrable=True,
     )
-    with mock.patch.object(operator.log, "info") as mock_log_info:
-        operator.execute_complete(
-            context=create_context(operator),
+
+    with mock.patch.object(ti.task.log, "info") as mock_log_info:
+        ti.task.execute_complete(
+            context={"ti": ti},
             event={
                 "instance": TEST_BUILD_INSTANCE,
                 "status": "success",
@@ -463,6 +486,7 @@ def test_async_create_build_correct_logging_should_execute_successfully(mock_hoo
                 "id_": BUILD_ID,
             },
         )
+
     mock_log_info.assert_called_with("Cloud Build completed with response %s ", "Build completed")
 
 
