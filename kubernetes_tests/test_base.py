@@ -123,7 +123,12 @@ class BaseK8STest:
     def _get_session_with_retries(self):
         session = requests.Session()
         session.auth = ("admin", "admin")
-        retries = Retry(total=3, backoff_factor=1)
+        retries = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[404],
+            allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
+        )
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
         return session
