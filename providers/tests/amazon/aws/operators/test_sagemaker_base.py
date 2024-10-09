@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 CONFIG: dict = {
     "key1": "1",
@@ -179,12 +180,20 @@ class TestSageMakerExperimentOperator:
             task_id="tid",
             dag=dag,
         )
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            logical_date=logical_date,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
