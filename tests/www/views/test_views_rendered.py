@@ -28,7 +28,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.variable import Variable
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
@@ -36,7 +35,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.conftest import initial_db_init
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
