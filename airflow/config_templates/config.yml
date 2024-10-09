@@ -486,9 +486,7 @@ core:
     strict_asset_uri_validation:
       description: |
         Asset URI validation should raise an exception if it is not compliant with AIP-60.
-        By default this configuration is false, meaning that Airflow 2.x only warns the user.
-        In Airflow 3, this configuration will be enabled by default.
-      default: "False"
+      default: "True"
       example: ~
       version_added: 2.9.2
       type: boolean

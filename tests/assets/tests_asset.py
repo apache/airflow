@@ -39,7 +39,6 @@ from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
-from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -492,16 +491,6 @@ def _mock_get_uri_normalizer_noop(normalized_scheme):
 
 
 @patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
-@patch("airflow.assets.warnings.warn")
-def test_sanitize_uri_raises_warning(mock_warn):
-    _sanitize_uri("postgres://localhost:5432/database.schema.table")
-    msg = mock_warn.call_args.args[0]
-    assert "The Asset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
-    assert "In Airflow 3, this will raise an exception." in msg
-
-
-@patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
-@conf_vars({("core", "strict_asset_uri_validation"): "True"})
 def test_sanitize_uri_raises_exception():
     with pytest.raises(ValueError) as e_info:
         _sanitize_uri("postgres://localhost:5432/database.schema.table")

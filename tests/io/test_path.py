@@ -406,7 +406,7 @@ class TestFs:
         attach("s3", fs=FakeRemoteFileSystem())
 
         p = "s3"
-        f = "/tmp/foo"
+        f = "bucket/object"
         i = Asset(uri=f"{p}://{f}", extra={"foo": "bar"})
         o = ObjectStoragePath(i)
         assert o.protocol == p
