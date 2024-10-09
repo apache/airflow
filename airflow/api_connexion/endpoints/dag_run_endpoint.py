@@ -39,6 +39,10 @@ from airflow.api_connexion.parameters import (
     format_datetime,
     format_parameters,
 )
+from airflow.api_connexion.schemas.asset_schema import (
+    AssetEventCollection,
+    asset_event_collection_schema,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     DAGRunCollectionSchema,
@@ -49,10 +53,6 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
     set_dagrun_note_form_schema,
     set_dagrun_state_form_schema,
-)
-from airflow.api_connexion.schemas.dataset_schema import (
-    DatasetEventCollection,
-    dataset_event_collection_schema,
 )
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
@@ -112,12 +112,10 @@ def get_dag_run(
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
-def get_upstream_dataset_events(
-    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
-) -> APIResponse:
-    """If dag run is dataset-triggered, return the dataset events that triggered it."""
+def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
             DagRun.dag_id == dag_id,
@@ -130,8 +128,8 @@ def get_upstream_dataset_events(
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
     events = dag_run.consumed_dataset_events
-    return dataset_event_collection_schema.dump(
-        DatasetEventCollection(dataset_events=events, total_entries=len(events))
+    return asset_event_collection_schema.dump(
+        AssetEventCollection(asset_events=events, total_entries=len(events))
     )
 
 

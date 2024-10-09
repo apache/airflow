@@ -16,20 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { useCallback, useMemo } from "react";
-
 import { useSearchParams } from "react-router-dom";
-import type { TableState } from "./types";
-import { searchParamsToState, stateToSearchParams } from "./searchParams";
 
-export const defaultTableState: TableState = {
+import { searchParamsToState, stateToSearchParams } from "./searchParams";
+import type { TableState } from "./types";
+
+export const defaultTableState = {
   pagination: {
     pageIndex: 0,
     pageSize: 50,
   },
   sorting: [],
-};
+} as const satisfies TableState;
 
 export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,7 +39,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         replace: true,
       });
     },
-    [setSearchParams]
+    [setSearchParams],
   );
 
   const tableURLState = useMemo(
@@ -49,11 +48,11 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
         ...defaultTableState,
         ...defaultState,
       }),
-    [searchParams, defaultState]
+    [searchParams, defaultState],
   );
 
   return {
-    tableURLState,
     setTableURLState: handleStateChange,
+    tableURLState,
   };
 };

@@ -25,16 +25,16 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryDeleteDatasetOperator,
     BigQueryGetDatasetOperator,
     BigQueryUpdateDatasetOperator,
 )
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "bigquery_dataset"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"

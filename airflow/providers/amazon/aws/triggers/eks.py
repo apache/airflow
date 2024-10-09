@@ -16,12 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
@@ -235,17 +234,8 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region: str | None = None,
         region_name: str | None = None,
     ):
-        if region is not None:
-            warnings.warn(
-                "please use region_name param instead of region",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            region_name = region
-
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
             waiter_name="fargate_profile_active",
@@ -282,17 +272,8 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region: str | None = None,
         region_name: str | None = None,
     ):
-        if region is not None:
-            warnings.warn(
-                "please use region_name param instead of region",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            region_name = region
-
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
             waiter_name="fargate_profile_deleted",

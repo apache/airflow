@@ -42,7 +42,7 @@ from airflow.providers.google.cloud.sensors.dataflow import (
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_go_async"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 

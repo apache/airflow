@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 import ast
-import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -227,11 +226,6 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param tags: Optional list of key value pair to associate with the notebook execution.
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
-
-    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
-        Defaults to 25 * 60 seconds. (Deprecated.  Please use waiter_max_attempts.)
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
-        Defaults to 60 seconds. (Deprecated.  Please use waiter_delay.)
     """
 
     template_fields: Sequence[str] = (
@@ -261,35 +255,10 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         tags: list | None = None,
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
-        waiter_countdown: int | None = None,
-        waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
     ):
-        if waiter_check_interval_seconds:
-            warnings.warn(
-                "The parameter `waiter_check_interval_seconds` has been deprecated to "
-                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            waiter_check_interval_seconds = 60
-        if waiter_countdown:
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            # waiter_countdown defaults to never timing out, which is not supported
-            # by boto waiters, so we will set it here to "a very long time" for now.
-            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-
         super().__init__(**kwargs)
         self.editor_id = editor_id
         self.relative_path = relative_path
@@ -302,7 +271,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         self.cluster_id = cluster_id
         self.aws_conn_id = aws_conn_id
         self.waiter_max_attempts = waiter_max_attempts or 25
-        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
+        self.waiter_delay = waiter_delay or 60
         self.master_instance_security_group_id = master_instance_security_group_id
 
     def execute(self, context: Context):
@@ -371,11 +340,6 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         maintained on each worker node).
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
-
-    :param waiter_countdown: Total amount of time the operator will wait for the notebook to stop.
-        Defaults to 25 * 60 seconds. (Deprecated.  Please use waiter_max_attempts.)
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the notebook.
-        Defaults to 60 seconds. (Deprecated.  Please use waiter_delay.)
     """
 
     template_fields: Sequence[str] = (
@@ -389,41 +353,16 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         notebook_execution_id: str,
         wait_for_completion: bool = False,
         aws_conn_id: str | None = "aws_default",
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
-        waiter_countdown: int | None = None,
-        waiter_check_interval_seconds: int | None = None,
         **kwargs: Any,
     ):
-        if waiter_check_interval_seconds:
-            warnings.warn(
-                "The parameter `waiter_check_interval_seconds` has been deprecated to "
-                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            waiter_check_interval_seconds = 60
-        if waiter_countdown:
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            # waiter_countdown defaults to never timing out, which is not supported
-            # by boto waiters, so we will set it here to "a very long time" for now.
-            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-
         super().__init__(**kwargs)
         self.notebook_execution_id = notebook_execution_id
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.waiter_max_attempts = waiter_max_attempts or 25
-        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
+        self.waiter_delay = waiter_delay or 60
 
     def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -518,7 +457,6 @@ class EmrContainerOperator(BaseOperator):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion: Whether or not to wait in the operator for the job to complete.
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
-    :param max_tries: Deprecated - use max_polling_attempts instead.
     :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param job_retry_max_attempts: Maximum number of times to retry when the EMR job fails.
@@ -551,7 +489,6 @@ class EmrContainerOperator(BaseOperator):
         aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
-        max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
         job_retry_max_attempts: int | None = None,
@@ -574,18 +511,6 @@ class EmrContainerOperator(BaseOperator):
         self.tags = tags
         self.job_id: str | None = None
         self.deferrable = deferrable
-
-        if max_tries:
-            warnings.warn(
-                f"Parameter `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
-                "in a future release.  Please use method `max_polling_attempts` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if max_polling_attempts and max_polling_attempts != max_tries:
-                raise ValueError("max_polling_attempts must be the same value as max_tries")
-            else:
-                self.max_polling_attempts = max_tries
 
     @cached_property
     def hook(self) -> EmrContainerHook:
@@ -715,11 +640,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
         completion (True)
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
-
-    :param waiter_countdown: Max. seconds to wait for jobflow completion (only in combination with
-        wait_for_completion=True, None = no limit) (Deprecated.  Please use waiter_max_attempts.)
-    :param waiter_check_interval_seconds: Number of seconds between polling the jobflow state. Defaults to 60
-        seconds. (Deprecated.  Please use waiter_delay.)
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
@@ -748,33 +668,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
         wait_for_completion: bool = False,
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
-        waiter_countdown: int | None = None,
-        waiter_check_interval_seconds: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
-        if waiter_check_interval_seconds:
-            warnings.warn(
-                "The parameter `waiter_check_interval_seconds` has been deprecated to "
-                "standardize naming conventions.  Please `use waiter_delay instead`.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            waiter_check_interval_seconds = 60
-        if waiter_countdown:
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            # waiter_countdown defaults to never timing out, which is not supported
-            # by boto waiters, so we will set it here to "a very long time" for now.
-            waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
@@ -782,7 +678,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
         self.waiter_max_attempts = waiter_max_attempts or 60
-        self.waiter_delay = waiter_delay or waiter_check_interval_seconds or 60
+        self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
 
     @cached_property
@@ -1054,10 +950,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
-        the application to start. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
-        of the application. Defaults to 60 seconds.
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the application.
@@ -1074,38 +966,14 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str | None = "aws_default",
-        waiter_countdown: int | ArgNotSet = NOTSET,
-        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        if waiter_check_interval_seconds is NOTSET:
-            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
-        else:
-            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
-                "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if waiter_countdown is NOTSET:
-            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
-        else:
-            if waiter_max_attempts is NOTSET:
-                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
-                # are of type ArgNotSet at this point.
-                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead. In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+        waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
@@ -1228,10 +1096,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
-    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
-        the job finish. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the job.
-        Defaults to 60 seconds.
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the job run.
@@ -1276,39 +1140,15 @@ class EmrServerlessStartJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str | None = "aws_default",
         name: str | None = None,
-        waiter_countdown: int | ArgNotSet = NOTSET,
-        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         enable_application_ui_links: bool = False,
         **kwargs,
     ):
-        if waiter_check_interval_seconds is NOTSET:
-            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
-        else:
-            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
-                "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if waiter_countdown is NOTSET:
-            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
-        else:
-            if waiter_max_attempts is NOTSET:
-                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
-                # are of type ArgNotSet at this point.
-                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+        waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.execution_role_arn = execution_role_arn
@@ -1566,10 +1406,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
-        the application be stopped. Defaults to 5 minutes.
-    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the
-        application. Defaults to 60 seconds.
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
@@ -1590,39 +1426,15 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str | None = "aws_default",
-        waiter_countdown: int | ArgNotSet = NOTSET,
-        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        if waiter_check_interval_seconds is NOTSET:
-            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
-        else:
-            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
-                "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if waiter_countdown is NOTSET:
-            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
-        else:
-            if waiter_max_attempts is NOTSET:
-                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
-                # are of type ArgNotSet at this point.
-                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+        waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.wait_for_completion = False if deferrable else wait_for_completion
@@ -1734,10 +1546,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for each
-        step of first,the application to be stopped, and then deleted. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
-        of the application. Defaults to 60 seconds.
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         Defaults to 25.
     :param waiter_delay: Number of seconds between polling the state of the application.
@@ -1758,39 +1566,15 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str | None = "aws_default",
-        waiter_countdown: int | ArgNotSet = NOTSET,
-        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        if waiter_check_interval_seconds is NOTSET:
-            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
-        else:
-            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
-            warnings.warn(
-                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
-                "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if waiter_countdown is NOTSET:
-            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
-        else:
-            if waiter_max_attempts is NOTSET:
-                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
-                # are of type ArgNotSet at this point.
-                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
-            warnings.warn(
-                "The parameter waiter_countdown has been deprecated to standardize "
-                "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+        waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+
         self.wait_for_delete_completion = wait_for_completion
         # super stops the app
         super().__init__(

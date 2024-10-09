@@ -106,6 +106,7 @@ with DAG(
         region=REGION,
         cluster_name=CLUSTER_NAME,
         retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+        num_retries_if_resource_is_not_ready=3,
     )
 
     # [START how_to_cloud_dataproc_submit_job_to_cluster_operator]

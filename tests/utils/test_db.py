@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import re
 from contextlib import redirect_stdout
@@ -49,6 +50,7 @@ from airflow.utils.db import (
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
+from tests.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -92,7 +94,7 @@ class TestDb:
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
             # fab version table
-            lambda t: (t[0] == "remove_table" and t[1].name == "fab_alembic_version"),
+            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
         ]
 
         for ignore in ignores:
@@ -131,7 +133,8 @@ class TestDb:
     @mock.patch("alembic.command")
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
+        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+        assert mock_alembic_command.upgrade.call_count == 2
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
@@ -200,6 +203,10 @@ class TestDb:
         assert actual == "abc"
 
     @pytest.mark.parametrize("skip_init", [False, True])
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
     @mock.patch("airflow.utils.db.drop_airflow_models")
     @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
@@ -211,6 +218,7 @@ class TestDb:
         mock_init,
         mock_drop_moved,
         mock_drop_airflow,
+        mock_fabdb_manager,
         skip_init,
     ):
         session_mock = MagicMock()
@@ -221,6 +229,14 @@ class TestDb:
             mock_init.assert_not_called()
         else:
             mock_init.assert_called_once_with(session=session_mock)
+
+    def test_resetdb_logging_level(self):
+        unset_logging_level = logging.root.level
+        logging.root.setLevel(logging.DEBUG)
+        set_logging_level = logging.root.level
+        resetdb()
+        assert logging.root.level == set_logging_level
+        assert logging.root.level != unset_logging_level
 
     def test_alembic_configuration(self):
         with mock.patch.dict(

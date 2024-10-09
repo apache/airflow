@@ -30,7 +30,12 @@ from tests.test_utils.compat import ignore_provider_compatibility_error
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
 
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_role, delete_user
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_role,
+    delete_user,
+)
+from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -43,7 +48,7 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
         role_name="Test",
         permissions=[
@@ -53,12 +58,12 @@ def configured_app(minimal_app_for_auth_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
     delete_role(app, name="TestNoPermissions")
 
 
@@ -425,6 +430,7 @@ def autoclean_admin_user(configured_app, autoclean_user_payload):
 
 class TestPostUser(TestUserEndpoint):
     def test_with_default_role(self, autoclean_username, autoclean_user_payload):
+        self.client.application.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
         response = self.client.post(
             "/auth/fab/v1/users",
             json=autoclean_user_payload,

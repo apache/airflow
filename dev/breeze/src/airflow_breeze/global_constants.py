@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import platform
 from enum import Enum
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
@@ -45,7 +45,7 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
@@ -131,7 +131,7 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
+ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -161,12 +161,12 @@ REGULAR_DOC_PACKAGES = [
 ]
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_selective_test_types_except_providers() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
 
@@ -202,7 +202,7 @@ ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
 ]
 
 
-@lru_cache(maxsize=None)
+@cache
 def all_helm_test_packages() -> list[str]:
     return sorted(
         [
@@ -263,9 +263,9 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
+CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
@@ -316,6 +316,12 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.8.2": ["3.8", "3.9", "3.10", "3.11"],
     "2.8.3": ["3.8", "3.9", "3.10", "3.11"],
     "2.9.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.9.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -408,7 +414,7 @@ def get_airflow_version():
     return airflow_version
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_SOURCES_ROOT / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
@@ -502,24 +508,24 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join([])
+CHICKEN_EGG_PROVIDERS = " ".join(["standard"])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.8.4",
-        "remove-providers": "cloudant fab edge",
+        "remove-providers": "cloudant fab edge standard",
         "run-tests": "true",
     },
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant edge",
+        "remove-providers": "cloudant edge standard",
         "run-tests": "true",
     },
     {
-        "python-version": "3.8",
+        "python-version": "3.9",
         "airflow-version": "2.10.1",
         "remove-providers": "cloudant",
         "run-tests": "true",
@@ -538,6 +544,6 @@ class GithubEvents(Enum):
     WORKFLOW_RUN = "workflow_run"
 
 
-@lru_cache(maxsize=None)
+@cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]

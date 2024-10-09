@@ -25,17 +25,17 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.translate import CloudTranslateTextOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
-DAG_ID = "example_gcp_translate"
+DAG_ID = "gcp_translate"
 
 with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "translate"],
 ) as dag:
     # [START howto_operator_translate_text]
     product_set_create = CloudTranslateTextOperator(

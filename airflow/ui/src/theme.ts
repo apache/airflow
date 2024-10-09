@@ -16,50 +16,61 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { extendTheme } from "@chakra-ui/react";
 import { tableAnatomy } from "@chakra-ui/anatomy";
-import { createMultiStyleConfigHelpers } from "@chakra-ui/react";
+import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 
-const { definePartsStyle, defineMultiStyleConfig } =
+// Chakra has bad types for this util, so is registered as unbound
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { defineMultiStyleConfig, definePartsStyle } =
   createMultiStyleConfigHelpers(tableAnatomy.keys);
 
-const baseStyle = definePartsStyle((props) => {
-  const { colorScheme: c, colorMode } = props;
-  return {
-    thead: {
-      tr: {
-        th: {
-          borderBottomWidth: 0,
+const baseStyle = definePartsStyle(() => ({
+  tbody: {
+    tr: {
+      "&:nth-of-type(even)": {
+        "th, td": {
+          borderBottomWidth: "0px",
+        },
+      },
+      "&:nth-of-type(odd)": {
+        td: {
+          background: "subtle-bg",
+        },
+        "th, td": {
+          borderBottomWidth: "0px",
+          borderColor: "subtle-bg",
         },
       },
     },
-    tbody: {
-      tr: {
-        "&:nth-of-type(odd)": {
-          "th, td": {
-            borderBottomWidth: "0px",
-            borderColor: colorMode === "light" ? `${c}.50` : `gray.900`,
-          },
-          td: {
-            background: colorMode === "light" ? `${c}.50` : `gray.900`,
-          },
-        },
-        "&:nth-of-type(even)": {
-          "th, td": {
-            borderBottomWidth: "0px",
-          },
-        },
+  },
+  thead: {
+    tr: {
+      th: {
+        borderBottomWidth: 0,
       },
     },
-  };
-});
+  },
+}));
 
 export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
 const theme = extendTheme({
+  components: {
+    Table: tableTheme,
+    Tooltip: {
+      baseStyle: {
+        fontSize: "md",
+      },
+    },
+  },
   config: {
     useSystemColorMode: true,
+  },
+  semanticTokens: {
+    colors: {
+      "subtle-bg": { _dark: "gray.900", _light: "blue.50" },
+      "subtle-text": { _dark: "blue.500", _light: "blue.600" },
+    },
   },
   styles: {
     global: {
@@ -67,14 +78,6 @@ const theme = extendTheme({
         borderColor: "gray.200",
       },
     },
-  },
-  components: {
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
-      },
-    },
-    Table: tableTheme,
   },
 });
 

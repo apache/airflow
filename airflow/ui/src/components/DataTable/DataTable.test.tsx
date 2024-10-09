@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { DataTable } from "./DataTable.tsx";
-import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { Text } from "@chakra-ui/react";
+import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
-const columns: ColumnDef<{ name: string }>[] = [
+import { DataTable } from "./DataTable.tsx";
+import type { CardDef } from "./types.ts";
+
+const columns: Array<ColumnDef<{ name: string }>> = [
   {
     accessorKey: "name",
-    header: "Name",
     cell: (info) => info.getValue(),
+    header: "Name",
   },
 ];
 
@@ -36,16 +38,20 @@ const data = [{ name: "John Doe" }, { name: "Jane Doe" }];
 const pagination: PaginationState = { pageIndex: 0, pageSize: 1 };
 const onStateChange = vi.fn();
 
+const cardDef: CardDef<{ name: string }> = {
+  card: ({ row }) => <Text>My name is {row.name}.</Text>,
+};
+
 describe("DataTable", () => {
   it("renders table with data", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
-      />
+        total={2}
+      />,
     );
 
     expect(screen.getByText("John Doe")).toBeInTheDocument();
@@ -55,12 +61,12 @@ describe("DataTable", () => {
   it("disables previous page button on first page", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
-      />
+        total={2}
+      />,
     );
 
     expect(screen.getByText("<<")).toBeDisabled();
@@ -70,18 +76,58 @@ describe("DataTable", () => {
   it("disables next button when on last page", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{
           pagination: { pageIndex: 1, pageSize: 10 },
           sorting: [],
         }}
         onStateChange={onStateChange}
-      />
+        total={2}
+      />,
     );
 
     expect(screen.getByText(">>")).toBeDisabled();
     expect(screen.getByText(">")).toBeDisabled();
+  });
+
+  it("when isLoading renders skeleton columns", () => {
+    render(<DataTable columns={columns} data={data} isLoading />);
+
+    expect(screen.getAllByTestId("skeleton")).toHaveLength(10);
+  });
+
+  it("still displays table if mode is card but there is no cardDef", () => {
+    render(<DataTable columns={columns} data={data} displayMode="card" />);
+
+    expect(screen.getByText("Name")).toBeInTheDocument();
+  });
+
+  it("displays cards if mode is card and there is cardDef", () => {
+    render(
+      <DataTable
+        cardDef={cardDef}
+        columns={columns}
+        data={data}
+        displayMode="card"
+      />,
+    );
+
+    expect(screen.getByText("My name is John Doe.")).toBeInTheDocument();
+  });
+
+  it("displays skeleton for loading card list", () => {
+    render(
+      <DataTable
+        cardDef={cardDef}
+        columns={columns}
+        data={data}
+        displayMode="card"
+        isLoading
+        skeletonCount={5}
+      />,
+    );
+
+    expect(screen.getAllByTestId("skeleton")).toHaveLength(5);
   });
 });

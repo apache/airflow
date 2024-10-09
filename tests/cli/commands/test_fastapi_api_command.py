@@ -22,18 +22,18 @@ import sys
 import time
 from unittest import mock
 
-import psutil
 import pytest
 from rich.console import Console
 
 from airflow.cli.commands import fastapi_api_command
+from airflow.exceptions import AirflowConfigException
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")
 
 
 @pytest.mark.db_test
-class TestCliInternalAPI(_CommonCLIGunicornTestClass):
+class TestCliFastAPI(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow fastapi-api"
 
     @pytest.mark.execution_timeout(210)
@@ -46,7 +46,7 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
         stderr = parent_path / "airflow-fastapi-api.err"
         logfile = parent_path / "airflow-fastapi-api.log"
         try:
-            # Run internal-api as daemon in background. Note that the wait method is not called.
+            # Run fastapi-api as daemon in background. Note that the wait method is not called.
             console.print("[magenta]Starting airflow fastapi-api --daemon")
             env = os.environ.copy()
             proc = subprocess.Popen(
@@ -88,9 +88,7 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 "[magenta]Terminating monitor process and expect "
                 "fastapi-api and gunicorn processes to terminate as well"
             )
-            proc = psutil.Process(pid_monitor)
-            proc.terminate()
-            assert proc.wait(120) in (0, None)
+            self._terminate_multiple_process([pid_fastapi_api, pid_monitor])
             self._check_processes(ignore_running=False)
             console.print("[magenta]All fastapi-api and gunicorn processes are terminated.")
         except Exception:
@@ -123,7 +121,9 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 close_fds=True,
             )
 
-    def test_cli_fastapi_api_args(self):
+    def test_cli_fastapi_api_args(self, ssl_cert_and_key):
+        cert_path, key_path = ssl_cert_and_key
+
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
             fastapi_api_command, "GunicornMonitor"
         ):
@@ -134,6 +134,10 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                     "custom_log_format",
                     "--pid",
                     "/tmp/x.pid",
+                    "--ssl-cert",
+                    str(cert_path),
+                    "--ssl-key",
+                    str(key_path),
                 ]
             )
             fastapi_api_command.fastapi_api(args)
@@ -161,6 +165,10 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                     "-",
                     "--config",
                     "python:airflow.api_fastapi.gunicorn_config",
+                    "--certfile",
+                    str(cert_path),
+                    "--keyfile",
+                    str(key_path),
                     "--access-logformat",
                     "custom_log_format",
                     "airflow.api_fastapi.app:cached_app()",
@@ -168,3 +176,31 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 ],
                 close_fds=True,
             )
+
+    @pytest.mark.parametrize(
+        "ssl_arguments, error_pattern",
+        [
+            (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], "does not exist _.crt"),
+            (["--ssl-cert", "_.crt"], "Need both.*certificate.*key"),
+            (["--ssl-key", "_.key"], "Need both.*key.*certificate"),
+        ],
+    )
+    def test_get_ssl_cert_and_key_filepaths_with_incorrect_usage(self, ssl_arguments, error_pattern):
+        args = self.parser.parse_args(["fastapi-api"] + ssl_arguments)
+        with pytest.raises(AirflowConfigException, match=error_pattern):
+            fastapi_api_command._get_ssl_cert_and_key_filepaths(args)
+
+    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(self, ssl_cert_and_key):
+        cert_path, key_path = ssl_cert_and_key
+
+        args = self.parser.parse_args(
+            ["fastapi-api"] + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path)]
+        )
+        assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == (str(cert_path), str(key_path))
+
+    @pytest.fixture
+    def ssl_cert_and_key(self, tmp_path):
+        cert_path, key_path = tmp_path / "_.crt", tmp_path / "_.key"
+        cert_path.touch()
+        key_path.touch()
+        return cert_path, key_path

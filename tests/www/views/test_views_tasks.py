@@ -34,7 +34,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
@@ -44,8 +43,12 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
@@ -64,13 +67,13 @@ DEFAULT_DAGRUN = "TEST_DAGRUN"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def reset_dagruns():
+def _reset_dagruns():
     """Clean up stray garbage from other tests."""
     clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app):
+def _init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(

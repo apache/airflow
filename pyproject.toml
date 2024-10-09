@@ -29,8 +29,8 @@ requires = [
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.7.2",
+    "tomli==2.0.2; python_version < '3.11'",
+    "trove-classifiers==2024.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -39,7 +39,7 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8,<3.13"
+requires-python = "~=3.9,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -55,7 +55,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -139,8 +138,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 # microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 # oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
-# teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
+# telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 #
 # END PROVIDER EXTRAS HERE
 
@@ -158,15 +157,9 @@ Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.envs.default]
-python = "3.8"
+python = "3.9"
 platforms = ["linux", "macos"]
-description = "Default environment with Python 3.8 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-38]
-python = "3.8"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.8. No devel installed."
+description = "Default environment with Python 3.9 for maximum compatibility"
 features = []
 
 [tool.hatch.envs.airflow-39]
@@ -306,8 +299,6 @@ ignore = [
     "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
-    "D214",
-    "D215",
     "E731", # Do not assign a lambda expression, use a def
     "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT004", # Fixture does not return anything, add leading underscore
@@ -360,6 +351,11 @@ combine-as-imports = true
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
+# Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
+# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
+"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
+"tests/api_fastapi/*" = ["TCH001", "TCH002"]
+
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
 "scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules
@@ -410,6 +406,9 @@ combine-as-imports = true
 "tests/providers/openai/triggers/test_openai.py" = ["E402"]
 "tests/providers/opensearch/conftest.py" = ["E402"]
 "tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_json_formatter.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_response.py" = ["E402"]
+"tests/providers/opensearch/log/test_os_task_handler.py" = ["E402"]
 "tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
@@ -559,6 +558,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+
+asyncio_default_fixture_loop_scope = "function"
+
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"

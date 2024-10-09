@@ -16,42 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
-
-// Replace the directory to work with the flask plugin generation
-const transformUrlSrc = () => {
-  return {
-    name: "transform-url-src",
-    order: "post",
-    transformIndexHtml(html: string) {
-      return html
-        .replace(`src="/assets/`, `src="/ui/assets/`)
-        .replace(`href="/`, `href="/ui/`);
-    },
-  };
-};
+import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), transformUrlSrc()],
-  resolve: {
-    alias: {
-      openapi: "/openapi-gen",
-      src: "/src",
+  build: { chunkSizeWarningLimit: 1600, manifest: true },
+  plugins: [
+    react(),
+    // Replace the directory to work with the flask plugin generation
+    {
+      name: "transform-url-src",
+      transformIndexHtml: (html) =>
+        html
+          .replace(`src="/assets/`, `src="/static/assets/`)
+          .replace(`href="/`, `href="/webapp/`),
     },
-  },
-  build: {
-    manifest: true,
-    chunkSizeWarningLimit: 1600,
-  },
+  ],
+  resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   test: {
-    globals: true,
+    coverage: {
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+    },
     css: true,
     environment: "happy-dom",
-    setupFiles: "./testsSetup.ts",
+    globals: true,
     mockReset: true,
     restoreMocks: true,
+    setupFiles: "./testsSetup.ts",
   },
 });

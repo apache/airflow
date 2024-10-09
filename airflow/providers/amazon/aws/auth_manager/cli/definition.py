@@ -56,12 +56,6 @@ ARG_POLICY_STORE_ID = Arg(("--policy-store-id",), help="Policy store ID")
 
 AWS_AUTH_MANAGER_COMMANDS = (
     ActionCommand(
-        name="init-identity-center",
-        help="Initialize AWS IAM identity Center resources to be used by AWS manager",
-        func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.idc_commands.init_idc"),
-        args=(ARG_INSTANCE_NAME, ARG_APPLICATION_NAME, ARG_DRY_RUN, ARG_VERBOSE),
-    ),
-    ActionCommand(
         name="init-avp",
         help="Initialize Amazon Verified resources to be used by AWS manager",
         func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.init_avp"),

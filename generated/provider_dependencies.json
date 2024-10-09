@@ -38,7 +38,6 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
-      "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -345,7 +344,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -359,7 +359,6 @@
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [
-      "3.8",
       "3.9"
     ],
     "state": "ready"
@@ -397,7 +396,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -523,11 +524,18 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.3.0"
+      "pydantic>=2.6.4"
     ],
     "devel-deps": [],
-    "plugins": [],
-    "cross-providers-deps": [],
+    "plugins": [
+      {
+        "name": "edge_executor",
+        "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
+      }
+    ],
+    "cross-providers-deps": [
+      "standard"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -563,6 +571,7 @@
   },
   "fab": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.2.0",
       "apache-airflow>=2.9.0",
       "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
@@ -574,7 +583,9 @@
       "kerberos>=1.3.0"
     ],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -645,7 +656,7 @@
       "google-cloud-dataform>=0.5.0",
       "google-cloud-dataplex>=1.10.0",
       "google-cloud-dataproc-metastore>=1.12.0",
-      "google-cloud-dataproc>=5.8.0",
+      "google-cloud-dataproc>=5.12.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",
       "google-cloud-language>=2.9.0",
@@ -804,7 +815,7 @@
       "azure-datalake-store>=0.0.45",
       "azure-identity>=1.3.1",
       "azure-keyvault-secrets>=4.1.0",
-      "azure-kusto-data>=4.1.0",
+      "azure-kusto-data>=4.1.0,!=4.6.0",
       "azure-mgmt-containerinstance>=10.1.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb>=3.0.0",
@@ -967,6 +978,7 @@
       }
     ],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
@@ -1224,6 +1236,7 @@
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyarrow>=14.0.1",
       "snowflake-connector-python>=3.7.1",
+      "snowflake-snowpark-python>=1.17.0;python_version<\"3.12\"",
       "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],
@@ -1260,6 +1273,16 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
+  },
+  "standard": {
+    "deps": [
+      "apache-airflow>=2.10.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
   },
   "tableau": {
     "deps": [

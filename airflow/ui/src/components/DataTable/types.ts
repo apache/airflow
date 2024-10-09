@@ -16,10 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { SimpleGridProps } from "@chakra-ui/react";
+import type {
+  ColumnDef,
+  PaginationState,
+  SortingState,
+} from "@tanstack/react-table";
+import type { ReactNode } from "react";
 
-import { PaginationState, SortingState } from "@tanstack/react-table";
-
-export interface TableState {
+export type TableState = {
   pagination: PaginationState;
   sorting: SortingState;
-}
+};
+
+export type CardDef<TData> = {
+  card: (props: { row: TData }) => ReactNode;
+  gridProps?: SimpleGridProps;
+  meta?: {
+    customSkeleton?: JSX.Element;
+  };
+};
+
+export type MetaColumn<TData> = {
+  meta?: {
+    customSkeleton?: ReactNode;
+    skeletonWidth?: number;
+  } & ColumnDef<TData>["meta"];
+} & ColumnDef<TData>;

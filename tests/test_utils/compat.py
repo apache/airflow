@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
-from importlib.metadata import version
 from typing import TYPE_CHECKING, Any, cast
 
 from packaging.version import Version
@@ -38,11 +36,9 @@ try:
 except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
-
 from airflow import __version__ as airflow_version
 
 AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_2_7_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.7.0")
 AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
@@ -53,6 +49,49 @@ try:
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink
+
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.providers.standard.sensors.bash import BashSensor
+    from airflow.providers.standard.sensors.date_time import DateTimeSensor
+except ImportError:
+    # Compatibility for Airflow < 2.10.*
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
+    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
+    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
+
+
+if TYPE_CHECKING:
+    from airflow.models.asset import (
+        AssetAliasModel,
+        AssetDagRunQueue,
+        AssetEvent,
+        AssetModel,
+        DagScheduleAssetReference,
+        TaskOutletAssetReference,
+    )
+else:
+    try:
+        from airflow.models.asset import (
+            AssetAliasModel,
+            AssetDagRunQueue,
+            AssetEvent,
+            AssetModel,
+            DagScheduleAssetReference,
+            TaskOutletAssetReference,
+        )
+    except ModuleNotFoundError:
+        # dataset is renamed to asset since Airflow 3.0
+        from airflow.models.dataset import (
+            DagScheduleDatasetReference as DagScheduleAssetReference,
+            DatasetDagRunQueue as AssetDagRunQueue,
+            DatasetEvent as AssetEvent,
+            DatasetModel as AssetModel,
+            TaskOutletDatasetReference as TaskOutletAssetReference,
+        )
+
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.models.dataset import DatasetAliasModel as AssetAliasModel
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:

@@ -20,7 +20,7 @@
 import React from "react";
 import { Select, SingleValue, useChakraSelectProps } from "chakra-react-select";
 
-import type { DatasetDependencies } from "src/api/useDatasetDependencies";
+import type { DatasetDependencies } from "src/api/useAssetDependencies";
 import type { OnSelectProps } from "./types";
 
 interface Props {
@@ -46,7 +46,7 @@ const SearchBar = ({
   (datasetDependencies?.nodes || []).forEach((node) => {
     if (node.value.class === "dag")
       dagOptions.push({ value: node.id, label: node.value.label });
-    if (node.value.class === "dataset")
+    if (node.value.class === "asset")
       datasetOptions.push({ value: node.id, label: node.value.label });
   });
 

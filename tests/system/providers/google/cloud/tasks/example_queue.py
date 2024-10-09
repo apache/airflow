@@ -35,7 +35,6 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator,
     CloudTasksQueueDeleteOperator,
@@ -46,9 +45,10 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueuesListOperator,
     CloudTasksQueueUpdateOperator,
 )
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "cloud_tasks_queue"
 
 LOCATION = os.environ.get("GCP_APP_ENGINE_LOCATION", "europe-west2")

@@ -36,7 +36,6 @@ from pendulum import duration
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
@@ -51,6 +50,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -59,7 +59,7 @@ try:
 except ImportError:
     pytest.skip("MsSQL not available", allow_module_level=True)
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 DAG_ID = "bigquery_to_mssql"
 

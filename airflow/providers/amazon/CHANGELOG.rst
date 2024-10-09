@@ -26,6 +26,157 @@
 Changelog
 ---------
 
+Main
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Amazon provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+
+    * Removed ``sleep_time`` parameter from ``AthenaHook``. Use ``poll_query_status`` instead
+    * Removed ``BaseAsyncSessionFactory``
+    * Removed ``AwsBaseAsyncHook``
+    * Removed ``start_from_head`` parameter from ``AwsLogsHook.get_log_events`` method
+    * Removed ``sts_hook`` property from ``QuickSightHook``
+    * Removed ``RedshiftAsyncHook``
+    * Removed S3 connection type. Please use ``aws`` as ``conn_type`` instead, and specify ``bucket_name`` in ``service_config.s3`` within ``extras``
+    * Removed ``wait_for_completion``, ``check_interval`` and ``verbose`` parameters from ``SageMakerHook.start_pipeline`` method
+    * Removed ``wait_for_completion``, ``check_interval`` and ``verbose`` parameters from ``SageMakerHook.stop_pipeline`` method
+
+  * Operators
+
+    * Removed ``source`` parameter from ``AppflowRunOperator``
+    * Removed ``overrides`` parameter from ``BatchOperator``. Use ``container_overrides`` instead
+    * Removed ``status_retries`` parameter from ``BatchCreateComputeEnvironmentOperator``
+    * Removed ``get_hook`` method from ``DataSyncOperator``. Use ``hook`` property instead
+    * Removed ``wait_for_completion``, ``waiter_delay`` and ``waiter_max_attempts`` parameters from ``EcsDeregisterTaskDefinitionOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``wait_for_completion``, ``waiter_delay`` and ``waiter_max_attempts`` parameters from ``EcsRegisterTaskDefinitionOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``eks_hook`` property from ``EksCreateClusterOperator``. Use ``hook`` property instead
+    * Removed ``pod_context``, ``pod_username`` and ``is_delete_operator_pod`` parameters from ``EksPodOperator``
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrStartNotebookExecutionOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrStopNotebookExecutionOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``max_tries`` parameter from ``EmrContainerOperator``. Use ``max_polling_attempts`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrCreateJobFlowOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrServerlessCreateApplicationOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrServerlessStartJobOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrServerlessStopApplicationOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``waiter_countdown`` and ``waiter_check_interval_seconds`` parameters from ``EmrServerlessDeleteApplicationOperator``. Please use ``waiter_max_attempts`` and ``waiter_delay`` instead
+    * Removed ``delay`` parameter from ``GlueDataBrewStartJobOperator``. Use ``waiter_delay`` instead
+    * Removed ``hook_params`` parameter from ``RdsBaseOperator``
+    * Removed ``increment`` as possible value from ``action_if_job_exists`` parameter from ``SageMakerProcessingOperator``
+    * Removed ``increment`` as possible value from ``action_if_job_exists`` parameter from ``SageMakerTransformOperator``
+    * Removed ``increment`` as possible value from ``action_if_job_exists`` parameter from ``SageMakerTrainingOperator``
+
+  * Secrets
+
+    * Removed from ``full_url_mode`` and ``are_secret_values_urlencoded`` as possible key in ``kwargs`` from ``SecretsManagerBackend``
+
+  * Sensors
+
+    * Removed ``get_hook`` method from ``BatchSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``DmsTaskBaseSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``EmrBaseSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``GlueCatalogPartitionSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``GlueCrawlerSensor``. Use ``hook`` property instead
+    * Removed ``quicksight_hook`` property from ``QuickSightSensor``. Use ``QuickSightSensor.hook`` instead
+    * Removed ``sts_hook`` property from ``QuickSightSensor``
+    * Removed ``get_hook`` method from ``RedshiftClusterSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``S3KeySensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``SageMakerBaseSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``SqsSensor``. Use ``hook`` property instead
+    * Removed ``get_hook`` method from ``StepFunctionExecutionSensor``. Use ``hook`` property instead
+
+  * Transfers
+
+    * Removed ``aws_conn_id`` parameter from ``AwsToAwsBaseOperator``. Use ``source_aws_conn_id`` instead
+    * Removed ``bucket`` and ``delimiter`` parameters from ``GCSToS3Operator``. Use ``gcs_bucket`` instead of ``bucket``
+
+  * Triggers
+
+    * Removed ``BatchOperatorTrigger``. Use ``BatchJobTrigger`` instead
+    * Removed ``BatchSensorTrigger``. Use ``BatchJobTrigger`` instead
+    * Removed ``region`` parameter from ``EksCreateFargateProfileTrigger``. Use ``region_name`` instead
+    * Removed ``region`` parameter from ``EksDeleteFargateProfileTrigger``. Use ``region_name`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``EmrCreateJobFlowTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``EmrTerminateJobFlowTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` parameter from ``EmrContainerTrigger``. Use ``waiter_delay`` instead
+    * Removed ``poll_interval`` parameter from ``GlueCrawlerCompleteTrigger``. Use ``waiter_delay`` instead
+    * Removed ``delay`` and ``max_attempts`` parameters from ``GlueDataBrewJobCompleteTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``RdsDbInstanceTrigger``. Use the other RDS triggers such as ``RdsDbDeletedTrigger``, ``RdsDbStoppedTrigger`` or ``RdsDbAvailableTrigger``
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``RedshiftCreateClusterTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``RedshiftPauseClusterTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``RedshiftCreateClusterSnapshotTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``RedshiftResumeClusterTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``poll_interval`` and ``max_attempts`` parameters from ``RedshiftDeleteClusterTrigger``. Use ``waiter_delay`` and ``waiter_max_attempts`` instead
+    * Removed ``SageMakerTrainingPrintLogTrigger``. Use ``SageMakerTrigger`` instead
+
+  * Utils
+
+    * Removed ``test_endpoint_url`` as possible key in ``extra_config`` from ``AwsConnectionWrapper``. Please set ``endpoint_url`` in ``service_config.sts`` within ``extras``
+    * Removed ``s3`` as possible value in ``conn_type`` from ``AwsConnectionWrapper``. Please update your connection to have ``conn_type='aws'``
+    * Removed ``session_kwargs`` as key in connection extra config. Please specify arguments passed to boto3 session directly
+    * Removed ``host`` from AWS connection, please set it in ``extra['endpoint_url']`` instead
+    * Removed ``region`` parameter from ``AwsHookParams``. Use ``region_name`` instead
+
+.. warning::
+  In order to support session reuse in RedshiftData operators, the following breaking changes were introduced:
+
+  The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
+  one. Update your DAGs accordingly if they rely on argument order. Applies to:
+
+  * ``RedshiftDataHook``'s ``execute_query`` method
+  * ``RedshiftDataOperator``
+
+  ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
+  statement ID as a string.
+
+  ``RedshiftDataHook``'s ``parse_statement_resposne`` method was renamed to ``parse_statement_response``.
+
+  ``S3ToRedshiftOperator``'s ``schema`` argument is now optional and was moved after the ``s3_key`` positional argument.
+  Update your DAGs accordingly if they rely on argument order.
+
+Features
+~~~~~~~~
+
+* ``Support session reuse in RedshiftDataOperator, RedshiftToS3Operator and S3ToRedshiftOperator (#42218)``
+
+8.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Adding support for volume configurations in ECSRunTaskOperator (#42087)``
+* ``Openlineage s3 to redshift operator integration (#41575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ECSExecutor: Drop params that aren't compatible with EC2 (#42228)``
+* ``Fix 'GlueDataBrewStartJobOperator' template fields (#42073)``
+* ``validate aws service exceptions in waiters (#41941)``
+* ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
+* ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
+* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
+
+Misc
+~~~~
+
+* ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``
+* ``Use base aws classes in AWS Glue DataBrew Operators/Triggers (#41848)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``airflow.models.taskinstance deprecations removed (#41784)``
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``remove deprecated soft_fail from providers part2 (#41727)``
+* ``Limit watchtower as depenendcy as 3.3.0 breaks moin. (#41612)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
 8.28.0
 ......
 

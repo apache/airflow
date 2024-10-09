@@ -26,13 +26,12 @@ AWS Batch services.
 
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -48,7 +47,6 @@ from airflow.providers.amazon.aws.triggers.batch import (
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -65,7 +63,6 @@ class BatchOperator(BaseOperator):
     :param job_name: the name for the job that will run on AWS Batch (templated)
     :param job_definition: the job definition name on AWS Batch
     :param job_queue: the queue name on AWS Batch
-    :param overrides: DEPRECATED, use container_overrides instead with the same value.
     :param container_overrides: the `containerOverrides` parameter for boto3 (templated)
     :param ecs_properties_override: the `ecsPropertiesOverride` parameter for boto3 (templated)
     :param eks_properties_override: the `eksPropertiesOverride` parameter for boto3 (templated)
@@ -165,7 +162,6 @@ class BatchOperator(BaseOperator):
         job_name: str,
         job_definition: str,
         job_queue: str,
-        overrides: dict | None = None,  # deprecated
         container_overrides: dict | None = None,
         array_properties: dict | None = None,
         ecs_properties_override: dict | None = None,
@@ -196,21 +192,6 @@ class BatchOperator(BaseOperator):
         self.job_queue = job_queue
 
         self.container_overrides = container_overrides
-        # handle `overrides` deprecation in favor of `container_overrides`
-        if overrides:
-            if container_overrides:
-                # disallow setting both old and new params
-                raise AirflowException(
-                    "'container_overrides' replaces the 'overrides' parameter. "
-                    "You cannot specify both. Please remove assignation to the deprecated 'overrides'."
-                )
-            self.container_overrides = overrides
-            warnings.warn(
-                "Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         self.ecs_properties_override = ecs_properties_override
         self.eks_properties_override = eks_properties_override
         self.node_overrides = node_overrides
@@ -501,17 +482,8 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        status_retries=NOTSET,
         **kwargs,
     ):
-        if status_retries is not NOTSET:
-            warnings.warn(
-                "The `status_retries` parameter is unused and should be removed. "
-                "It'll be deleted in a future version.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         super().__init__(**kwargs)
 
         self.compute_environment_name = compute_environment_name
