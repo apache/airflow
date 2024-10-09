@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState, ChangeEvent } from "react";
+import { ChangeEvent } from "react";
 import {
   Button,
   Input,
@@ -43,9 +43,7 @@ export const SearchBar = ({
 }) => {
 
   const handleSearchChange = useDebouncedCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      inputProps?.onChange?.(event);
-    },
+    (event: ChangeEvent<HTMLInputElement>) => inputProps?.onChange?.(event),
     debounceDelay
   );
 
