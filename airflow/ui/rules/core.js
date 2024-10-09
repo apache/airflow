@@ -292,13 +292,6 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     "max-nested-callbacks": [ERROR, { max: 3 }],
 
     /**
-     * Enforce a maximum number of statements allowed in function blocks to 10.
-     *
-     * @see [max-statements](https://eslint.org/docs/latest/rules/max-statements)
-     */
-    "max-statements": [WARN, { max: 10 }],
-
-    /**
      * Disallow use of `alert`, `confirm`, and `prompt`.
      *
      * @see [no-alert](https://eslint.org/docs/latest/rules/no-alert)

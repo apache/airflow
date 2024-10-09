@@ -240,7 +240,7 @@ repos:
         alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -550,17 +550,9 @@ repos:
       - id: check-no-providers-in-core-examples
         language: pygrep
         name: No providers imports in core example DAGs
-        description: The core example DAGs have no dependencies other than core Airflow
-        entry: "^\\s*from airflow\\.providers.*"
+        description: The core example DAGs have no dependencies other than standard provider or core Airflow
+        entry: "^\\s*from airflow\\.providers.(?!standard.)"
         pass_filenames: true
-        exclude: >
-          (?x)
-          ^airflow/example_dags/example_branch_datetime_operator.py|
-          ^airflow/example_dags/example_branch_day_of_week_operator.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_time_delta_sensor_async.py
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
         language: pygrep
@@ -717,7 +709,7 @@ repos:
         files: >
           (?x)
           ^airflow/providers/.*\.py$
-        exclude: ^.*/.*_vendor/
+        exclude: ^.*/.*_vendor/|airflow/providers/standard/operators/bash.py
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -1066,13 +1058,6 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/
         additional_dependencies: ['rich>=12.4.4']
-      - id: check-compat-cache-on-methods
-        name: Check that compat cache do not use on class methods
-        entry: ./scripts/ci/pre_commit/compat_cache_on_methods.py
-        language: python
-        pass_filenames: true
-        files: ^airflow/.*\.py$
-        exclude: ^.*/.*_vendor/
       - id: check-code-deprecations
         name: Check deprecations categories in decorators
         entry: ./scripts/ci/pre_commit/check_deprecations.py

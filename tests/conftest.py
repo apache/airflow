@@ -412,12 +412,6 @@ def initialize_airflow_tests(request):
                 "Skipping initializing of the DB as it was initialized already.\n"
                 "You can re-initialize the database by adding --with-db-init flag when running tests."
             )
-    else:
-        # if we are not initializing the database (due to skip db tests)
-        # we need to ensure Backfill is defined before DagRun
-        # otherwise we get this error:
-        # "sqlalchemy.exc.InvalidRequestError: When initializing mapper mapped class..."
-        from airflow.models.backfill import Backfill  # noqa: F401
     integration_kerberos = os.environ.get("INTEGRATION_KERBEROS")
     if integration_kerberos == "true":
         # Initialize kerberos

@@ -5,6 +5,8 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  DashboardService,
+  VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -27,6 +29,32 @@ export const prefetchUseAssetServiceNextRunAssets = (
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
     queryFn: () => AssetService.nextRunAssets({ dagId }),
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceHistoricalMetrics = (
+  queryClient: QueryClient,
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({
+      endDate,
+      startDate,
+    }),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
 /**
  * Get Dags
@@ -139,32 +167,22 @@ export const prefetchUseConnectionServiceGetConnection = (
     queryFn: () => ConnectionService.getConnection({ connectionId }),
   });
 /**
- * Get Connections
- * Get all connection entries.
+ * Get Variable
+ * Get a variable entry.
  * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ConnectionCollectionResponse Successful Response
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseConnectionServiceGetConnections = (
+export const prefetchUseVariableServiceGetVariable = (
   queryClient: QueryClient,
   {
-    limit,
-    offset,
-    orderBy,
+    variableKey,
   }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
+    variableKey: string;
+  },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
-      limit,
-      offset,
-      orderBy,
-    }),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }),
+    queryFn: () => VariableService.getVariable({ variableKey }),
   });

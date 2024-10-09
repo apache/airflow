@@ -32,9 +32,13 @@ from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
 from airflow.models.param import Param
 from airflow.models.variable import Variable
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
 
 with DAG(
     dag_id="integration_test",

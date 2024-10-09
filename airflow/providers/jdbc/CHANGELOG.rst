@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: Only pass connection to sqlalchemy engine in JdbcHook (#42705)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.5.1
 .....
 

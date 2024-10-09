@@ -28,11 +28,11 @@ from airflow.api_fastapi.serializers.connections import ConnectionCollectionResp
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import Connection
 
-connections_router = AirflowRouter(tags=["Connection"])
+connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
 
 @connections_router.delete(
-    "/connections/{connection_id}",
+    "/{connection_id}",
     status_code=204,
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
@@ -50,7 +50,7 @@ async def delete_connection(
 
 
 @connections_router.get(
-    "/connections/{connection_id}",
+    "/{connection_id}",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 async def get_connection(

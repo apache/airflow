@@ -77,6 +77,20 @@ Host (optional)
     If using the Connection form in the Airflow UI, the Tenant domain can also be stored in the "Tenant"
     field.
 
+Extra (optional)
+    Specify extra parameters as JSON dictionary. As of now, only `proxies` is supported when wanting to connect to dbt Cloud via a proxy.
+
+    `proxies` should be a dictionary of proxies to be used by HTTP and HTTPS connections.
+
+.. code-block:: json
+
+    {
+      "proxies": {
+        "http": "http://myproxy.mycompany.local:8080",
+        "https": "http://myproxy.mycompany.local:8080"
+      }
+    }
+
 When specifying the connection as an environment variable, you should specify it following the standard syntax
 of a database connection. Note that all components of the URI should be URL-encoded.
 

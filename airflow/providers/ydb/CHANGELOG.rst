@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add an ability to use scan queries via new YDB operator (#42311)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.3.0
 .....
 

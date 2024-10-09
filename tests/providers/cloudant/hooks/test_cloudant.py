@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.db_test]
 if sys.version_info < (3, 10):
     pytestmark.append(
         pytest.mark.skip(
-            f"Skipping {__name__} as the cloudant provider is not supported on Python 3.8 and 3.9, see #41555."
+            f"Skipping {__name__} as the cloudant provider is not supported on Python 3.9, see #41555."
         )
     )
 else:

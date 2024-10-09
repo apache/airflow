@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``(feat): Add opensearch logging integration (#41799)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle empty login and password with opensearch client (#39982)``
+
+Misc
+~~~~
+
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.4.0
 .....
 

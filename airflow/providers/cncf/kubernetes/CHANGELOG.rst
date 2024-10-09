@@ -27,11 +27,33 @@
 Changelog
 ---------
 
-main
+9.0.0
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
 .. warning::
-  Support for identifying pods by execution_date during the upgrade from Airflow 1 to 2 has been removed. This may result in duplicate pods being launched for tasks originally started by Airflow 1, but only one of the task pods will succeed.
+  Support for identifying pods by execution_date during the upgrade from Airflow 1 to 2 has been removed.
+  This may result in duplicate pods being launched for tasks originally started by Airflow 1, but only one of the task pods will succeed.
+
+* ``kubernetes executor cleanup_stuck_queued_tasks optimization (#41220)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``All executors should inherit from BaseExecutor (#41904)``
+* ``Fix mark as success when pod fails while fetching log (#42815)``
+* ``Fix SparkKubernetesOperator spark name. (#42427)``
+* ``KubernetesPodOperator never stops if credentials are refreshed (#42361)``
+* ``Restructured 'await_xcom_sidecar_container_start' method. (#42504)``
+* ``KubernetesHook kube_config extra can take dict (#41413)``
+
+Misc
+~~~~
+
+* ``Drop python3.8 support core and providers (#42766)``
+* ``Remove airflow_version from k8s executor pod selector (#42751)``
 
 8.4.2
 .....

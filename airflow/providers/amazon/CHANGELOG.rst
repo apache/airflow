@@ -26,11 +26,29 @@
 Changelog
 ---------
 
-Main
-......
+9.0.0
+.....
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
+
+.. warning::
+  In order to support session reuse in RedshiftData operators, the following breaking changes were introduced:
+
+  The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
+  one. Update your DAGs accordingly if they rely on argument order. Applies to:
+
+  * ``RedshiftDataHook``'s ``execute_query`` method
+  * ``RedshiftDataOperator``
+
+  ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
+  statement ID as a string.
+
+  ``RedshiftDataHook``'s ``parse_statement_resposne`` method was renamed to ``parse_statement_response``.
+
+  ``S3ToRedshiftOperator``'s ``schema`` argument is now optional and was moved after the ``s3_key`` positional argument.
+  Update your DAGs accordingly if they rely on argument order.
+
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the Amazon provider package.
@@ -123,27 +141,33 @@ Breaking changes
     * Removed ``host`` from AWS connection, please set it in ``extra['endpoint_url']`` instead
     * Removed ``region`` parameter from ``AwsHookParams``. Use ``region_name`` instead
 
-.. warning::
-  In order to support session reuse in RedshiftData operators, the following breaking changes were introduced:
-
-  The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
-  one. Update your DAGs accordingly if they rely on argument order. Applies to:
-
-  * ``RedshiftDataHook``'s ``execute_query`` method
-  * ``RedshiftDataOperator``
-
-  ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
-  statement ID as a string.
-
-  ``RedshiftDataHook``'s ``parse_statement_resposne`` method was renamed to ``parse_statement_response``.
-
-  ``S3ToRedshiftOperator``'s ``schema`` argument is now optional and was moved after the ``s3_key`` positional argument.
-  Update your DAGs accordingly if they rely on argument order.
+* ``Remove deprecated stuff from Amazon provider package (#42450)``
+* ``Support session reuse in 'RedshiftDataOperator' (#42218)``
 
 Features
 ~~~~~~~~
 
-* ``Support session reuse in RedshiftDataOperator, RedshiftToS3Operator and S3ToRedshiftOperator (#42218)``
+* ``Add STOPPED to the failure cases for Sagemaker Training Jobs (#42423)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'S3DeleteObjects' Operator: Handle dates passed as strings (#42464)``
+* ``Small fix to AWS AVP cli init script (#42479)``
+* ``Make the AWS logging faster by reducing the amount of sleep (#42449)``
+* ``Fix logout in AWS auth manager (#42447)``
+* ``fix(providers/amazon): handle ClientError raised after key is missing during table.get_item (#42408)``
+
+Misc
+~~~~
+
+* ``Drop python3.8 support core and providers (#42766)``
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+* ``Rename dataset related python variable names to asset (#41348)``
+* ``Remove identity center auth manager cli (#42481)``
+* ``Refactor AWS Auth manager user output (#42454)``
+* ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
+* ``Revert "Remove 'sqlalchemy-redshift' dependency from Amazon provider" (#42864)``
 
 8.29.0
 ......

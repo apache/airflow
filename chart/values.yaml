@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.27.2-pr579
+    tag: v0.27.2
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -589,6 +589,9 @@ workers:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
+
+  # Allow relaxing ordering guarantees while preserving its uniqueness and identity
+  # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}

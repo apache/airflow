@@ -1,15 +1,17 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import {
-  useMutation,
   UseMutationOptions,
-  useQuery,
   UseQueryOptions,
+  useMutation,
+  useQuery,
 } from "@tanstack/react-query";
 
 import {
   AssetService,
   ConnectionService,
   DagService,
+  DashboardService,
+  VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -37,6 +39,39 @@ export const useAssetServiceNextRunAssets = <
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetrics = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
+      { endDate, startDate },
+      queryKey,
+    ),
+    queryFn: () =>
+      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
     ...options,
   });
 /**
@@ -174,39 +209,32 @@ export const useConnectionServiceGetConnection = <
     ...options,
   });
 /**
- * Get Connections
- * Get all connection entries.
+ * Get Variable
+ * Get a variable entry.
  * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ConnectionCollectionResponse Successful Response
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
  * @throws ApiError
  */
-export const useConnectionServiceGetConnections = <
-  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
+export const useVariableServiceGetVariable = <
+  TData = Common.VariableServiceGetVariableDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    limit,
-    offset,
-    orderBy,
+    variableKey,
   }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
+    variableKey: string;
+  },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { limit, offset, orderBy },
+    queryKey: Common.UseVariableServiceGetVariableKeyFn(
+      { variableKey },
       queryKey,
     ),
-    queryFn: () =>
-      ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
     ...options,
   });
 /**
@@ -378,6 +406,45 @@ export const useConnectionServiceDeleteConnection = <
     mutationFn: ({ connectionId }) =>
       ConnectionService.deleteConnection({
         connectionId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Variable
+ * Delete a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceDeleteVariable = <
+  TData = Common.VariableServiceDeleteVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ variableKey }) =>
+      VariableService.deleteVariable({
+        variableKey,
       }) as unknown as Promise<TData>,
     ...options,
   });

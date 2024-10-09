@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.8.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``All executors should inherit from BaseExecutor (#41904)``
+* ``Remove state sync during celery task processing (#41870)``
+
+Misc
+~~~~
+
+* ``Change imports to use Standard provider for BashOperator (#42252)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.8.2
 .....
 

@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  HistoricalMetricsData,
+  HistoricalMetricsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -17,8 +19,10 @@ import type {
   DeleteConnectionResponse,
   GetConnectionData,
   GetConnectionResponse,
-  GetConnectionsData,
-  GetConnectionsResponse,
+  DeleteVariableData,
+  DeleteVariableResponse,
+  GetVariableData,
+  GetVariableResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -39,6 +43,34 @@ export class AssetService {
         dag_id: data.dagId,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DashboardService {
+  /**
+   * Historical Metrics
+   * Return cluster activity historical metrics.
+   * @param data The data for the request.
+   * @param data.startDate
+   * @param data.endDate
+   * @returns HistoricalMetricDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static historicalMetrics(
+    data: HistoricalMetricsData,
+  ): CancelablePromise<HistoricalMetricsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/historical_metrics_data",
+      query: {
+        start_date: data.startDate,
+        end_date: data.endDate,
+      },
+      errors: {
+        400: "Bad Request",
         422: "Validation Error",
       },
     });
@@ -68,7 +100,7 @@ export class DagService {
   ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -109,7 +141,7 @@ export class DagService {
   ): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags",
+      url: "/public/dags/",
       query: {
         update_mask: data.updateMask,
         limit: data.limit,
@@ -247,27 +279,51 @@ export class ConnectionService {
       },
     });
   }
+}
 
+export class VariableService {
   /**
-   * Get Connections
-   * Get all connection entries.
+   * Delete Variable
+   * Delete a variable entry.
    * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns ConnectionCollectionResponse Successful Response
+   * @param data.variableKey
+   * @returns void Successful Response
    * @throws ApiError
    */
-  public static getConnections(
-    data: GetConnectionsData = {},
-  ): CancelablePromise<GetConnectionsResponse> {
+  public static deleteVariable(
+    data: DeleteVariableData,
+  ): CancelablePromise<DeleteVariableResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Variable
+   * Get a variable entry.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static getVariable(
+    data: GetVariableData,
+  ): CancelablePromise<GetVariableResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
       },
       errors: {
         401: "Unauthorized",

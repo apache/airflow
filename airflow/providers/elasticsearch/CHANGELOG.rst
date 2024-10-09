@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix spelling; 'Airlfow' -> 'Airflow' (#42855)``
+
 5.5.1
 .....
 
@@ -502,7 +515,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
-.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airflow <2.3``
 
 Misc
 ~~~~~
@@ -512,7 +525,7 @@ Misc
 3.0.0 (YANKED)
 ..............
 
-.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airflow <2.3``
 
 Breaking changes
 ~~~~~~~~~~~~~~~~

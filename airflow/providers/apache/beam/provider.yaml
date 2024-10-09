@@ -22,9 +22,10 @@ description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1723969156
+source-date-epoch: 1728484489
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.8.1
   - 5.8.0
   - 5.7.2
   - 5.7.1

@@ -27,9 +27,9 @@ from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail

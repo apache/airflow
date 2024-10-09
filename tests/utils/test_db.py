@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import re
 from contextlib import redirect_stdout
@@ -228,6 +229,14 @@ class TestDb:
             mock_init.assert_not_called()
         else:
             mock_init.assert_called_once_with(session=session_mock)
+
+    def test_resetdb_logging_level(self):
+        unset_logging_level = logging.root.level
+        logging.root.setLevel(logging.DEBUG)
+        set_logging_level = logging.root.level
+        resetdb()
+        assert logging.root.level == set_logging_level
+        assert logging.root.level != unset_logging_level
 
     def test_alembic_configuration(self):
         with mock.patch.dict(

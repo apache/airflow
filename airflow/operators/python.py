@@ -30,13 +30,13 @@ import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
+from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
-from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,

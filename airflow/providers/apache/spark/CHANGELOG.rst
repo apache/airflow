@@ -29,6 +29,14 @@
 Changelog
 ---------
 
+4.11.1
+......
+
+Misc
+~~~~
+
+* ``Refactor function resolve_kerberos_principal (#42777)``
+
 4.11.0
 ......
 

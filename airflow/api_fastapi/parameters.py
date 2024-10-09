@@ -26,6 +26,9 @@ from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
+from pendulum.parsing.exceptions import ParserError
+from pydantic import AfterValidator
+from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models import Connection, Base

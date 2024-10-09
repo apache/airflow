@@ -35,9 +35,9 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
