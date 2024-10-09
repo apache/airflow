@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+1.12.2
+......
+
+Misc
+~~~~
+
+* ``Change imports to use Standard provider for BashOperator (#42252)``
+* ``Drop python3.8 support core and providers (#42766)``
+* ``Rename dataset related python variable names to asset (#41348)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.12.1
 ......
 

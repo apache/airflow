@@ -28,6 +28,23 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add ability to provide proxy for dbt Cloud connection (#42737)``
+
+Misc
+~~~~
+
+* ``Simplify code for recent dbt provider change (#42840)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.10.1
 ......
 

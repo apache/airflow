@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1726859877
+source-date-epoch: 1728484310
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.0.0
   - 8.29.0
   - 8.28.0
   - 8.27.0
@@ -105,6 +106,7 @@ dependencies:
   - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
+  - sqlalchemy_redshift>=0.8.6
   - asgiref>=2.3.0
   - PyAthena>=3.0.10
   - jmespath>=0.7.0
