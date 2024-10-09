@@ -1704,15 +1704,36 @@ class DAG(LoggingMixin):
         )
 
         # Raises an error if not found
-        session.scalars(select(1).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)).one()
+        dr_id, logical_date = session.execute(
+            select(DagRun.id, DagRun.logical_date).where(
+                DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
+            )
+        ).one()
 
-        subdag.clear(
-            run_id=run_id,
-            only_failed=True,
-            session=session,
-            # Exclude the task itself from being cleared
-            exclude_task_ids=frozenset({task_id}),
-        )
+        # Now we want to clear downstreams of tasks that had their state set...
+        clear_kwargs = {
+            "only_failed": True,
+            "session": session,
+            # Exclude the task itself from being cleared.
+            "exclude_task_ids": frozenset((task_id,)),
+        }
+
+        if not future and not past:  # Simple case 1: we're only dealing with exactly one run.
+            clear_kwargs["run_id"] = run_id
+        elif future and past:  # Simple case 2: we're clearing ALL runs.
+            subdag.clear(**clear_kwargs)
+        else:  # Complex cases: we may have more than one run, based on a date range.
+            # Make 'future' and 'past' make some sense when multiple runs exist
+            # for the same logical date. We order runs by their id and only
+            # clear runs have larger/smaller ids.
+            exclude_run_id_stmt = select(DagRun.run_id).where(DagRun.logical_date == logical_date)
+            if future:
+                clear_kwargs["start_date"] = logical_date
+                exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id > dr_id)
+            else:
+                clear_kwargs["end_date"] = logical_date
+                exclude_run_id_stmt = exclude_run_id_stmt.where(DagRun.id < dr_id)
+            subdag.clear(exclude_run_ids=frozenset(session.scalars(exclude_run_id_stmt)), **clear_kwargs)
 
         return altered
 
@@ -1849,6 +1870,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1866,6 +1888,7 @@ class DAG(LoggingMixin):
         :param dag_bag: The DagBag used to find the dags (Optional)
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
+        :param exclude_run_ids: A set of run IDs that should not be cleared
         """
 
     @overload
@@ -1916,6 +1939,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+        exclude_run_ids: frozenset[str] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
         state: list[TaskInstanceState] = []
         if only_failed:
