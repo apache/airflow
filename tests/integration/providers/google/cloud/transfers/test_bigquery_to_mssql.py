@@ -36,7 +36,6 @@ TEST_ROWS = [
 ]
 
 
-@pytest.mark.quarantined
 @pytest.mark.integration("mssql")
 class TestBigQueryToMsSqlOperator:
     def setup_method(self):
