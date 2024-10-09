@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -36,6 +37,7 @@ from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFa
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -267,20 +269,43 @@ class TestAzureDataFactoryRunPipelineOperator:
         )
 
 
+@pytest.fixture
+def create_task_instance(create_task_instance_of_operator, session):
+    def _create_task_instance(operator_class, **kwargs):
+        return functools.partial(
+            create_task_instance_of_operator,
+            session=session,
+            operator_class=operator_class,
+            dag_id="adhoc_airflow",
+            logical_date=timezone.datetime(2022, 1, 1),
+        )(**kwargs)
+
+    return _create_task_instance
+
+
 class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
-    OPERATOR = AzureDataFactoryRunPipelineOperator(
-        task_id="run_pipeline",
-        pipeline_name="pipeline",
-        resource_group_name="resource-group-name",
-        factory_name="factory-name",
-        parameters={"myParam": "value"},
-        deferrable=True,
-    )
+    @pytest.fixture(autouse=True)
+    def setup_operator(self, create_task_instance):
+        """Fixture to set up the operator using create_task_instance."""
+        self.ti = create_task_instance(
+            operator_class=AzureDataFactoryRunPipelineOperator,
+            task_id="run_pipeline",
+            pipeline_name="pipeline",
+            resource_group_name="resource-group-name",
+            factory_name="factory-name",
+            parameters={"myParam": "value"},
+            deferrable=True,
+        )
 
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
-        dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", logical_date=timezone.datetime(2022, 1, 1), run_id=run_id
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag_id, run_type="manual", logical_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            )
+        else:
+            dag_run = DagRun(  # type: ignore[call-arg]
+                dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            )
         return dag_run
 
     def get_task_instance(self, task: BaseOperator) -> TaskInstance:
@@ -299,15 +324,23 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            logical_date=logical_date,
-            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                logical_date=logical_date,
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=logical_date,
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+            )
 
         task_instance = TaskInstance(task=task)
         task_instance.dag_run = dag_run
         task_instance.xcom_push = mock.Mock()
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         return {
             "dag": dag,
             "ts": logical_date.isoformat(),
@@ -317,7 +350,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             "run_id": dag_run.run_id,
             "dag_run": dag_run,
             "data_interval_end": logical_date,
-            "logical_date": logical_date,
+            date_key: logical_date,
         }
 
     @mock.patch(
@@ -338,7 +371,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
         mock_run_pipeline.return_value = CreateRunResponse
 
-        self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+        self.ti.task.execute(context=self.create_context(self.ti.task))
         assert not mock_defer.called
 
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
@@ -362,7 +395,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         mock_run_pipeline.return_value = CreateRunResponse
 
         with pytest.raises(AzureDataFactoryPipelineRunException):
-            self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+            self.ti.task.execute(context=self.create_context(self.ti.task))
         assert not mock_defer.called
 
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES))
@@ -380,7 +413,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         mock_run_pipeline.return_value = CreateRunResponse
 
         with pytest.raises(TaskDeferred) as exc:
-            self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+            self.ti.task.execute(context=self.create_context(self.ti.task))
 
         assert isinstance(
             exc.value.trigger, AzureDataFactoryTrigger
@@ -389,8 +422,8 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(self):
         """Assert that execute_complete log success message"""
 
-        with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
-            self.OPERATOR.execute_complete(
+        with mock.patch.object(self.ti.task.log, "info") as mock_log_info:
+            self.ti.task.execute_complete(
                 context={},
                 event={"status": "success", "message": "success", "run_id": AZ_PIPELINE_RUN_ID},
             )
@@ -400,7 +433,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         """Assert that execute_complete raise exception on error"""
 
         with pytest.raises(AirflowException):
-            self.OPERATOR.execute_complete(
+            self.ti.task.execute_complete(
                 context={},
                 event={"status": "error", "message": "error", "run_id": AZ_PIPELINE_RUN_ID},
             )

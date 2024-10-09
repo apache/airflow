@@ -234,54 +234,29 @@ class TestSparkSubmitOperator:
     def test_templating_with_create_task_instance_of_operator(
         self, create_task_instance_of_operator, session
     ):
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance_of_operator(
-                SparkSubmitOperator,
-                # Templated fields
-                application="{{ 'application' }}",
-                conf="{{ 'conf' }}",
-                files="{{ 'files' }}",
-                py_files="{{ 'py-files' }}",
-                jars="{{ 'jars' }}",
-                driver_class_path="{{ 'driver_class_path' }}",
-                packages="{{ 'packages' }}",
-                exclude_packages="{{ 'exclude_packages' }}",
-                keytab="{{ 'keytab' }}",
-                principal="{{ 'principal' }}",
-                proxy_user="{{ 'proxy_user' }}",
-                name="{{ 'name' }}",
-                application_args="{{ 'application_args' }}",
-                env_vars="{{ 'env_vars' }}",
-                properties_file="{{ 'properties_file' }}",
-                # Other parameters
-                dag_id="test_template_body_templating_dag",
-                task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-            )
-        else:
-            ti = create_task_instance_of_operator(
-                SparkSubmitOperator,
-                # Templated fields
-                application="{{ 'application' }}",
-                conf="{{ 'conf' }}",
-                files="{{ 'files' }}",
-                py_files="{{ 'py-files' }}",
-                jars="{{ 'jars' }}",
-                driver_class_path="{{ 'driver_class_path' }}",
-                packages="{{ 'packages' }}",
-                exclude_packages="{{ 'exclude_packages' }}",
-                keytab="{{ 'keytab' }}",
-                principal="{{ 'principal' }}",
-                proxy_user="{{ 'proxy_user' }}",
-                name="{{ 'name' }}",
-                application_args="{{ 'application_args' }}",
-                env_vars="{{ 'env_vars' }}",
-                properties_file="{{ 'properties_file' }}",
-                # Other parameters
-                dag_id="test_template_body_templating_dag",
-                task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-            )
+        ti = create_task_instance_of_operator(
+            SparkSubmitOperator,
+            # Templated fields
+            application="{{ 'application' }}",
+            conf="{{ 'conf' }}",
+            files="{{ 'files' }}",
+            py_files="{{ 'py-files' }}",
+            jars="{{ 'jars' }}",
+            driver_class_path="{{ 'driver_class_path' }}",
+            packages="{{ 'packages' }}",
+            exclude_packages="{{ 'exclude_packages' }}",
+            keytab="{{ 'keytab' }}",
+            principal="{{ 'principal' }}",
+            proxy_user="{{ 'proxy_user' }}",
+            name="{{ 'name' }}",
+            application_args="{{ 'application_args' }}",
+            env_vars="{{ 'env_vars' }}",
+            properties_file="{{ 'properties_file' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
         session.add(ti)
         session.commit()
         ti.render_templates()
