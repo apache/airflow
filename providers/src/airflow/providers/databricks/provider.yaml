@@ -74,10 +74,7 @@ dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.10.0
   - requests>=2.27.0,<3
-  # The connector 2.9.0 released on Aug 10, 2023 has a bug that it does not properly declare urllib3 and
-  # it needs to be excluded. See https://github.com/databricks/databricks-sql-python/issues/190
-  # The 2.9.1 (to be released soon) already contains the fix
-  - databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0
+  - databricks-sql-connector>=3.0.0
   - aiohttp>=3.9.2, <4
   - mergedeep>=1.3.4
   - pandas>=2.1.2,<2.2;python_version>="3.9"
