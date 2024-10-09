@@ -538,7 +538,7 @@ def setup(app):
     app.add_directive("airflow-executors", ExecutorsDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
-    app.add_directive("airflow-asset-schemes", DatasetSchemeDirective)
+    app.add_directive("airflow-dataset-schemes", DatasetSchemeDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 
