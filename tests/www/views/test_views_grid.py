@@ -54,7 +54,7 @@ def examples_dag_bag():
 
 
 @pytest.fixture(autouse=True)
-def clean():
+def _clean():
     clear_db_runs()
     clear_db_assets()
     yield
@@ -187,11 +187,11 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
 
 # Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!
 @pytest.fixture
-def freeze_time_for_dagruns(time_machine):
+def _freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
 
 
-@pytest.mark.usefixtures("freeze_time_for_dagruns")
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
 def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:

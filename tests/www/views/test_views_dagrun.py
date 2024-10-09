@@ -93,7 +93,7 @@ def client_dr_without_dag_run_create(app):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_dagrun():
+def _init_blank_dagrun():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -104,7 +104,7 @@ def init_blank_dagrun():
 
 
 @pytest.fixture(autouse=True)
-def reset_dagrun():
+def _reset_dagrun():
     yield
     with create_session() as session:
         session.query(DagRun).delete()

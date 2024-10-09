@@ -78,7 +78,7 @@ def dagruns(bash_dag, xcom_dag):
 
 
 @pytest.fixture(autouse=True)
-def clean_db():
+def _clean_db():
     clear_db_variables()
     yield
     clear_db_variables()

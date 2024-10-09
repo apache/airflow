@@ -101,7 +101,7 @@ def dag_run(create_dag_run, session):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def patched_app(app, dag):
+def _patched_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = dag
         yield
@@ -123,7 +123,7 @@ def task_3(dag):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_task_instances():
+def _init_blank_task_instances():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -132,7 +132,7 @@ def init_blank_task_instances():
 
 
 @pytest.fixture(autouse=True)
-def reset_task_instances():
+def _reset_task_instances():
     yield
     clear_db_runs()
 

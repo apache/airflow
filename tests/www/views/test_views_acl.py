@@ -136,13 +136,13 @@ def acl_app(app):
 
 
 @pytest.fixture(scope="module")
-def reset_dagruns():
+def _reset_dagruns():
     """Clean up stray garbage from other tests."""
     clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(acl_app, reset_dagruns):
+def _init_dagruns(acl_app, _reset_dagruns):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
@@ -322,7 +322,7 @@ def test_dag_autocomplete_dag_display_name(client_all_dags):
 
 
 @pytest.fixture
-def setup_paused_dag():
+def _setup_paused_dag():
     """Pause a DAG so we can test filtering."""
     dag_to_pause = "example_branch_operator"
     with create_session() as session:
@@ -339,7 +339,7 @@ def setup_paused_dag():
         ("paused", "example_branch_operator", "example_branch_labels"),
     ],
 )
-@pytest.mark.usefixtures("setup_paused_dag")
+@pytest.mark.usefixtures("_setup_paused_dag")
 def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
     with client_all_dags.session_transaction() as flask_session:
         flask_session[FILTER_STATUS_COOKIE] = status
