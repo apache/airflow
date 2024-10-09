@@ -96,7 +96,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.9.0": "1949afb29106",
     "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
-    "3.0.0": "0d9e73a75ee4",
+    "3.0.0": "c3389cd7793f",
 }
 
 
@@ -1203,19 +1203,22 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")
+    original_logging_level = logging.root.level
+    try:
+        import_all_models()
 
-    import_all_models()
+        connection = settings.engine.connect()
 
-    connection = settings.engine.connect()
+        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+            drop_airflow_models(connection)
+            drop_airflow_moved_tables(connection)
+            external_db_manager = RunDBManager()
+            external_db_manager.drop_tables(session, connection)
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
-        drop_airflow_models(connection)
-        drop_airflow_moved_tables(connection)
-        external_db_manager = RunDBManager()
-        external_db_manager.drop_tables(session, connection)
-
-    if not skip_init:
-        initdb(session=session)
+        if not skip_init:
+            initdb(session=session)
+    finally:
+        logging.root.setLevel(original_logging_level)
 
 
 @provide_session

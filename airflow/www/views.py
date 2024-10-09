@@ -32,7 +32,7 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from functools import cached_property
+from functools import cache, cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
@@ -89,7 +89,6 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
-from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import (
     AirflowConfigException,
@@ -178,7 +177,7 @@ def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in args.items() if not key.startswith("_")}
 
 
-# Following the release of https://github.com/python/cpython/issues/102153 in Python 3.8.17 and 3.9.17 on
+# Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
 # June 6, 2023, we are adding extra sanitization of the urls passed to get_safe_url method to make it works
 # the same way regardless if the user uses latest Python patchlevel versions or not. This also follows
 # a recommended solution by the Python core team.
@@ -3349,6 +3348,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/historical_metrics_data")
     @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
+    @mark_fastapi_migration_done
     def historical_metrics_data(self):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
@@ -4402,6 +4402,7 @@ class PluginView(AirflowBaseView):
         plugins_manager.integrate_executor_plugins()
         plugins_manager.initialize_extra_operators_links_plugins()
         plugins_manager.initialize_web_ui_plugins()
+        plugins_manager.initialize_fastapi_plugins()
 
         plugins = []
         for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):

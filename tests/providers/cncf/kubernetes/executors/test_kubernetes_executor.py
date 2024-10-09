@@ -19,7 +19,7 @@ from __future__ import annotations
 import random
 import re
 import string
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -30,7 +30,6 @@ from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
@@ -55,6 +54,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
+from tests.test_utils.compat import BashOperator
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
@@ -1191,28 +1191,52 @@ class TestKubernetesExecutor:
         assert tis_to_flush_by_key == {"foobar": {}}
 
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
-    )
-    def test_cleanup_stuck_queued_tasks(self, mock_delete_pod, mock_kube_client, dag_maker, session):
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    def test_cleanup_stuck_queued_tasks(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
         """Delete any pods associated with a task stuck in queued."""
-        executor = KubernetesExecutor()
-        executor.start()
-        executor.scheduler_job_id = "123"
-        with dag_maker(dag_id="test_cleanup_stuck_queued_tasks"):
-            op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "airflow-worker": 123,
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
+        create_dummy_dag(dag_id="test_cleanup_stuck_queued_tasks", task_id="bash", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
-        ti = dag_run.get_task_instance(op.task_id, session)
-        ti.retries = 1
+        ti = dag_run.task_instances[0]
         ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
+        ti.queued_by_job_id = 123
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 123
+        executor.kube_client = mock_kube_client
+        executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
         executor.cleanup_stuck_queued_tasks(tis)
-        mock_delete_pod.assert_called_once()
+        executor.kube_scheduler.delete_pod.assert_called_once()
         assert executor.running == set()
-        executor.end()
 
     @pytest.mark.parametrize(
         "raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config",
@@ -1292,6 +1316,11 @@ class TestKubernetesExecutor:
             items=[
                 k8s.V1Pod(
                     metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_clear",
+                            "task_id": "task1",
+                            "run_id": "test",
+                        },
                         labels={
                             "role": "airflow-worker",
                             "dag_id": "test_clear",
@@ -1339,6 +1368,12 @@ class TestKubernetesExecutor:
                 items=[
                     k8s.V1Pod(
                         metadata=k8s.V1ObjectMeta(
+                            annotations={
+                                "dag_id": "test_clear",
+                                "task_id": "bash",
+                                "run_id": "test",
+                                "map_index": 0,
+                            },
                             labels={
                                 "role": "airflow-worker",
                                 "dag_id": "test_clear",

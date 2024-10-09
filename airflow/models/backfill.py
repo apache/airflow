@@ -27,14 +27,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, update
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
 from airflow.models.base import Base, StringID
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -113,6 +111,12 @@ class BackfillDagRun(Base):
         ),
     )
 
+    @validates("sort_ordinal")
+    def validate_sort_ordinal(self, key, val):
+        if val < 1:
+            raise ValueError("sort_ordinal must be >= 1")
+        return val
+
 
 def _create_backfill(
     *,
@@ -123,6 +127,8 @@ def _create_backfill(
     reverse: bool,
     dag_run_conf: dict | None,
 ) -> Backfill | None:
+    from airflow.models.serialized_dag import SerializedDagModel
+
     with create_session() as session:
         serdag = session.get(SerializedDagModel, dag_id)
         if not serdag:
@@ -175,6 +181,7 @@ def _create_backfill(
                     run_type=DagRunType.BACKFILL_JOB,
                     creating_job_id=None,
                     session=session,
+                    backfill_id=br.id,
                 )
             except Exception:
                 dag.log.exception(
@@ -207,6 +214,8 @@ def _cancel_backfill(backfill_id) -> Backfill:
             b.is_paused = True
 
         session.commit()
+
+        from airflow.models import DagRun
 
         # now, let's mark all queued dag runs as failed
         query = (

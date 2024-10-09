@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import sys
-
-if sys.version_info >= (3, 9):
-    from functools import cache
-else:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
-
-# We need to keep it around, in case it was used in the code of old providers, but since we are
-# Python 3.8+ we can directly import the functools one
-from functools import cached_property  # type: ignore
-
-__all__ = ["cache", "cached_property"]

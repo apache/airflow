@@ -29,6 +29,7 @@ from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pendulum
 import psutil
 import pytest
 import time_machine
@@ -51,6 +52,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.backfill import _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -58,8 +60,8 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -75,6 +77,7 @@ from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_assets,
+    clear_db_backfills,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -136,6 +139,7 @@ class TestSchedulerJob:
     @staticmethod
     def clean_db():
         clear_db_runs()
+        clear_db_backfills()
         clear_db_pools()
         clear_db_dags()
         clear_db_sla_miss()
@@ -4724,7 +4728,7 @@ class TestSchedulerJob:
         # Assert that the other one is queued
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 1
 
-    def test_max_active_runs_in_a_dag_doesnt_stop_running_dagruns_in_otherdags(self, dag_maker):
+    def test_max_active_runs_in_a_dag_doesnt_stop_running_dag_runs_in_other_dags(self, dag_maker):
         session = settings.Session()
         with dag_maker(
             "test_dag1",
@@ -4768,6 +4772,358 @@ class TestSchedulerJob:
         running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
         assert dag1_running_count == 1
         assert running_count == 11
+
+    def test_max_active_runs_in_a_dag_doesnt_prevent_backfill_from_running(self, dag_maker):
+        session = settings.Session()
+        with dag_maker(
+            "test_dag1",
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+        ) as dag:
+            EmptyOperator(task_id="mytask")
+        dag1_dag_id = dag.dag_id
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(29):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+
+        with dag_maker(
+            "test_dag2",
+            start_date=timezone.datetime(2020, 1, 1),
+            schedule=timedelta(days=1),
+        ):
+            EmptyOperator(task_id="mytask")
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(9):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor(do_update=False)
+        self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
+            .scalar()
+        )
+        running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        assert dag1_running_count == 1
+        assert running_count == 11
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
+            .scalar()
+        )
+        assert dag1_running_count == 1
+        total_running_count = (
+            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        )
+        assert total_running_count == 11
+
+        # scheduler will now mark backfill runs as running
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag1_dag_id,
+                DagRun.state == State.RUNNING,
+            )
+            .scalar()
+        )
+        assert dag1_running_count == 4
+        total_running_count = (
+            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        )
+        assert total_running_count == 14
+
+        # and doing it again does not change anything
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag1_running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag1_dag_id,
+                DagRun.state == State.RUNNING,
+            )
+            .scalar()
+        )
+        assert dag1_running_count == 4
+        total_running_count = (
+            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        )
+        assert total_running_count == 14
+
+    def test_backfill_runs_are_started_with_lower_priority(self, dag_maker, session):
+        """
+        Here we are going to create all the runs at the same time and see which
+        ones are scheduled first.
+        On the first scheduler run, I expect that backfill runs would not be started
+        due to being outside the limit in the queued runs query.
+        """
+        dag1_dag_id = "test_dag1"
+        with dag_maker(
+            dag_id=dag1_dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        def _running_counts():
+            dag1_non_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            dag1_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            total_running_count = (
+                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+            )
+            return dag1_non_b_running, dag1_b_running, total_running_count
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        scheduler_job.executor = MockExecutor(do_update=False)
+        self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+
+        # now let's create some "normal" dag runs and verify that they can run
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(29):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        with dag_maker(
+            "test_dag2",
+            start_date=timezone.datetime(2020, 1, 1),
+            schedule=timedelta(days=1),
+        ):
+            EmptyOperator(task_id="mytask")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(9):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+
+        # initial state -- nothing is running
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 0
+        assert total_running == 0
+        assert session.query(func.count(DagRun.id)).scalar() == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+        # now let's run it once
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        # after running the scheduler one time, observe that only one dag run is started
+        # this is because there are 30 runs for dag 1 so neither the backfills nor
+        # any runs for dag2 get started
+        assert DagRun.DEFAULT_DAGRUNS_TO_EXAMINE == 20
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 1
+        assert dag1_b_running == 0
+        assert total_running == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+        # we run scheduler again and observe that now all the runs are created
+        # this must be because sorting is working
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 1
+        assert dag1_b_running == 3
+        assert total_running == 14
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+        # run it a 3rd time and nothing changes
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 1
+        assert dag1_b_running == 3
+        assert total_running == 14
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+    def test_backfill_maxed_out_no_prevent_non_backfill_max_out(self, dag_maker):
+        session = settings.Session()
+        dag1_dag_id = "test_dag1"
+        with dag_maker(
+            dag_id=dag1_dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        def _running_counts():
+            dag1_non_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            dag1_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            total_running_count = (
+                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+            )
+            return dag1_non_b_running, dag1_b_running, total_running_count
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor(do_update=False)
+        self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 0
+        assert total_running == 0
+        assert session.query(func.count(DagRun.id)).scalar() == 6
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
+
+        # scheduler will now mark backfill runs as running
+        # it should mark 3 of them running since that is backfill max active runs
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 3
+        assert total_running == 3
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 6
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
+
+        # and nothing should change if scheduler runs again
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 3
+        assert total_running == 3
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 6
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
+
+        # now let's create some "normal" dag runs and verify that they can run
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(29):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        with dag_maker(
+            "test_dag2",
+            start_date=timezone.datetime(2020, 1, 1),
+            schedule=timedelta(days=1),
+        ):
+            EmptyOperator(task_id="mytask")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+        for _ in range(9):
+            dr = dag_maker.create_dagrun_after(dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED)
+
+        # ok at this point, there are new dag runs created, but no new running runs
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 3
+        assert total_running == 3
+        # we created a lot of drs
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        # and in particular there are 36 total runs for dag1
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+        # but now let's run the scheduler once
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        # now we should see one more non-backfill run running, and 11 more in total
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 1
+        assert dag1_b_running == 3
+
+        # this should be 14 but it is not. why?
+        # answer: because dag2 got starved out by dag1
+        # if we run the scheduler again, dag2 should get queued
+        assert total_running == 4
+
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
+
+        # run scheduler a second time
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 1
+        assert dag1_b_running == 3
+
+        # on the second try, dag 2's 10 runs now start running
+        assert total_running == 14
+
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 46
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
     def test_start_queued_dagruns_do_follow_execution_date_order(self, dag_maker):
         session = settings.Session()
@@ -5963,6 +6319,7 @@ class TestSchedulerJobQueriesCount:
     def clean_db():
         clear_db_runs()
         clear_db_pools()
+        clear_db_backfills()
         clear_db_dags()
         clear_db_sla_miss()
         clear_db_import_errors()

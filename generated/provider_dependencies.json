@@ -38,7 +38,6 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
-      "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -345,7 +344,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -359,7 +359,6 @@
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [
-      "3.8",
       "3.9"
     ],
     "state": "ready"
@@ -534,7 +533,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "standard"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
