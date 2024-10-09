@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-default_stages: [commit, push]
+default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3
   node: 22.2.0
