@@ -51,7 +51,7 @@ This operator will execute a custom query in the provided SQL connection and pub
 
 An example usage of the SqlToSlackApiFileOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_sql_to_slack.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_to_slack_api_file]

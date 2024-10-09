@@ -46,7 +46,7 @@ AWS Glue Crawlers allow you to easily extract data from various data sources.
 To create a new AWS Glue Crawler or run an existing one you can
 use :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_crawler]
@@ -64,7 +64,7 @@ Submit an AWS Glue job
 
 To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue]
@@ -84,7 +84,7 @@ of your data so that you can make good business decisions.
 To create a new AWS Glue Data Quality ruleset or update an existing one you can
 use :class:`~airflow.providers.amazon.aws.operators.glue.GlueDataQualityOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_data_quality.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_data_quality.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_data_quality_operator]
@@ -98,7 +98,7 @@ Start a AWS Glue Data Quality Evaluation Run
 To start a AWS Glue Data Quality ruleset evaluation run you can use
 :class:`~airflow.providers.amazon.aws.operators.glue.GlueDataQualityRuleSetEvaluationRunOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_data_quality.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_data_quality.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_data_quality_ruleset_evaluation_run_operator]
@@ -112,7 +112,7 @@ Start a AWS Glue Data Quality Recommendation Run
 To start a AWS Glue Data Quality rule recommendation run you can use
 :class:`~airflow.providers.amazon.aws.operators.glue.GlueDataQualityRuleRecommendationRunOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_data_quality_with_recommendation.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_data_quality_with_recommendation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_data_quality_rule_recommendation_run]
@@ -129,7 +129,7 @@ Wait on an AWS Glue crawler state
 To wait on the state of an AWS Glue crawler execution until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue_crawler]
@@ -143,7 +143,7 @@ Wait on an AWS Glue job state
 To wait on the state of an AWS Glue Job until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue]
@@ -157,7 +157,7 @@ Wait on an AWS Glue Data Quality Evaluation Run
 To wait on the state of an AWS Glue Data Quality RuleSet Evaluation Run until it
 reaches a terminal state you can use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueDataQualityRuleSetEvaluationRunSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_data_quality.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_data_quality.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue_data_quality_ruleset_evaluation_run]
@@ -171,7 +171,7 @@ Wait on an AWS Glue Data Quality Recommendation Run
 To wait on the state of an AWS Glue Data Quality recommendation run until it
 reaches a terminal state you can use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueDataQualityRuleRecommendationRunSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_data_quality_with_recommendation.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_data_quality_with_recommendation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue_data_quality_rule_recommendation_run]
@@ -185,7 +185,7 @@ Wait on an AWS Glue Catalog Partition
 To wait for a partition to show up in AWS Glue Catalog until it
 reaches a terminal state you can use :class:`~airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glue_catalog_partition]
