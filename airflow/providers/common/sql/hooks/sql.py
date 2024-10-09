@@ -683,7 +683,7 @@ class DbApiHook(BaseHook):
                             )
                         )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
-                        self.log.debug("Generated sql: %s", sql)
+                        self.log.info("Generated sql: %s", sql)
                         cur.executemany(sql, values)
                         conn.commit()
                         self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
@@ -692,7 +692,7 @@ class DbApiHook(BaseHook):
                     for i, row in enumerate(rows, 1):
                         values = self._serialize_cells(row, conn)
                         sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
-                        self.log.debug("Generated sql: %s", sql)
+                        self.log.info("Generated sql: %s", sql)
                         cur.execute(sql, values)
                         if commit_every and i % commit_every == 0:
                             conn.commit()
