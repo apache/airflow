@@ -22,8 +22,8 @@ from datetime import datetime
 from airflow.assets import Asset
 from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 skip_task_dag_dataset = Asset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
 fail_task_dag_dataset = Asset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
