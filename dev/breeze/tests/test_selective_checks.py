@@ -703,9 +703,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
-            ("airflow/operators/bash.py",),
+            ("airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": None,
+                "affected-providers-list-as-string": "celery edge standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -717,14 +717,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
+                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Operators Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[celery,edge,standard] Serialization",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-folders": "['providers']",
             },
-            id="Force Core and Serialization tests to run when airflow bash.py changed",
+            id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
             ("tests/operators/bash.py",),
@@ -1720,7 +1720,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
+            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes standard"},
             id="Celery python files changed",
         ),
         pytest.param(

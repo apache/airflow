@@ -32,9 +32,9 @@ from datetime import datetime
 from docker.types import Mount
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "docker_sample_copy_data"
