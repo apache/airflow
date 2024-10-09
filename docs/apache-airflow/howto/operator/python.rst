@@ -79,7 +79,7 @@ Airflow passes in an additional set of keyword arguments: one for each of the
 :ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
 argument.
 
-The ``templates_dict`` argument is templated, so each value in the dictionary
+ ``templates_dict``, ``op_args``, ``op_kwargs`` arguments are templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
 .. tab-set::
@@ -181,6 +181,11 @@ setting ``system_site_packages`` to ``True`` or add ``apache-airflow`` to the ``
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
+
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 .. important::
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
@@ -336,6 +341,11 @@ If you want the context related to datetime objects like ``data_interval_start``
     If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
     ``op_args`` and ``op_kwargs``.
 
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
+
 Context
 ^^^^^^^
 
@@ -393,6 +403,9 @@ tasks.
             :start-after: [START howto_operator_branch_python]
             :end-before: [END howto_operator_branch_python]
 
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchPythonVirtualenvOperator:
@@ -427,7 +440,10 @@ tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOpera
             :start-after: [START howto_operator_branch_virtualenv]
             :end-before: [END howto_operator_branch_virtualenv]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchExternalPythonOperator:
 
@@ -462,7 +478,11 @@ external Python environment.
             :start-after: [START howto_operator_branch_ext_py]
             :end-before: [END howto_operator_branch_ext_py]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
+
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 
@@ -547,7 +567,7 @@ Pass extra arguments to the ``@task.short_circuit``-decorated function as you wo
 Templating
 ^^^^^^^^^^
 
-Jinja templating can be used in same way as described for the PythonOperator.
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:PythonSensor:
 
@@ -580,3 +600,13 @@ value to be True.
             :dedent: 4
             :start-after: [START example_python_sensors]
             :end-before: [END example_python_sensors]
+
+Templating
+^^^^^^^^^^
+
+Airflow passes in an additional set of keyword arguments: one for each of the
+:ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
+argument.
+
+ ``templates_dict``, ``op_args``, ``op_kwargs`` arguments are templated, so each value in the dictionary
+is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
