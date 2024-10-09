@@ -1780,6 +1780,18 @@ class TestKubernetesPodOperator:
         process_pod_deletion_mock.assert_called_once_with(pod_1)
         assert result.metadata.name == pod_2.metadata.name
 
+    @patch(POD_MANAGER_CLASS.format("fetch_container_logs"))
+    @patch(KUB_OP_PATH.format("invoke_defer_method"))
+    def test_defere_call_one_more_time_after_error(self, invoke_defer_method, fetch_container_logs):
+        fetch_container_logs.return_value = PodLoggingStatus(False, None)
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+
+        op.trigger_reentry(
+            create_context(op), event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"}
+        )
+
+        invoke_defer_method.assert_called_with(None)
+
 
 class TestSuppress:
     def test__suppress(self, caplog):

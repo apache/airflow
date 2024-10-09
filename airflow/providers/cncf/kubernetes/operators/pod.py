@@ -790,9 +790,7 @@ class KubernetesPodOperator(BaseOperator):
                         since_time=last_log_time,
                     )
 
-                    if pod_log_status.running:
-                        self.log.info("Container still running; deferring again.")
-                        self.invoke_defer_method(pod_log_status.last_log_time)
+                    self.invoke_defer_method(pod_log_status.last_log_time)
                 else:
                     self.invoke_defer_method()
 
