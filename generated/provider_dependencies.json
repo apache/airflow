@@ -345,7 +345,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -359,7 +360,6 @@
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [
-      "3.8",
       "3.9"
     ],
     "state": "ready"
@@ -534,7 +534,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "standard"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },

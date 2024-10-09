@@ -60,8 +60,8 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -2947,41 +2947,6 @@ class TestSchedulerJob:
                 },
                 dagrun_state=State.FAILED,
             )
-
-    def test_dagrun_root_fail_unfinished(self):
-        """
-        DagRuns with one unfinished and one failed root task -> RUNNING
-        """
-        # TODO: this should live in test_dagrun.py
-        # Run both the failed and successful tasks
-        dag_id = "test_dagrun_states_root_fail_unfinished"
-        dag = self.dagbag.get_dag(dag_id)
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=None,
-            data_interval=data_interval,
-            **triggered_by_kwargs,
-        )
-        self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
-
-        # todo: AIP-78 remove this test along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            for _ in _mock_executor(self.null_exec):
-                with pytest.raises(AirflowException):
-                    dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
-
-        # Mark the successful task as never having run since we want to see if the
-        # dagrun will be in a running state despite having an unfinished task.
-        with create_session() as session:
-            ti = dr.get_task_instance("test_dagrun_unfinished", session=session)
-            ti.state = State.NONE
-            session.commit()
-        dr.update_state()
-        assert dr.state == State.RUNNING
 
     def test_dagrun_root_after_dagrun_unfinished(self, mock_executor):
         """

@@ -404,7 +404,7 @@ ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 )
 @click.option(
     "--python-version",
-    default="3.8",
+    default="3.9",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",

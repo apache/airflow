@@ -34,6 +34,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dashboard/historical_metrics_data:
+    get:
+      tags:
+      - Dashboard
+      summary: Historical Metrics
+      description: Return cluster activity historical metrics.
+      operationId: historical_metrics
+      parameters:
+      - name: start_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Start Date
+      - name: end_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: End Date
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalMetricDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/:
     get:
       tags:
@@ -431,6 +470,91 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/variables/{variable_key}:
+    delete:
+      tags:
+      - Variable
+      summary: Delete Variable
+      description: Delete a variable entry.
+      operationId: delete_variable
+      parameters:
+      - name: variable_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Variable Key
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Variable
+      summary: Get Variable
+      description: Get a variable entry.
+      operationId: get_variable
+      parameters:
+      - name: variable_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Variable Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariableResponse'
         '401':
           content:
             application/json:
@@ -923,6 +1047,50 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunStates:
+      properties:
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        failed:
+          type: integer
+          title: Failed
+      type: object
+      required:
+      - queued
+      - running
+      - success
+      - failed
+      title: DAGRunStates
+      description: DAG Run States for responses.
+    DAGRunTypes:
+      properties:
+        backfill:
+          type: integer
+          title: Backfill
+        scheduled:
+          type: integer
+          title: Scheduled
+        manual:
+          type: integer
+          title: Manual
+        dataset_triggered:
+          type: integer
+          title: Dataset Triggered
+      type: object
+      required:
+      - backfill
+      - scheduled
+      - manual
+      - dataset_triggered
+      title: DAGRunTypes
+      description: DAG Run Types for responses.
     DagRunState:
       type: string
       enum:
@@ -975,6 +1143,79 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HistoricalMetricDataResponse:
+      properties:
+        dag_run_types:
+          $ref: '#/components/schemas/DAGRunTypes'
+        dag_run_states:
+          $ref: '#/components/schemas/DAGRunStates'
+        task_instance_states:
+          $ref: '#/components/schemas/TaskInstantState'
+      type: object
+      required:
+      - dag_run_types
+      - dag_run_states
+      - task_instance_states
+      title: HistoricalMetricDataResponse
+      description: Historical Metric Data serializer for responses.
+    TaskInstantState:
+      properties:
+        no_status:
+          type: integer
+          title: No Status
+        removed:
+          type: integer
+          title: Removed
+        scheduled:
+          type: integer
+          title: Scheduled
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        restarting:
+          type: integer
+          title: Restarting
+        failed:
+          type: integer
+          title: Failed
+        up_for_retry:
+          type: integer
+          title: Up For Retry
+        up_for_reschedule:
+          type: integer
+          title: Up For Reschedule
+        upstream_failed:
+          type: integer
+          title: Upstream Failed
+        skipped:
+          type: integer
+          title: Skipped
+        deferred:
+          type: integer
+          title: Deferred
+      type: object
+      required:
+      - no_status
+      - removed
+      - scheduled
+      - queued
+      - running
+      - success
+      - restarting
+      - failed
+      - up_for_retry
+      - up_for_reschedule
+      - upstream_failed
+      - skipped
+      - deferred
+      title: TaskInstantState
+      description: TaskInstance serializer for responses.
     ValidationError:
       properties:
         loc:
@@ -996,3 +1237,25 @@ components:
       - msg
       - type
       title: ValidationError
+    VariableResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+      type: object
+      required:
+      - key
+      - value
+      - description
+      title: VariableResponse
+      description: Variable serializer for responses.

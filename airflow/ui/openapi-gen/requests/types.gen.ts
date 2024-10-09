@@ -121,6 +121,26 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run States for responses.
+ */
+export type DAGRunStates = {
+  queued: number;
+  running: number;
+  success: number;
+  failed: number;
+};
+
+/**
+ * DAG Run Types for responses.
+ */
+export type DAGRunTypes = {
+  backfill: number;
+  scheduled: number;
+  manual: number;
+  dataset_triggered: number;
+};
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -152,10 +172,47 @@ export type HTTPValidationError = {
   detail?: Array<ValidationError>;
 };
 
+/**
+ * Historical Metric Data serializer for responses.
+ */
+export type HistoricalMetricDataResponse = {
+  dag_run_types: DAGRunTypes;
+  dag_run_states: DAGRunStates;
+  task_instance_states: TaskInstantState;
+};
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type TaskInstantState = {
+  no_status: number;
+  removed: number;
+  scheduled: number;
+  queued: number;
+  running: number;
+  success: number;
+  restarting: number;
+  failed: number;
+  up_for_retry: number;
+  up_for_reschedule: number;
+  upstream_failed: number;
+  skipped: number;
+  deferred: number;
+};
+
 export type ValidationError = {
   loc: Array<string | number>;
   msg: string;
   type: string;
+};
+
+/**
+ * Variable serializer for responses.
+ */
+export type VariableResponse = {
+  key: string;
+  value: string | null;
+  description: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -165,6 +222,13 @@ export type NextRunAssetsData = {
 export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
+
+export type HistoricalMetricsData = {
+  endDate: string;
+  startDate: string;
+};
+
+export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
@@ -222,6 +286,18 @@ export type GetConnectionData = {
 
 export type GetConnectionResponse = ConnectionResponse;
 
+export type DeleteVariableData = {
+  variableKey: string;
+};
+
+export type DeleteVariableResponse = void;
+
+export type GetVariableData = {
+  variableKey: string;
+};
+
+export type GetVariableResponse = VariableResponse;
+
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
@@ -233,6 +309,25 @@ export type $OpenApiTs = {
         200: {
           [key: string]: unknown;
         };
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/historical_metrics_data": {
+    get: {
+      req: HistoricalMetricsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: HistoricalMetricDataResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -379,6 +474,58 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/{variable_key}": {
+    delete: {
+      req: DeleteVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
         /**
          * Unauthorized
          */

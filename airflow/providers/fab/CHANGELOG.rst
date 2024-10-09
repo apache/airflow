@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+1.4.1
+.....
+
+Misc
+~~~~
+
+* ``Update Rest API tests to no longer rely on FAB auth manager. Move tests specific to FAB permissions to FAB provider (#42523)``
+* ``Rename dataset related python variable names to asset (#41348)``
+* ``Simplify expression for get_permitted_dag_ids query (#42484)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.4.0
 .....
 
