@@ -3348,6 +3348,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/historical_metrics_data")
     @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
+    @mark_fastapi_migration_done
     def historical_metrics_data(self):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
