@@ -29,7 +29,7 @@ import { type ChangeEventHandler, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
-import type { DAGResponse } from "openapi/requests/types.gen";
+import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
@@ -97,12 +97,14 @@ const cardDef: CardDef<DAGResponse> = {
 };
 
 const PAUSED_PARAM = "paused";
+const STATE_PARAM = "last_dag_run_state";
 
 export const DagsList = () => {
   const [searchParams] = useSearchParams();
   const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const lastDagRunState = searchParams.get(STATE_PARAM) as DagRunState;
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -112,6 +114,7 @@ export const DagsList = () => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
   const { data, isFetching, isLoading } = useDagServiceGetDags({
+    lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
