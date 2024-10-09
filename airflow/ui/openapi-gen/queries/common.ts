@@ -4,8 +4,8 @@ import { UseQueryResult } from "@tanstack/react-query";
 import {
   AssetService,
   ConnectionService,
-  DagRunService,
   DagService,
+  DashboardService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -26,6 +26,28 @@ export const UseAssetServiceNextRunAssetsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
+  ReturnType<typeof DashboardService.historicalMetrics>
+>;
+export type DashboardServiceHistoricalMetricsQueryResult<
+  TData = DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceHistoricalMetricsKey =
+  "DashboardServiceHistoricalMetrics";
+export const UseDashboardServiceHistoricalMetricsKeyFn = (
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDashboardServiceHistoricalMetricsKey,
+  ...(queryKey ?? [{ endDate, startDate }]),
+];
 export type DagServiceGetDagsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDags>
 >;
@@ -112,24 +134,22 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
 ];
-export type DagRunServiceGetDagRunDefaultResponse = Awaited<
-  ReturnType<typeof DagRunService.getDagRun>
+export type VariableServiceGetVariableDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariable>
 >;
-export type DagRunServiceGetDagRunQueryResult<
-  TData = DagRunServiceGetDagRunDefaultResponse,
+export type VariableServiceGetVariableQueryResult<
+  TData = VariableServiceGetVariableDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
-export const UseDagRunServiceGetDagRunKeyFn = (
+export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
+export const UseVariableServiceGetVariableKeyFn = (
   {
-    dagId,
-    dagRunId,
+    variableKey,
   }: {
-    dagId: string;
-    dagRunId: string;
+    variableKey: string;
   },
   queryKey?: Array<unknown>,
-) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;

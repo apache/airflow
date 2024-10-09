@@ -4,8 +4,9 @@ import { type QueryClient } from "@tanstack/react-query";
 import {
   AssetService,
   ConnectionService,
-  DagRunService,
   DagService,
+  DashboardService,
+  VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -28,6 +29,32 @@ export const prefetchUseAssetServiceNextRunAssets = (
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
     queryFn: () => AssetService.nextRunAssets({ dagId }),
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDashboardServiceHistoricalMetrics = (
+  queryClient: QueryClient,
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({
+      endDate,
+      startDate,
+    }),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
   });
 /**
  * Get Dags
@@ -140,24 +167,22 @@ export const prefetchUseConnectionServiceGetConnection = (
     queryFn: () => ConnectionService.getConnection({ connectionId }),
   });
 /**
- * Get Dag Run
+ * Get Variable
+ * Get a variable entry.
  * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagRunServiceGetDagRun = (
+export const prefetchUseVariableServiceGetVariable = (
   queryClient: QueryClient,
   {
-    dagId,
-    dagRunId,
+    variableKey,
   }: {
-    dagId: string;
-    dagRunId: string;
+    variableKey: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }),
+    queryFn: () => VariableService.getVariable({ variableKey }),
   });

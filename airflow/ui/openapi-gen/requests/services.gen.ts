@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  HistoricalMetricsData,
+  HistoricalMetricsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -19,8 +21,8 @@ import type {
   GetConnectionResponse,
   DeleteVariableData,
   DeleteVariableResponse,
-  GetDagRunData,
-  GetDagRunResponse,
+  GetVariableData,
+  GetVariableResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -41,6 +43,34 @@ export class AssetService {
         dag_id: data.dagId,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DashboardService {
+  /**
+   * Historical Metrics
+   * Return cluster activity historical metrics.
+   * @param data The data for the request.
+   * @param data.startDate
+   * @param data.endDate
+   * @returns HistoricalMetricDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static historicalMetrics(
+    data: HistoricalMetricsData,
+  ): CancelablePromise<HistoricalMetricsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/historical_metrics_data",
+      query: {
+        start_date: data.startDate,
+        end_date: data.endDate,
+      },
+      errors: {
+        400: "Bad Request",
         422: "Validation Error",
       },
     });
@@ -277,26 +307,23 @@ export class VariableService {
       },
     });
   }
-}
 
-export class DagRunService {
   /**
-   * Get Dag Run
+   * Get Variable
+   * Get a variable entry.
    * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @returns DAGRunResponse Successful Response
+   * @param data.variableKey
+   * @returns VariableResponse Successful Response
    * @throws ApiError
    */
-  public static getDagRun(
-    data: GetDagRunData,
-  ): CancelablePromise<GetDagRunResponse> {
+  public static getVariable(
+    data: GetVariableData,
+  ): CancelablePromise<GetVariableResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      url: "/public/variables/{variable_key}",
       path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
+        variable_key: data.variableKey,
       },
       errors: {
         401: "Unauthorized",
