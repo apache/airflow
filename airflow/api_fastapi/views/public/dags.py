@@ -41,6 +41,7 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
+from airflow.api_fastapi.security import requires_access_dag
 from airflow.api_fastapi.serializers.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -53,7 +54,7 @@ from airflow.models import DAG, DagModel
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("/")
+@dags_router.get("/", dependencies=[Depends(requires_access_dag("GET"))])
 async def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -92,7 +93,11 @@ async def get_dags(
     )
 
 
-@dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]),
+    dependencies=[Depends(requires_access_dag("GET"))],
+)
 async def get_dag(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGResponse:
@@ -112,7 +117,11 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]),
+    dependencies=[Depends(requires_access_dag("GET"))],
+)
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
@@ -132,7 +141,11 @@ async def get_dag_details(
     return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.patch("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    dependencies=[Depends(requires_access_dag("PUT"))],
+)
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
@@ -192,6 +205,7 @@ async def patch_dags(
     dags = session.scalars(dags_select).all()
 
     dags_to_update = {dag.dag_id for dag in dags}
+    # TODO: check user permissions with batch_is_authorized
 
     session.execute(
         update(DagModel)
