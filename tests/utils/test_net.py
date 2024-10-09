@@ -24,7 +24,8 @@ import pytest
 
 from airflow.exceptions import AirflowConfigException
 from airflow.utils import net
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 
 def get_hostname():

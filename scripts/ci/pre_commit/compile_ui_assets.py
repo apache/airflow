@@ -68,7 +68,10 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(["pnpm", "install", "--frozen-lockfile"], cwd=os.fspath(ui_directory))
+    subprocess.check_call(
+        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
+        cwd=os.fspath(ui_directory),
+    )
     subprocess.check_call(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
     new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
     UI_HASH_FILE.write_text(new_hash)

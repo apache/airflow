@@ -50,7 +50,7 @@ Creating an YDB table
 
 The code snippets below are based on Airflow-2.0
 
-.. exampleinclude:: /../../tests/system/providers/ydb/example_ydb.py
+.. exampleinclude:: /../../providers/tests/system/ydb/example_ydb.py
     :language: python
     :start-after: [START ydb_operator_howto_guide]
     :end-before: [END ydb_operator_howto_guide_create_pet_table]
@@ -187,7 +187,7 @@ The complete YDB Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/ydb/example_ydb.py
+.. exampleinclude:: /../../providers/tests/system/ydb/example_ydb.py
     :language: python
     :start-after: [START ydb_operator_howto_guide]
     :end-before: [END ydb_operator_howto_guide]

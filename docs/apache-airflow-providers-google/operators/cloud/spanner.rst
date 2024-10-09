@@ -41,7 +41,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_deploy]
@@ -50,7 +50,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_deploy_template_fields]
@@ -80,7 +80,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_delete]
@@ -89,7 +89,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]
@@ -120,7 +120,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_deploy]
@@ -129,7 +129,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_deploy_template_fields]
@@ -164,13 +164,13 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update]
     :end-before: [END howto_operator_spanner_database_update]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_database_update_idempotent]
@@ -179,7 +179,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_database_update_template_fields]
@@ -207,7 +207,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_query]
@@ -216,7 +216,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_query_template_fields]
@@ -246,7 +246,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/spanner/example_spanner.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/spanner/example_spanner.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_spanner_delete]
@@ -255,7 +255,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/spanner.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/spanner.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_spanner_delete_template_fields]

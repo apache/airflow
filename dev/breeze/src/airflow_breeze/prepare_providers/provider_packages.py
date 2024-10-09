@@ -37,7 +37,7 @@ from airflow_breeze.utils.packages import (
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_SRC, AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 LICENCE_RST = """
@@ -83,7 +83,7 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     rmtree(target_provider_root_path, ignore_errors=True)
     target_provider_root_path.mkdir(parents=True)
     source_provider_sources_path = get_source_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_SOURCES_ROOT)
+    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_SRC)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
         f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"

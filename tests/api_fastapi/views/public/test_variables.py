@@ -20,7 +20,8 @@ import pytest
 
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
-from tests.test_utils.db import clear_db_variables
+
+from dev.tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
 

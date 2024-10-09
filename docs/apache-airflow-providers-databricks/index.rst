@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/databricks/index>
+    System Tests <_api/tests/system/databricks/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-databricks/|version|/tests/system/providers/databricks>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-databricks/|version|/providers/tests/system/databricks>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-databricks/>
     Installing from sources <installing-providers-from-sources>
 

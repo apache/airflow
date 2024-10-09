@@ -48,7 +48,7 @@ To create an AWS lambda function you can use
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_lambda_function]
@@ -111,7 +111,7 @@ To invoke an AWS lambda function you can use
     The only way is `configuring destinations for asynchronous invocation <https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-async-destinations>`_
     and sensing destination.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_lambda_function]
@@ -128,7 +128,7 @@ Wait on an AWS Lambda function deployment state
 To check the deployment state of an AWS Lambda function until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.lambda_function.LambdaFunctionStateSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_lambda_function_state]

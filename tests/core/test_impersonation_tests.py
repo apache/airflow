@@ -35,7 +35,8 @@ from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
-from tests.test_utils import db
+
+from dev.tests_common.test_utils import db
 
 # The entire module into the quarantined mark, this might have unpredictable side effects to other tests
 # and should be moved into the isolated environment into the future.

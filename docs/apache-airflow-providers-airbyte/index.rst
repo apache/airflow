@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/airbyte/index>
+    System Tests <_api/tests/system/airbyte/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-airbyte/|version|/tests/system/providers/airbyte>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-airbyte/|version|/providers/tests/system/airbyte>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-airbyte/>
     Installing from sources <installing-providers-from-sources>
 

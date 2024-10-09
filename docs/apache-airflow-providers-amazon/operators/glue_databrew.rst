@@ -46,7 +46,7 @@ Start an AWS Glue DataBrew job
 
 To submit a new AWS Glue DataBrew job you can use :class:`~airflow.providers.amazon.aws.operators.glue_databrew.GlueDataBrewStartJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glue_databrew.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glue_databrew.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glue_databrew_start]

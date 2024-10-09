@@ -45,7 +45,7 @@ use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierCreate
 
 This Operator returns a dictionary of information related to the initiated job such as *jobId*, which is required for subsequent tasks.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glacier_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glacier_create_job]
@@ -59,7 +59,7 @@ Upload archive to an Amazon Glacier
 To add an archive to an Amazon S3 Glacier vault
 use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierUploadArchiveOperator`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glacier_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_glacier_upload_archive]
@@ -76,7 +76,7 @@ Wait on an Amazon Glacier job state
 To wait on the status of an Amazon Glacier Job to reach a terminal state
 use :class:`~airflow.providers.amazon.aws.sensors.glacier.GlacierJobOperationSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_glacier_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_glacier_job_operation]

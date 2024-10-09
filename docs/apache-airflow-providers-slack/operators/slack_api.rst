@@ -34,7 +34,7 @@ Using the Operator
 
 You could send simple text message
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack.py
     :language: python
     :dedent: 4
     :start-after: [START slack_api_post_operator_text_howto_guide]
@@ -43,7 +43,7 @@ You could send simple text message
 
 Or you could use `Block Kit <https://api.slack.com/reference/block-kit>`_ for create app layouts
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack.py
     :language: python
     :dedent: 4
     :start-after: [START slack_api_post_operator_blocks_howto_guide]
@@ -81,7 +81,7 @@ Using the Operator
 
 You could send file attachment by specifying file path
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack.py
     :language: python
     :start-after: [START slack_api_file_operator_howto_guide]
     :end-before: [END slack_api_file_operator_howto_guide]
@@ -89,7 +89,7 @@ You could send file attachment by specifying file path
 
 Or by directly providing file contents
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack.py
     :language: python
     :start-after: [START slack_api_file_operator_content_howto_guide]
     :end-before: [END slack_api_file_operator_content_howto_guide]

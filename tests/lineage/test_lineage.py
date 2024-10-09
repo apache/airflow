@@ -30,7 +30,8 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

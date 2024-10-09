@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/influxdb/index>
+    System Tests <_api/tests/system/influxdb/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/|version|/tests/system/providers/influxdb>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/|version|/providers/tests/system/influxdb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
     Installing from sources <installing-providers-from-sources>
 

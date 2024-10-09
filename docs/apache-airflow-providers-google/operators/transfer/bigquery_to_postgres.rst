@@ -55,7 +55,7 @@ Transferring data
 
 The following Operator copies data from a BigQuery table to PostgreSQL.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_postgres.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_postgres.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_postgres]
@@ -63,7 +63,7 @@ The following Operator copies data from a BigQuery table to PostgreSQL.
 
 The Operator can also replace data in a PostgreSQL table with matching data from a BigQuery table.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_postgres.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_postgres.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_postgres_upsert]

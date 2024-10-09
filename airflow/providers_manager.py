@@ -31,7 +31,7 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, NoReturn, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar
 
 from packaging.utils import canonicalize_name
 
@@ -362,7 +362,7 @@ def _correctness_check(provider_package: str, class_name: str, provider_info: Pr
 
 # We want to have better control over initialization of parameters and be able to debug and test it
 # So we add our own decorator
-def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, NoReturn]], Callable[PS, None]]:
+def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Callable[PS, None]]:
     """
     Decorate and cache provider info.
 
@@ -370,7 +370,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, NoReturn]], C
     :param cache_name: Name of the cache
     """
 
-    def provider_info_cache_decorator(func: Callable[PS, NoReturn]) -> Callable[PS, None]:
+    def provider_info_cache_decorator(func: Callable[PS, None]) -> Callable[PS, None]:
         @wraps(func)
         def wrapped_function(*args: PS.args, **kwargs: PS.kwargs) -> None:
             providers_manager_instance = args[0]

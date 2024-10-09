@@ -45,7 +45,8 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State, TaskInstanceState
-from tests.test_utils import db
+
+from dev.tests_common.test_utils import db
 
 logger = logging.getLogger(__name__)
 

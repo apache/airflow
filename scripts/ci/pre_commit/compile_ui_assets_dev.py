@@ -49,7 +49,7 @@ if __name__ == "__main__":
     UI_ASSET_OUT_FILE.unlink(missing_ok=True)
     with open(UI_ASSET_OUT_DEV_MODE_FILE, "w") as f:
         subprocess.run(
-            ["pnpm", "install", "--frozen-lockfile"],
+            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
             cwd=os.fspath(ui_directory),
             check=True,
             stdout=f,

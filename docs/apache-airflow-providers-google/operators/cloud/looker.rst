@@ -49,7 +49,7 @@ To submit a PDT materialization job to Looker you need to provide a model and vi
 The job configuration can be submitted in synchronous (blocking) mode by using:
 :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_looker.py
+.. exampleinclude:: /../../providers/src/airflow/providers/google/cloud/example_dags/example_looker.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_looker_start_pdt_build_operator]
@@ -60,7 +60,7 @@ Alternatively, the job configuration can be submitted in asynchronous mode by us
 :class:`~airflow.providers.google.cloud.operators.looker.LookerStartPdtBuildOperator` and
 :class:`~airflow.providers.google.cloud.sensors.looker.LookerCheckPdtBuildSensor`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_looker.py
+.. exampleinclude:: /../../providers/src/airflow/providers/google/cloud/example_dags/example_looker.py
     :language: python
     :dedent: 4
     :start-after: [START cloud_looker_async_start_pdt_sensor]

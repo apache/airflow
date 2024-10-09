@@ -52,7 +52,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/google/index>
+    System Tests <_api/tests/system/google/index>
 
 .. toctree::
     :hidden:

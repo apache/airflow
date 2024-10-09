@@ -34,7 +34,7 @@ Querying a report
 To query a Search Ads report use the
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_search_query_reports]
@@ -52,7 +52,7 @@ Retrieve a field metadata
 To retrieve metadata of a field use
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetFieldOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_field]
@@ -70,7 +70,7 @@ Retrieve metadata for multiple fields
 To retrieve metadata of multiple fields use the
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchFieldsOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_search_fields]
@@ -89,7 +89,7 @@ Retrieve a custom column details
 To retrieve details of a custom column use
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetCustomColumnOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_get_custom_column]
@@ -108,7 +108,7 @@ To retrieve the list of all custom columns use
 
 :class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsListCustomColumnsOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
     :start-after: [START howto_search_ads_list_custom_columns]

@@ -51,7 +51,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/elasticsearch/index>
+    System Tests <_api/tests/system/elasticsearch/index>
 
 .. toctree::
     :hidden:

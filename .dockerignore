@@ -34,6 +34,7 @@
 !chart
 !docs
 !licenses
+!providers/
 
 # Add those folders to the context so that they are available in the CI container
 !scripts

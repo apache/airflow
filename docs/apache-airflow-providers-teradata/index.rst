@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/teradata/index>
+    System Tests <_api/tests/system/teradata/index>
     System Tests Dashboard <https://teradata.github.io/airflow/index.html>
 
 .. toctree::

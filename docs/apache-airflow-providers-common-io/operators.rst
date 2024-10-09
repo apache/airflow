@@ -40,7 +40,7 @@ Otherwise the data will be streamed from the source to the destination.
 
 The example below shows how to instantiate the FileTransferOperator task.
 
-.. exampleinclude:: /../../tests/system/providers/common/io/example_file_transfer_local_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/common/io/example_file_transfer_local_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_local_to_s3]

@@ -27,10 +27,15 @@ import pytest
 from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
-from tests.test_utils.api_connexion_utils import delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login, client_without_login, client_without_login_as_admin
+
+from dev.tests_common.test_utils.api_connexion_utils import delete_user
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from dev.tests_common.test_utils.www import (
+    client_with_login,
+    client_without_login,
+    client_without_login_as_admin,
+)
 
 
 @pytest.fixture(autouse=True, scope="module")

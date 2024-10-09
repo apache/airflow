@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/ydb/index>
+    System Tests <_api/tests/system/ydb/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-ydb/|version|/tests/system/providers/ydb>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-ydb/|version|/providers/tests/system/ydb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ydb/>
     Installing from sources <installing-providers-from-sources>
 

@@ -44,7 +44,7 @@ Create an Amazon Comprehend Start PII Entities Detection Job
 To create an Amazon Comprehend Start PII Entities Detection Job, you can use
 :class:`~airflow.providers.amazon.aws.operators.comprehend.ComprehendStartPiiEntitiesDetectionJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_pii_entities_detection_job]
@@ -58,7 +58,7 @@ Create an Amazon Comprehend Document Classifier
 To create an Amazon Comprehend Document Classifier, you can use
 :class:`~airflow.providers.amazon.aws.operators.comprehend.ComprehendCreateDocumentClassifierOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend_document_classifier.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend_document_classifier.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_document_classifier]
@@ -76,7 +76,7 @@ To wait on the state of an Amazon Comprehend Start PII Entities Detection Job un
 state you can use
 :class:`~airflow.providers.amazon.aws.sensors.comprehend.ComprehendStartPiiEntitiesDetectionJobCompletedSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_start_pii_entities_detection_job]
@@ -91,7 +91,7 @@ To wait on the state of an Amazon Comprehend Document Classifier until it reache
 state you can use
 :class:`~airflow.providers.amazon.aws.sensors.comprehend.ComprehendCreateDocumentClassifierCompletedSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend_document_classifier.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend_document_classifier.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_create_document_classifier]

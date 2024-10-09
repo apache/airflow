@@ -30,8 +30,14 @@ from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from dev.tests_common.test_utils.db import (
+    clear_db_backfills,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 

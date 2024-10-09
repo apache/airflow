@@ -21,7 +21,8 @@ import datetime
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.utils import timezone
-from tests.test_utils.compat import DateTimeSensor
+
+from dev.tests_common.test_utils.compat import DateTimeSensor
 
 with DAG(
     dag_id="test_sensor", start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule="@once"

@@ -33,14 +33,14 @@ Examples
 
 Running a notebook in Databricks using DatabricksTaskOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_task_notebook]
     :end-before: [END howto_operator_databricks_task_notebook]
 
 Running a SQL query in Databricks using DatabricksTaskOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks.py
     :language: python
     :start-after: [START howto_operator_databricks_task_sql]
     :end-before: [END howto_operator_databricks_task_sql]

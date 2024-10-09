@@ -47,7 +47,7 @@ To copy data from an Amazon AWS S3 Bucket to an Azure Blob Storage container, th
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_s3_to_wasb.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_s3_to_wasb.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_wasb]

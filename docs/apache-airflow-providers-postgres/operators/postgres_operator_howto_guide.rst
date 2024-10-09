@@ -45,7 +45,7 @@ Creating a Postgres database table
 
 The code snippets below are based on Airflow-2.0
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_create_pet_table]
@@ -181,7 +181,7 @@ SQLExecuteQueryOperator provides ``hook_params`` attribute that allows you to pa
 You can pass ``options`` argument this way so that you specify `command-line options <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS>`_
 sent to the server at connection start.
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide_get_birth_date]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_get_birth_date]
@@ -192,7 +192,7 @@ The complete Postgres Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide]

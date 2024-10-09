@@ -72,10 +72,12 @@ from tests.jobs.test_backfill_job import _mock_executor
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+from tests.utils.test_timezone import UTC
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars, env_vars
+from dev.tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
@@ -87,9 +89,8 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
     set_default_pool_slots,
 )
-from tests.test_utils.mock_executor import MockExecutor
-from tests.test_utils.mock_operators import CustomOperator
-from tests.utils.test_timezone import UTC
+from dev.tests_common.test_utils.mock_executor import MockExecutor
+from dev.tests_common.test_utils.mock_operators import CustomOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

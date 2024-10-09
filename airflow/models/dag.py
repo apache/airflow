@@ -113,7 +113,6 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -796,6 +795,9 @@ class DAG(LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
+
+        from airflow.providers.fab import __version__ as FAB_VERSION
+
         updated_access_control = {}
         for role, perms in access_control.items():
             if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):

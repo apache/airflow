@@ -21,7 +21,7 @@ SFTP Sensor
 Looks for either a specific file or files with a specific pattern in a server using SFTP protocol.
 To get more information about this sensor visit :class:`~airflow.providers.sftp.sensors.sftp.SFTPSensor`
 
-.. exampleinclude:: /../../tests/system/providers/sftp/example_sftp_sensor.py
+.. exampleinclude:: /../../providers/tests/system/sftp/example_sftp_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_sensor]
@@ -39,7 +39,7 @@ op_kwargs (optional)
 
 Whatever returned by the python callable is put into XCom.
 
-.. exampleinclude:: /../../tests/system/providers/sftp/example_sftp_sensor.py
+.. exampleinclude:: /../../providers/tests/system/sftp/example_sftp_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_sensor_decorator]
@@ -47,7 +47,7 @@ Whatever returned by the python callable is put into XCom.
 
 Checks for the existence of a file on an SFTP server in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/sftp/example_sftp_sensor.py
+.. exampleinclude:: /../../providers/tests/system/sftp/example_sftp_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_sftp_deferrable]

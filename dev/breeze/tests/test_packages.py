@@ -47,7 +47,7 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 
 
 def test_get_available_packages():
@@ -151,7 +151,9 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 def test_get_source_package_path():
-    assert get_source_package_path("apache.hdfs") == AIRFLOW_PROVIDERS_ROOT / "apache" / "hdfs"
+    assert get_source_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers", "src", "airflow", "providers", "apache", "hdfs"
+    )
 
 
 def test_get_documentation_package_path():
@@ -318,9 +320,12 @@ def test_get_provider_details():
     assert provider_details.provider_id == "asana"
     assert provider_details.full_package_name == "airflow.providers.asana"
     assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert (
-        provider_details.source_provider_package_path
-        == AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / "asana"
+    assert provider_details.source_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "src",
+        "airflow",
+        "providers",
+        "asana",
     )
     assert (
         provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
@@ -496,7 +501,7 @@ def test_provider_jinja_context():
         "RELEASE_NO_LEADING_ZEROS": version,
         "VERSION_SUFFIX": ".rc1",
         "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
-        "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
+        "CHANGELOG_RELATIVE_PATH": "../../providers/src/airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
         "MIN_AIRFLOW_VERSION": "2.8.0",

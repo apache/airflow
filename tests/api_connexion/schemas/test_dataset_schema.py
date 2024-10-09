@@ -30,7 +30,8 @@ from airflow.api_connexion.schemas.asset_schema import (
 from airflow.assets import Asset
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
-from tests.test_utils.db import clear_db_assets, clear_db_dags
+
+from dev.tests_common.test_utils.db import clear_db_assets, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

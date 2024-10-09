@@ -38,7 +38,7 @@ to transfer data from Azure Blob Storage to Google Cloud Storage.
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/azure/example_azure_blob_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/azure/example_azure_blob_to_gcs.py
     :language: python
     :start-after: [START how_to_azure_blob_to_gcs]
     :end-before: [END how_to_azure_blob_to_gcs]

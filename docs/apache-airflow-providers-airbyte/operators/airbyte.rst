@@ -47,14 +47,14 @@ This Operator will initiate the Airbyte job, and the Operator manages the job st
 
 An example using the synchronous way:
 
-.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
+.. exampleinclude:: /../../providers/tests/system/airbyte/example_airbyte_trigger_job.py
     :language: python
     :start-after: [START howto_operator_airbyte_synchronous]
     :end-before: [END howto_operator_airbyte_synchronous]
 
 An example using the async way:
 
-.. exampleinclude:: /../../tests/system/providers/airbyte/example_airbyte_trigger_job.py
+.. exampleinclude:: /../../providers/tests/system/airbyte/example_airbyte_trigger_job.py
     :language: python
     :start-after: [START howto_operator_airbyte_asynchronous]
     :end-before: [END howto_operator_airbyte_asynchronous]

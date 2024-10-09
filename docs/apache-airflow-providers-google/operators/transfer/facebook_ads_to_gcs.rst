@@ -34,7 +34,7 @@ Use the
 :class:`~airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportToGcsOperator`
 to execute a Facebook ads report fetch and load to GCS.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_facebook_ads_to_gcs.py
+.. exampleinclude:: /../../providers/src/airflow/providers/google/cloud/example_dags/example_facebook_ads_to_gcs.py
     :language: python
     :start-after: [START howto_operator_facebook_ads_to_gcs]
     :end-before: [END howto_operator_facebook_ads_to_gcs]

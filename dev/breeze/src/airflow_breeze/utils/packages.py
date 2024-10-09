@@ -36,7 +36,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     BREEZE_SOURCES_ROOT,
     DOCS_ROOT,
     GENERATED_PROVIDER_PACKAGES_DIR,
@@ -382,7 +382,7 @@ def find_matching_long_package_names(
 
 
 def get_source_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split("."))
+    return AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
 
 
 def get_documentation_package_path(provider_id: str) -> Path:

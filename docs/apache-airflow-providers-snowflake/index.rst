@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/snowflake/index>
+    System Tests <_api/tests/system/snowflake/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-snowflake/|version|/tests/system/providers/snowflake>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-snowflake/|version|/providers/tests/system/snowflake>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-snowflake/>
     Installing from sources <installing-providers-from-sources>
 

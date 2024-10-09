@@ -23,7 +23,8 @@ import pytest
 
 from airflow.models import Pool
 from airflow.utils.session import create_session
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+from dev.tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
@@ -36,7 +37,7 @@ POOL = {
 
 
 @pytest.fixture(autouse=True)
-def clear_pools():
+def _clear_pools():
     with create_session() as session:
         session.query(Pool).delete()
 

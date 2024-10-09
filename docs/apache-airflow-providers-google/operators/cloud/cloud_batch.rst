@@ -35,7 +35,7 @@ For more information about the Job object fields, visit `Google Cloud Batch Job 
 
 A simple job configuration can look as follows:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_batch_job_creation]
@@ -44,7 +44,7 @@ A simple job configuration can look as follows:
 With this configuration we can submit the job:
 :class:`~airflow.providers.google.cloud.operators.cloud_batch.CloudBatchSubmitJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_submit_job]
@@ -53,7 +53,7 @@ With this configuration we can submit the job:
 or you can define the same operator in the deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.cloud_batch.CloudBatchSubmitJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_submit_job_deferrable_mode]
@@ -68,7 +68,7 @@ To list the tasks of a certain job, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_batch.CloudBatchListTasksOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_list_tasks]
@@ -83,7 +83,7 @@ To list the jobs, you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_batch.CloudBatchListJobsOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_batch_list_jobs]
@@ -98,7 +98,7 @@ To delete a job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.cloud_batch.CloudBatchDeleteJobOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_batch/example_cloud_batch.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_batch/example_cloud_batch.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_job]
