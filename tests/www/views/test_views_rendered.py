@@ -119,7 +119,7 @@ def task_secret(dag):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_db():
+def _init_blank_db():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -130,7 +130,7 @@ def init_blank_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2, task3, task4, task_secret):
+def _reset_db(dag, task1, task2, task3, task4, task_secret):
     yield
     clear_db_dags()
     clear_db_runs()

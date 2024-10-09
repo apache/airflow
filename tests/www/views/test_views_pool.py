@@ -36,7 +36,7 @@ POOL = {
 
 
 @pytest.fixture(autouse=True)
-def clear_pools():
+def _clear_pools():
     with create_session() as session:
         session.query(Pool).delete()
 
