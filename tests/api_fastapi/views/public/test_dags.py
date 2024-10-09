@@ -302,3 +302,51 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "timezone": UTC_JSON_REPR,
     }
     assert res_json == expected
+
+
+@pytest.mark.parametrize(
+    "query_params, dag_id, expected_status_code, dag_display_name",
+    [
+        ({}, "fake_dag_id", 404, "fake_dag"),
+        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME),
+    ],
+)
+def test_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):
+    response = test_client.get(f"/public/dags/{dag_id}", params=query_params)
+    assert response.status_code == expected_status_code
+    if expected_status_code != 200:
+        return
+
+    # Match expected and actual responses below.
+    res_json = response.json()
+    last_parsed_time = res_json["last_parsed_time"]
+    file_token = res_json["file_token"]
+    expected = {
+        "dag_id": dag_id,
+        "dag_display_name": dag_display_name,
+        "description": None,
+        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "file_token": file_token,
+        "is_paused": False,
+        "is_active": True,
+        "owners": ["airflow"],
+        "timetable_summary": None,
+        "tags": [],
+        "next_dagrun": None,
+        "has_task_concurrency_limits": True,
+        "next_dagrun_data_interval_start": None,
+        "next_dagrun_data_interval_end": None,
+        "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
+        "next_dagrun_create_after": None,
+        "last_expired": None,
+        "max_active_tasks": 16,
+        "last_pickled": None,
+        "default_view": "grid",
+        "last_parsed_time": last_parsed_time,
+        "scheduler_lock": None,
+        "timetable_description": "Never, external triggers only",
+        "has_import_errors": False,
+        "pickle_id": None,
+    }
+    assert res_json == expected
