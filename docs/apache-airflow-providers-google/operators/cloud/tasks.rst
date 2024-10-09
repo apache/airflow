@@ -41,7 +41,7 @@ Create queue
 To create new Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueueCreateOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START create_queue]
@@ -55,7 +55,7 @@ Delete queue
 To delete Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueueDeleteOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START delete_queue]
@@ -70,7 +70,7 @@ Resume queue
 To resume Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueueResumeOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START resume_queue]
@@ -84,7 +84,7 @@ Pause queue
 To pause Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueuePauseOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START pause_queue]
@@ -98,7 +98,7 @@ Purge queue
 To purge Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueuePurgeOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START purge_queue]
@@ -112,7 +112,7 @@ Get queue
 To get Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueueGetOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START get_queue]
@@ -126,7 +126,7 @@ Update queue
 To update Queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueueUpdateOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START update_queue]
@@ -140,7 +140,7 @@ List queues
 To list all Queues use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksQueuesListOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_queue.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_queue.py
     :language: python
     :dedent: 4
     :start-after: [START list_queue]
@@ -158,7 +158,7 @@ Create task
 To create new Task in a particular queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTaskCreateOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_tasks.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_tasks.py
     :language: python
     :dedent: 4
     :start-after: [START create_task]
@@ -172,7 +172,7 @@ Get task
 To get the Tasks in a particular queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTaskGetOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_tasks.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_tasks.py
     :language: python
     :dedent: 4
     :start-after: [START tasks_get]
@@ -186,7 +186,7 @@ Run task
 To run the Task in a particular queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTaskRunOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_tasks.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_tasks.py
     :language: python
     :dedent: 4
     :start-after: [START run_task]
@@ -200,7 +200,7 @@ List tasks
 To list all Tasks in a particular queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTasksListOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_tasks.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_tasks.py
     :language: python
     :dedent: 4
     :start-after: [START list_tasks]
@@ -214,7 +214,7 @@ Delete task
 To delete the Task from particular queue use
 :class:`~airflow.providers.google.cloud.operators.tasks.CloudTasksTaskDeleteOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/tasks/example_tasks.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/tasks/example_tasks.py
     :language: python
     :dedent: 4
     :start-after: [START create_task]

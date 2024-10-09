@@ -33,28 +33,28 @@ connect to your account.
 
 An example using the operator to ingest data with custom vectors retrieved from XCOM:
 
-.. exampleinclude:: /../../tests/system/providers/weaviate/example_weaviate_operator.py
+.. exampleinclude:: /../../providers/tests/system/weaviate/example_weaviate_operator.py
     :language: python
     :start-after: [START howto_operator_weaviate_embedding_and_ingest_xcom_data_with_vectors]
     :end-before: [END howto_operator_weaviate_embedding_and_ingest_xcom_data_with_vectors]
 
 An example using the operator to ingest data with custom vectors retrieved from a python callable:
 
-.. exampleinclude:: /../../tests/system/providers/weaviate/example_weaviate_operator.py
+.. exampleinclude:: /../../providers/tests/system/weaviate/example_weaviate_operator.py
     :language: python
     :start-after: [START howto_operator_weaviate_embedding_and_ingest_callable_data_with_vectors]
     :end-before: [END howto_operator_weaviate_embedding_and_ingest_callable_data_with_vectors]
 
 An example using the operator to ingest data without vectors retrieved from XCOM for which the operator would generate embedding vectors:
 
-.. exampleinclude:: /../../tests/system/providers/weaviate/example_weaviate_operator.py
+.. exampleinclude:: /../../providers/tests/system/weaviate/example_weaviate_operator.py
     :language: python
     :start-after: [START howto_operator_weaviate_ingest_xcom_data_without_vectors]
     :end-before: [END howto_operator_weaviate_ingest_xcom_data_without_vectors]
 
 An example using the operator to ingest data without vectors retrieved from a python callable for which the operator would generate embedding vectors:
 
-.. exampleinclude:: /../../tests/system/providers/weaviate/example_weaviate_operator.py
+.. exampleinclude:: /../../providers/tests/system/weaviate/example_weaviate_operator.py
     :language: python
     :start-after: [START howto_operator_weaviate_ingest_callable_data_without_vectors]
     :end-before: [END howto_operator_weaviate_ingest_callable_data_without_vectors]

@@ -39,7 +39,7 @@ To copy data from a Google Cloud Storage bucket to an Amazon S3 bucket you can u
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_gcs_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_gcs_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_gcs_to_s3]

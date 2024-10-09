@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/microsoft/mssql/index>
+    System Tests <_api/tests/system/microsoft/mssql/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/tests/system/providers/microsoft/mssql>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/|version|/providers/tests/system/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
