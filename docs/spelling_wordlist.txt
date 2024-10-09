@@ -896,6 +896,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
