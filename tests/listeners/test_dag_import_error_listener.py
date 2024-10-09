@@ -32,8 +32,9 @@ from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
 from tests.listeners import dag_import_error_listener
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+
+from dev.tests_common.test_utils.config import conf_vars, env_vars
+from dev.tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -41,7 +42,7 @@ from tests.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from tests.test_utils.mock_executor import MockExecutor
+from dev.tests_common.test_utils.mock_executor import MockExecutor
 
 pytestmark = pytest.mark.db_test
 

@@ -55,7 +55,7 @@ Use the ``snowflake_conn_id`` argument to specify connection used. If not specif
 
 An example usage of the ``@task.snowpark`` is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowpark_operator.py
+.. exampleinclude:: /../../providers/tests/system/snowflake/example_snowpark_operator.py
     :language: python
     :start-after: [START howto_operator_snowpark]
     :end-before: [END howto_operator_snowpark]
