@@ -1583,6 +1583,7 @@ def create_task_instance(create_task_instance_of_operator, session):
     )
 
 
+@pytest.mark.db_test
 class TestAsyncGCSToBigQueryOperator:
     def _set_execute_complete(self, session, ti, **next_kwargs):
         ti.next_method = "execute_complete"
