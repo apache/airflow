@@ -18,16 +18,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
-from pydantic.v1 import BaseModel
+from pendulum.parsing.exceptions import ParserError
+from pydantic import AfterValidator
 from sqlalchemy import Column, case, or_
+from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
-from airflow.models import Connection
+from airflow.models import Connection, Base
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -149,21 +153,25 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 # SortParam Implementations
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
-
+    attr_mapping = {
+        "last_run_state": DagRun.state,
+        "last_run_start_date": DagRun.start_date,
+        "connection_id": Connection.conn_id,
+        "conn_type": Connection.conn_type,
+        "description": Connection.description,
+        "host": Connection.host,
+        "port": Connection.port,
+        "id": Connection.id,
+    }
     def __init__(
         self,
         allowed_attrs: list[str],
-        attr_mapping: dict[str, Any],
-        model: type[BaseModel],
-        order_column: Column,
-        to_replace: dict[str, str] | None,
+        model: Base,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
-        self.attr_mapping = attr_mapping
         self.model = model
-        self.order_column = order_column
-        self.to_replace = to_replace
+
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -180,10 +188,7 @@ class SortParam(BaseParam[str]):
                 f"the attribute does not exist on the model",
             )
 
-        if self.to_replace:
-            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
-
-        column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
+        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
@@ -193,54 +198,12 @@ class SortParam(BaseParam[str]):
         select = select.order_by(None)
 
         if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), self.order_column.desc())
+            return select.order_by(nullscheck, column.desc(), column.desc())
         else:
-            return select.order_by(nullscheck, column.asc(), self.order_column.asc())
+            return select.order_by(nullscheck, column.asc(), column.asc())
 
-    def depends(self, order_by: str) -> SortParam:
-        return self.set_value(order_by)
-
-
-class SortConnectionParam(SortParam):
-    """Order Connection by the attribute."""
-
-    def __init__(self, allowed_attrs: list[str]) -> None:
-        super().__init__(
-            allowed_attrs=allowed_attrs,
-            attr_mapping={
-                "connection_id": Connection.conn_id,
-                "conn_type": Connection.conn_type,
-                "description": Connection.description,
-                "host": Connection.host,
-                "port": Connection.port,
-                "id": Connection.id,
-            },
-            model=Connection,
-            order_column=Connection.conn_id,
-            to_replace={"connection_id": "conn_id"},
-        )
-
-    def depends(self, order_by: str = "connection_id") -> SortConnectionParam:
-        return self.set_value(order_by)
-
-
-class SortDagParam(SortParam):
-    """Order DAG by the attribute."""
-
-    def __init__(self, allowed_attrs: list[str]) -> None:
-        super().__init__(
-            allowed_attrs=allowed_attrs,
-            attr_mapping={
-                "last_run_state": DagRun.state,
-                "last_run_start_date": DagRun.start_date,
-            },
-            model=DagModel,
-            order_column=DagModel.dag_id,
-            to_replace=None,
-        )
-
-    def depends(self, order_by: str = "dag_id") -> SortDagParam:
-        return self.set_value(order_by)
+    def depends(self, order_by: str = "") -> SortParam:
+        return self.set_value(inspect(self.model).primary_key[0].name if order_by == "" else order_by)
 
 
 class _TagsFilter(BaseParam[List[str]]):
@@ -289,6 +252,24 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+def _safe_parse_datetime(date_to_check: str) -> datetime:
+    """
+    Parse datetime and raise error for invalid dates.
+
+    :param date_to_check: the string value to be parsed
+    """
+    if not date_to_check:
+        raise ValueError(f"{date_to_check} cannot be None.")
+    try:
+        return timezone.parse(date_to_check, strict=True)
+    except (TypeError, ParserError):
+        raise HTTPException(
+            400, f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value."
+        )
+
+
+# Common Safe DateTime
+DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
