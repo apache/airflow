@@ -26,13 +26,19 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
-from airflow.utils.dates import parse_logical_date
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.dates import parse_logical_date
+else:
+    from airflow.utils.dates import (  # type: ignore[no-redef, attr-defined]
+        parse_execution_date as parse_logical_date,
+    )
 
 pytestmark = [
     pytest.mark.db_test,
@@ -77,11 +83,21 @@ def _compare_xcom_collections(collection1: dict, collection_2: dict):
 
     def sort_key(record):
         return (
-            record.get("dag_id"),
-            record.get("task_id"),
-            record.get("logical_date"),
-            record.get("map_index"),
-            record.get("key"),
+            (
+                record.get("dag_id"),
+                record.get("task_id"),
+                record.get("logical_date"),
+                record.get("map_index"),
+                record.get("key"),
+            )
+            if AIRFLOW_V_3_0_PLUS
+            else (
+                record.get("dag_id"),
+                record.get("task_id"),
+                record.get("execution_date"),
+                record.get("map_index"),
+                record.get("key"),
+            )
         )
 
     assert sorted(collection1.get("xcom_entries", []), key=sort_key) == sorted(
@@ -136,13 +152,14 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         _compare_xcom_collections(
             response_data,
             {
                 "xcom_entries": [
                     {
                         "dag_id": dag_id_1,
-                        "logical_date": logical_date,
+                        date_key: logical_date,
                         "key": "test-xcom-key-1",
                         "task_id": task_id_1,
                         "timestamp": "TIMESTAMP",
@@ -150,7 +167,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     },
                     {
                         "dag_id": dag_id_1,
-                        "logical_date": logical_date,
+                        date_key: logical_date,
                         "key": "test-xcom-key-2",
                         "task_id": task_id_1,
                         "timestamp": "TIMESTAMP",
@@ -165,13 +182,22 @@ class TestGetXComEntries(TestXComEndpoint):
         with create_session() as session:
             dag = DagModel(dag_id=dag_id)
             session.add(dag)
-            dagrun = DagRun(
-                dag_id=dag_id,
-                run_id=run_id,
-                logical_date=logical_date,
-                start_date=logical_date,
-                run_type=DagRunType.MANUAL,
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                dagrun = DagRun(
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    logical_date=logical_date,
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
+            else:
+                dagrun = DagRun(
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    execution_date=logical_date,
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
             session.add(dagrun)
             if mapped_ti:
                 for i in [0, 1]:
@@ -202,21 +228,39 @@ class TestGetXComEntries(TestXComEndpoint):
         with create_session() as session:
             dag = DagModel(dag_id="invalid_dag")
             session.add(dag)
-            dagrun = DagRun(
-                dag_id="invalid_dag",
-                run_id="invalid_run_id",
-                logical_date=logical_date + timedelta(days=1),
-                start_date=logical_date,
-                run_type=DagRunType.MANUAL,
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                dagrun = DagRun(
+                    dag_id="invalid_dag",
+                    run_id="invalid_run_id",
+                    logical_date=logical_date + timedelta(days=1),
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
+            else:
+                dagrun = DagRun(
+                    dag_id="invalid_dag",
+                    run_id="invalid_run_id",
+                    execution_date=logical_date + timedelta(days=1),
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
             session.add(dagrun)
-            dagrun1 = DagRun(
-                dag_id="invalid_dag",
-                run_id="not_this_run_id",
-                logical_date=logical_date,
-                start_date=logical_date,
-                run_type=DagRunType.MANUAL,
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                dagrun1 = DagRun(
+                    dag_id="invalid_dag",
+                    run_id="not_this_run_id",
+                    logical_date=logical_date,
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
+            else:
+                dagrun1 = DagRun(
+                    dag_id="invalid_dag",
+                    run_id="not_this_run_id",
+                    execution_date=logical_date,
+                    start_date=logical_date,
+                    run_type=DagRunType.MANUAL,
+                )
             session.add(dagrun1)
             ti = TaskInstance(EmptyOperator(task_id="invalid_task"), run_id="not_this_run_id")
             ti.dag_id = "invalid_dag"
