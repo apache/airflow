@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-08T13:43:28.176085
+# This constraints file was automatically generated on 2024-10-09T02:07:37.706594
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -31,7 +31,7 @@ Jinja2==3.1.4
 Js2Py==0.74
 Mako==1.3.5
 Markdown==3.7
-MarkupSafe==3.0.0
+MarkupSafe==3.0.1
 PyAthena==3.9.0
 PyGithub==2.4.0
 PyHive==0.7.0
@@ -95,7 +95,7 @@ azure-common==1.1.28
 azure-core==1.31.0
 azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
-azure-identity==1.18.0
+azure-identity==1.19.0
 azure-keyvault-secrets==4.8.0
 azure-kusto-data==4.6.1
 azure-mgmt-containerinstance==10.1.0
@@ -112,7 +112,7 @@ azure-nspkg==3.0.2
 azure-servicebus==7.12.3
 azure-storage-blob==12.23.1
 azure-storage-file-datalake==12.17.0
-azure-storage-file-share==12.18.0
+azure-storage-file-share==12.19.0
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
@@ -165,7 +165,7 @@ db-dtypes==1.3.0
 debugpy==1.8.6
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.1
+deltalake==0.20.2
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -215,8 +215,8 @@ google-cloud-aiplatform==1.69.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
-google-cloud-batch==0.17.28
-google-cloud-bigquery-datatransfer==3.15.7
+google-cloud-batch==0.17.29
+google-cloud-bigquery-datatransfer==3.16.0
 google-cloud-bigquery==3.26.0
 google-cloud-bigtable==2.26.0
 google-cloud-build==3.25.0
@@ -240,7 +240,7 @@ google-cloud-os-login==2.14.6
 google-cloud-pubsub==2.25.2
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
-google-cloud-run==0.10.8
+google-cloud-run==0.10.9
 google-cloud-secret-manager==2.20.2
 google-cloud-spanner==3.49.1
 google-cloud-speech==2.27.0
@@ -301,7 +301,7 @@ iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.28.0
-isodate==0.7.0
+isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
@@ -380,7 +380,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.51.1
+openai==1.51.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -429,7 +429,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.10.1
 pprintpp==0.4.0
-pre_commit==4.0.0
+pre_commit==4.0.1
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
@@ -495,7 +495,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.11.3
+qdrant-client==1.12.0
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.1.1
@@ -520,7 +520,7 @@ rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
 s3fs==2024.9.0
-s3transfer==0.10.2
+s3transfer==0.10.3
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.2
@@ -582,7 +582,7 @@ termcolor==2.5.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.15.0
+time-machine==2.16.0
 tomli_w==1.1.0
 tomlkit==0.13.2
 tornado==6.4.1
@@ -641,7 +641,7 @@ websockets==13.1
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-xmltodict==0.13.0
+xmltodict==0.14.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
