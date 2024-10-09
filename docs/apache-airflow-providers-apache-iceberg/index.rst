@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/iceberg/index>
+    System Tests <_api/tests/system/apache/iceberg/index>
 
 
 .. toctree::
@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/tests/system/providers/apache/iceberg>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/providers/tests/system/apache/iceberg>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-iceberg/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/apache/iceberg/index>

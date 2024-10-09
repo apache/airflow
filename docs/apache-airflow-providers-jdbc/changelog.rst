@@ -22,4 +22,4 @@
  ..  IF YOU WANT TO MODIFY THIS FILE, YOU SHOULD MODIFY THE TEMPLATE
      `PROVIDER_CHANGELOG_TEMPLATE.rst.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 
-.. include:: ../../airflow/providers/jdbc/CHANGELOG.rst
+.. include:: ../../providers/src/airflow/providers/jdbc/CHANGELOG.rst
