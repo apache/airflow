@@ -1050,7 +1050,7 @@ class TestDagRun:
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
 
-    def test_dagrun_root_fail_unfinished(self, dag_maker, session):
+    def test_update_state_one_unfinished(self, dag_maker, session):
         """
         Previously this lived in test_scheduler_job.py
 
