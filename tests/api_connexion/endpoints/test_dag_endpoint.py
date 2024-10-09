@@ -131,14 +131,14 @@ class TestDagEndpoint:
         session.add(dag_model)
 
     @provide_session
-    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+    def _create_dag_model_for_details_endpoint_with_asset_expression(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
             timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
-            dataset_expression={
+            asset_expression={
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -299,7 +299,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -344,8 +344,8 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
-        self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
+    def test_should_respond_200_with_asset_expression(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint_with_asset_expression(self.dag_id)
         current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -357,7 +357,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": {
+            "asset_expression": {
                 "any": [
                     "s3://dag1/output_1.txt",
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
@@ -420,7 +420,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag2",
             "dag_display_name": "test_dag2",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -471,7 +471,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag3",
             "dag_display_name": "test_dag3",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": None,
@@ -525,7 +525,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",
@@ -586,7 +586,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_display_name": "test_dag",
             "dag_run_timeout": None,
-            "dataset_expression": None,
+            "asset_expression": None,
             "default_view": None,
             "description": None,
             "doc_md": "details",

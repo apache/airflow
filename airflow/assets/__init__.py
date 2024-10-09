@@ -157,7 +157,7 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return [Asset(uri=asset.uri, extra=asset.extra) for asset in asset_alias_obj.datasets]
+        return [Asset(uri=asset.uri, extra=asset.extra) for asset in asset_alias_obj.assets]
     return []
 
 

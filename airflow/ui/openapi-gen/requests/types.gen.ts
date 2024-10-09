@@ -53,7 +53,7 @@ export type DAGDetailsResponse = {
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
-  dataset_expression: {
+  asset_expression: {
     [key: string]: unknown;
   } | null;
   doc_md: string | null;

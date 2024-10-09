@@ -4131,7 +4131,7 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
-            dataset_expression:
+            asset_expression:
               type: object
               description: Nested asset any/all conditions
               nullable: true
@@ -4614,7 +4614,7 @@ components:
         *New in version 2.4.0*
       type: object
       properties:
-        dataset_id:
+        asset_id:
           type: integer
           description: The asset id
         dataset_uri:

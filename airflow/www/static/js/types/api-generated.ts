@@ -1648,7 +1648,7 @@ export interface components {
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       /** @description Nested asset any/all conditions */
-      dataset_expression?: { [key: string]: unknown } | null;
+      asset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -1910,7 +1910,7 @@ export interface components {
      */
     AssetEvent: {
       /** @description The asset id */
-      dataset_id?: number;
+      asset_id?: number;
       /** @description The URI of the asset */
       dataset_uri?: string;
       /** @description The asset event extra */
