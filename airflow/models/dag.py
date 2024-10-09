@@ -3125,6 +3125,13 @@ class DagModel(Base):
     def dag_display_name(self) -> str:
         return self._dag_display_property_value or self.dag_id
 
+    @dag_display_name.expression  # type: ignore[no-redef]
+    def dag_display_name(self) -> str:
+        return case(
+            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            else_=self.dag_id,
+        )
+
     @classmethod
     @internal_api_call
     @provide_session
