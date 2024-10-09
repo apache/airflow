@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+5.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Snowpark operator and decorator (#42457)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: SnowflakeSqlApiOperator not resolving parameters in SQL (#42719)``
+* ``Make 'private_key_content' a sensitive field  in Snowflake connection (#42649)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.7.1
 .....
 

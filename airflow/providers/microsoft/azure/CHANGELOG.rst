@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+10.5.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(bugfix): Paginated results in MSGraphAsyncOperator (#42414)``
+
+Misc
+~~~~
+
+* ``Workaround pin azure kusto data (#42576)``
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.5.0
 ......
 

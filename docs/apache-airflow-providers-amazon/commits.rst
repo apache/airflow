@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.0.0
+.....
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`d395c1f1f8 <https://github.com/apache/airflow/commit/d395c1f1f8dad18a1daf5275a522f4f62bcf6aec>`_  2024-10-09   ``Revert "Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)" (#42864)``
+`3b4c73a644 <https://github.com/apache/airflow/commit/3b4c73a644f40013927fb72227dfe018dc47a97f>`_  2024-10-08   ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
+`63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+`568162263d <https://github.com/apache/airflow/commit/568162263d0bd0a92483d97c439ef4b2e3a8b782>`_  2024-09-26   ``Remove deprecated stuff from Amazon provider package (#42450)``
+`ac0711f0f1 <https://github.com/apache/airflow/commit/ac0711f0f1db573dce39e6e66c769b347c2adac2>`_  2024-09-26   ``'S3DeleteObjects' Operator: Handle dates passed as strings (#42464)``
+`f6852c2c55 <https://github.com/apache/airflow/commit/f6852c2c551250c28cad2949e5a7f9bd97a9ea35>`_  2024-09-25   ``Remove identity center auth manager cli (#42481)``
+`663da777f9 <https://github.com/apache/airflow/commit/663da777f9c7261a2c572b5cfc35a9d62722b0fe>`_  2024-09-25   ``Small fix to AWS AVP cli init script (#42479)``
+`18c54bcb42 <https://github.com/apache/airflow/commit/18c54bcb42afe2175e25358d908a1f1aaef65ef1>`_  2024-09-25   ``#42442 Make the AWS logging faster by reducing the amount of sleep (#42449)``
+`d87f9b0505 <https://github.com/apache/airflow/commit/d87f9b050505747ee070327ef482a5e0f5551ec1>`_  2024-09-25   ``Refactor AWS Auth manager user output (#42454)``
+`ab3429c318 <https://github.com/apache/airflow/commit/ab3429c3189ceb244eb3d78062159859dbe611ce>`_  2024-09-24   ``Add STOPPED to the failure cases for Sagemaker Training Jobs (#42423)``
+`8580e6d046 <https://github.com/apache/airflow/commit/8580e6d046b11d159e3260ec4015981387e94a57>`_  2024-09-24   ``Support session reuse in 'RedshiftDataOperator' (#42218)``
+`4c8c72f4a4 <https://github.com/apache/airflow/commit/4c8c72f4a46d2805b1b6578bc4ec7486151826a2>`_  2024-09-24   ``Fix logout in AWS auth manager (#42447)``
+`b9629d99b2 <https://github.com/apache/airflow/commit/b9629d99b246453f6195f83526e9e6196b820aaa>`_  2024-09-24   ``fix(providers/amazon): handle ClientError raised after key is missing during table.get_item (#42408)``
+=================================================================================================  ===========  ========================================================================================================
+
 8.29.0
 ......
 
-Latest change: 2024-09-16
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `4afc2569b1 <https://github.com/apache/airflow/commit/4afc2569b1f7e1d83cd20dead8933194c08cc8df>`_  2024-09-16   ``ECSExecutor: Drop params that aren't compatible with EC2 (#42228)``
 `5fb0d65aaf <https://github.com/apache/airflow/commit/5fb0d65aaf0ddf426b494c14f7ca82d4d5cc23ab>`_  2024-09-11   ``Adding support for volume configurations in ECSRunTaskOperator (#42087)``
 `1bde32ab7b <https://github.com/apache/airflow/commit/1bde32ab7bf79e3d28d97c93deecff05f4d14e4c>`_  2024-09-11   ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``

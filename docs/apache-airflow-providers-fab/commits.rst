@@ -35,6 +35,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.1
+.....
+
+Latest change: 2024-10-01
+
+=================================================================================================  ===========  ================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================
+`9536c98a43 <https://github.com/apache/airflow/commit/9536c98a439fc028542bb9b8eb9b76c24e2ee02b>`_  2024-10-01   ``Update Rest API tests to no longer rely on FAB auth manager. Move tests specific to FAB permissions to FAB provider (#42523)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+`2beb6a765d <https://github.com/apache/airflow/commit/2beb6a765d9af94115a7c010cfbc6f802d28da24>`_  2024-09-25   ``Simplify expression for get_permitted_dag_ids query (#42484)``
+=================================================================================================  ===========  ================================================================================================================================
+
 1.4.0
 .....
 
@@ -43,6 +56,7 @@ Latest change: 2024-09-21
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `6a527c9fac <https://github.com/apache/airflow/commit/6a527c9facc649b3d64f36459cd655bcb03a9cb1>`_  2024-09-21   ``Fix pre-commit for auto update of fab migration versions (#42382)``
 `8741e9c176 <https://github.com/apache/airflow/commit/8741e9c1761931c7cff135d53b589053a04f58c1>`_  2024-09-20   ``Handle 'AUTH_ROLE_PUBLIC' in FAB auth manager (#42280)``
 `9f167bbc34 <https://github.com/apache/airflow/commit/9f167bbc34ba4f0f64a6edab90d436275949fc56>`_  2024-09-19   ``Add FAB migration commands (#41804)``

@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+1.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat(providers/common/sql): add warning to connection setter (#42736)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: Only pass connection to sqlalchemy engine in JdbcHook (#42705)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.17.1
 ......
 

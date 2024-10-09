@@ -55,7 +55,7 @@ apache-airflow-providers-cloudant package
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 
-Release: 4.0.0
+Release: 4.0.1
 
 Provider package
 ----------------

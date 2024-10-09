@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.5.1
+......
+
+Latest change: 2024-10-06
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`d89f305a34 <https://github.com/apache/airflow/commit/d89f305a343a187240d72bb291982dd29854fb2e>`_  2024-09-29   ``Bugfix/42575 workaround pin azure kusto data (#42576)``
+`193defd289 <https://github.com/apache/airflow/commit/193defd2898772e7e989cbee85815d49e9f0d8f0>`_  2024-09-25   ``(bugfix): Paginated results in MSGraphAsyncOperator (#42414)``
+=================================================================================================  ===========  ==================================================================================================
+
 10.5.0
 ......
 
-Latest change: 2024-09-05
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `ede34ebee7 <https://github.com/apache/airflow/commit/ede34ebee70648f83209c43e51d39ac6779c66b5>`_  2024-09-05   ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
 `85ad5c374d <https://github.com/apache/airflow/commit/85ad5c374d93a0f95891b15c27c14e012b7c8974>`_  2024-09-05   `` Add callback to process Azure Service Bus message contents (#41601)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``

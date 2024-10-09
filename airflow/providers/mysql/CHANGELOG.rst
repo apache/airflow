@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+5.7.2
+.....
+
+Misc
+~~~~
+
+* ``Rename dataset related python variable names to asset (#41348)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.7.1
 .....
 

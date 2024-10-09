@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+6.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'on_kill' to Databricks Workflow Operator (#42115)``
+
+Misc
+~~~~
+
+* ``add warning log when task_key>100 (#42813)``
+* ``Add debug logs to print Request/Response data in  Databricks provider (#42662)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.10.0
 ......
 

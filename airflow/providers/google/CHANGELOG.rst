@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+10.24.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'retry_if_resource_not_ready' logic for DataprocCreateClusterOperator and DataprocCreateBatchOperator (#42703)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Publish Dataproc Serverless Batch link after it starts if batch_id was provided (#41153)``
+* ``fix PubSubAsyncHook in PubsubPullTrigger to use gcp_conn_id (#42671)``
+* ``Fix consistent return response from PubSubPullSensor (#42080)``
+* ``Undo partition exclusion from the table name when splitting a full BigQuery table name (#42541)``
+* ``Fix gcp text to speech uri fetch (#42309)``
+* ``Refactor ''bucket.get_blob'' calls in ''GCSHook'' to handle validation for non-existent objects. (#42474)``
+* ``Bugfix/dataflow job location passing (#41887)``
+
+Misc
+~~~~
+
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+* ``Rename dataset related python variable names to asset (#41348)``
+* ``Deprecate AutoMLBatchPredictOperator and refactor AutoMl system tests (#42260)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.23.0
 .......
 

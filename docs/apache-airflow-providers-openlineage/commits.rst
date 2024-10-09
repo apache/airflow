@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.12.2
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
+`63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+=================================================================================================  ===========  ==================================================================
+
 1.12.1
 ......
 
-Latest change: 2024-09-26
+Latest change: 2024-09-27
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`bcee926d49 <https://github.com/apache/airflow/commit/bcee926d494cabf4ddfa9f2569e36acc5b4d281d>`_  2024-09-27   ``Prepare docs for Sep 2nd adhoc wave of providers (#42519)``
 `84e8cdf674 <https://github.com/apache/airflow/commit/84e8cdf67475c4b2eeadde99cb11eb02459cc9f5>`_  2024-09-26   ``fix: OL dag start event not being emitted (#42448)``
 `ffff0e8b33 <https://github.com/apache/airflow/commit/ffff0e8b338855b44d89981f89109f50dbd0d279>`_  2024-09-23   ``Fix typo in error stack trace formatting for clearer output (#42017)``
 =================================================================================================  ===========  ========================================================================

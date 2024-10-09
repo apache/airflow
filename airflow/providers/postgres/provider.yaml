@@ -22,9 +22,10 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 state: ready
-source-date-epoch: 1726861120
+source-date-epoch: 1728485329
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.13.1
   - 5.13.0
   - 5.12.0
   - 5.11.3
