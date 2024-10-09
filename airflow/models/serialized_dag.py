@@ -40,6 +40,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
+from airflow.utils.json import XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -117,7 +118,7 @@ class SerializedDagModel(Base):
         self.dag_hash = SerializedDagModel.hash(dag_data)
 
         # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        dag_data_json = json.dumps(dag_data, sort_keys=True, cls=XComEncoder).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -137,7 +138,7 @@ class SerializedDagModel(Base):
     def hash(cls, dag_data):
         """Hash the data to get the dag_hash."""
         dag_data = cls._sort_serialized_dag_dict(dag_data)
-        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        data_json = json.dumps(dag_data, sort_keys=True, cls=XComEncoder).encode("utf-8")
         return md5(data_json).hexdigest()
 
     @classmethod
