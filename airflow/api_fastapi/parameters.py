@@ -26,6 +26,7 @@ from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -172,7 +173,6 @@ class SortParam(BaseParam[str]):
             )
 
         column = self.attr_mapping.get(lstriped_orderby, None) or getattr(DagModel, lstriped_orderby)
-
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
         nullscheck = case((column.isnot(None), 0), else_=1)
@@ -235,6 +235,30 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+class _WarningTypeFilter(BaseParam[str]):
+    """Filter on warning type."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(DagModel.warning_types.any(DagModel.warning_types.contains(self.value)))
+
+    def depends(self, warning_type: str | None = None) -> _WarningTypeFilter:
+        return self.set_value(warning_type)
+
+
+class _DagIdInDagWarningFilter(BaseParam[str]):
+    """Filter on dag_id in DagWarning."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(DagWarning.dag_id == self.value)
+
+    def depends(self, dag_id: str | None = None) -> _DagIdInDagWarningFilter:
+        return self.set_value(dag_id)
+
+
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
@@ -251,3 +275,8 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGWarning
+QueryDagIdInDagWarningFilter = Annotated[
+    _DagIdInDagWarningFilter, Depends(_DagIdInDagWarningFilter().depends)
+]
+QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilter().depends)]

@@ -17,16 +17,22 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_warning import dag_warning_router
-from airflow.api_fastapi.views.public.dags import dags_router
-from airflow.api_fastapi.views.public.variables import variables_router
-from airflow.api_fastapi.views.router import AirflowRouter
+from datetime import datetime
 
-public_router = AirflowRouter(prefix="/public")
+from pydantic import BaseModel
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_warning_router)
+class DAGWarningResponse(BaseModel):
+    """DAG Warning serializer for responses."""
+
+    dag_id: str
+    warning_message: str
+    message: str
+    timestamp: datetime
+
+
+class DAGWarningCollectionResponse(BaseModel):
+    """DAG warning collection serializer for responses."""
+
+    import_errors: list[DAGWarningResponse]
+    total_entries: int

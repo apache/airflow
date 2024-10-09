@@ -5,6 +5,7 @@ import {
   AssetService,
   ConnectionService,
   DagService,
+  DagWarningService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -137,4 +138,49 @@ export const prefetchUseConnectionServiceGetConnection = (
   queryClient.prefetchQuery({
     queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
     queryFn: () => ConnectionService.getConnection({ connectionId }),
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagWarningServiceListDagWarnings = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({
+      dagId,
+      limit,
+      offset,
+      orderBy,
+      warningType,
+    }),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }),
   });

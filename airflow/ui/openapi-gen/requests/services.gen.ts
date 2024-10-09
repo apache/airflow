@@ -19,6 +19,8 @@ import type {
   GetConnectionResponse,
   DeleteVariableData,
   DeleteVariableResponse,
+  ListDagWarningsData,
+  ListDagWarningsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -271,6 +273,41 @@ export class VariableService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagWarningService {
+  /**
+   * List Dag Warnings
+   * Get a list of DAG warnings.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.warningType
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns DAGWarningCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static listDagWarnings(
+    data: ListDagWarningsData = {},
+  ): CancelablePromise<ListDagWarningsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagWarnings",
+      query: {
+        dag_id: data.dagId,
+        warning_type: data.warningType,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

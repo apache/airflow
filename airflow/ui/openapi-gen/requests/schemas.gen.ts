@@ -784,6 +784,52 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGWarningCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/DAGWarningResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "DAGWarningCollectionResponse",
+  description: "DAG warning collection serializer for responses.",
+} as const;
+
+export const $DAGWarningResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    warning_message: {
+      type: "string",
+      title: "Warning Message",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "warning_message", "message", "timestamp"],
+  title: "DAGWarningResponse",
+  description: "DAG Warning serializer for responses.",
+} as const;
+
 export const $DagRunState = {
   type: "string",
   enum: ["queued", "running", "success", "failed"],
