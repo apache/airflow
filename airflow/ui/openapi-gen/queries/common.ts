@@ -134,6 +134,22 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
 ];
+export type VariableServiceGetVariableDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariable>
+>;
+export type VariableServiceGetVariableQueryResult<
+  TData = VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
+export const UseVariableServiceGetVariableKeyFn = (
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
