@@ -502,7 +502,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
-.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airflow <2.3``
 
 Misc
 ~~~~~
@@ -512,7 +512,7 @@ Misc
 3.0.0 (YANKED)
 ..............
 
-.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airflow <2.3``
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
