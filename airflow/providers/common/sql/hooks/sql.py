@@ -51,11 +51,6 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
-from airflow.providers.common.sql.hooks.handlers import (
-    fetch_all_handler,
-    fetch_one_handler,
-    return_single_query_results,
-)
 
 if TYPE_CHECKING:
     from pandas import DataFrame
