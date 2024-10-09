@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import ShortCircuitOperator
+from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
@@ -1049,6 +1049,41 @@ class TestDagRun:
         ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
+
+    def test_dagrun_root_fail_unfinished(self, dag_maker, session):
+        """
+        Previously this lived in test_scheduler_job.py
+
+        It only really tested the behavior of DagRun.update_state.
+
+        As far as I can tell, it checks that if you null out the state on a TI of a finished dag,
+        and then you call ``update_state``, then the DR will be set to running.
+        """
+        with dag_maker(session=session) as dag:
+            PythonOperator(task_id="t1", python_callable=lambda: print)
+            PythonOperator(task_id="t2", python_callable=lambda: print)
+        dr = dag.create_dagrun(
+            state=DagRunState.FAILED,
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_id="abc123",
+            session=session,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.FAILED
+        session.commit()
+        session.expunge_all()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == DagRunState.FAILED
+        ti = dr.get_task_instance("t1", session=session)
+        ti.state = State.NONE
+        session.commit()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == DagRunState.FAILED
+        dr.dag = dag
+        dr.update_state(session=session)
+        session.commit()
+        dr = session.get(DagRun, dr.id)
+        assert dr.state == State.RUNNING
 
 
 @pytest.mark.parametrize(
