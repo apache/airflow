@@ -143,7 +143,7 @@ export const prefetchUseConnectionServiceGetConnection = (
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
- * @param data.dagIdPattern
+ * @param data.dagId
  * @param data.warningType
  * @param data.limit
  * @param data.offset
@@ -154,13 +154,13 @@ export const prefetchUseConnectionServiceGetConnection = (
 export const prefetchUseDagWarningServiceListDagWarnings = (
   queryClient: QueryClient,
   {
-    dagIdPattern,
+    dagId,
     limit,
     offset,
     orderBy,
     warningType,
   }: {
-    dagIdPattern?: string;
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -169,7 +169,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({
-      dagIdPattern,
+      dagId,
       limit,
       offset,
       orderBy,
@@ -177,7 +177,7 @@ export const prefetchUseDagWarningServiceListDagWarnings = (
     }),
     queryFn: () =>
       DagWarningService.listDagWarnings({
-        dagIdPattern,
+        dagId,
         limit,
         offset,
         orderBy,

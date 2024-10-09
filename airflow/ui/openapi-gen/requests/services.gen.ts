@@ -284,7 +284,7 @@ export class DagWarningService {
    * List Dag Warnings
    * Get a list of DAG warnings.
    * @param data The data for the request.
-   * @param data.dagIdPattern
+   * @param data.dagId
    * @param data.warningType
    * @param data.limit
    * @param data.offset
@@ -299,7 +299,7 @@ export class DagWarningService {
       method: "GET",
       url: "/public/dagWarnings",
       query: {
-        dag_id_pattern: data.dagIdPattern,
+        dag_id: data.dagId,
         warning_type: data.warningType,
         limit: data.limit,
         offset: data.offset,

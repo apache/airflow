@@ -123,13 +123,13 @@ export const useDagWarningServiceListDagWarningsKey =
   "DagWarningServiceListDagWarnings";
 export const UseDagWarningServiceListDagWarningsKeyFn = (
   {
-    dagIdPattern,
+    dagId,
     limit,
     offset,
     orderBy,
     warningType,
   }: {
-    dagIdPattern?: string;
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -138,7 +138,7 @@ export const UseDagWarningServiceListDagWarningsKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useDagWarningServiceListDagWarningsKey,
-  ...(queryKey ?? [{ dagIdPattern, limit, offset, orderBy, warningType }]),
+  ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }]),
 ];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>

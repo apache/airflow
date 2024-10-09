@@ -173,7 +173,7 @@ export const useConnectionServiceGetConnectionSuspense = <
  * List Dag Warnings
  * Get a list of DAG warnings.
  * @param data The data for the request.
- * @param data.dagIdPattern
+ * @param data.dagId
  * @param data.warningType
  * @param data.limit
  * @param data.offset
@@ -187,13 +187,13 @@ export const useDagWarningServiceListDagWarningsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagIdPattern,
+    dagId,
     limit,
     offset,
     orderBy,
     warningType,
   }: {
-    dagIdPattern?: string;
+    dagId?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
@@ -204,12 +204,12 @@ export const useDagWarningServiceListDagWarningsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn(
-      { dagIdPattern, limit, offset, orderBy, warningType },
+      { dagId, limit, offset, orderBy, warningType },
       queryKey,
     ),
     queryFn: () =>
       DagWarningService.listDagWarnings({
-        dagIdPattern,
+        dagId,
         limit,
         offset,
         orderBy,

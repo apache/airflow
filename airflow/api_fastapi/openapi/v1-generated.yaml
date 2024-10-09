@@ -504,14 +504,14 @@ paths:
       description: Get a list of DAG warnings.
       operationId: list_dag_warnings
       parameters:
-      - name: dag_id_pattern
+      - name: dag_id
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          title: Dag Id Pattern
+          title: Dag Id
       - name: warning_type
         in: query
         required: false

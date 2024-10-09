@@ -247,7 +247,7 @@ export type DeleteVariableData = {
 export type DeleteVariableResponse = void;
 
 export type ListDagWarningsData = {
-  dagIdPattern?: string | null;
+  dagId?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
