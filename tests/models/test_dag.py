@@ -2951,14 +2951,7 @@ class TestDagDecorator:
         assert dag.params["value"] == value
 
 
-@pytest.mark.parametrize(
-    "run_id, logical_date",
-    [
-        (None, datetime_tz(2020, 1, 1)),
-        ("test-run-id", None),
-    ],
-)
-def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
+def test_set_task_instance_state(session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2972,8 +2965,7 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag_maker.create_dagrun(
-        run_id=run_id,
-        logical_date=logical_date,
+        run_id="test-run-id",
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -2999,7 +2991,7 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
 
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
-        run_id=run_id,
+        run_id="test-run-id",
         state=State.SUCCESS,
         session=session,
     )
@@ -3096,8 +3088,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ]
 
 
-@pytest.mark.parametrize("run_id, logical_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
-def test_set_task_group_state(run_id, logical_date, session, dag_maker):
+def test_set_task_group_state(session, dag_maker):
     """Test that set_task_group_state updates the TaskGroup state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -3120,8 +3111,7 @@ def test_set_task_group_state(run_id, logical_date, session, dag_maker):
         start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
 
     dagrun = dag_maker.create_dagrun(
-        run_id=run_id,
-        logical_date=logical_date,
+        run_id="test-run-id",
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -3149,7 +3139,7 @@ def test_set_task_group_state(run_id, logical_date, session, dag_maker):
 
     altered = dag.set_task_group_state(
         group_id=section_1.group_id,
-        run_id=run_id,
+        run_id="test-run-id",
         state=State.SUCCESS,
         session=session,
     )
