@@ -161,12 +161,13 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
 * ``Drop python3.8 support core and providers (#42766)``
 * ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
 * ``Rename dataset related python variable names to asset (#41348)``
 * ``Remove identity center auth manager cli (#42481)``
 * ``Refactor AWS Auth manager user output (#42454)``
+* ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
+* ``Revert "Remove 'sqlalchemy-redshift' dependency from Amazon provider" (#42864)``
 
 8.29.0
 ......

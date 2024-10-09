@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.0.0
 .....
 
-Latest change: 2024-10-08
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`d395c1f1f8 <https://github.com/apache/airflow/commit/d395c1f1f8dad18a1daf5275a522f4f62bcf6aec>`_  2024-10-09   ``Revert "Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)" (#42864)``
 `3b4c73a644 <https://github.com/apache/airflow/commit/3b4c73a644f40013927fb72227dfe018dc47a97f>`_  2024-10-08   ``Remove 'sqlalchemy-redshift' dependency from Amazon provider (#42830)``
 `63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
 `1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
