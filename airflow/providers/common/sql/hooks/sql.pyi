@@ -69,7 +69,6 @@ WARNING_MESSAGE: str
 
 def resolve_dialects() -> MutableMapping[str, MutableMapping]: ...
 
-
 class ConnectorProtocol(Protocol):
     def connect(self, host: str, port: int, username: str, schema: str) -> Any: ...
 
