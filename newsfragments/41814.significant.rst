@@ -1,0 +1,1 @@
+Change the default value of ``strict_dataset_uri_validation`` to True.
