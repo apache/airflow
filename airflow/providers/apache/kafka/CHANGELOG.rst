@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``remove callable functions parameter from kafka operator template_fields (#42555)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.0
 .....
 
