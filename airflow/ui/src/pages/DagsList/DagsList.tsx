@@ -25,7 +25,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEventHandler, SyntheticEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type ChangeEventHandler, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
@@ -41,7 +41,6 @@ import { searchParamsKeys } from "src/constants/searchParams";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
-import { useDebouncedCallback } from "use-debounce";
 
 const columns: Array<ColumnDef<DAGResponse>> = [
   {
@@ -93,7 +92,6 @@ const columns: Array<ColumnDef<DAGResponse>> = [
 
 const { PAUSED: PAUSED_PARAM, NAME_PATTERN: NAME_PATTERN_PARAM } = searchParamsKeys;
 
-// eslint-disable-next-line complexity
 const cardDef: CardDef<DAGResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
   meta: {
@@ -109,36 +107,31 @@ export const DagsList = () => {
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-
-  const searchBarRef = useRef<HTMLInputElement>(null);
+  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
 
   // TODO: update API to accept multiple orderBy params
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
-
-  const dagDisplayNamePatternDebounceDelay = 200;
-
-  const handleSearchBarChange = useDebouncedCallback(
-    ({ target }: SyntheticEvent<HTMLInputElement>) => {
-      const { value } = target as HTMLInputElement;
+  const handleSearchChange = (value: string) => {
+    if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
-      setSearchParams(searchParams);
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setDagDisplayNamePattern(value);
-    },
-    dagDisplayNamePatternDebounceDelay
-  );
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setSearchParams(searchParams);
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setDagDisplayNamePattern(value);
+  };
 
   const { data, isFetching, isLoading } = useDagServiceGetDags({
     dagDisplayNamePattern: dagDisplayNamePattern !== "" ? dagDisplayNamePattern : undefined,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: false,
+    onlyActive: true,
     orderBy,
     paused: showPaused === null ? undefined : showPaused === "true",
   }, [dagDisplayNamePattern, showPaused]);
@@ -155,18 +148,12 @@ export const DagsList = () => {
     [pagination, setTableURLState],
   );
 
-  useEffect(() => {
-    if (searchBarRef.current) {
-      searchBarRef.current.value = dagDisplayNamePattern ?? "";
-    }
-  }, [searchBarRef.current]);
-
   return (
     <>
       <VStack alignItems="none">
         <SearchBar
-          inputProps={{ onChange: handleSearchBarChange }}
-          ref={searchBarRef}
+          defaultValue={dagDisplayNamePattern}
+          inputProps={{ onChange: (e) => handleSearchChange(e.target.value) }}
           buttonProps={{ isDisabled: true }}
         />
         <DagsFilters />
