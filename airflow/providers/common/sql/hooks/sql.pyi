@@ -40,11 +40,6 @@ from airflow.exceptions import (
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect as Dialect
-from airflow.providers.common.sql.hooks.handlers import (
-    fetch_all_handler as fetch_all_handler,
-    fetch_one_handler as fetch_one_handler,
-    return_single_query_results as return_single_query_results,
-)
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
@@ -67,6 +62,9 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS: Incomplete
 WARNING_MESSAGE: str
 
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool): ...
+def fetch_all_handler(cursor) -> list[tuple] | None: ...
+def fetch_one_handler(cursor) -> list[tuple] | None: ...
 def resolve_dialects() -> MutableMapping[str, MutableMapping]: ...
 
 class ConnectorProtocol(Protocol):

@@ -67,7 +67,7 @@ WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' 
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):  # noqa: F811
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
     warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
     from airflow.providers.common.sql.hooks import handlers
@@ -75,7 +75,7 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
     return handlers.return_single_query_results(sql, return_last, split_statements)
 
 
-def fetch_all_handler(cursor) -> list[tuple] | None:  # noqa: F811
+def fetch_all_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_all_handler"), DeprecationWarning, stacklevel=2)
 
     from airflow.providers.common.sql.hooks import handlers
@@ -83,7 +83,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:  # noqa: F811
     return handlers.fetch_all_handler(cursor)
 
 
-def fetch_one_handler(cursor) -> list[tuple] | None:  # noqa: F811
+def fetch_one_handler(cursor) -> list[tuple] | None:
     warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
 
     from airflow.providers.common.sql.hooks import handlers
