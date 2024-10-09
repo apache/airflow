@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -125,9 +126,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(
-            dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
