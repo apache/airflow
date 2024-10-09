@@ -40,11 +40,6 @@ from airflow.exceptions import (
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect as Dialect
-from airflow.providers.common.sql.hooks.handlers import (
-    fetch_all_handler as fetch_all_handler,
-    fetch_one_handler as fetch_one_handler,
-    return_single_query_results as return_single_query_results,
-)
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
