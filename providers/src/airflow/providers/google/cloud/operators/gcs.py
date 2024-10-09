@@ -42,6 +42,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
@@ -794,7 +795,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            orig_start = pendulum.instance(context["logical_date"])
+            if AIRFLOW_V_3_0_PLUS:
+                orig_start = pendulum.instance(context["logical_date"])
+            else:
+                orig_start = pendulum.instance(context["execution_date"])  # type: ignore[typeddict-item]
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
                 orig_end = next_dagrun.data_interval.end
