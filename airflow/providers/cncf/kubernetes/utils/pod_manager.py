@@ -493,7 +493,7 @@ class PodManager(LoggingMixin):
                 # duplicate log entries
                 if val := (last_captured_timestamp or since_time):
                     return val.add(seconds=2), e
-            except HTTPError as e:
+            except (HTTPError, ApiException) as e:
                 exception = e
                 self.log.exception(
                     "Reading of logs interrupted for container %r; will retry.",
