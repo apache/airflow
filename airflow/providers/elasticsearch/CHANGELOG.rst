@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix spelling; 'Airlfow' -> 'Airflow' (#42855)``
+
 5.5.1
 .....
 
