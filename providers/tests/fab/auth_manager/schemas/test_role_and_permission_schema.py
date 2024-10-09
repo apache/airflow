@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.api_connexion.schemas.role_and_permission_schema import (
+from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema import (
     RoleCollection,
     role_collection_schema,
     role_schema,
