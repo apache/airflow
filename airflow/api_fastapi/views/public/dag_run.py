@@ -32,7 +32,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
 
 @dag_run_router.get(
-    "/dags/{dag_id}/dagRuns/{dag_run_id}", responses=create_openapi_http_exception_doc([401, 403, 404])
+    "/{dag_run_id}", responses=create_openapi_http_exception_doc([401, 403, 404])
 )
 async def get_dag_run(
     dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
