@@ -44,7 +44,8 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSTimeSpanFileTransformOperator,
 )
 from airflow.timetables.base import DagRunInfo, DataInterval
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
