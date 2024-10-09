@@ -46,7 +46,7 @@ Using the operator
 Cancel a build in progress with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCancelBuildOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cancel_build]
@@ -74,7 +74,7 @@ Build configuration
 In order to trigger a build, it is necessary to pass the build configuration.
 
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_gcp_create_build_from_storage_body]
@@ -82,7 +82,7 @@ In order to trigger a build, it is necessary to pass the build configuration.
 
 In addition, a build can refer to source stored in `Google Cloud Source Repositories <https://cloud.google.com/source-repositories/docs/>`__.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_create_build_from_repo_body]
@@ -96,7 +96,7 @@ Using the operator
 Trigger a build is performed with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage]
@@ -104,7 +104,7 @@ Trigger a build is performed with the
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage_async]
@@ -115,7 +115,7 @@ You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 parameters which allows you to dynamically determine values. The result is saved to :ref:`XCom <concepts:xcom>`, which allows it
 to be used by other operators.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_storage_result]
@@ -124,7 +124,7 @@ to be used by other operators.
 By default, after the build is created, it will wait for the build operation to complete. If there is no need to wait for complete,
 you can pass wait=False as example shown below.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_without_wait]
@@ -132,7 +132,7 @@ you can pass wait=False as example shown below.
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_without_wait_async]
@@ -141,7 +141,7 @@ You can use deferrable mode for this action in order to run the operator asynchr
 In order to start a build on Cloud Build you can use a build configuration file. A build config file defines the fields
 that are needed for Cloud Build to perform your tasks. You can write the build config file using the YAML or the JSON syntax.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_create_build_from_yaml_body]
@@ -149,7 +149,7 @@ that are needed for Cloud Build to perform your tasks. You can write the build c
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_create_build_from_yaml_body_async]
@@ -158,7 +158,7 @@ You can use deferrable mode for this action in order to run the operator asynchr
 In addition, a Cloud Build can refer to source stored in `Google Cloud Source Repositories <https://cloud.google.com/source-repositories/docs/>`__.
 Once build has started, it ill build the code in source repositories.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_create_build_from_repo]
@@ -166,7 +166,7 @@ Once build has started, it ill build the code in source repositories.
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_from_repo_async]
@@ -189,7 +189,7 @@ Using the operator
 Creates a new Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildCreateBuildTriggerOperator` operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_trigger]
@@ -216,7 +216,7 @@ Using the operator
 Deletes a new Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildDeleteBuildTriggerOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_build_trigger]
@@ -243,7 +243,7 @@ Using the operator
 Returns information about a previously requested build with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_build]
@@ -270,7 +270,7 @@ Using the operator
 Returns information about a Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildGetBuildTriggerOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_build_trigger]
@@ -297,7 +297,7 @@ Using the operator
 Lists all the existing Cloud Build triggers with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildTriggersOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_build_triggers]
@@ -324,7 +324,7 @@ Using the operator
 Lists previously requested builds with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildListBuildsOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_builds]
@@ -352,7 +352,7 @@ Using the operator
 Creates a new build based on the specified build with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRetryBuildOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_retry_build]
@@ -379,7 +379,7 @@ Using the operator
 Runs a trigger at a particular source revision with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildRunBuildTriggerOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_run_build_trigger]
@@ -406,7 +406,7 @@ Using the operator
 Updates a Cloud Build trigger with the
 :class:`~airflow.providers.google.cloud.operators.cloud_build.CloudBuildUpdateBuildTriggerOperator` operator.
 
-.. exampleinclude:: ../../../../tests/system/providers/google/cloud/cloud_build/example_cloud_build_trigger.py
+.. exampleinclude:: ../../../../providers/tests/system/google/cloud/cloud_build/example_cloud_build_trigger.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_build_trigger]

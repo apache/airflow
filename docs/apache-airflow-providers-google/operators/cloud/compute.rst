@@ -39,7 +39,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_insert]
@@ -48,7 +48,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection id used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_insert_no_project_id]
@@ -58,7 +58,7 @@ from the Google Cloud connection id used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_insert_fields]
@@ -84,7 +84,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_insert_from_template]
@@ -93,7 +93,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection id used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_insert_from_template_no_project_id]
@@ -103,7 +103,7 @@ from the Google Cloud connection id used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_insert_from_template_fields]
@@ -130,7 +130,7 @@ Using the operator
 You can create the operator without project id - project id will be retrieved
 from the Google Cloud connection id used. The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_delete_no_project_id]
@@ -140,7 +140,7 @@ from the Google Cloud connection id used. The code to create the operator:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_delete_template_fields]
@@ -166,7 +166,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start]
@@ -175,7 +175,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection id used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_start_no_project_id]
@@ -185,7 +185,7 @@ from the Google Cloud connection id used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_start_template_fields]
@@ -212,7 +212,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop]
@@ -221,7 +221,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_stop_no_project_id]
@@ -230,7 +230,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_stop_template_fields]
@@ -262,7 +262,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type]
@@ -271,7 +271,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_set_machine_type_no_project_id]
@@ -280,7 +280,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_set_machine_type_template_fields]
@@ -310,7 +310,7 @@ The code to create the operator:
 You can create the operator without project id - project id will be retrieved
 from the Google Cloud connection used. The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_delete_old_template_no_project_id]
@@ -319,7 +319,7 @@ from the Google Cloud connection used. The code to create the operator:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_delete_fields]
@@ -346,7 +346,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_insert_template]
@@ -355,7 +355,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_insert_template_no_project_id]
@@ -364,7 +364,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_insert_fields]
@@ -392,7 +392,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template]
@@ -401,7 +401,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_copy_template_no_project_id]
@@ -410,7 +410,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_instance_template_copy_operator_template_fields]
@@ -441,7 +441,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :start-after: [START howto_operator_gce_insert_igm]
     :end-before: [END howto_operator_gce_insert_igm]
@@ -449,7 +449,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_insert_igm_no_project_id]
@@ -459,7 +459,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_insert_fields]
@@ -491,7 +491,7 @@ Using the operator
 You can create the operator without project id - project id will be retrieved
 from the Google Cloud connection used. The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_delete_igm_no_project_id]
@@ -501,7 +501,7 @@ from the Google Cloud connection used. The code to create the operator:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_delete_fields]
@@ -532,7 +532,7 @@ Using the operator
 
 The code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template]
@@ -541,7 +541,7 @@ The code to create the operator:
 You can also create the operator without project id - project id will be retrieved
 from the Google Cloud connection used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_igm.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_igm.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gce_igm_update_template_no_project_id]
@@ -551,7 +551,7 @@ from the Google Cloud connection used:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/compute.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/compute.py
     :language: python
     :dedent: 4
     :start-after: [START gce_igm_update_template_operator_template_fields]

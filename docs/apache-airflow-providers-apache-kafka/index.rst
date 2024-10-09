@@ -53,7 +53,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/kafka/index>
+    System Tests <_api/tests/system/apache/kafka/index>
 
 
 .. toctree::
@@ -61,7 +61,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/tests/system/providers/apache/kafka>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/providers/tests/system/apache/kafka>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kafka/>
     Installing from sources <installing-providers-from-sources>
 

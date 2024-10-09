@@ -36,7 +36,7 @@ All parameters are described in the reference documentation - :class:`~airflow.p
 
 An example operator call might look like this:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/azure/example_azure_fileshare_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/azure/example_azure_fileshare_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_azure_fileshare_to_gcs_basic]
