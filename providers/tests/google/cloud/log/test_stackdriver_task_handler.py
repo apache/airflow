@@ -148,10 +148,11 @@ class TestStackdriverLoggingHandlerTask:
         self.logger.info("test-message")
         stackdriver_task_handler.flush()
 
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            "logical_date": "2016-01-01T00:00:00+00:00",
+            date_key: "2016-01-01T00:00:00+00:00",
             "try_number": "1",
         }
         resource = Resource(type="global", labels={})
@@ -172,10 +173,11 @@ class TestStackdriverLoggingHandlerTask:
         self.logger.info("test-message")
         stackdriver_task_handler.flush()
 
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         labels = {
             "task_id": self.TASK_ID,
             "dag_id": self.DAG_ID,
-            "logical_date": "2016-01-01T00:00:00+00:00",
+            date_key: "2016-01-01T00:00:00+00:00",
             "try_number": "1",
             "product.googleapis.com/task_id": "test-value",
         }
@@ -194,16 +196,20 @@ class TestStackdriverLoggingHandlerTask:
 
         stackdriver_task_handler = self._setup_handler()
         logs, metadata = stackdriver_task_handler.read(self.ti)
+
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+
+        filter_str = (
+            'resource.type="global"\n'
+            'logName="projects/project_id/logs/airflow"\n'
+            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+        )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    'resource.type="global"\n'
-                    'logName="projects/project_id/logs/airflow"\n'
-                    'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-                    'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token=None,
@@ -224,16 +230,18 @@ class TestStackdriverLoggingHandlerTask:
         stackdriver_task_handler = self._setup_handler()
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+        filter_str = (
+            'resource.type="global"\n'
+            'logName="projects/project_id/logs/airflow"\n'
+            'labels.task_id="K\\"OT"\n'
+            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+        )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    'resource.type="global"\n'
-                    'logName="projects/project_id/logs/airflow"\n'
-                    'labels.task_id="K\\"OT"\n'
-                    'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token=None,
@@ -252,17 +260,19 @@ class TestStackdriverLoggingHandlerTask:
         stackdriver_task_handler = self._setup_handler()
 
         logs, metadata = stackdriver_task_handler.read(self.ti, 3)
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+        filter_str = (
+            'resource.type="global"\n'
+            'logName="projects/project_id/logs/airflow"\n'
+            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+            f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
+            'labels.try_number="3"'
+        )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    'resource.type="global"\n'
-                    'logName="projects/project_id/logs/airflow"\n'
-                    'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-                    'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.logical_date="2016-01-01T00:00:00+00:00"\n'
-                    'labels.try_number="3"'
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token=None,
@@ -282,17 +292,19 @@ class TestStackdriverLoggingHandlerTask:
         stackdriver_task_handler = self._setup_handler()
 
         logs, metadata1 = stackdriver_task_handler.read(self.ti, 3)
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+        filter_str = (
+            'resource.type="global"\n'
+            'logName="projects/project_id/logs/airflow"\n'
+            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+            f'labels.{date_label}="2016-01-01T00:00:00+00:00"\n'
+            'labels.try_number="3"'
+        )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    '''resource.type="global"
-logName="projects/project_id/logs/airflow"
-labels.task_id="task_for_testing_stackdriver_task_handler"
-labels.dag_id="dag_for_testing_stackdriver_file_task_handler"
-labels.logical_date="2016-01-01T00:00:00+00:00"
-labels.try_number="3"'''
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token=None,
@@ -357,19 +369,21 @@ labels.try_number="3"'''
         mock_client.return_value.list_log_entries.return_value.pages = iter([page])
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+        filter_str = (
+            'resource.type="cloud_composer_environment"\n'
+            'logName="projects/project_id/logs/airflow"\n'
+            'resource.labels."environment.name"="test-instance"\n'
+            'resource.labels.location="europe-west-3"\n'
+            'resource.labels.project_id="project_id"\n'
+            'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
+            'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
+            f'labels.{date_label}="2016-01-01T00:00:00+00:00"'
+        )
         mock_client.return_value.list_log_entries.assert_called_once_with(
             request=ListLogEntriesRequest(
                 resource_names=["projects/project_id"],
-                filter=(
-                    'resource.type="cloud_composer_environment"\n'
-                    'logName="projects/project_id/logs/airflow"\n'
-                    'resource.labels."environment.name"="test-instance"\n'
-                    'resource.labels.location="europe-west-3"\n'
-                    'resource.labels.project_id="project_id"\n'
-                    'labels.task_id="task_for_testing_stackdriver_task_handler"\n'
-                    'labels.dag_id="dag_for_testing_stackdriver_file_task_handler"\n'
-                    'labels.logical_date="2016-01-01T00:00:00+00:00"'
-                ),
+                filter=filter_str,
                 order_by="timestamp asc",
                 page_size=1000,
                 page_token=None,
@@ -416,12 +430,13 @@ labels.try_number="3"'''
         assert "global" in parsed_qs["resource"]
 
         filter_params = parsed_qs["advancedFilter"][0].splitlines()
+        date_label = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         expected_filter = [
             'resource.type="global"',
             'logName="projects/project_id/logs/airflow"',
             f'labels.task_id="{self.ti.task_id}"',
             f'labels.dag_id="{self.DAG_ID}"',
-            f'labels.logical_date="{self.ti.logical_date.isoformat()}"',
+            f'labels.{date_label}="{self.ti.logical_date.isoformat()}"',
             f'labels.try_number="{self.ti.try_number}"',
         ]
         assert set(expected_filter) == set(filter_params)
