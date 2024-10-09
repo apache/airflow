@@ -32,6 +32,7 @@ import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
 from datetime import datetime, timedelta
+from functools import cache
 from inspect import signature
 from typing import (
     TYPE_CHECKING,
@@ -81,7 +82,6 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.assets import Asset, AssetAlias, AssetAll, BaseAsset
-from airflow.compat.functools import cache
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
