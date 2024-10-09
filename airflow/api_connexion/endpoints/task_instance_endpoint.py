@@ -87,14 +87,14 @@ def get_task_instance(
     )
 
     try:
-        task_instance = session.execute(query).one_or_none()
+        task_instance = session.scalar(query)
     except MultipleResultsFound:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
     if task_instance is None:
         raise NotFound("Task instance not found")
-    if task_instance[0].map_index != -1:
+    if task_instance.map_index != -1:
         raise NotFound(
             "Task instance not found", detail="Task instance is mapped, add the map_index value to the URL"
         )
@@ -119,7 +119,7 @@ def get_mapped_task_instance(
         .join(TI.dag_run)
         .options(joinedload(TI.rendered_task_instance_fields))
     )
-    task_instance = session.execute(query).one_or_none()
+    task_instance = session.scalar(query)
 
     if task_instance is None:
         raise NotFound("Task instance not found")
@@ -356,7 +356,7 @@ def get_task_instances(
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
+    task_instances = session.scalars(entry_query.offset(offset).limit(limit))
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -425,7 +425,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    task_instances = session.execute(ti_query).all()
+    task_instances = session.scalars(ti_query)
 
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)

@@ -74,11 +74,9 @@ class TaskInstanceSchema(SQLAlchemySchema):
     triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
-        ti = obj if isinstance(obj, TaskInstance) else obj[0]
-
         if attr == "rendered_fields":
-            return get_value(ti, "rendered_task_instance_fields.rendered_fields", default)
-        return get_value(ti, attr, default)
+            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+        return get_value(obj, attr, default)
 
 
 class TaskInstanceHistorySchema(SQLAlchemySchema):
