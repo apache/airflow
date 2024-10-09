@@ -155,7 +155,7 @@ paths:
         required: false
         schema:
           type: string
-          default: dag_id
+          default: ''
           title: Order By
       responses:
         '200':
@@ -593,7 +593,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/connections:
+  /public/connections/:
     get:
       tags:
       - Connection
@@ -620,7 +620,7 @@ paths:
         required: false
         schema:
           type: string
-          default: connection_id
+          default: ''
           title: Order By
       responses:
         '200':
@@ -964,9 +964,9 @@ components:
       description: DAG Collection serializer for responses.
     ConnectionResponse:
       properties:
-        conn_id:
+        connection_id:
           type: string
-          title: Conn Id
+          title: Connection Id
         conn_type:
           type: string
           title: Conn Type
@@ -1002,7 +1002,7 @@ components:
           title: Extra
       type: object
       required:
-      - conn_id
+      - connection_id
       - conn_type
       - description
       - host

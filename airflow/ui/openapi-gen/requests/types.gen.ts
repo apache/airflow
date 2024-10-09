@@ -12,7 +12,7 @@ export type ConnectionCollectionResponse = {
  * Connection serializer for responses.
  */
 export type ConnectionResponse = {
-  conn_id: string;
+  connection_id: string;
   conn_type: string;
   description: string | null;
   host: string | null;
@@ -660,7 +660,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/connections": {
+  "/public/connections/": {
     get: {
       req: GetConnectionsData;
       res: {

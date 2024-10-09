@@ -67,7 +67,7 @@ async def get_connection(
 
 
 @connections_router.get(
-    "/connections",
+    "/",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 async def get_connections(
@@ -76,10 +76,7 @@ async def get_connections(
     order_by: Annotated[
         SortParam,
         Depends(
-            SortParam(
-                ["connection_id", "conn_type", "description", "host", "port", "id"],
-                Connection
-            ).depends
+            SortParam(["connection_id", "conn_type", "description", "host", "port", "id"], Connection).depends
         ),
     ],
     session: Annotated[Session, Depends(get_session)],

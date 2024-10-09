@@ -361,7 +361,7 @@ export class ConnectionService {
   ): CancelablePromise<GetConnectionsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections/connections",
+      url: "/public/connections/",
       query: {
         limit: data.limit,
         offset: data.offset,

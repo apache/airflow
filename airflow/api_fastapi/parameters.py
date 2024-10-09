@@ -23,12 +23,12 @@ from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
-from airflow.models import Connection, Base
+from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
