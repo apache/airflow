@@ -28,7 +28,7 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.hooks.dialect
+Definition of the public interface for airflow.providers.common.sql.dialects.dialect
 isort:skip_file
 """
 from _typeshed import Incomplete
