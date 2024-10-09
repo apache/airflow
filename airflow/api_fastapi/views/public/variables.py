@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.serializers.variables import VariableResponse
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models.variable import Variable
 
@@ -40,3 +42,17 @@ async def delete_variable(
     """Delete a variable entry."""
     if Variable.delete(variable_key, session) == 0:
         raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+
+
+@variables_router.get("/{variable_key}", responses=create_openapi_http_exception_doc([401, 403, 404]))
+async def get_variable(
+    variable_key: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> VariableResponse:
+    """Get a variable entry."""
+    variable = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
+
+    if variable is None:
+        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+
+    return VariableResponse.model_validate(variable, from_attributes=True)
