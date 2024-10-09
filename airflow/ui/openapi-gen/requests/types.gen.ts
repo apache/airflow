@@ -206,6 +206,15 @@ export type ValidationError = {
   type: string;
 };
 
+/**
+ * Variable serializer for responses.
+ */
+export type VariableResponse = {
+  key: string;
+  value: string | null;
+  description: string | null;
+};
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -282,6 +291,12 @@ export type DeleteVariableData = {
 };
 
 export type DeleteVariableResponse = void;
+
+export type GetVariableData = {
+  variableKey: string;
+};
+
+export type GetVariableResponse = VariableResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -486,6 +501,31 @@ export type $OpenApiTs = {
          * Successful Response
          */
         204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
         /**
          * Unauthorized
          */
