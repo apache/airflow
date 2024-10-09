@@ -27,12 +27,15 @@ from typing import TYPE_CHECKING
 from flask import session, url_for
 from termcolor import colored
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod, ResourceSetAccess
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
+from airflow.utils.session import NEW_SESSION, provide_session
 from hatch_build import AIRFLOW_ROOT_PATH
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
@@ -193,6 +196,16 @@ class SimpleAuthManager(BaseAuthManager):
         self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER)
+
+    @provide_session
+    def get_accessible_dag_ids(
+        self,
+        *,
+        method: ResourceMethod,
+        user=None,
+        session: Session = NEW_SESSION,
+    ) -> set[str] | ResourceSetAccess:
+        return ResourceSetAccess.ALL
 
     def register_views(self) -> None:
         self.appbuilder.add_view_no_menu(

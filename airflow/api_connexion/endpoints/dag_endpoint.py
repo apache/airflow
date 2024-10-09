@@ -36,6 +36,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -120,9 +121,9 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
-    readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
-
-    dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
+    readable_dags = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
+    if readable_dags != ResourceSetAccess.ALL:
+        dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
         dags_query = dags_query.where(or_(*cond))
@@ -191,9 +192,10 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
     dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
-    editable_dags = get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=g.user)
 
-    dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
+    editable_dags = get_auth_manager().get_accessible_dag_ids(method="PUT", user=g.user)
+    if editable_dags != ResourceSetAccess.ALL:
+        dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
         dags_query = dags_query.where(or_(*cond))

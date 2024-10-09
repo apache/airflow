@@ -717,14 +717,14 @@ class TestAwsAuthManager:
         assert result == []
 
     @pytest.mark.parametrize(
-        "methods, user",
+        "method, user",
         [
-            (None, None),
-            (["PUT", "GET"], AwsAuthManagerUser(user_id="test_user_id", groups=[])),
+            ("PUT", None),
+            ("PUT", AwsAuthManagerUser(user_id="test_user_id", groups=[])),
         ],
     )
     @patch.object(AwsAuthManager, "get_user")
-    def test_filter_permitted_dag_ids(self, mock_get_user, methods, user, auth_manager, test_user):
+    def test_filter_accessible_dag_ids(self, mock_get_user, method, user, auth_manager, test_user):
         dag_ids = {"dag_1", "dag_2"}
         batch_is_authorized_output = [
             {
@@ -766,9 +766,9 @@ class TestAwsAuthManager:
 
         mock_get_user.return_value = test_user
 
-        result = auth_manager.filter_permitted_dag_ids(
+        result = auth_manager.filter_accessible_dag_ids(
             dag_ids=dag_ids,
-            methods=methods,
+            method=method,
             user=user,
         )
 

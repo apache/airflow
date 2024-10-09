@@ -45,6 +45,8 @@ def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -
     ``airflow.api_connexion.security.requires_access``, which redirects to this decorator, might be used in
     user plugins. Thus, we need to keep it.
 
+    Remove this decorator when min Airflow version is 3.0.0.
+
     :meta private:
     """
     appbuilder = cast(AirflowApp, current_app).appbuilder
@@ -73,6 +75,8 @@ def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
     ``airflow.www.auth.has_access``, which redirects to this decorator, is widely used in user plugins.
     Thus, we need to keep it.
     See https://github.com/apache/airflow/pull/33213#discussion_r1346287224
+
+    Remove this decorator when min Airflow version is 3.0.0.
 
     :meta private:
     """

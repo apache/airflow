@@ -75,7 +75,7 @@ def paginated_select(
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
-    # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
+    # readable_dags = get_auth_manager().get_accessible_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     base_select = apply_filters_to_select(base_select, [order_by, offset, limit])

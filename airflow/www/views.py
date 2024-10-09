@@ -88,6 +88,7 @@ from airflow.api.common.mark_tasks import (
     set_state,
 )
 from airflow.assets import Asset, AssetAlias
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.exceptions import (
@@ -848,7 +849,7 @@ class Airflow(AirflowBaseView):
         end = start + dags_per_page
 
         # Get all the dag id the user could access
-        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        filter_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET")
 
         with create_session() as session:
             # read orm_dags from the db
@@ -867,7 +868,8 @@ class Airflow(AirflowBaseView):
             if arg_tags_filter:
                 dags_query = dags_query.where(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
-            dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
+            if filter_dag_ids != ResourceSetAccess.ALL:
+                dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
             filtered_dag_count = get_query_count(dags_query, session=session)
             if filtered_dag_count == 0 and len(arg_tags_filter):
                 flash(
@@ -1042,8 +1044,7 @@ class Airflow(AirflowBaseView):
             if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
                 import_errors = select(ParseImportError).order_by(ParseImportError.id)
 
-                can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
-                if not can_read_all_dags:
+                if filter_dag_ids != ResourceSetAccess.ALL:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                     import_errors = import_errors.where(
                         ParseImportError.filename.in_(
@@ -1054,7 +1055,7 @@ class Airflow(AirflowBaseView):
                 import_errors = session.scalars(import_errors)
                 for import_error in import_errors:
                     stacktrace = import_error.stacktrace
-                    if not can_read_all_dags:
+                    if filter_dag_ids != ResourceSetAccess.ALL:
                         # Check if user has read access to all the DAGs defined in the file
                         file_dag_ids = (
                             session.query(DagModel.dag_id)
@@ -1070,6 +1071,7 @@ class Airflow(AirflowBaseView):
                         ]
                         if not get_auth_manager().batch_is_authorized_dag(requests):
                             stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+
                     flash(
                         f"Broken DAG: [{import_error.filename}]\r{stacktrace}",
                         "dag_import_error",
@@ -1203,7 +1205,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def next_run_datasets_summary(self, session: Session = NEW_SESSION):
         """Next run info for dataset triggered DAGs."""
-        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
         if not allowed_dag_ids:
             return flask.json.jsonify({})
@@ -1211,16 +1213,16 @@ class Airflow(AirflowBaseView):
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
 
-        if selected_dag_ids:
-            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
-        else:
-            filter_dag_ids = allowed_dag_ids
+        query = select(DagModel.dag_id).where(DagModel.dataset_expression.is_not(None))
+        if allowed_dag_ids != ResourceSetAccess.ALL:
+            if selected_dag_ids:
+                filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+            else:
+                filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = session.scalars(
-            select(DagModel.dag_id)
-            .where(DagModel.dag_id.in_(filter_dag_ids))
-            .where(DagModel.dataset_expression.is_not(None))
-        ).all()
+            query = query.where(DagModel.dag_id.in_(filter_dag_ids))
+
+        dataset_triggered_dag_ids = session.scalars(query).all()
 
         asset_triggered_next_run_info = get_asset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session
@@ -1233,22 +1235,28 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_stats(self, session: Session = NEW_SESSION):
         """Dag statistics."""
-        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
-        if selected_dag_ids:
-            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
-        else:
-            filter_dag_ids = allowed_dag_ids
-        if not filter_dag_ids:
-            return flask.json.jsonify({})
 
-        dag_state_stats = session.execute(
-            select(DagRun.dag_id, DagRun.state, sqla.func.count(DagRun.state))
-            .group_by(DagRun.dag_id, DagRun.state)
-            .where(DagRun.dag_id.in_(filter_dag_ids))
+        query = select(DagRun.dag_id, DagRun.state, sqla.func.count(DagRun.state)).group_by(
+            DagRun.dag_id, DagRun.state
         )
+
+        if allowed_dag_ids != ResourceSetAccess.ALL:
+            if selected_dag_ids:
+                filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+            else:
+                filter_dag_ids = allowed_dag_ids
+
+            if not filter_dag_ids:
+                return flask.json.jsonify({})
+            query = query.where(DagRun.dag_id.in_(filter_dag_ids))
+        else:
+            filter_dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+
+        dag_state_stats = session.execute(query)
         dag_state_data = {(dag_id, state): count for dag_id, state, count in dag_state_stats}
 
         payload = {
@@ -1265,7 +1273,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def task_stats(self, session: Session = NEW_SESSION):
         """Task Statistics."""
-        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
         if not allowed_dag_ids:
             return flask.json.jsonify({})
@@ -1273,10 +1281,14 @@ class Airflow(AirflowBaseView):
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
 
-        if selected_dag_ids:
+        if selected_dag_ids and allowed_dag_ids != ResourceSetAccess.ALL:
             filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
-        else:
+        elif selected_dag_ids:
+            filter_dag_ids = selected_dag_ids
+        elif allowed_dag_ids != ResourceSetAccess.ALL:
             filter_dag_ids = allowed_dag_ids
+        else:
+            filter_dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
         running_dag_run_query_result = (
             select(DagRun.dag_id, DagRun.run_id)
@@ -1284,7 +1296,10 @@ class Airflow(AirflowBaseView):
             .where(DagRun.state == DagRunState.RUNNING, DagModel.is_active)
         )
 
-        running_dag_run_query_result = running_dag_run_query_result.where(DagRun.dag_id.in_(filter_dag_ids))
+        if allowed_dag_ids != ResourceSetAccess.ALL:
+            running_dag_run_query_result = running_dag_run_query_result.where(
+                DagRun.dag_id.in_(filter_dag_ids)
+            )
 
         running_dag_run_query_result = running_dag_run_query_result.subquery("running_dag_run")
 
@@ -1309,7 +1324,8 @@ class Airflow(AirflowBaseView):
                 .group_by(DagRun.dag_id)
             )
 
-            last_dag_run = last_dag_run.where(DagRun.dag_id.in_(filter_dag_ids))
+            if allowed_dag_ids != ResourceSetAccess.ALL:
+                last_dag_run = last_dag_run.where(DagRun.dag_id.in_(filter_dag_ids))
             last_dag_run = last_dag_run.subquery("last_dag_run")
 
             # Select all task_instances from active dag_runs.
@@ -1364,28 +1380,28 @@ class Airflow(AirflowBaseView):
     @provide_session
     def last_dagruns(self, session: Session = NEW_SESSION):
         """Last DAG runs."""
-        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
 
-        if selected_dag_ids:
+        last_runs_query = select(
+            DagRun.dag_id,
+            sqla.func.max(DagRun.execution_date).label("max_execution_date"),
+        ).group_by(DagRun.dag_id)
+
+        if selected_dag_ids and allowed_dag_ids != ResourceSetAccess.ALL:
             filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
-        else:
+        elif selected_dag_ids:
+            filter_dag_ids = selected_dag_ids
+        elif allowed_dag_ids != ResourceSetAccess.ALL:
             filter_dag_ids = allowed_dag_ids
+        else:
+            filter_dag_ids = None
 
-        if not filter_dag_ids:
-            return flask.json.jsonify({})
-
-        last_runs_subquery = (
-            select(
-                DagRun.dag_id,
-                sqla.func.max(DagRun.execution_date).label("max_execution_date"),
-            )
-            .group_by(DagRun.dag_id)
-            .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
-            .subquery("last_runs")
-        )
+        if filter_dag_ids:
+            last_runs_query = last_runs_query.where(DagRun.dag_id.in_(filter_dag_ids))
+        last_runs_subquery = last_runs_query.subquery("last_runs")
 
         query = session.execute(
             select(
@@ -2464,25 +2480,29 @@ class Airflow(AirflowBaseView):
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
         """Retrieve active_dag_runs and max_active_runs information for running Dags."""
-        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
 
-        if selected_dag_ids:
-            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
-        else:
-            filter_dag_ids = allowed_dag_ids
-
-        if not filter_dag_ids:
-            return flask.json.jsonify([])
-
-        dags = session.execute(
+        query = (
             select(DagRun.dag_id, sqla.func.count(DagRun.id))
             .where(DagRun.state == DagRunState.RUNNING)
-            .where(DagRun.dag_id.in_(filter_dag_ids))
             .group_by(DagRun.dag_id)
         )
+
+        if selected_dag_ids and allowed_dag_ids != ResourceSetAccess.ALL:
+            filter_dag_ids = selected_dag_ids.intersection(allowed_dag_ids)
+        elif selected_dag_ids:
+            filter_dag_ids = selected_dag_ids
+        elif allowed_dag_ids != ResourceSetAccess.ALL:
+            filter_dag_ids = allowed_dag_ids
+        else:
+            filter_dag_ids = None
+
+        if filter_dag_ids:
+            query = query.where(DagRun.dag_id.in_(filter_dag_ids))
+        dags = session.execute(query)
 
         payload = []
         for dag_id, active_dag_runs in dags:
@@ -2932,8 +2952,7 @@ class Airflow(AirflowBaseView):
             insort_left(num_runs_options, default_dag_run_display_number)
 
         can_edit_taskinstance = get_auth_manager().is_authorized_dag(
-            method="PUT",
-            access_entity=DagAccessEntity.TASK_INSTANCE,
+            method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE, details=DagDetails(id=dag_id)
         )
 
         return self.render_template(
@@ -3746,11 +3765,9 @@ class DagFilter(BaseFilter):
     """Filter using DagIDs."""
 
     def apply(self, query, func):
-        if get_auth_manager().is_authorized_dag(method="GET", user=g.user):
+        filter_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
+        if filter_dag_ids == ResourceSetAccess.ALL:
             return query
-        if get_auth_manager().is_authorized_dag(method="PUT", user=g.user):
-            return query
-        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
         return query.where(self.model.dag_id.in_(filter_dag_ids))
 
 
@@ -5620,10 +5637,11 @@ class AutocompleteView(AirflowBaseView):
             dag_ids_query = dag_ids_query.where(DagModel.is_paused)
             owners_query = owners_query.where(DagModel.is_paused)
 
-        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        filter_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
-        dag_ids_query = dag_ids_query.where(DagModel.dag_id.in_(filter_dag_ids))
-        owners_query = owners_query.where(DagModel.dag_id.in_(filter_dag_ids))
+        if filter_dag_ids != ResourceSetAccess.ALL:
+            dag_ids_query = dag_ids_query.where(DagModel.dag_id.in_(filter_dag_ids))
+            owners_query = owners_query.where(DagModel.dag_id.in_(filter_dag_ids))
         payload = [
             row._asdict()
             for row in session.execute(dag_ids_query.union(owners_query).order_by("name").limit(10))

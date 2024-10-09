@@ -45,7 +45,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_schema,
     task_instance_schema,
 )
-from airflow.api_connexion.security import get_readable_dags
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
@@ -359,8 +359,10 @@ def get_task_instances(
 
     if dag_id != "~":
         base_query = base_query.where(TI.dag_id == dag_id)
-    else:
-        base_query = base_query.where(TI.dag_id.in_(get_readable_dags()))
+    elif (
+        accessible_dags := get_auth_manager().get_accessible_dag_ids(method="GET")
+    ) != ResourceSetAccess.ALL:
+        base_query = base_query.where(TI.dag_id.in_(accessible_dags))
     if dag_run_id != "~":
         base_query = base_query.where(TI.run_id == dag_run_id)
     base_query = _apply_range_filter(
@@ -432,12 +434,13 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         if not get_auth_manager().batch_is_authorized_dag(requests):
             raise PermissionDenied(detail=f"User not allowed to access some of these DAGs: {list(dag_ids)}")
     else:
-        dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
+        dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
 
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
 
-    base_query = _apply_array_filter(base_query, key=TI.dag_id, values=dag_ids)
+    if dag_ids != ResourceSetAccess.ALL:
+        base_query = _apply_array_filter(base_query, key=TI.dag_id, values=dag_ids)
     base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
     base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(

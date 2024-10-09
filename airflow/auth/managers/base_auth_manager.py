@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Literal, Sequence
+from typing import TYPE_CHECKING, Literal, Sequence
 
 from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
@@ -58,6 +59,13 @@ if TYPE_CHECKING:
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+
+
+class ResourceSetAccess(Enum):
+    """Enum to represent access to a resource set."""
+
+    # The user has access to the entire resource set (e.g. access to all DAGs)
+    ALL = "ALL"
 
 
 class BaseAuthManager(LoggingMixin):
@@ -335,59 +343,48 @@ class BaseAuthManager(LoggingMixin):
         )
 
     @provide_session
-    def get_permitted_dag_ids(
+    def get_accessible_dag_ids(
         self,
         *,
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod,
         user=None,
         session: Session = NEW_SESSION,
-    ) -> set[str]:
+    ) -> set[str] | ResourceSetAccess:
         """
-        Get readable or writable DAGs for user.
+        Get DAGs accessible by the user.
 
-        By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
+        By default, gets all the DAGs and check individually if the user has permissions to access the DAG.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
 
-        :param methods: whether filter readable or writable
+        If the user is identified as authorized to access all DAGs, then this function should return
+        ResourceSetAccess.ALL. This leads to some better performances across Airflow.
+
+        :param method: the method to perform
         :param user: the current user
         :param session: the session
         """
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        return self.filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=user)
+        return self.filter_accessible_dag_ids(dag_ids=dag_ids, method=method, user=user)
 
-    def filter_permitted_dag_ids(
+    def filter_accessible_dag_ids(
         self,
         *,
         dag_ids: set[str],
-        methods: Container[ResourceMethod] | None = None,
+        method: ResourceMethod,
         user=None,
-    ):
+    ) -> set[str]:
         """
-        Filter readable or writable DAGs for user.
+        Filter DAGs accessible by the user.
 
         :param dag_ids: the list of DAG ids
-        :param methods: whether filter readable or writable
+        :param method: the method to perform
         :param user: the current user
         """
-        if not methods:
-            methods = ["PUT", "GET"]
-
-        if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
-            "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
-        ):
-            # If user is authorized to read/edit all DAGs, return all DAGs
-            return dag_ids
-
-        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
-            return method in methods and self.is_authorized_dag(
-                method=method, details=DagDetails(id=dag_id), user=user
-            )
-
         return {
             dag_id
             for dag_id in dag_ids
-            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
+            if self.is_authorized_dag(method=method, details=DagDetails(id=dag_id), user=user)
         }
 
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
