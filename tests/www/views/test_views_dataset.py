@@ -32,7 +32,7 @@ pytestmark = pytest.mark.db_test
 
 class TestDatasetEndpoint:
     @pytest.fixture(autouse=True)
-    def cleanup(self):
+    def _cleanup(self):
         clear_db_assets()
         yield
         clear_db_assets()
