@@ -128,3 +128,10 @@ def test_get_dag_run(test_client, dag_id, run_id, state, run_type, triggered_by,
     assert body["run_type"] == run_type
     assert body["triggered_by"] == triggered_by.value
     assert body["note"] == dag_run_note
+
+
+def test_get_dag_run_not_found(test_client):
+    response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
+    assert response.status_code == 404
+    body = response.json()
+    assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
