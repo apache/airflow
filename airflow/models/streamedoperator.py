@@ -226,7 +226,7 @@ class StreamedOperator(BaseOperator):
                     value = value.resolve(context=context, session=session)
 
                     if is_mappable(value):
-                        value = list(value)
+                        value = list(value)  # type: ignore
 
                     self.log.debug("resolved_value: %s", value)
 
