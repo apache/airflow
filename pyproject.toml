@@ -39,7 +39,7 @@ name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8,<3.13"
+requires-python = "~=3.9,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -55,7 +55,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -158,15 +157,9 @@ Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.envs.default]
-python = "3.8"
+python = "3.9"
 platforms = ["linux", "macos"]
-description = "Default environment with Python 3.8 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-38]
-python = "3.8"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.8. No devel installed."
+description = "Default environment with Python 3.9 for maximum compatibility"
 features = []
 
 [tool.hatch.envs.airflow-39]
@@ -565,6 +558,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+
+asyncio_default_fixture_loop_scope = "function"
+
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
 tmp_path_retention_policy = "failed"
