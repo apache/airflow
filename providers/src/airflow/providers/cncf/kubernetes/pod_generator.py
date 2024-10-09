@@ -43,6 +43,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
 )
+from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
@@ -416,7 +417,7 @@ class PodGenerator:
         if map_index >= 0:
             annotations["map_index"] = str(map_index)
         if date:
-            annotations["logical_date"] = date.isoformat()
+            annotations[get_logical_date_key()] = date.isoformat()
         if run_id:
             annotations["run_id"] = run_id
 
@@ -531,7 +532,7 @@ class PodGenerator:
         if map_index is not None and map_index >= 0:
             labels["map_index"] = str(map_index)
         if logical_date:
-            labels["logical_date"] = datetime_to_label_safe_datestring(logical_date)
+            labels[get_logical_date_key()] = datetime_to_label_safe_datestring(logical_date)
         if run_id:
             labels["run_id"] = make_safe_label_value(run_id)
         return labels

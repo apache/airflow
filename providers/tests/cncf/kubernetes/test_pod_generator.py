@@ -39,6 +39,11 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 
 now = pendulum.now("UTC")
 
+if __version__.startswith("2."):
+    LOGICAL_DATE_KEY = "execution_date"
+else:
+    LOGICAL_DATE_KEY = "logical_date"
+
 
 class TestPodGenerator:
     def setup_method(self):
@@ -78,7 +83,7 @@ class TestPodGenerator:
         self.labels = {
             "airflow-worker": "uuid",
             "dag_id": self.dag_id,
-            "logical_date": self.logical_date_label,
+            LOGICAL_DATE_KEY: self.logical_date_label,
             "task_id": self.task_id,
             "try_number": str(self.try_number),
             "airflow_version": __version__.replace("+", "-"),
@@ -87,7 +92,7 @@ class TestPodGenerator:
         self.annotations = {
             "dag_id": self.dag_id,
             "task_id": self.task_id,
-            "logical_date": self.logical_date.isoformat(),
+            LOGICAL_DATE_KEY: self.logical_date.isoformat(),
             "try_number": str(self.try_number),
         }
         self.metadata = {
@@ -788,17 +793,17 @@ class TestPodGenerator:
             pytest.param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
             pytest.param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
             pytest.param(
-                dict(logical_date=now),
-                {"logical_date": datetime_to_label_safe_datestring(now)},
+                {LOGICAL_DATE_KEY: now},
+                {LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now)},
                 id="date",
             ),
             pytest.param(
-                dict(airflow_worker=2, map_index=2, run_id="2", logical_date=now),
+                {"airflow_worker": 2, "map_index": 2, "run_id": "2", LOGICAL_DATE_KEY: now},
                 {
                     "airflow-worker": "2",
                     "map_index": "2",
                     "run_id": "2",
-                    "logical_date": datetime_to_label_safe_datestring(now),
+                    LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now),
                 },
                 id="all",
             ),

@@ -24,6 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow import __version__
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     LifecycleStateChange,
@@ -603,11 +604,11 @@ class TestGCSTimeSpanFileTransformOperator:
             ),
         ]
 
-        context = dict(
-            execution_date=timespan_start,
-            dag=mock_dag,
-            ti=mock.Mock(),
-        )
+        if __version__.startswith("2."):
+            logical_date_key = "execution_date"
+        else:
+            logical_date_key = "logical_date"
+        context = {logical_date_key: timespan_start, "dag": mock_dag, "ti": mock.Mock()}
 
         mock_tempdir.return_value.__enter__.side_effect = ["source", destination]
         mock_hook.return_value.list_by_timespan.return_value = [
