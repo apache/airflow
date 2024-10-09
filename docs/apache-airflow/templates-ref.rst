@@ -62,10 +62,10 @@ Variable                                    Type                  Description
 ``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
-``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/assets>`. Added in version 2.10.
+``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
-                                                                  | See :doc:`Assets <authoring-and-scheduling/assets>`. Added in version 2.10.
+                                                                  | See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
@@ -90,7 +90,7 @@ Variable                                    Type                  Description
                                                                   | Added in version 2.5.
 ``{{ triggering_asset_events }}``           dict[str,             | If in a Asset Scheduled DAG, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
-                                                                  | Read more here :doc:`Assets <authoring-and-scheduling/assets>`.
+                                                                  | Read more here :doc:`Assets <authoring-and-scheduling/datasets>`.
                                                                   | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
