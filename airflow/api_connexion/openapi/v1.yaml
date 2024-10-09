@@ -5037,6 +5037,15 @@ components:
     ListTaskInstanceForm:
       type: object
       properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
         dag_ids:
           type: array
           items:
