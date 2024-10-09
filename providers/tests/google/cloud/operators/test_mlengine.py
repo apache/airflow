@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import functools
 from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
@@ -1282,8 +1283,22 @@ TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 
+@pytest.fixture
+def create_task_instance(create_task_instance_of_operator, session):
+    def _create_task_instance(operator_class, **kwargs):
+        return functools.partial(
+            create_task_instance_of_operator,
+            session=session,
+            operator_class=operator_class,
+            dag_id="adhoc_airflow",
+            logical_date=datetime(2022, 1, 1, 0, 0, 0),
+        )(**kwargs)
+
+    return _create_task_instance
+
+
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-def test_async_create_training_job_should_execute_successfully(mock_hook):
+def test_async_create_training_job_should_execute_successfully(mock_hook, create_task_instance, session):
     """
     Asserts that a task is deferred and a MLEngineStartTrainingJobTrigger will be fired
     when the MLEngineStartTrainingJobOperator is executed in deferrable mode when deferrable=True.
@@ -1291,7 +1306,7 @@ def test_async_create_training_job_should_execute_successfully(mock_hook):
     mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
             region=TEST_REGION,
@@ -1304,10 +1319,11 @@ def test_async_create_training_job_should_execute_successfully(mock_hook):
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            operator_class=MLEngineStartTrainingJobOperator,
         )
 
     with pytest.raises(TaskDeferred) as exc:
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
     assert isinstance(
         exc.value.trigger, MLEngineStartTrainingJobTrigger
@@ -1359,11 +1375,12 @@ def create_context(task):
     }
 
 
-def test_async_create_training_job_logging_should_execute_successfully():
+def test_async_create_training_job_logging_should_execute_successfully(create_task_instance, session):
     """Asserts that logging occurs as expected"""
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
             region=TEST_REGION,
@@ -1377,23 +1394,30 @@ def test_async_create_training_job_logging_should_execute_successfully():
             labels=TEST_LABELS,
             deferrable=True,
         )
-    with mock.patch.object(op.log, "info") as mock_log_info:
-        op.execute_complete(
-            context=create_context(op),
+
+    with mock.patch.object(ti.task.log, "info") as mock_log_info:
+        ti.task.execute_complete(
+            context={"ti": ti},
             event={"status": "success", "message": "Job completed", "job_id": TEST_TASK_ID},
         )
+
     mock_log_info.assert_called_with("%s completed with response %s ", TEST_TASK_ID, "Job completed")
 
 
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-def test_async_create_training_job_with_conflict_should_execute_successfully(mock_hook):
-    mock_hook.return_value.create_job_without_waiting_result.return_value = HttpError(
+def test_async_create_training_job_with_conflict_should_execute_successfully(
+    mock_hook, create_task_instance, session
+):
+    """Test that the operator defers correctly when a conflict occurs."""
+
+    mock_hook.return_value.create_job_without_waiting_result.side_effect = HttpError(
         resp=httplib2.Response({"status": "409"}), content=b"some bytes"
     )
     mock_hook.return_value.get_job.return_value = {"job_id": "test_training"}
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
             region=TEST_REGION,
@@ -1407,8 +1431,9 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
             labels=TEST_LABELS,
             deferrable=True,
         )
+
     with pytest.raises(TaskDeferred):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
     mock_hook.assert_called_once_with(
         gcp_conn_id="google_cloud_default",
@@ -1417,9 +1442,12 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(moc
     mock_hook.return_value.create_job_without_waiting_result.assert_called_once()
 
 
-def test_async_create_training_job_should_throw_exception_if_job_id_none():
+def test_async_create_training_job_should_throw_exception_if_job_id_none(create_task_instance, session):
+    """Test that the operator throws an exception if the job_id is None."""
+
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
             region=TEST_REGION,
@@ -1433,15 +1461,18 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none():
             labels=TEST_LABELS,
             deferrable=True,
         )
+
     with pytest.raises(
         AirflowException, match=r"An unique job id is required for Google MLEngine training job."
     ):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_project_id_none():
+def test_async_create_training_job_should_throw_exception_if_project_id_none(create_task_instance, session):
+    """Test that the operator throws an exception if the project_id is None."""
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=None,
             region=TEST_REGION,
@@ -1455,13 +1486,16 @@ def test_async_create_training_job_should_throw_exception_if_project_id_none():
             labels=TEST_LABELS,
             deferrable=True,
         )
+
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_custom_none():
+def test_async_create_training_job_should_throw_exception_if_custom_none(create_task_instance, session):
+    """Test that the operator throws an exception if master_type is None while master_config is provided."""
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
@@ -1477,13 +1511,17 @@ def test_async_create_training_job_should_throw_exception_if_custom_none():
             master_type=None,
             deferrable=True,
         )
+
     with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_package_none():
+def test_async_create_training_job_should_throw_exception_if_package_none(create_task_instance, session):
+    """Test that the operator throws an exception if both package_uris and training_python_module are None."""
+
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
@@ -1497,17 +1535,21 @@ def test_async_create_training_job_should_throw_exception_if_package_none():
             labels=TEST_LABELS,
             deferrable=True,
         )
+
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_uris_none():
+def test_async_create_training_job_should_throw_exception_if_uris_none(create_task_instance, session):
+    """Test that the operator throws an exception if package_uris is None."""
+
     with pytest.warns(AirflowProviderDeprecationWarning):
-        op = MLEngineStartTrainingJobOperator(
+        ti = create_task_instance(
+            operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
@@ -1523,9 +1565,10 @@ def test_async_create_training_job_should_throw_exception_if_uris_none():
             master_type="type",
             deferrable=True,
         )
+
     with pytest.raises(
         AirflowException,
         match=r"Either a Python package with a Python module or a custom "
         r"Docker image should be provided.",
     ):
-        op.execute(create_context(op))
+        ti.task.execute({"ti": ti})
