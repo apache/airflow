@@ -44,7 +44,8 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSUploadSessionTrigger,
 )
 from airflow.utils import timezone
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TEST_BUCKET = "TEST_BUCKET"
 
