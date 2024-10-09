@@ -1501,3 +1501,8 @@ def clean_dags_and_dagruns():
     yield  # Test runs here
     clear_db_dags()
     clear_db_runs()
+
+
+@pytest.fixture
+def airflow_tests_dir():
+    return AIRFLOW_TESTS_DIR

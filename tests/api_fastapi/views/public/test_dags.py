@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 import pendulum
@@ -39,6 +40,8 @@ DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
+DAG4_ID = "test_dag4"
+AIRFLOW_HOME = os.environ.get("PYTEST_CURRENT_TEST", "/usr/local/airflow")
 
 
 @provide_session
@@ -71,9 +74,20 @@ def _create_deactivated_paused_dag(session=None):
         state=DagRunState.SUCCESS,
     )
 
+    dag2_model = DagModel(
+        dag_id=DAG4_ID,
+        fileloc="/tmp/dag_del_3.py",
+        timetable_summary="2 2 * * *",
+        is_active=False,
+        is_paused=True,
+        owners="random_test_owner",
+        next_dagrun=datetime(2022, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+
     session.add(dag_model)
     session.add(dagrun_failed)
     session.add(dagrun_success)
+    session.add(dag2_model)
 
 
 @pytest.fixture(autouse=True)
@@ -127,7 +141,8 @@ def setup(dag_maker, session=None) -> None:
         ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
         ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
         ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
-        ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
+        ({"owners": ["test_owner"]}, 1, [DAG3_ID]),
+        ({"owners": ["owner"], "only_active": False}, 0, []),
         ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
         ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
         # # Sort
@@ -154,7 +169,6 @@ def setup(dag_maker, session=None) -> None:
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
     response = test_client.get("/public/dags", params=query_params)
-
     assert response.status_code == 200
     body = response.json()
 
@@ -241,7 +255,9 @@ def test_patch_dags(test_client, query_params, body, expected_status_code, expec
         ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, DAG2_START_DATE),
     ],
 )
-def test_dag_details(test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date):
+def test_dag_details(
+    test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date, airflow_tests_dir
+):
     response = test_client.get(f"/public/dags/{dag_id}/details", params=query_params)
     assert response.status_code == expected_status_code
     if expected_status_code != 200:
@@ -263,7 +279,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "description": None,
         "doc_md": "details",
         "end_date": None,
-        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "fileloc": f"{airflow_tests_dir}/api_fastapi/views/public/test_dags.py",
         "file_token": file_token,
         "has_import_errors": False,
         "has_task_concurrency_limits": True,
