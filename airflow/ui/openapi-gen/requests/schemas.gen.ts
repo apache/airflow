@@ -784,6 +784,56 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunStates = {
+  properties: {
+    queued: {
+      type: "integer",
+      title: "Queued",
+    },
+    running: {
+      type: "integer",
+      title: "Running",
+    },
+    success: {
+      type: "integer",
+      title: "Success",
+    },
+    failed: {
+      type: "integer",
+      title: "Failed",
+    },
+  },
+  type: "object",
+  required: ["queued", "running", "success", "failed"],
+  title: "DAGRunStates",
+  description: "DAG Run States for responses.",
+} as const;
+
+export const $DAGRunTypes = {
+  properties: {
+    backfill: {
+      type: "integer",
+      title: "Backfill",
+    },
+    scheduled: {
+      type: "integer",
+      title: "Scheduled",
+    },
+    manual: {
+      type: "integer",
+      title: "Manual",
+    },
+    dataset_triggered: {
+      type: "integer",
+      title: "Dataset Triggered",
+    },
+  },
+  type: "object",
+  required: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  title: "DAGRunTypes",
+  description: "DAG Run Types for responses.",
+} as const;
+
 export const $DagRunState = {
   type: "string",
   enum: ["queued", "running", "success", "failed"],
@@ -845,6 +895,99 @@ export const $HTTPValidationError = {
   },
   type: "object",
   title: "HTTPValidationError",
+} as const;
+
+export const $HistoricalMetricDataResponse = {
+  properties: {
+    dag_run_types: {
+      $ref: "#/components/schemas/DAGRunTypes",
+    },
+    dag_run_states: {
+      $ref: "#/components/schemas/DAGRunStates",
+    },
+    task_instance_states: {
+      $ref: "#/components/schemas/TaskInstantState",
+    },
+  },
+  type: "object",
+  required: ["dag_run_types", "dag_run_states", "task_instance_states"],
+  title: "HistoricalMetricDataResponse",
+  description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $TaskInstantState = {
+  properties: {
+    no_status: {
+      type: "integer",
+      title: "No Status",
+    },
+    removed: {
+      type: "integer",
+      title: "Removed",
+    },
+    scheduled: {
+      type: "integer",
+      title: "Scheduled",
+    },
+    queued: {
+      type: "integer",
+      title: "Queued",
+    },
+    running: {
+      type: "integer",
+      title: "Running",
+    },
+    success: {
+      type: "integer",
+      title: "Success",
+    },
+    restarting: {
+      type: "integer",
+      title: "Restarting",
+    },
+    failed: {
+      type: "integer",
+      title: "Failed",
+    },
+    up_for_retry: {
+      type: "integer",
+      title: "Up For Retry",
+    },
+    up_for_reschedule: {
+      type: "integer",
+      title: "Up For Reschedule",
+    },
+    upstream_failed: {
+      type: "integer",
+      title: "Upstream Failed",
+    },
+    skipped: {
+      type: "integer",
+      title: "Skipped",
+    },
+    deferred: {
+      type: "integer",
+      title: "Deferred",
+    },
+  },
+  type: "object",
+  required: [
+    "no_status",
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstantState",
+  description: "TaskInstance serializer for responses.",
 } as const;
 
 export const $ValidationError = {
