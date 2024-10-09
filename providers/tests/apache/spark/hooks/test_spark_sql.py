@@ -50,7 +50,7 @@ class TestSparkSqlHook:
         "num_executors": 10,
         "verbose": True,
         "sql": " /path/to/sql/file.sql ",
-        "conf": {"key": "value", "PROP": "VALUE"}
+        "conf": {"key": "value", "PROP": "VALUE"},
     }
 
     @classmethod
