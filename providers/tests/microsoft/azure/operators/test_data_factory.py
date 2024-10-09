@@ -37,7 +37,8 @@ from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFa
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
