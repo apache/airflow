@@ -29,8 +29,7 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
     """
     Trigger for AthenaOperator.
 
-    The trigger will asynchronously poll the boto3 API and wait for the
-    Redshift cluster to be in the `available` state.
+    The trigger will synchronously poll the boto3 API to interact with Athena.
 
     :param query_execution_id:  ID of the Athena query execution to watch
     :param waiter_delay: The amount of time in seconds to wait between attempts.
