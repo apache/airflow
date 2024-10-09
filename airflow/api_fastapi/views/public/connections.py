@@ -23,7 +23,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session, paginated_select
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.parameters import QueryLimit, QueryOffset, SortConnectionParam
+from airflow.api_fastapi.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.serializers.connections import ConnectionCollectionResponse, ConnectionResponse
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import Connection
@@ -74,10 +74,11 @@ async def get_connections(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
-        SortConnectionParam,
+        SortParam,
         Depends(
-            SortConnectionParam(
+            SortParam(
                 ["connection_id", "conn_type", "description", "host", "port", "id"],
+                Connection
             ).depends
         ),
     ],

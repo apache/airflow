@@ -24,11 +24,11 @@ from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel
-from sqlalchemy import case, or_
 from sqlalchemy import Column, case, or_
+from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
-from airflow.models import Connection
+from airflow.models import Connection, Base
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -154,20 +154,25 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
+    attr_mapping = {
+        "last_run_state": DagRun.state,
+        "last_run_start_date": DagRun.start_date,
+        "connection_id": Connection.conn_id,
+        "conn_type": Connection.conn_type,
+        "description": Connection.description,
+        "host": Connection.host,
+        "port": Connection.port,
+        "id": Connection.id,
+    }
+
     def __init__(
         self,
         allowed_attrs: list[str],
-        attr_mapping: dict[str, Any],
-        model: type[BaseModel],
-        order_column: Column,
-        to_replace: dict[str, str] | None,
+        model: Base,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
-        self.attr_mapping = attr_mapping
         self.model = model
-        self.order_column = order_column
-        self.to_replace = to_replace
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -184,10 +189,9 @@ class SortParam(BaseParam[str]):
                 f"the attribute does not exist on the model",
             )
 
-        if self.to_replace:
-            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
-
-        column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
+        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(
+            self.model, lstriped_orderby
+        )
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
@@ -197,54 +201,12 @@ class SortParam(BaseParam[str]):
         select = select.order_by(None)
 
         if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), self.order_column.desc())
+            return select.order_by(nullscheck, column.desc(), column.desc())
         else:
-            return select.order_by(nullscheck, column.asc(), self.order_column.asc())
+            return select.order_by(nullscheck, column.asc(), column.asc())
 
-    def depends(self, order_by: str) -> SortParam:
-        return self.set_value(order_by)
-
-
-class SortConnectionParam(SortParam):
-    """Order Connection by the attribute."""
-
-    def __init__(self, allowed_attrs: list[str]) -> None:
-        super().__init__(
-            allowed_attrs=allowed_attrs,
-            attr_mapping={
-                "connection_id": Connection.conn_id,
-                "conn_type": Connection.conn_type,
-                "description": Connection.description,
-                "host": Connection.host,
-                "port": Connection.port,
-                "id": Connection.id,
-            },
-            model=Connection,
-            order_column=Connection.conn_id,
-            to_replace={"connection_id": "conn_id"},
-        )
-
-    def depends(self, order_by: str = "connection_id") -> SortConnectionParam:
-        return self.set_value(order_by)
-
-
-class SortDagParam(SortParam):
-    """Order DAG by the attribute."""
-
-    def __init__(self, allowed_attrs: list[str]) -> None:
-        super().__init__(
-            allowed_attrs=allowed_attrs,
-            attr_mapping={
-                "last_run_state": DagRun.state,
-                "last_run_start_date": DagRun.start_date,
-            },
-            model=DagModel,
-            order_column=DagModel.dag_id,
-            to_replace=None,
-        )
-
-    def depends(self, order_by: str = "dag_id") -> SortDagParam:
-        return self.set_value(order_by)
+    def depends(self, order_by: str = "") -> SortParam:
+        return self.set_value(inspect(self.model).primary_key[0].name if order_by == "" else order_by)
 
 
 class _TagsFilter(BaseParam[List[str]]):

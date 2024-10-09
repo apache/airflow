@@ -40,7 +40,7 @@ from airflow.api_fastapi.parameters import (
     QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
-    SortDagParam,
+    SortParam,
 )
 from airflow.api_fastapi.serializers.dags import (
     DAGCollectionResponse,
@@ -67,10 +67,11 @@ async def get_dags(
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
     order_by: Annotated[
-        SortDagParam,
+        SortParam,
         Depends(
-            SortDagParam(
+            SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                DagModel
             ).depends
         ),
     ],
