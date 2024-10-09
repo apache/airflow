@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagService,
   DashboardService,
+  VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -164,4 +165,24 @@ export const prefetchUseConnectionServiceGetConnection = (
   queryClient.prefetchQuery({
     queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
     queryFn: () => ConnectionService.getConnection({ connectionId }),
+  });
+/**
+ * Get Variable
+ * Get a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVariableServiceGetVariable = (
+  queryClient: QueryClient,
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }),
+    queryFn: () => VariableService.getVariable({ variableKey }),
   });
