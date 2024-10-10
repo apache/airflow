@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-08T04:37:18.352513
+# This constraints file was automatically generated on 2024-10-10T20:18:03.310384
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -31,7 +31,7 @@ Jinja2==3.1.4
 Js2Py==0.74
 Mako==1.3.5
 Markdown==3.7
-MarkupSafe==3.0.0
+MarkupSafe==3.0.1
 PyAthena==3.9.0
 PyGithub==2.4.0
 PyHive==0.7.0
@@ -48,7 +48,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.15.1
+aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
 aiohttp==3.10.9
@@ -58,7 +58,7 @@ aiosignal==1.3.1
 alabaster==0.7.16
 alembic==1.13.3
 alibabacloud-adb20211201==2.0.0
-alibabacloud-tea==0.3.10
+alibabacloud-tea==0.4.0
 alibabacloud_credentials==0.3.5
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.2
@@ -66,7 +66,7 @@ alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.12
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
-aliyun-python-sdk-core==2.15.2
+aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.2.0
 analytics-python==1.2.9
@@ -95,7 +95,7 @@ azure-common==1.1.28
 azure-core==1.31.0
 azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
-azure-identity==1.18.0
+azure-identity==1.19.0
 azure-keyvault-secrets==4.8.0
 azure-kusto-data==4.6.1
 azure-mgmt-containerinstance==10.1.0
@@ -112,7 +112,7 @@ azure-nspkg==3.0.2
 azure-servicebus==7.12.3
 azure-storage-blob==12.23.1
 azure-storage-file-datalake==12.17.0
-azure-storage-file-share==12.18.0
+azure-storage-file-share==12.19.0
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
@@ -121,11 +121,11 @@ backports.tarfile==1.2.0
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.1
-bitarray==2.9.2
+bitarray==2.9.3
 black==24.10.0
 blinker==1.8.2
-boto3==1.35.23
-botocore==1.35.23
+boto3==1.35.36
+botocore==1.35.36
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -134,10 +134,10 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.16.0
+cfn-lint==1.16.1
 cgroupspy==0.2.3
 chardet==5.2.0
-charset-normalizer==3.3.2
+charset-normalizer==3.4.0
 checksumdir==1.2.0
 ciso8601==2.3.1
 click-didyoumean==0.3.1
@@ -153,7 +153,7 @@ colorlog==6.8.2
 comm==0.2.2
 confluent-kafka==2.5.3
 connexion==2.14.2
-coverage==7.6.1
+coverage==7.6.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==3.0.3
@@ -162,13 +162,13 @@ curlify==2.2.1
 databricks-sql-connector==2.9.6
 datadog==0.50.1
 db-dtypes==1.3.0
-debugpy==1.8.6
+debugpy==1.8.7
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.1
+deltalake==0.20.2
 diagrams==0.23.4
 dill==0.3.1.1
-distlib==0.3.8
+distlib==0.3.9
 distro==1.9.0
 dnspython==2.7.0
 docker==7.1.0
@@ -176,7 +176,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.1
-elastic-transport==8.15.0
+elastic-transport==8.15.1
 elasticsearch==8.15.1
 email_validator==2.2.0
 entrypoints==0.4
@@ -200,26 +200,26 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
 gcsfs==2024.9.0.post1
 geomet==0.2.1.post1
-gevent==24.2.1
+gevent==24.10.1
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
-google-api-core==2.20.0
-google-api-python-client==2.148.0
+google-api-core==2.21.0
+google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
-google-cloud-aiplatform==1.69.0
+google-cloud-aiplatform==1.70.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
-google-cloud-batch==0.17.28
-google-cloud-bigquery-datatransfer==3.15.7
+google-cloud-batch==0.17.29
+google-cloud-bigquery-datatransfer==3.16.0
 google-cloud-bigquery==3.20.1
 google-cloud-bigtable==2.26.0
 google-cloud-build==3.25.0
 google-cloud-compute==1.19.2
-google-cloud-container==2.51.0
+google-cloud-container==2.52.0
 google-cloud-core==2.4.1
 google-cloud-datacatalog==3.20.1
 google-cloud-dataflow-client==0.8.12
@@ -235,17 +235,17 @@ google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.25.2
+google-cloud-pubsub==2.26.0
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
-google-cloud-run==0.10.8
+google-cloud-run==0.10.9
 google-cloud-secret-manager==2.20.2
 google-cloud-spanner==3.49.1
 google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.17.2
+google-cloud-texttospeech==2.18.0
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -295,14 +295,14 @@ iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
 ipython==8.18.1
-isodate==0.7.0
+isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.1
 jeepney==0.8.0
-jiter==0.6.0
+jiter==0.6.1
 jmespath==0.10.0
 joserfc==1.0.0
 json-merge-patch==0.2
@@ -372,7 +372,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.51.1
+openai==1.51.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -421,11 +421,12 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.10.1
 pprintpp==0.4.0
-pre_commit==4.0.0
+pre_commit==4.0.1
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
 prompt_toolkit==3.0.48
+propcache==0.2.0
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
@@ -485,7 +486,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.11.3
+qdrant-client==1.12.0
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.1.1
@@ -510,13 +511,13 @@ rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
 s3fs==2024.9.0
-s3transfer==0.10.2
+s3transfer==0.10.3
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.15.0
+sentry-sdk==2.16.0
 setproctitle==1.3.3
 shapely==2.0.6
 shellingham==1.5.4
@@ -570,9 +571,9 @@ termcolor==2.5.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.15.0
+time-machine==2.16.0
 tomli==2.0.2
-tomli_w==1.0.0
+tomli_w==1.1.0
 tomlkit==0.13.2
 tornado==6.4.1
 towncrier==24.8.0
@@ -625,15 +626,15 @@ websocket-client==1.8.0
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-xmltodict==0.13.0
+xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
-yarl==1.13.1
-ydb==3.18.1
+yarl==1.14.0
+ydb==3.18.2
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
 zope.event==5.0
-zope.interface==7.0.3
+zope.interface==7.1.0
 zstandard==0.23.0

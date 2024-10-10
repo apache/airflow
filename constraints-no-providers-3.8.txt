@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-08T04:37:29.445234
+# This constraints file was automatically generated on 2024-10-10T20:18:14.703556
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -33,7 +33,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.15.1
+aiobotocore==2.15.2
 aiohappyeyeballs==2.4.3
 aiohttp==3.10.9
 aioitertools==0.12.0
@@ -53,12 +53,12 @@ backoff==2.2.1
 backports.zoneinfo==0.2.1
 bcrypt==4.2.0
 blinker==1.8.2
-botocore==1.35.23
+botocore==1.35.36
 cachelib==0.9.0
 certifi==2024.8.30
 cffi==1.17.1
 cgroupspy==0.2.3
-charset-normalizer==3.3.2
+charset-normalizer==3.4.0
 click==8.1.7
 clickclick==20.10.2
 cloudpickle==3.0.0
@@ -70,7 +70,7 @@ croniter==3.0.3
 cryptography==43.0.1
 decorator==5.1.1
 dill==0.3.9
-distlib==0.3.8
+distlib==0.3.9
 dnspython==2.6.1
 docopt==0.6.2
 docutils==0.20.1
@@ -97,7 +97,7 @@ idna==3.10
 importlib_metadata==8.5.0
 importlib_resources==6.4.5
 inflection==0.5.1
-isodate==0.7.0
+isodate==0.7.2
 itsdangerous==2.2.0
 jmespath==1.0.1
 jsonschema-specifications==2023.12.1
@@ -138,6 +138,7 @@ pluggy==1.5.0
 plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.0
+propcache==0.2.0
 protobuf==4.25.5
 psutil==6.0.0
 pure-sasl==0.6.2
@@ -164,7 +165,7 @@ rich-argparse==1.5.2
 rich==13.9.2
 rpds-py==0.20.0
 s3fs==2024.9.0
-sentry-sdk==2.15.0
+sentry-sdk==2.16.0
 setproctitle==1.3.3
 six==1.16.0
 sniffio==1.3.1
@@ -189,7 +190,7 @@ virtualenv==20.26.6
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-yarl==1.13.1
+yarl==1.14.0
 zipp==3.20.2
 zope.event==5.0
-zope.interface==7.0.3
+zope.interface==7.1.0
