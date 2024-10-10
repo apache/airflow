@@ -98,6 +98,22 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type DagServiceGetDagDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDag>
+>;
+export type DagServiceGetDagQueryResult<
+  TData = DagServiceGetDagDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagKey = "DagServiceGetDag";
+export const UseDagServiceGetDagKeyFn = (
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagServiceGetDagKey, ...(queryKey ?? [{ dagId }])];
 export type DagServiceGetDagDetailsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDagDetails>
 >;
