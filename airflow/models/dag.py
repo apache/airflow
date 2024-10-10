@@ -76,6 +76,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, load_only, relationship
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
