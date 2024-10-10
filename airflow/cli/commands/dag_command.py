@@ -23,7 +23,6 @@ import errno
 import json
 import logging
 import operator
-import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -31,7 +30,6 @@ from typing import TYPE_CHECKING
 import re2
 from sqlalchemy import delete, select
 
-from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
@@ -39,11 +37,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.backfill import _create_backfill
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
@@ -127,26 +124,6 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
             except ValueError as vr:
                 print(str(vr))
                 sys.exit(1)
-
-
-@cli_utils.action_cli
-@providers_configuration_loaded
-def dag_backfill(args) -> None:
-    """Create backfill job or dry run for a DAG or list of DAGs using regex."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
-    signal.signal(signal.SIGTERM, sigint_handler)
-
-    if not args.start_date or not args.end_date:
-        raise AirflowException("Provide a start_date and end_date")
-
-    _create_backfill(
-        dag_id=args.dag_id,
-        from_date=args.from_date,
-        to_date=args.to_date,
-        max_active_runs=args.max_active_runs,
-        reverse=args.reverse,
-        dag_run_conf=args.dag_run_conf,
-    )
 
 
 @cli_utils.action_cli
