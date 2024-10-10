@@ -43,7 +43,7 @@ class TestWorkflowTrigger:
         mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             allowed_states=self.STATES,
             poke_interval=0.2,
@@ -75,7 +75,7 @@ class TestWorkflowTrigger:
         mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
             poke_interval=0.2,
@@ -107,7 +107,7 @@ class TestWorkflowTrigger:
         mock_get_count.return_value = 0
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
             poke_interval=0.2,
@@ -138,7 +138,7 @@ class TestWorkflowTrigger:
         mock_get_count.side_effect = mocked_get_count
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             skipped_states=self.STATES,
             poke_interval=0.2,
@@ -168,7 +168,7 @@ class TestWorkflowTrigger:
         mock_get_count.side_effect = [0, 1]
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             poke_interval=0.2,
         )
@@ -196,7 +196,7 @@ class TestWorkflowTrigger:
         """
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             external_task_ids=[self.TASK_ID],
             allowed_states=self.STATES,
             poke_interval=5,
@@ -205,7 +205,7 @@ class TestWorkflowTrigger:
         assert classpath == "airflow.triggers.external_task.WorkflowTrigger"
         assert kwargs == {
             "external_dag_id": self.DAG_ID,
-            "execution_dates": [timezone.datetime(2022, 1, 1)],
+            "logical_dates": [timezone.datetime(2022, 1, 1)],
             "external_task_ids": [self.TASK_ID],
             "external_task_group_id": None,
             "failed_states": None,
@@ -233,7 +233,7 @@ class TestDagStateTrigger:
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
-            execution_date=timezone.datetime(2022, 1, 1),
+            logical_date=timezone.datetime(2022, 1, 1),
             run_id=self.RUN_ID,
         )
         session.add(dag_run)
@@ -242,7 +242,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=dag.dag_id,
             states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=0.2,
         )
 
@@ -266,7 +266,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
@@ -274,7 +274,7 @@ class TestDagStateTrigger:
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            "execution_dates": [timezone.datetime(2022, 1, 1)],
+            "logical_dates": [timezone.datetime(2022, 1, 1)],
             "poll_interval": 5,
         }
 

@@ -73,7 +73,7 @@ class TestSqlAlchemyUtils:
         dag_id = "test_utc_transformations"
         start_date = utcnow()
         iso_date = start_date.isoformat()
-        execution_date = start_date + datetime.timedelta(hours=1, days=1)
+        logical_date = start_date + datetime.timedelta(hours=1, days=1)
 
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
@@ -82,17 +82,17 @@ class TestSqlAlchemyUtils:
         run = dag.create_dagrun(
             run_id=iso_date,
             state=State.NONE,
-            execution_date=execution_date,
+            logical_date=logical_date,
             start_date=start_date,
             session=self.session,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=logical_date),
             **triggered_by_kwargs,
         )
 
-        assert execution_date == run.execution_date
+        assert logical_date == run.logical_date
         assert start_date == run.start_date
 
-        assert execution_date.utcoffset().total_seconds() == 0.0
+        assert logical_date.utcoffset().total_seconds() == 0.0
         assert start_date.utcoffset().total_seconds() == 0.0
 
         assert iso_date == run.run_id
@@ -116,7 +116,7 @@ class TestSqlAlchemyUtils:
             dag.create_dagrun(
                 run_id=start_date.isoformat,
                 state=State.NONE,
-                execution_date=start_date,
+                logical_date=start_date,
                 start_date=start_date,
                 session=self.session,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),

@@ -61,7 +61,7 @@ def dagruns(bash_dag, xcom_dag):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -70,7 +70,7 @@ def dagruns(bash_dag, xcom_dag):
 
     xcom_dagrun = xcom_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -107,7 +107,7 @@ def test_action_logging_post(session, admin_client):
     form = dict(
         task_id="runme_1",
         dag_id="example_bash_operator",
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        logical_date=EXAMPLE_DAG_DEFAULT_DATE,
         upstream="false",
         downstream="false",
         future="false",

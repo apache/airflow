@@ -38,7 +38,7 @@ def test_sql_templating(create_task_instance_of_operator):
         ydb_conn_id="ydb_default1",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     ti.render_templates()
     task: YDBExecuteQueryOperator = ti.task

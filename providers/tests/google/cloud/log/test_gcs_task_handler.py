@@ -39,7 +39,7 @@ class TestGCSTaskHandler:
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_gcs_task_handler",
             task_id="task_for_testing_gcs_task_handler",
-            execution_date=datetime(2020, 1, 1),
+            logical_date=datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1

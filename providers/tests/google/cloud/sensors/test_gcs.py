@@ -45,6 +45,8 @@ from airflow.providers.google.cloud.triggers.gcs import (
 )
 from airflow.utils import timezone
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 TEST_BUCKET = "TEST_BUCKET"
 
 TEST_OBJECT = "TEST_OBJECT"
@@ -255,11 +257,12 @@ class TestGoogleCloudStorageObjectAsyncSensor:
 
 class TestTsFunction:
     def test_should_support_datetime(self):
+        dag = DAG(dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0))
+
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         context = {
-            "dag": DAG(
-                dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
-            ),
-            "execution_date": datetime(2019, 2, 14, 0, 0),
+            "dag": dag,
+            date_key: datetime(2019, 2, 14, 0, 0),
         }
         result = ts_function(context)
         assert datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc) == result
@@ -267,9 +270,10 @@ class TestTsFunction:
     def test_should_support_cron(self):
         dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule="@weekly")
 
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         context = {
             "dag": dag,
-            "execution_date": datetime(2019, 2, 19),
+            date_key: datetime(2019, 2, 19),
         }
         result = ts_function(context)
         assert pendulum.instance(datetime(2019, 2, 24)).isoformat() == result.isoformat()

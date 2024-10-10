@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
@@ -24,6 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow import __version__
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     LifecycleStateChange,
@@ -42,6 +44,8 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSTimeSpanFileTransformOperator,
 )
 from airflow.timetables.base import DagRunInfo, DataInterval
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -374,10 +378,20 @@ class TestGCSTimeSpanFileTransformOperatorDateInterpolation:
 
 
 class TestGCSTimeSpanFileTransformOperator:
+    @pytest.fixture
+    def create_task_instance(self, create_task_instance_of_operator, session):
+        return functools.partial(
+            create_task_instance_of_operator,
+            session=session,
+            operator_class=GCSTimeSpanFileTransformOperator,
+            dag_id="adhoc_airflow",
+            logical_date=datetime(2022, 1, 1, 0, 0, 0),
+        )
+
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_execute(self, mock_hook, mock_subprocess, mock_tempdir):
+    def test_execute(self, mock_hook, mock_subprocess, mock_tempdir, create_task_instance, session):
         source_bucket = TEST_BUCKET
         source_prefix = "source_prefix"
         source_gcp_conn_id = ""
@@ -396,22 +410,6 @@ class TestGCSTimeSpanFileTransformOperator:
 
         timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
-        mock_dag = mock.Mock()
-        mock_dag.next_dagrun_info.side_effect = [
-            DagRunInfo(
-                run_after=pendulum.instance(timespan_start),
-                data_interval=DataInterval(
-                    start=pendulum.instance(timespan_start),
-                    end=pendulum.instance(timespan_end),
-                ),
-            ),
-        ]
-        mock_ti = mock.Mock()
-        context = dict(
-            execution_date=timespan_start,
-            dag=mock_dag,
-            ti=mock_ti,
-        )
 
         mock_tempdir.return_value.__enter__.side_effect = [source, destination]
         mock_hook.return_value.list_by_timespan.return_value = [
@@ -430,8 +428,7 @@ class TestGCSTimeSpanFileTransformOperator:
         mock_subprocess.PIPE = "pipe"
         mock_subprocess.STDOUT = "stdout"
 
-        op = GCSTimeSpanFileTransformOperator(
-            task_id=TASK_ID,
+        ti = create_task_instance(
             source_bucket=source_bucket,
             source_prefix=source_prefix,
             source_gcp_conn_id=source_gcp_conn_id,
@@ -439,14 +436,39 @@ class TestGCSTimeSpanFileTransformOperator:
             destination_prefix=destination_prefix,
             destination_gcp_conn_id=destination_gcp_conn_id,
             transform_script=transform_script,
+            task_id=TASK_ID,
         )
+
+        mock_dag = mock.Mock()
+        mock_dag.next_dagrun_info.side_effect = [
+            DagRunInfo(
+                run_after=pendulum.instance(timespan_start),
+                data_interval=DataInterval(
+                    start=pendulum.instance(timespan_start),
+                    end=pendulum.instance(timespan_end),
+                ),
+            )
+        ]
+        mock_ti = mock.Mock()
+        if AIRFLOW_V_3_0_PLUS:
+            context = dict(
+                logical_date=timespan_start,
+                dag=mock_dag,
+                ti=mock_ti,
+            )
+        else:
+            context = dict(
+                execution_date=timespan_start,
+                dag=mock_dag,
+                ti=mock_ti,
+            )
 
         with mock.patch.object(Path, "glob") as path_glob:
             path_glob.return_value.__iter__.return_value = [
                 Path(f"{destination}/{file1}"),
                 Path(f"{destination}/{file2}"),
             ]
-            op.execute(context=context)
+            ti.task.execute(context=context)
 
         mock_hook.return_value.list_by_timespan.assert_called_once_with(
             bucket_name=source_bucket,
@@ -573,13 +595,20 @@ class TestGCSTimeSpanFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_get_openlineage_facets_on_complete(
-        self, mock_hook, mock_subprocess, mock_tempdir, source_prefix, dest_prefix, inputs, outputs
+        self,
+        mock_hook,
+        mock_subprocess,
+        mock_tempdir,
+        source_prefix,
+        dest_prefix,
+        inputs,
+        outputs,
+        create_task_instance,
+        session,
     ):
         source_bucket = TEST_BUCKET
-
         destination_bucket = TEST_BUCKET + "_dest"
         destination = "destination"
-
         file1 = "file1"
         file2 = "file2"
 
@@ -592,13 +621,14 @@ class TestGCSTimeSpanFileTransformOperator:
                     start=pendulum.instance(timespan_start),
                     end=None,
                 ),
-            ),
+            )
         ]
-        context = dict(
-            execution_date=timespan_start,
-            dag=mock_dag,
-            ti=mock.Mock(),
-        )
+
+        if __version__.startswith("2."):
+            logical_date_key = "execution_date"
+        else:
+            logical_date_key = "logical_date"
+        context = {logical_date_key: timespan_start, "dag": mock_dag, "ti": mock.Mock()}
 
         mock_tempdir.return_value.__enter__.side_effect = ["source", destination]
         mock_hook.return_value.list_by_timespan.return_value = [
@@ -617,8 +647,7 @@ class TestGCSTimeSpanFileTransformOperator:
         mock_subprocess.PIPE = "pipe"
         mock_subprocess.STDOUT = "stdout"
 
-        op = GCSTimeSpanFileTransformOperator(
-            task_id=TASK_ID,
+        ti = create_task_instance(
             source_bucket=source_bucket,
             source_prefix=source_prefix,
             source_gcp_conn_id="",
@@ -626,6 +655,7 @@ class TestGCSTimeSpanFileTransformOperator:
             destination_prefix=dest_prefix,
             destination_gcp_conn_id="",
             transform_script="script.py",
+            task_id=TASK_ID,
         )
 
         with mock.patch.object(Path, "glob") as path_glob:
@@ -633,9 +663,9 @@ class TestGCSTimeSpanFileTransformOperator:
                 Path(f"{destination}/{file1}"),
                 Path(f"{destination}/{file2}"),
             ]
-            op.execute(context=context)
+            ti.task.execute(context=context)
 
-        lineage = op.get_openlineage_facets_on_complete(None)
+        lineage = ti.task.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == len(outputs)
         assert all(element in lineage.inputs for element in inputs)

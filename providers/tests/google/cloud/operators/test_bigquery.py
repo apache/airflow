@@ -748,7 +748,7 @@ class TestBigQueryOperator:
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 task_id=TASK_ID,
                 sql="SELECT * FROM test_table",
             )
@@ -786,7 +786,7 @@ class TestBigQueryOperator:
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 task_id=TASK_ID,
                 sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
             )
@@ -849,7 +849,7 @@ class TestBigQueryOperator:
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 task_id=TASK_ID,
                 sql="SELECT * FROM test_table",
             )
@@ -871,7 +871,7 @@ class TestBigQueryOperator:
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 task_id=TASK_ID,
                 sql=["SELECT * FROM test_table", "SELECT * FROM test_table2"],
             )

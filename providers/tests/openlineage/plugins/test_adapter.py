@@ -557,7 +557,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
         data_interval=(event_time, event_time),
     )
     dag_run.dag = dag
@@ -684,7 +684,7 @@ def test_emit_dag_complete_event(
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
     )
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
@@ -765,7 +765,7 @@ def test_emit_dag_failed_event(
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
     )
     dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time
@@ -883,7 +883,7 @@ def test_build_task_instance_run_id_is_valid_uuid():
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     uuid_result = uuid.UUID(result)
     assert uuid_result
@@ -895,13 +895,13 @@ def test_build_task_instance_run_id_same_input_gives_same_result():
         dag_id="dag1",
         task_id="task1",
         try_number=1,
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     result2 = OpenLineageAdapter.build_task_instance_run_id(
         dag_id="dag1",
         task_id="task1",
         try_number=1,
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     assert result1 == result2
 
@@ -911,13 +911,13 @@ def test_build_task_instance_run_id_different_inputs_gives_different_results():
         dag_id="dag1",
         task_id="task1",
         try_number=1,
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     result2 = OpenLineageAdapter.build_task_instance_run_id(
         dag_id="dag2",
         task_id="task2",
         try_number=2,
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     assert result1 != result2
 

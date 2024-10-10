@@ -45,6 +45,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from providers.tests.elasticsearch.log.elasticmock import elasticmock
 from providers.tests.elasticsearch.log.elasticmock.utilities import SearchFailedException
@@ -55,14 +56,22 @@ AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
 ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
 
 
-def get_ti(dag_id, task_id, execution_date, create_task_instance):
-    ti = create_task_instance(
-        dag_id=dag_id,
-        task_id=task_id,
-        execution_date=execution_date,
-        dagrun_state=DagRunState.RUNNING,
-        state=TaskInstanceState.RUNNING,
-    )
+def get_ti(dag_id, task_id, logical_date, create_task_instance):
+    if AIRFLOW_V_3_0_PLUS:
+        ti = create_task_instance(
+            dag_id=dag_id,
+            task_id=task_id,
+            logical_date=logical_date,
+            dagrun_state=DagRunState.RUNNING,
+            state=TaskInstanceState.RUNNING,
+        )
+    else:
+        ti = create_task_instance(
+            dag_id=dag_id,
+            task_id=task_id,
+            execution_date=logical_date,
+            state=TaskInstanceState.RUNNING,
+        )
     ti.try_number = 1
     ti.raw = False
     return ti
@@ -71,18 +80,23 @@ def get_ti(dag_id, task_id, execution_date, create_task_instance):
 class TestElasticsearchTaskHandler:
     DAG_ID = "dag_for_testing_es_task_handler"
     TASK_ID = "task_for_testing_es_log_handler"
-    EXECUTION_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
-    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1"
+    JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
-        create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
+        create_log_template(
+            self.FILENAME_TEMPLATE,
+            "{dag_id}-{task_id}-{logical_date}-{try_number}"
+            if AIRFLOW_V_3_0_PLUS
+            else "{dag_id}-{task_id}-{execution_date}-{try_number}",
+        )
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
-            execution_date=self.EXECUTION_DATE,
+            logical_date=self.LOGICAL_DATE,
             create_task_instance=create_task_instance,
         )
         clear_db_runs()
@@ -255,7 +269,7 @@ class TestElasticsearchTaskHandler:
         ti = get_ti(
             self.DAG_ID,
             self.TASK_ID,
-            pendulum.instance(self.EXECUTION_DATE).add(days=1),  # so logs are not found
+            pendulum.instance(self.LOGICAL_DATE).add(days=1),  # so logs are not found
             create_task_instance=create_task_instance,
         )
         ts = pendulum.now().add(seconds=-seconds)
@@ -563,8 +577,8 @@ class TestElasticsearchTaskHandler:
         assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(ti, 1)
 
     def test_clean_date(self):
-        clean_execution_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        assert "2016_07_08T09_10_11_000012" == clean_execution_date
+        clean_logical_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        assert "2016_07_08T09_10_11_000012" == clean_logical_date
 
     @pytest.mark.parametrize(
         "json_format, es_frontend, expected_url",

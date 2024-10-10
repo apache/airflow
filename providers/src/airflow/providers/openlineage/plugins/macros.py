@@ -62,7 +62,7 @@ def lineage_run_id(task_instance: TaskInstance):
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
         try_number=task_instance.try_number,
-        execution_date=task_instance.execution_date,
+        logical_date=task_instance.logical_date,
     )
 
 

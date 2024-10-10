@@ -51,7 +51,7 @@ def test_no_parent(session, dag_maker):
     ):
         op1 = EmptyOperator(task_id="op1")
 
-    (ti1,) = dag_maker.create_dagrun(execution_date=start_date).task_instances
+    (ti1,) = dag_maker.create_dagrun(logical_date=start_date).task_instances
     ti1.refresh_from_task(op1)
 
     dep = NotPreviouslySkippedDep()

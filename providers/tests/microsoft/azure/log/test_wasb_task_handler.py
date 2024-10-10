@@ -46,7 +46,7 @@ class TestWasbTaskHandler:
         ti = create_task_instance(
             dag_id="dag_for_testing_wasb_task_handler",
             task_id="task_for_testing_wasb_log_handler",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             dagrun_state=TaskInstanceState.RUNNING,
             state=TaskInstanceState.RUNNING,

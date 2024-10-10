@@ -174,7 +174,7 @@ class Timetable(Protocol):
     ``NullTimetable`` sets this to *False*.
     """
 
-    run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
+    run_ordering: Sequence[str] = ("data_interval_end", "logical_date")
     """How runs triggered from this timetable should be ordered in UI.
 
     This should be a list of field names on the DAG run object.

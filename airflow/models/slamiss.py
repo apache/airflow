@@ -34,7 +34,7 @@ class SlaMiss(Base):
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    execution_date = Column("logical_date", UtcDateTime, primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
     description = Column(Text)
