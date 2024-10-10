@@ -38,14 +38,14 @@ class GenericTransfer(BaseOperator):
 
     :param sql: SQL query to execute against the source database. (templated)
     :param destination_table: target table. (templated)
-    :param source_conn_id: source connection
-    :param destination_conn_id: destination connection
+    :param source_conn_id: source connection. (templated)
+    :param destination_conn_id: destination connection. (templated)
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
     """
 
-    template_fields: Sequence[str] = ("sql", "destination_table", "preoperator")
+    template_fields: Sequence[str] = ("source_conn_id", "destination_conn_id", "sql", "destination_table", "preoperator")
     template_ext: Sequence[str] = (
         ".sql",
         ".hql",
@@ -59,7 +59,9 @@ class GenericTransfer(BaseOperator):
         sql: str,
         destination_table: str,
         source_conn_id: str,
+        source_hook_params: dict | None = None,
         destination_conn_id: str,
+        destination_hook_params: dict | None = None,
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         **kwargs,
@@ -68,13 +70,28 @@ class GenericTransfer(BaseOperator):
         self.sql = sql
         self.destination_table = destination_table
         self.source_conn_id = source_conn_id
+        self.source_hook_params = source_hook_params
         self.destination_conn_id = destination_conn_id
+        self.destination_hook_params = destination_hook_params
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
+    @classmethod
+    # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
+        """
+        Return default hook for this connection id.
+
+        :param conn_id: connection id
+        :param hook_params: hook parameters
+        :return: default hook for this connection
+        """
+        connection = BaseHook.get_connection(conn_id)
+        return connection.get_hook(hook_params=hook_params)
+
     def execute(self, context: Context):
-        source_hook = BaseHook.get_hook(self.source_conn_id)
-        destination_hook = BaseHook.get_hook(self.destination_conn_id)
+        source_hook = self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
+        destination_hook = self.get_hook(conn_id=self.destination_conn_id, hook_params=self.destination_hook_params)
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
