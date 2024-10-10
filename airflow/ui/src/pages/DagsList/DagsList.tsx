@@ -128,7 +128,9 @@ export const DagsList = () => {
   };
 
   const { data, isFetching, isLoading } = useDagServiceGetDags({
-    dagDisplayNamePattern: dagDisplayNamePattern !== "" ? dagDisplayNamePattern : undefined,
+    dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
+        ? `%${dagDisplayNamePattern}%`
+        : undefined,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
