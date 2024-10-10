@@ -22,10 +22,10 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
