@@ -1299,7 +1299,7 @@ export interface components {
     };
     /** @description Collection of DAG warnings. */
     DagWarningCollection: {
-      import_errors?: components["schemas"]["DagWarning"][];
+      dag_warnings?: components["schemas"]["DagWarning"][];
     } & components["schemas"]["CollectionInfo"];
     SetDagRunNote: {
       /** @description Custom notes left by users for this Dag Run. */
