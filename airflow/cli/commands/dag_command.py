@@ -33,11 +33,9 @@ from sqlalchemy import delete, select
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
@@ -47,83 +45,14 @@ from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
-
 log = logging.getLogger(__name__)
-
-
-def _run_dag_backfill(dags: list[DAG], args) -> None:
-    # If only one date is passed, using same as start and end
-    args.end_date = args.end_date or args.start_date
-    args.start_date = args.start_date or args.end_date
-
-    run_conf = None
-    if args.conf:
-        run_conf = json.loads(args.conf)
-
-    for dag in dags:
-        if args.task_regex:
-            dag = dag.partial_subset(
-                task_ids_or_regex=args.task_regex, include_upstream=not args.ignore_dependencies
-            )
-            if not dag.task_dict:
-                raise AirflowException(
-                    f"There are no tasks that match '{args.task_regex}' regex. Nothing to run, exiting..."
-                )
-
-        if args.dry_run:
-            print(f"Dry run of DAG {dag.dag_id} on {args.start_date}")
-            dagrun_infos = dag.iter_dagrun_infos_between(earliest=args.start_date, latest=args.end_date)
-            for dagrun_info in dagrun_infos:
-                dr = DagRun(
-                    dag.dag_id,
-                    execution_date=dagrun_info.logical_date,
-                    data_interval=dagrun_info.data_interval,
-                    triggered_by=DagRunTriggeredByType.CLI,
-                )
-
-                for task in dag.tasks:
-                    print(f"Task {task.task_id} located in DAG {dag.dag_id}")
-                    ti = TaskInstance(task, run_id=None)
-                    ti.dag_run = dr
-                    ti.dry_run()
-        else:
-            if args.reset_dagruns:
-                DAG.clear_dags(
-                    [dag],
-                    start_date=args.start_date,
-                    end_date=args.end_date,
-                    confirm_prompt=not args.yes,
-                    dag_run_state=DagRunState.QUEUED,
-                )
-
-            try:
-                dag.run(
-                    start_date=args.start_date,
-                    end_date=args.end_date,
-                    mark_success=args.mark_success,
-                    local=args.local,
-                    donot_pickle=(args.donot_pickle or conf.getboolean("core", "donot_pickle")),
-                    ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-                    ignore_task_deps=args.ignore_dependencies,
-                    pool=args.pool,
-                    delay_on_limit_secs=args.delay_on_limit,
-                    verbose=args.verbose,
-                    conf=run_conf,
-                    rerun_failed_tasks=args.rerun_failed_tasks,
-                    run_backwards=args.run_backwards,
-                    continue_on_failures=args.continue_on_failures,
-                    disable_retry=args.disable_retry,
-                )
-            except ValueError as vr:
-                print(str(vr))
-                sys.exit(1)
 
 
 @cli_utils.action_cli
