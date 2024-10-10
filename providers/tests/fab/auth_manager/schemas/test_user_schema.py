@@ -24,8 +24,11 @@ from dev.tests_common.test_utils.compat import ignore_provider_compatibility_err
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
     from airflow.providers.fab.auth_manager.models import User
+    from airflow.providers.fab.auth_manager.schemas.user_schema import (
+        user_collection_item_schema,
+        user_schema,
+    )
 
 
 TEST_EMAIL = "test@example.org"
