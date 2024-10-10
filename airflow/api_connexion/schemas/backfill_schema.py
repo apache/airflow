@@ -34,15 +34,16 @@ class BackfillSchema(SQLAlchemySchema):
         model = Backfill
 
     id = auto_field(dump_only=True)
-    dag_id = auto_field(dump_only=True)
-    from_date = auto_field(dump_only=True)
-    to_date = auto_field(dump_only=True)
+    dag_id = auto_field()
+    from_date = auto_field()
+    to_date = auto_field()
     dag_run_conf = fields.Dict(allow_none=True)
-    is_paused = auto_field(dump_only=True)
-    max_active_runs = auto_field(dump_only=True)
-    created_at = auto_field(dump_only=True)
-    completed_at = auto_field(dump_only=True)
-    updated_at = auto_field(dump_only=True)
+    reverse = fields.Boolean()
+    is_paused = auto_field()
+    max_active_runs = auto_field()
+    created_at = auto_field()
+    completed_at = auto_field()
+    updated_at = auto_field()
 
 
 class BackfillDagRunSchema(SQLAlchemySchema):
