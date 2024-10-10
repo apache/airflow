@@ -33,7 +33,7 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/apache/kafka/example_dag_hello_kafka.py
+.. exampleinclude:: /../../providers/tests/system/apache/kafka/example_dag_hello_kafka.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_consume_from_topic]
@@ -58,7 +58,7 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/apache/kafka/example_dag_hello_kafka.py
+.. exampleinclude:: /../../providers/tests/system/apache/kafka/example_dag_hello_kafka.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_produce_to_topic]

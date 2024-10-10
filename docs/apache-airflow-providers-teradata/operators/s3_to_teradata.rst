@@ -45,7 +45,7 @@ Transferring data in CSV format from S3 to Teradata
 
 An example usage of the S3ToTeradataOperator to transfer CSV data format from S3 to teradata table is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_s3_to_teradata_transfer.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_s3_to_teradata_transfer.py
     :language: python
     :start-after: [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_public_s3_to_teradata_csv]
     :end-before: [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_public_s3_to_teradata_csv]
@@ -55,7 +55,7 @@ Transferring data in JSON format from S3 to Teradata
 
 An example usage of the S3ToTeradataOperator to transfer JSON data format from S3 to teradata table is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_s3_to_teradata_transfer.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_s3_to_teradata_transfer.py
     :language: python
     :start-after: [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
     :end-before: [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_json]
@@ -65,7 +65,7 @@ Transferring data in PARQUET format from S3 to Teradata
 
 An example usage of the S3ToTeradataOperator to transfer PARQUET data format from S3 to teradata table is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_s3_to_teradata_transfer.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_s3_to_teradata_transfer.py
     :language: python
     :start-after: [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     :end-before: [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
@@ -75,7 +75,7 @@ The complete ``S3ToTeradataOperator`` Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_s3_to_teradata_transfer.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_s3_to_teradata_transfer.py
     :language: python
     :start-after: [START s3_to_teradata_transfer_operator_howto_guide]
     :end-before: [END s3_to_teradata_transfer_operator_howto_guide]

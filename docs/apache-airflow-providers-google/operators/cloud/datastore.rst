@@ -38,7 +38,7 @@ Export Entities
 To export entities from Google Cloud Datastore to Cloud Storage use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_export_task]
@@ -52,7 +52,7 @@ Import Entities
 To import entities from Cloud Storage to Google Cloud Datastore use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_import_task]
@@ -66,7 +66,7 @@ Allocate Ids
 To allocate IDs for incomplete keys use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreAllocateIdsOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_allocate_ids]
@@ -74,7 +74,7 @@ To allocate IDs for incomplete keys use
 
 An example of a partial keys required by the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_keys_def]
@@ -88,7 +88,7 @@ Begin transaction
 To begin a new transaction use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreBeginTransactionOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_begin_transaction]
@@ -96,7 +96,7 @@ To begin a new transaction use
 
 An example of a transaction options required by the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_transaction_def]
@@ -110,7 +110,7 @@ Commit transaction
 To commit a transaction, optionally creating, deleting or modifying some entities
 use :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreCommitOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_commit_task]
@@ -118,7 +118,7 @@ use :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreCo
 
 An example of a commit information required by the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_commit_def]
@@ -132,7 +132,7 @@ Run query
 To run a query for entities use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreRunQueryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_query.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_query.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_run_query]
@@ -140,7 +140,7 @@ To run a query for entities use
 
 An example of a query required by the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_query.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_query.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_query_def]
@@ -154,7 +154,7 @@ Roll back transaction
 To roll back a transaction
 use :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreRollbackOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_rollback.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_rollback.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_rollback_transaction]
@@ -168,7 +168,7 @@ Get operation state
 To get the current state of a long-running operation use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START get_operation_state]
@@ -182,7 +182,7 @@ Delete operation
 To delete an operation use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START delete_operation]

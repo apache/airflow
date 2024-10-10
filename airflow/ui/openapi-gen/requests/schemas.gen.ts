@@ -784,6 +784,195 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunResponse = {
+  properties: {
+    run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+    last_scheduling_decision: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Scheduling Decision",
+    },
+    run_type: {
+      $ref: "#/components/schemas/DagRunType",
+    },
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    external_trigger: {
+      type: "boolean",
+      title: "External Trigger",
+    },
+    triggered_by: {
+      $ref: "#/components/schemas/DagRunTriggeredByType",
+    },
+    conf: {
+      type: "object",
+      title: "Conf",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+  },
+  type: "object",
+  required: [
+    "run_id",
+    "dag_id",
+    "logical_date",
+    "start_date",
+    "end_date",
+    "data_interval_start",
+    "data_interval_end",
+    "last_scheduling_decision",
+    "run_type",
+    "state",
+    "external_trigger",
+    "triggered_by",
+    "conf",
+    "note",
+  ],
+  title: "DAGRunResponse",
+  description: "DAG Run serializer for responses.",
+} as const;
+
+export const $DAGRunStates = {
+  properties: {
+    queued: {
+      type: "integer",
+      title: "Queued",
+    },
+    running: {
+      type: "integer",
+      title: "Running",
+    },
+    success: {
+      type: "integer",
+      title: "Success",
+    },
+    failed: {
+      type: "integer",
+      title: "Failed",
+    },
+  },
+  type: "object",
+  required: ["queued", "running", "success", "failed"],
+  title: "DAGRunStates",
+  description: "DAG Run States for responses.",
+} as const;
+
+export const $DAGRunTypes = {
+  properties: {
+    backfill: {
+      type: "integer",
+      title: "Backfill",
+    },
+    scheduled: {
+      type: "integer",
+      title: "Scheduled",
+    },
+    manual: {
+      type: "integer",
+      title: "Manual",
+    },
+    dataset_triggered: {
+      type: "integer",
+      title: "Dataset Triggered",
+    },
+  },
+  type: "object",
+  required: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  title: "DAGRunTypes",
+  description: "DAG Run Types for responses.",
+} as const;
+
 export const $DagRunState = {
   type: "string",
   enum: ["queued", "running", "success", "failed"],
@@ -793,6 +982,29 @@ export const $DagRunState = {
 These are "shared" with TaskInstanceState in some parts of the code,
 so please ensure that their values always match the ones with the
 same name in TaskInstanceState.`,
+} as const;
+
+export const $DagRunTriggeredByType = {
+  type: "string",
+  enum: [
+    "cli",
+    "operator",
+    "rest_api",
+    "ui",
+    "test",
+    "timetable",
+    "dataset",
+    "backfill",
+  ],
+  title: "DagRunTriggeredByType",
+  description: "Class with TriggeredBy types for DagRun.",
+} as const;
+
+export const $DagRunType = {
+  type: "string",
+  enum: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  title: "DagRunType",
+  description: "Class with DagRun types.",
 } as const;
 
 export const $DagTagPydantic = {
@@ -847,6 +1059,99 @@ export const $HTTPValidationError = {
   title: "HTTPValidationError",
 } as const;
 
+export const $HistoricalMetricDataResponse = {
+  properties: {
+    dag_run_types: {
+      $ref: "#/components/schemas/DAGRunTypes",
+    },
+    dag_run_states: {
+      $ref: "#/components/schemas/DAGRunStates",
+    },
+    task_instance_states: {
+      $ref: "#/components/schemas/TaskInstantState",
+    },
+  },
+  type: "object",
+  required: ["dag_run_types", "dag_run_states", "task_instance_states"],
+  title: "HistoricalMetricDataResponse",
+  description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $TaskInstantState = {
+  properties: {
+    no_status: {
+      type: "integer",
+      title: "No Status",
+    },
+    removed: {
+      type: "integer",
+      title: "Removed",
+    },
+    scheduled: {
+      type: "integer",
+      title: "Scheduled",
+    },
+    queued: {
+      type: "integer",
+      title: "Queued",
+    },
+    running: {
+      type: "integer",
+      title: "Running",
+    },
+    success: {
+      type: "integer",
+      title: "Success",
+    },
+    restarting: {
+      type: "integer",
+      title: "Restarting",
+    },
+    failed: {
+      type: "integer",
+      title: "Failed",
+    },
+    up_for_retry: {
+      type: "integer",
+      title: "Up For Retry",
+    },
+    up_for_reschedule: {
+      type: "integer",
+      title: "Up For Reschedule",
+    },
+    upstream_failed: {
+      type: "integer",
+      title: "Upstream Failed",
+    },
+    skipped: {
+      type: "integer",
+      title: "Skipped",
+    },
+    deferred: {
+      type: "integer",
+      title: "Deferred",
+    },
+  },
+  type: "object",
+  required: [
+    "no_status",
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstantState",
+  description: "TaskInstance serializer for responses.",
+} as const;
+
 export const $ValidationError = {
   properties: {
     loc: {
@@ -875,4 +1180,39 @@ export const $ValidationError = {
   type: "object",
   required: ["loc", "msg", "type"],
   title: "ValidationError",
+} as const;
+
+export const $VariableResponse = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+  },
+  type: "object",
+  required: ["key", "value", "description"],
+  title: "VariableResponse",
+  description: "Variable serializer for responses.",
 } as const;

@@ -32,8 +32,9 @@ from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.db import clear_db_runs
+
+from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from dev.tests_common.test_utils.db import clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

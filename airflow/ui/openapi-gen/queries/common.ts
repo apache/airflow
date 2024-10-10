@@ -4,7 +4,10 @@ import { UseQueryResult } from "@tanstack/react-query";
 import {
   AssetService,
   ConnectionService,
+  DagRunService,
   DagService,
+  DashboardService,
+  VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
@@ -24,6 +27,28 @@ export const UseAssetServiceNextRunAssetsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
+  ReturnType<typeof DashboardService.historicalMetrics>
+>;
+export type DashboardServiceHistoricalMetricsQueryResult<
+  TData = DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceHistoricalMetricsKey =
+  "DashboardServiceHistoricalMetrics";
+export const UseDashboardServiceHistoricalMetricsKeyFn = (
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDashboardServiceHistoricalMetricsKey,
+  ...(queryKey ?? [{ endDate, startDate }]),
+];
 export type DagServiceGetDagsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDags>
 >;
@@ -74,6 +99,22 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type DagServiceGetDagDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDag>
+>;
+export type DagServiceGetDagQueryResult<
+  TData = DagServiceGetDagDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagKey = "DagServiceGetDag";
+export const UseDagServiceGetDagKeyFn = (
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagServiceGetDagKey, ...(queryKey ?? [{ dagId }])];
 export type DagServiceGetDagDetailsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDagDetails>
 >;
@@ -110,6 +151,40 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
 ];
+export type VariableServiceGetVariableDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariable>
+>;
+export type VariableServiceGetVariableQueryResult<
+  TData = VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
+export const UseVariableServiceGetVariableKeyFn = (
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
+export type DagRunServiceGetDagRunDefaultResponse = Awaited<
+  ReturnType<typeof DagRunService.getDagRun>
+>;
+export type DagRunServiceGetDagRunQueryResult<
+  TData = DagRunServiceGetDagRunDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
+export const UseDagRunServiceGetDagRunKeyFn = (
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
@@ -118,4 +193,7 @@ export type DagServicePatchDagMutationResult = Awaited<
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
+>;
+export type VariableServiceDeleteVariableMutationResult = Awaited<
+  ReturnType<typeof VariableService.deleteVariable>
 >;
