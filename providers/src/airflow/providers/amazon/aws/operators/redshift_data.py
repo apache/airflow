@@ -227,7 +227,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
     def on_kill(self) -> None:
         """Cancel the submitted redshift query."""
-        if self.statement_id:
+        if hasattr(self, "statement_id"):
             self.log.info("Received a kill signal.")
             self.log.info("Stopping Query with statementId - %s", self.statement_id)
 
