@@ -91,9 +91,9 @@ const columns: Array<ColumnDef<DAGResponse>> = [
 ];
 
 const {
+  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  PAUSED: PAUSED_PARAM,
-  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM
+  PAUSED: PAUSED_PARAM
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
@@ -133,10 +133,10 @@ export const DagsList = () => {
   };
 
   const { data, isFetching, isLoading } = useDagServiceGetDags({
-    lastDagRunState,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
         ? `%${dagDisplayNamePattern}%`
         : undefined,
+    lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,

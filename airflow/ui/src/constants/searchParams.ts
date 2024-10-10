@@ -17,9 +17,9 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
   NAME_PATTERN = "name_pattern",
-  LAST_DAG_RUN_STATE = "last_dag_run_state",
   OFFSET = "offset",
   PAUSED = "paused",
   SORT = "sort"
