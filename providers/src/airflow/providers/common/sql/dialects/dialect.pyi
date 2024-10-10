@@ -31,7 +31,7 @@
 Definition of the public interface for airflow.providers.common.sql.dialects.dialect
 isort:skip_file
 """
-from _typeshed import Incomplete
+from _typeshed import Incomplete as Incomplete
 from airflow.utils.log.logging_mixin import LoggingMixin as LoggingMixin
 from sqlalchemy.engine import Inspector as Inspector
 from typing import Any, Callable, Iterable, Mapping, TypeVar
