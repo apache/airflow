@@ -127,6 +127,26 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
+ * Get Dag
+ * Get basic information about a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDag = (
+  queryClient: QueryClient,
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }),
+    queryFn: () => DagService.getDag({ dagId }),
+  });
+/**
  * Get Dag Details
  * Get details of DAG.
  * @param data The data for the request.
