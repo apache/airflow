@@ -102,7 +102,7 @@ from airflow.models.asset import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagcode import DagCode
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.param import DagParam, ParamsDict
@@ -301,7 +301,7 @@ def _create_orm_dagrun(
     conf,
     state,
     run_type,
-    dag_hash,
+    dag_version_id,
     creating_job_id,
     data_interval,
     backfill_id,
@@ -317,7 +317,7 @@ def _create_orm_dagrun(
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_hash=dag_hash,
+        dag_version_id=dag_version_id,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -358,6 +358,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "auto_register": bool,
     "fail_stop": bool,
     "dag_display_name": str,
+    "version_name": str,
 }
 
 
@@ -474,6 +475,7 @@ class DAG(LoggingMixin):
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
+    :param version_name: The version name to use in storing the dag to the DB.
     """
 
     _comps = {
@@ -533,6 +535,7 @@ class DAG(LoggingMixin):
         auto_register: bool = True,
         fail_stop: bool = False,
         dag_display_name: str | None = None,
+        version_name: str | None = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -564,6 +567,7 @@ class DAG(LoggingMixin):
         self._pickle_id: int | None = None
 
         self._description = description
+        self._version_name = version_name
         # set file location to caller source path
         back = sys._getframe().f_back
         self.fileloc = back.f_code.co_filename if back else ""
@@ -1086,6 +1090,10 @@ class DAG(LoggingMixin):
     @property
     def description(self) -> str | None:
         return self._description
+
+    @property
+    def version_name(self) -> str | None:
+        return self._version_name
 
     @property
     def default_view(self) -> str:
@@ -2546,7 +2554,7 @@ class DAG(LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        dag_hash: str | None = None,
+        dag_version_id: int | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         backfill_id: int | None = None,
@@ -2566,7 +2574,7 @@ class DAG(LoggingMixin):
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
-        :param dag_hash: Hash of Serialized DAG
+        :param dag_version_id: The DagVersion ID to run with
         :param data_interval: Data interval of the DagRun
         :param backfill_id: id of the backfill run if one exists
         """
@@ -2635,7 +2643,7 @@ class DAG(LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_hash=dag_hash,
+            dag_version_id=dag_version_id,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             data_interval=data_interval,
@@ -2668,7 +2676,6 @@ class DAG(LoggingMixin):
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
-        DagCode.bulk_sync_to_db((dag.fileloc for dag in dags), session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -2992,6 +2999,8 @@ class DagModel(Base):
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
     )
+    version_name = Column(StringID())
+    dag_versions = relationship("DagVersion", back_populates="dag_model")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -3322,6 +3331,7 @@ def dag(
     auto_register: bool = True,
     fail_stop: bool = False,
     dag_display_name: str | None = None,
+    version_name: str | None = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator which wraps a function into an Airflow DAG.
@@ -3375,6 +3385,7 @@ def dag(
                 auto_register=auto_register,
                 fail_stop=fail_stop,
                 dag_display_name=dag_display_name,
+                version_name=version_name,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:
@@ -3528,6 +3539,7 @@ def _get_or_create_dagrun(
     if dr:
         session.delete(dr)
         session.commit()
+    dag_version = DagVersion.get_lastest_version(dag.dag_id, session=session)
     dr = dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,
@@ -3537,6 +3549,7 @@ def _get_or_create_dagrun(
         conf=conf,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        dag_version_id=dag_version.id if dag_version else None,
     )
     log.info("created dagrun %s", dr)
     return dr
