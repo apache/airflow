@@ -63,7 +63,7 @@ class SparkSqlOperator(BaseOperator):
         self,
         *,
         sql: str,
-        conf: dict[str, Any] | None = None,
+        conf: dict[str, Any] | str | None = None,
         conn_id: str = "spark_sql_default",
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
