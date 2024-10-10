@@ -41,7 +41,8 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
+    from datetime import datetime
+
 
 log = logging.getLogger(__name__)
 
@@ -121,8 +122,8 @@ class BackfillDagRun(Base):
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: DateTime,
-    to_date: DateTime,
+    from_date: datetime,
+    to_date: datetime,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,

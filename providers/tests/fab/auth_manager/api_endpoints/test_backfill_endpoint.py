@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from unittest import mock
-from urllib.parse import urlencode
 
 import pendulum
 import pytest
@@ -197,21 +196,20 @@ class TestCreateBackfill(TestBackfillEndpoint):
         to_date = pendulum.parse("2024-02-01")
         to_date_iso = to_date.isoformat()
         max_active_runs = 5
-        query = urlencode(
-            query={
-                "dag_id": dag.dag_id,
-                "from_date": f"{from_date_iso}",
-                "to_date": f"{to_date_iso}",
-                "max_active_runs": max_active_runs,
-                "reverse": False,
-            }
-        )
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "reverse": False,
+        }
         kwargs = {}
         kwargs.update(environ_overrides={"REMOTE_USER": "test_granular_permissions"})
 
         response = self.client.post(
-            f"/api/v1/backfills?{query}",
+            "/api/v1/backfills",
             **kwargs,
+            json=data,
         )
         assert response.status_code == 200
         assert response.json == {

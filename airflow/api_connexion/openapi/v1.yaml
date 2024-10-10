@@ -277,57 +277,12 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
       operationId: create_backfill
       tags: [Backfill]
-      parameters:
-        - name: dag_id
-          in: query
-          schema:
-            type: string
-          required: true
-          description: |
-            Create dag runs for this dag.
-
-        - name: from_date
-          in: query
-          schema:
-            type: string
-            format: date-time
-          required: true
-          description: |
-            Create dag runs with logical dates from this date onward, including this date.
-
-        - name: to_date
-          in: query
-          schema:
-            type: string
-            format: date-time
-          required: true
-          description: |
-            Create dag runs for logical dates up to but not including this date.
-
-        - name: max_active_runs
-          in: query
-          schema:
-            type: integer
-          required: false
-          description: |
-            Maximum number of active DAG runs for the the backfill.
-
-        - name: reverse
-          in: query
-          schema:
-            type: boolean
-          required: false
-          description: |
-            If true, run the dag runs in descending order of logical date.
-
-        - name: config
-          in: query
-          schema:
-            # todo: AIP-78 make this object
-            type: string
-          required: false
-          description: |
-            If true, run the dag runs in descending order of logical date.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Backfill"
       responses:
         "200":
           description: Success.
@@ -2920,7 +2875,7 @@ components:
           nullable: true
           description: To date of the backfill (exclusive).
         dag_run_conf:
-          type: string
+          type: object
           nullable: true
           description: Dag run conf to be forwarded to the dag runs.
         is_paused:
