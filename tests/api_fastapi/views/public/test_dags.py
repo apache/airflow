@@ -307,7 +307,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
     "query_params, dag_id, expected_status_code, dag_display_name",
     [
         ({}, "fake_dag_id", 404, "fake_dag"),
-        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME),
+        ({}, DAG2_ID, 200, DAG2_ID),
     ],
 )
 def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):
