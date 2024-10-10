@@ -169,7 +169,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = self.url_from_endpoint(endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
