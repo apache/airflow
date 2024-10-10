@@ -41,6 +41,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
 
@@ -77,6 +78,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.watcher_queue = watcher_queue
         self.resource_version = resource_version
         self.kube_config = kube_config
+        self.task_logger = TaskContextLogger(component_name="kubernetes_executor", call_site_logger=self.log)
 
     def run(self) -> None:
         """Perform watching."""
@@ -205,6 +207,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> None:
         pod = event["object"]
         annotations_string = annotations_for_logging_task_metadata(annotations)
+        ti_key = annotations_to_key(annotations)
         """Process status response."""
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
@@ -214,10 +217,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
         elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
             # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
-            self.log.error(
+            self.task_logger.error(
                 "Event: %s failed to start with reason ProviderFailed, annotations: %s",
                 pod_name,
                 annotations_string,
+                ti=ti_key,
             )
             self.watcher_queue.put(
                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
@@ -226,7 +230,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
-                self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
+                self.task_logger.error(
+                    "Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string, ti=ti_key
+                )
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                 )
@@ -253,11 +259,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                 and container_status_state["waiting"]["message"] == "pull QPS exceeded"
                             ):
                                 continue
-                            self.log.error(
+                            self.task_logger.error(
                                 "Event: %s has container %s with fatal reason %s",
                                 pod_name,
                                 container_status["name"],
                                 container_status_state["waiting"]["reason"],
+                                ti=ti_key,
                             )
                             self.watcher_queue.put(
                                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
@@ -268,7 +275,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
-            self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
+            self.task_logger.error(
+                "Event: %s Failed, annotations: %s", pod_name, annotations_string, ti=ti_key
+            )
             self.watcher_queue.put(
                 (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
             )
@@ -289,10 +298,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
-                self.log.info(
+                self.task_logger.info(
                     "Event: Pod %s deleted before it could complete, annotations: %s",
                     pod_name,
                     annotations_string,
+                    ti=ti_key,
                 )
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
