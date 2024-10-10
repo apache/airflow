@@ -24,16 +24,18 @@ import { useSearchParams } from "react-router-dom";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 
-const STATE_PARAM = "last_dag_run_state";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
-const { PAUSED: PAUSED_PARAM }: SearchParamsKeysType = SearchParamsKeys;
+const {
+  PAUSED: PAUSED_PARAM,
+  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM
+}: SearchParamsKeysType = SearchParamsKeys;
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
-  const state = searchParams.get(STATE_PARAM);
+  const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
@@ -63,9 +65,9 @@ export const DagsFilters = () => {
     useCallback(
       ({ currentTarget: { value } }) => {
         if (value === "all") {
-          searchParams.delete(STATE_PARAM);
+          searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
         } else {
-          searchParams.set(STATE_PARAM, value);
+          searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
         }
         setSearchParams(searchParams);
         setTableURLState({

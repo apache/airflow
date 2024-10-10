@@ -92,7 +92,8 @@ const columns: Array<ColumnDef<DAGResponse>> = [
 
 const {
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  PAUSED: PAUSED_PARAM
+  PAUSED: PAUSED_PARAM,
+  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
@@ -102,14 +103,12 @@ const cardDef: CardDef<DAGResponse> = {
   },
 };
 
-const STATE_PARAM = "last_dag_run_state";
-
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
-  const lastDagRunState = searchParams.get(STATE_PARAM) as DagRunState;
+  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM) as DagRunState;
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
