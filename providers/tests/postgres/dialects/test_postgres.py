@@ -38,13 +38,13 @@ class TestPostgresDialect:
         self.test_db_hook.get_records.side_effect = lambda sql, parameters: [("id",)]
 
     def test_placeholder(self):
-        assert PostgresDialect(self.test_db_hook).placeholder == "?"
+        assert PostgresDialect("postgres", self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
         assert PostgresDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
-        assert PostgresDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
+        assert PostgresDialect("postgres", self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
             "name",
             "firstname",
@@ -52,7 +52,7 @@ class TestPostgresDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert PostgresDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
+        assert PostgresDialect("postgres", self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
     def test_generate_replace_sql(self):
         values = [
@@ -63,7 +63,7 @@ class TestPostgresDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = PostgresDialect(self.test_db_hook).generate_replace_sql(
+        sql = PostgresDialect("postgres", self.test_db_hook).generate_replace_sql(
             "hollywood.actors", values, target_fields
         )
         assert (

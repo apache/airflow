@@ -38,13 +38,13 @@ class TestDialect:
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
 
     def test_placeholder(self):
-        assert Dialect(self.test_db_hook).placeholder == "?"
+        assert Dialect("default", self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
         assert Dialect._extract_schema_from_table("schema.table") == ("table", "schema")
 
     def test_get_column_names(self):
-        assert Dialect(self.test_db_hook).get_column_names("schema.table") == [
+        assert Dialect("default", self.test_db_hook).get_column_names("schema.table") == [
             "id",
             "name",
             "firstname",
@@ -52,4 +52,4 @@ class TestDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert Dialect(self.test_db_hook).get_primary_keys("schema.table") == ["id"]
+        assert Dialect("default", self.test_db_hook).get_primary_keys("schema.table") == ["id"]

@@ -321,13 +321,13 @@ class DbApiHook(BaseHook):
 
         if dialect_info:
             try:
-                return import_string(dialect_info["dialect_class_name"])(self)
+                return import_string(dialect_info["dialect_class_name"])(self.dialect_name, self)
             except ImportError:
                 raise AirflowOptionalProviderFeatureException(
                     f"{dialect_info.dialect_class_name} not found, run: pip install "
                     f"'{dialect_info.provider_name}'."
                 )
-        return Dialect(self)
+        return Dialect(self.dialect_name, self)
 
     @property
     def reserved_words(self) -> set[str]:

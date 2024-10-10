@@ -72,7 +72,7 @@ class MsSqlHook(DbApiHook):
 
     @property
     def dialect(self) -> Dialect:
-        return MsSqlDialect(self)
+        return MsSqlDialect(self.dialect_name, self)
 
     def get_uri(self) -> str:
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit

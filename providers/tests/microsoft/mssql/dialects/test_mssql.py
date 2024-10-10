@@ -38,13 +38,13 @@ class TestMsSqlDialect:
         self.test_db_hook.run.side_effect = lambda *args: [("id",)]
 
     def test_placeholder(self):
-        assert MsSqlDialect(self.test_db_hook).placeholder == "?"
+        assert MsSqlDialect("mssql", self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
         assert MsSqlDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
-        assert MsSqlDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
+        assert MsSqlDialect("mssql", self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
             "name",
             "firstname",
@@ -52,7 +52,7 @@ class TestMsSqlDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
+        assert MsSqlDialect("mssql", self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
     def test_generate_replace_sql(self):
         values = [
@@ -63,7 +63,7 @@ class TestMsSqlDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        sql = MsSqlDialect("mssql", self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
         assert (
             sql
             == """
