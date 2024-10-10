@@ -173,6 +173,8 @@ class ExecutorLoader:
 
         This is used in rare cases such as dag.run which allows, as a user convenience, to provide
         the executor by cli/argument instead of Airflow configuration
+
+        todo: given comments above, is this needed anymore since DAG.run is removed?
         """
         exec_class_name = executor.__class__.__qualname__
         exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
