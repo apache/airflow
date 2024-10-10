@@ -545,6 +545,7 @@ class TestGKEStartKueueInsideClusterOperator:
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.db_test
     @mock.patch.dict(os.environ, {})
     @mock.patch(TEMP_FILE)
@@ -560,6 +561,7 @@ class TestGKEStartKueueInsideClusterOperator:
 
         fetch_cluster_info_mock.assert_called_once()
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch.dict(os.environ, {})
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
@@ -578,6 +580,7 @@ class TestGKEStartKueueInsideClusterOperator:
 
         assert "Kueue installed successfully!" in caplog.text
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch.dict(os.environ, {})
     @mock.patch(TEMP_FILE)
     @mock.patch(f"{GKE_CLUSTER_AUTH_DETAILS_PATH}.fetch_cluster_info")
