@@ -386,7 +386,3 @@ class TestRenderedTaskInstanceFields:
             "env": "val 2",
             "cwd": "val 3",
         }
-
-
-def test_delete_old_records(dag_maker, session):
-    with dag_maker
