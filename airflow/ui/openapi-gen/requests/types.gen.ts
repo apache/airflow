@@ -121,6 +121,28 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunResponse = {
+  run_id: string | null;
+  dag_id: string;
+  logical_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  last_scheduling_decision: string | null;
+  run_type: DagRunType;
+  state: DagRunState;
+  external_trigger: boolean;
+  triggered_by: DagRunTriggeredByType;
+  conf: {
+    [key: string]: unknown;
+  };
+  note: string | null;
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -148,6 +170,28 @@ export type DAGRunTypes = {
  * same name in TaskInstanceState.
  */
 export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
+ * Class with TriggeredBy types for DagRun.
+ */
+export type DagRunTriggeredByType =
+  | "cli"
+  | "operator"
+  | "rest_api"
+  | "ui"
+  | "test"
+  | "timetable"
+  | "dataset"
+  | "backfill";
+
+/**
+ * Class with DagRun types.
+ */
+export type DagRunType =
+  | "backfill"
+  | "scheduled"
+  | "manual"
+  | "dataset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
@@ -260,11 +304,11 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagDetailsData = {
+export type GetDagData = {
   dagId: string;
 };
 
-export type GetDagDetailsResponse = DAGDetailsResponse;
+export type GetDagResponse = DAGResponse;
 
 export type PatchDagData = {
   dagId: string;
@@ -273,6 +317,12 @@ export type PatchDagData = {
 };
 
 export type PatchDagResponse = DAGResponse;
+
+export type GetDagDetailsData = {
+  dagId: string;
+};
+
+export type GetDagDetailsResponse = DAGDetailsResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -297,6 +347,13 @@ export type GetVariableData = {
 };
 
 export type GetVariableResponse = VariableResponse;
+
+export type GetDagRunData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetDagRunResponse = DAGRunResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -379,6 +436,66 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}": {
+    get: {
+      req: GetDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
+      };
+    };
+    patch: {
+      req: PatchDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dags/{dag_id}/details": {
     get: {
       req: GetDagDetailsData;
@@ -407,37 +524,6 @@ export type $OpenApiTs = {
          * Unprocessable Entity
          */
         422: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/public/dags/{dag_id}": {
-    patch: {
-      req: PatchDagData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };
@@ -526,6 +612,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}": {
+    get: {
+      req: GetDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
         /**
          * Unauthorized
          */
