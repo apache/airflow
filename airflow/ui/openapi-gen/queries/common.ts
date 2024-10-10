@@ -197,3 +197,6 @@ export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
 export type VariableServiceDeleteVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.deleteVariable>
 >;
+export type DagRunServiceDeleteDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.deleteDagRun>
+>;
