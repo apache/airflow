@@ -137,6 +137,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_SRC,
     AIRFLOW_SOURCES_ROOT,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
@@ -2125,7 +2126,7 @@ def generate_issue_content_providers(
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (
-                    AIRFLOW_SOURCES_ROOT
+                    AIRFLOW_PROVIDERS_SRC
                     / "airflow"
                     / "providers"
                     / provider_id.replace(".", os.sep)
