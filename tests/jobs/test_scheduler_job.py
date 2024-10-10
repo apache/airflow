@@ -5167,7 +5167,7 @@ class TestSchedulerJob:
 
         session.commit()
 
-        # now let's run scheduler it once
+        # now let's run scheduler once
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
