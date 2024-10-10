@@ -59,17 +59,9 @@ class PostgresDialect(Dialect):
             index for the ON CONFLICT clause
         :return: The generated INSERT or REPLACE SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
+        target_fields_fragment = self._joined_target_fields(target_fields)
 
-        if target_fields:
-            target_fields_fragment = ", ".join(target_fields)
-            target_fields_fragment = f"({target_fields_fragment})"
-        else:
-            target_fields_fragment = ""
-
-        return f"INSERT INTO {table} {target_fields_fragment} VALUES ({','.join(placeholders)})"
+        return f"INSERT INTO {table} {target_fields_fragment} VALUES ({self._joined_placeholders(values)})"
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
@@ -95,8 +87,8 @@ class PostgresDialect(Dialect):
             replace_index = [replace_index]
 
         sql = self.generate_insert_sql(table, values, target_fields, **kwargs)
-        on_conflict_str = f" ON CONFLICT ({', '.join(replace_index)})"
-        replace_target = [f for f in target_fields if f not in replace_index]
+        on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_reserved_word, replace_index))})"
+        replace_target = [self.escape_reserved_word(f) for f in target_fields if f not in replace_index]
 
         if replace_target:
             replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)

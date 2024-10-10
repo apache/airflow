@@ -47,7 +47,7 @@ class MsSqlDialect(Dialect):
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         primary_keys = self.get_primary_keys(table)
         columns = [
-            target_field
+            self.escape_reserved_word(target_field)
             for target_field in target_fields
             if target_field in set(target_fields).difference(set(primary_keys))
         ]
@@ -57,8 +57,8 @@ class MsSqlDialect(Dialect):
 
         return f"""MERGE INTO {table} AS target
             USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {column}', target_fields))}) AS source
-            ON {' AND '.join(map(lambda column: f'target.{column} = source.{column}', primary_keys))}
+            ON {' AND '.join(map(lambda column: f'target.{self.escape_reserved_word(column)} = source.{column}', primary_keys))}
             WHEN MATCHED THEN
                 UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}
             WHEN NOT MATCHED THEN
-                INSERT ({', '.join(target_fields)}) VALUES ({', '.join(map(lambda column: f'source.{column}', target_fields))});"""
+                INSERT ({', '.join(target_fields)}) VALUES ({', '.join(map(lambda column: f'source.{self.escape_reserved_word(column)}', target_fields))});"""

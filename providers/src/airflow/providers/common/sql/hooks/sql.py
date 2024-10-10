@@ -39,6 +39,8 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
+from airflow.utils.module_loading import import_string
+from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
@@ -327,6 +329,21 @@ class DbApiHook(BaseHook):
                 )
         return Dialect(self)
 
+    @property
+    def reserved_words(self) -> set[str]:
+        return self.get_reserved_words(self.dialect_name)
+
+    @lru_cache(maxsize=None)
+    def get_reserved_words(self, dialect_name: str) -> set[str]:
+        result = set()
+        with suppress(ModuleNotFoundError):
+            dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
+
+            if hasattr(dialect_module, "RESERVED_WORDS"):
+                result = set(dialect_module.RESERVED_WORDS)
+        self.log.info("reserved words for '%s': %s", dialect_name, result)
+        return result
+
     def get_pandas_df(
         self,
         sql,
@@ -611,6 +628,9 @@ class DbApiHook(BaseHook):
     def get_cursor(self) -> Any:
         """Return a cursor."""
         return self.get_conn().cursor()
+
+    def reserved_words(self) -> set[str]:
+        return set()
 
     def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
         """

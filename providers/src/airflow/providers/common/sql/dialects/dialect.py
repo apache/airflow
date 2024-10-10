@@ -31,7 +31,7 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
-    def __init__(self, hook, **kwargs) -> None:
+    def __init__(self, name: str, hook, **kwargs) -> None:
         super().__init__(**kwargs)
 
         from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -39,6 +39,7 @@ class Dialect(LoggingMixin):
         if not isinstance(hook, DbApiHook):
             raise TypeError(f"hook must be an instance of {DbApiHook.__class__.__name__}")
 
+        self.name = name
         self.hook: DbApiHook = hook
 
     @property
@@ -100,6 +101,32 @@ class Dialect(LoggingMixin):
     ) -> Any:
         return self.hook.get_records(sql=sql, parameters=parameters)
 
+    def reserved_words(self) -> set[str]:
+        return self.hook.reserved_words()
+
+    def escape_reserved_word(self, column_name: str) -> str:
+        """
+        Escape the column name if it's a reserved word.
+
+        :param column_name: Name of the column
+        :return: The escaped column name if needed
+        """
+        if column_name.casefold() in self.reserved_words():
+            return f"'{column_name}'"
+        return column_name
+
+    def _joined_placeholders(self, values) ->str:
+        placeholders = [
+           self.placeholder,
+        ] * len(values)
+        return ",".join(placeholders)
+
+    def _joined_target_fields(self, target_fields) -> str:
+        if target_fields:
+            target_fields = ", ".join(map(self.escape_reserved_word, target_fields))
+            return f"({target_fields})"
+        return ""
+
     def generate_insert_sql(self, table, values, target_fields, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
@@ -109,17 +136,9 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated INSERT SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
-
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
-
-        return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self._insert_statement_format.format(
+            table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
+        )
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
@@ -130,14 +149,6 @@ class Dialect(LoggingMixin):
         :param target_fields: The names of the columns to fill in the table
         :return: The generated REPLACE SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
-
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
-
-        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self._replace_statement_format.format(
+            table, self._joined_target_fields(target_fields), self._joined_placeholders(values)
+        )
