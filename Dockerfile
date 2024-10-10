@@ -429,6 +429,7 @@ COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
 : "${INSTALL_POSTGRES_CLIENT:?Should be true or false}"
 
 function install_airflow_dependencies_from_branch_tip() {
+    set -e
     echo
     echo "${COLOR_BLUE}Installing airflow from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
     echo
@@ -456,7 +457,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
+    pip freeze | (grep apache-airflow-providers || true) | xargs --no-run-if-empty ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
@@ -473,14 +474,14 @@ function install_airflow_dependencies_from_branch_tip() {
     # and increase the AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci to make sure your cache is rebuilt.
     local DEPENDENCIES_TO_REMOVE
     # IMPORTANT!! Make sure to increase AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci when you remove a dependency from that list
-    DEPENDENCIES_TO_REMOVE=()
+    DEPENDENCIES_TO_REMOVE=("sqlalchemy-redshift")
     if [[ "${DEPENDENCIES_TO_REMOVE[*]}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Uninstalling just removed dependencies (temporary until cache refreshes)${COLOR_RESET}"
         echo "${COLOR_BLUE}Dependencies to uninstall: ${DEPENDENCIES_TO_REMOVE[*]}${COLOR_RESET}"
         echo
         set +x
-        ${PACKAGING_TOOL_CMD} uninstall "${DEPENDENCIES_TO_REMOVE[@]}" || true
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} "${DEPENDENCIES_TO_REMOVE[@]}"
         set -x
         # make sure that the dependency is not needed by something else
         pip check
@@ -901,7 +902,7 @@ function install_airflow() {
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
+        ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs --no-run-if-empty ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
         set +x
         echo
         echo "${COLOR_BLUE}Installing all packages in eager upgrade mode. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
