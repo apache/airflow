@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-09T07:48:07.339579
+# This constraints file was automatically generated on 2024-10-10T02:15:48.288008
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.15.1
+aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
 aiohttp==3.10.9
@@ -232,8 +232,8 @@ billiard==4.2.1
 bitarray==2.9.2
 black==24.10.0
 blinker==1.8.2
-boto3==1.35.23
-botocore==1.35.23
+boto3==1.35.36
+botocore==1.35.36
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -245,7 +245,7 @@ cfgv==3.4.0
 cfn-lint==1.16.0
 cgroupspy==0.2.3
 chardet==5.2.0
-charset-normalizer==3.3.2
+charset-normalizer==3.4.0
 checksumdir==1.2.0
 ciso8601==2.3.1
 click-didyoumean==0.3.1
@@ -260,7 +260,7 @@ colorlog==6.8.2
 comm==0.2.2
 confluent-kafka==2.5.3
 connexion==2.14.2
-coverage==7.6.1
+coverage==7.6.2
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==3.0.3
@@ -276,7 +276,7 @@ defusedxml==0.7.1
 deltalake==0.20.2
 diagrams==0.23.4
 dill==0.3.9
-distlib==0.3.8
+distlib==0.3.9
 distro==1.9.0
 dnspython==2.7.0
 docker==7.1.0
@@ -284,7 +284,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.1
-elastic-transport==8.15.0
+elastic-transport==8.15.1
 elasticsearch==8.15.1
 email_validator==2.2.0
 entrypoints==0.4
@@ -313,8 +313,8 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
-google-api-core==2.20.0
-google-api-python-client==2.148.0
+google-api-core==2.21.0
+google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
@@ -344,7 +344,7 @@ google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.25.2
+google-cloud-pubsub==2.26.0
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.9
@@ -508,7 +508,7 @@ ordered-set==4.1.0
 oss2==2.19.0
 packaging==24.1
 pandas-gbq==0.23.2
-pandas-stubs==2.2.2.240909
+pandas-stubs==2.2.3.241009
 pandas==2.1.4
 papermill==2.6.0
 paramiko==3.5.0
@@ -727,7 +727,7 @@ uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
 uv==0.4.7
-uvicorn==0.31.0
+uvicorn==0.31.1
 uvloop==0.20.0
 validators==0.33.0
 vertica-python==1.4.0
@@ -743,12 +743,12 @@ wheel==0.44.0
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-xmltodict==0.14.0
+xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
 yarl==1.14.0
-ydb==3.18.1
+ydb==3.18.2
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
