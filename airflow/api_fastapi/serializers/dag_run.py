@@ -17,16 +17,28 @@
 
 from __future__ import annotations
 
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_run import dag_run_router
-from airflow.api_fastapi.views.public.dags import dags_router
-from airflow.api_fastapi.views.public.variables import variables_router
-from airflow.api_fastapi.views.router import AirflowRouter
+from datetime import datetime
 
-public_router = AirflowRouter(prefix="/public")
+from pydantic import BaseModel, Field
+
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_run_router)
+class DAGRunResponse(BaseModel):
+    """DAG Run serializer for responses."""
+
+    dag_run_id: str | None = Field(alias="run_id")
+    dag_id: str
+    logical_date: datetime | None
+    start_date: datetime | None
+    end_date: datetime | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    last_scheduling_decision: datetime | None
+    run_type: DagRunType
+    state: DagRunState
+    external_trigger: bool
+    triggered_by: DagRunTriggeredByType
+    conf: dict
+    note: str | None
