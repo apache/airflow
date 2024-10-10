@@ -32,9 +32,10 @@ from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
 from airflow.utils.session import provide_session
-from providers.tests.common.sql.test_utils import mock_hook
+
 from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
+from providers.tests.common.sql.test_utils import mock_hook
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),

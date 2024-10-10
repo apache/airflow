@@ -24,6 +24,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
+
 from providers.tests.microsoft.conftest import load_file
 
 try:
