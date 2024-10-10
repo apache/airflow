@@ -33,7 +33,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 @connections_router.delete(
     "/{connection_id}",
     status_code=204,
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
 )
 async def delete_connection(
     connection_id: str,
