@@ -40,7 +40,7 @@ Create repository for tracking your code in Dataform service. Example of usage c
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateRepositoryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_create_repository]
@@ -52,7 +52,7 @@ Create workspace for storing your code in Dataform service. Example of usage can
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateWorkspaceOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_create_workspace]
@@ -65,7 +65,7 @@ A simple configuration to create Compilation Result can look as followed:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformCreateCompilationResultOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_create_compilation_result]
@@ -78,7 +78,7 @@ To get a Compilation Result you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformGetCompilationResultOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_compilation_result]
@@ -95,13 +95,13 @@ We have possibility to run this operation in the sync mode and async, for async 
 a sensor:
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationStateSensor`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_workflow_invocation]
     :end-before: [END howto_operator_create_workflow_invocation]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_workflow_invocation_async]
@@ -114,7 +114,7 @@ To get a Workflow Invocation you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformGetWorkflowInvocationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_get_workflow_invocation]
@@ -127,7 +127,7 @@ To query Workflow Invocation Actions you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformQueryWorkflowInvocationActionsOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_query_workflow_invocation_actions]
@@ -140,7 +140,7 @@ To cancel a Workflow Invocation you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataform.DataformCancelWorkflowInvocationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cancel_workflow_invocation]
@@ -152,7 +152,7 @@ Deletes repository. Example of usage can be seen below:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_delete_workspace]
@@ -164,7 +164,7 @@ Deletes workspace. Example of usage can be seen below:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformDeleteRepositoryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_delete_repository]
@@ -176,7 +176,7 @@ Removes file. Example of usage can be seen below:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveFileOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_remove_file]
@@ -188,7 +188,7 @@ Removes directory. Example of usage can be seen below:
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformRemoveDirectoryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_remove_directory]
@@ -200,7 +200,7 @@ Creates default projects structure for provided workspace. Before it can be done
 
 :class:`~airflow.providers.google.cloud.utils.dataform.make_initialization_workspace_flow`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 0
     :start-after: [START howto_initialize_workspace]
@@ -212,7 +212,7 @@ Writes file with given content to specified workspace.
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformWriteFileOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_write_file]
@@ -224,7 +224,7 @@ Make directory with given path in specified workspace.
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformMakeDirectoryOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_make_directory]
@@ -236,7 +236,7 @@ Installs npm packages for specified workspace
 
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformInstallNpmPackagesOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_install_npm_packages]

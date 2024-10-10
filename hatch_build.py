@@ -49,6 +49,7 @@ PRE_INSTALLED_PROVIDERS = [
     "imap",
     "smtp",
     "sqlite",
+    "standard",
 ]
 
 # Those extras are dynamically added by hatch in the build hook to metadata optional dependencies
@@ -96,7 +97,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "ldap3>=2.5.1",
         "python-ldap",
     ],
     "leveldb": [
@@ -239,6 +239,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
+        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
         "ruff==0.5.5",
@@ -339,62 +340,6 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
     ],
 }
 
-DEPRECATED_EXTRAS: dict[str, list[str]] = {
-    ########################################################################################################
-    #  The whole section can be removed in Airflow 3.0 as those old aliases are deprecated in 2.* series
-    ########################################################################################################
-    "atlas": [
-        "apache-airflow[apache-atlas]",
-    ],
-    "aws": [
-        "apache-airflow[amazon]",
-    ],
-    "azure": [
-        "apache-airflow[microsoft-azure]",
-    ],
-    "cassandra": [
-        "apache-airflow[apache-cassandra]",
-    ],
-    # Empty alias extra just for backward compatibility with Airflow 1.10
-    "crypto": [],
-    "druid": [
-        "apache-airflow[apache-druid]",
-    ],
-    "gcp": [
-        "apache-airflow[google]",
-    ],
-    "gcp-api": [
-        "apache-airflow[google]",
-    ],
-    "hdfs": [
-        "apache-airflow[apache-hdfs]",
-    ],
-    "hive": [
-        "apache-airflow[apache-hive]",
-    ],
-    "kubernetes": [
-        "apache-airflow[cncf-kubernetes]",
-    ],
-    "mssql": [
-        "apache-airflow[microsoft-mssql]",
-    ],
-    "pinot": [
-        "apache-airflow[apache-pinot]",
-    ],
-    "s3": [
-        "apache-airflow[amazon]",
-    ],
-    "spark": [
-        "apache-airflow[apache-spark]",
-    ],
-    "webhdfs": [
-        "apache-airflow[apache-webhdfs]",
-    ],
-    "winrm": [
-        "apache-airflow[microsoft-winrm]",
-    ],
-}
-
 # When you remove a dependency from the list, you should also make sure to add the dependency to be removed
 # in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
 # in order to make sure the dependency is not installed in the CI image build process from the main
@@ -424,7 +369,7 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
     "eval-type-backport>=0.2.0",
     "fastapi[standard]>=0.112.2",
@@ -465,7 +410,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.6.0",
+    "pydantic>=2.6.4",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -488,11 +433,6 @@ DEPENDENCIES = [
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
-    # We should remove this dependency when Providers are limited to Airflow 2.7+
-    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
-    # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
-    "unicodecsv>=0.14.1",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
@@ -507,7 +447,6 @@ ALL_DYNAMIC_EXTRA_DICTS: list[tuple[dict[str, list[str]], str]] = [
     (DOC_EXTRAS, "Doc extras"),
     (DEVEL_EXTRAS, "Devel extras"),
     (BUNDLE_EXTRAS, "Bundle extras"),
-    (DEPRECATED_EXTRAS, "Deprecated extras"),
 ]
 
 ALL_GENERATED_BUNDLE_EXTRAS = ["all", "all-core", "devel-all", "devel-ci"]
@@ -931,7 +870,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
             for extra, deps in dict.items():
                 self.all_devel_extras.add(extra)
                 self._add_devel_ci_dependencies(deps, python_exclusion="")
-                if dict not in [DEPRECATED_EXTRAS, DEVEL_EXTRAS, DOC_EXTRAS]:
+                if dict not in [DEVEL_EXTRAS, DOC_EXTRAS]:
                     # do not add deprecated extras to "all" extras
                     self.all_non_devel_extras.add(extra)
                 if version == "standard":

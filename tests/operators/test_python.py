@@ -68,9 +68,10 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
-from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.db import clear_db_runs
+
+from dev.tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.db import clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -894,8 +895,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-            "inlet_events",  # Accessor for inlet DatasetEvent.
-            "outlet_events",  # Accessor for outlet DatasetEvent.
+            "inlet_events",  # Accessor for inlet AssetEvent.
+            "outlet_events",  # Accessor for outlet AssetEvent.
         ]
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)

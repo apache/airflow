@@ -29,7 +29,8 @@ from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
-from tests.test_utils.mock_plugins import mock_plugin_manager
+
+from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -56,7 +57,7 @@ class TestPluginsCommand:
         assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
-    def test_should_display_one_plugins(self):
+    def test_should_display_one_plugin(self):
         with redirect_stdout(StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
@@ -72,6 +73,13 @@ class TestPluginsCommand:
                 "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
                 ],
+                "fastapi_apps": [
+                    {
+                        "app": "fastapi.applications.FastAPI",
+                        "url_prefix": "/some_prefix",
+                        "name": "Name of the App",
+                    }
+                ],
                 "appbuilder_views": [
                     {
                         "name": "Test View",
@@ -81,15 +89,15 @@ class TestPluginsCommand:
                     }
                 ],
                 "global_operator_extra_links": [
-                    "<tests.test_utils.mock_operators.AirflowLink object>",
-                    "<tests.test_utils.mock_operators.GithubLink object>",
+                    "<dev.tests_common.test_utils.mock_operators.AirflowLink object>",
+                    "<dev.tests_common.test_utils.mock_operators.GithubLink object>",
                 ],
                 "timetables": ["tests.plugins.test_plugin.CustomCronDataIntervalTimetable"],
                 "operator_extra_links": [
-                    "<tests.test_utils.mock_operators.GoogleLink object>",
-                    "<tests.test_utils.mock_operators.AirflowLink2 object>",
-                    "<tests.test_utils.mock_operators.CustomOpLink object>",
-                    "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
+                    "<dev.tests_common.test_utils.mock_operators.GoogleLink object>",
+                    "<dev.tests_common.test_utils.mock_operators.AirflowLink2 object>",
+                    "<dev.tests_common.test_utils.mock_operators.CustomOpLink object>",
+                    "<dev.tests_common.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
                 "hooks": ["tests.plugins.test_plugin.PluginHook"],
                 "listeners": [

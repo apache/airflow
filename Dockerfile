@@ -45,12 +45,12 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.10.1"
+ARG AIRFLOW_VERSION="2.10.2"
 
-ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.4.1
+ARG AIRFLOW_UV_VERSION=0.4.17
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -877,8 +877,13 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # We need _a _ file in there otherwise the editable install doesn't include anything in the .pth file
+        mkdir -p ./providers/src/airflow/providers/
+        touch ./providers/src/airflow/providers/__init__.py
+        trap 'rm -f ./providers/src/airflow/providers/__init__.py 2>/dev/null' EXIT
+
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then

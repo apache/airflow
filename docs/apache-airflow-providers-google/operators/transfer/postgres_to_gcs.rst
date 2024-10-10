@@ -38,7 +38,7 @@ When you use this operator, you can optionally compress the data being uploaded 
 
 Below is an example of using this operator to upload data to GCS.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/transfers/example_postgres_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/transfers/example_postgres_to_gcs.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_postgres_to_gcs]

@@ -39,7 +39,7 @@ import pytest
 import time_machine
 from sqlalchemy import func
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
@@ -60,9 +60,10 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.compat import ParseImportError
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import (
+
+from dev.tests_common.test_utils.compat import ParseImportError
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import (
     clear_db_callbacks,
     clear_db_dags,
     clear_db_import_errors,
@@ -1179,16 +1180,10 @@ class TestDagProcessorJobRunner:
             processor_subdir=os.fspath(tmp_path),
             run_id="456",
         )
-        callback3 = SlaCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            full_filepath=str(dag_filepath),
-            processor_subdir=os.fspath(tmp_path),
-        )
 
         with create_session() as session:
             session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
             session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
-            session.add(DbCallbackRequest(callback=callback3, priority_weight=9))
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
         manager = DagProcessorJobRunner(
@@ -1371,16 +1366,6 @@ class TestDagProcessorJobRunner:
             processor_subdir=tmp_path,
             msg=None,
         )
-        dag1_sla1 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file1.py",
-            dag_id="dag1",
-            processor_subdir=tmp_path,
-        )
-        dag1_sla2 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file1.py",
-            dag_id="dag1",
-            processor_subdir=tmp_path,
-        )
 
         dag2_req1 = DagCallbackRequest(
             full_filepath="/green_eggs/ham/file2.py",
@@ -1391,15 +1376,8 @@ class TestDagProcessorJobRunner:
             msg=None,
         )
 
-        dag3_sla1 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file3.py",
-            dag_id="dag3",
-            processor_subdir=tmp_path,
-        )
-
         # when
         manager.processor._add_callback_to_queue(dag1_req1)
-        manager.processor._add_callback_to_queue(dag1_sla1)
         manager.processor._add_callback_to_queue(dag2_req1)
 
         # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
@@ -1408,18 +1386,10 @@ class TestDagProcessorJobRunner:
             dag1_req1.full_filepath,
             dag2_req1.full_filepath,
         }
-        assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
         assert manager.processor._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
 
-        # when
-        manager.processor._add_callback_to_queue(dag1_sla2)
-        manager.processor._add_callback_to_queue(dag3_sla1)
-
-        # then - since sla2 == sla1, should not have brought dag1 to the fore, and an SLA on dag3 doesn't
         # update the queue, although the callback is registered
         assert manager.processor._file_path_queue == deque([dag2_req1.full_filepath, dag1_req1.full_filepath])
-        assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
-        assert manager.processor._callback_to_execute[dag3_sla1.full_filepath] == [dag3_sla1]
 
         # when
         manager.processor._add_callback_to_queue(dag1_req2)
@@ -1428,7 +1398,6 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque([dag1_req1.full_filepath, dag2_req1.full_filepath])
         assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [
             dag1_req1,
-            dag1_sla1,
             dag1_req2,
         ]
 

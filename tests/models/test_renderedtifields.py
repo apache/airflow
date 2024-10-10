@@ -31,11 +31,12 @@ from airflow.configuration import conf
 from airflow.decorators import task as task_decorator
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timezone import datetime
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 

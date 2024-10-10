@@ -30,11 +30,11 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.db import clear_db_runs
+
+from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from dev.tests_common.test_utils.db import clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -46,13 +46,9 @@ def configured_app(minimal_app_for_api):
     create_user(
         app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 

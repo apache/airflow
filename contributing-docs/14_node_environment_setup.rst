@@ -84,7 +84,14 @@ Project Structure
 - ``/src/components`` shared components across the UI
 - ``/dist`` build files
 
+Local Environment Variables
+---------------------------
 
+Copy the example environment
+
+.. code-block:: bash
+
+    cp .env.example .env.local
 
 DEPRECATED Airflow WWW
 ----------------------

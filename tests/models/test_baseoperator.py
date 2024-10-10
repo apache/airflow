@@ -50,7 +50,8 @@ from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+
+from dev.tests_common.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -303,51 +304,6 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
-
-    def test_mapped_dag_slas_disabled_classic(self):
-        class MyOp(BaseOperator):
-            def __init__(self, x, **kwargs):
-                self.x = x
-                super().__init__(**kwargs)
-
-            def execute(self, context):
-                print(self.x)
-
-        with DAG(
-            dag_id="test-dag",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            default_args={"sla": timedelta(minutes=30)},
-        ) as dag:
-
-            @dag.task
-            def get_values():
-                return [0, 1, 2]
-
-            task1 = get_values()
-            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-                MyOp.partial(task_id="hi").expand(x=task1)
-
-    def test_mapped_dag_slas_disabled_taskflow(self):
-        with DAG(
-            dag_id="test-dag",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            default_args={"sla": timedelta(minutes=30)},
-        ) as dag:
-
-            @dag.task
-            def get_values():
-                return [0, 1, 2]
-
-            task1 = get_values()
-
-            @dag.task
-            def print_val(x):
-                print(x)
-
-            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-                print_val.expand(x=task1)
 
     @pytest.mark.db_test
     def test_render_template_fields(self):

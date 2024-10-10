@@ -31,6 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -67,10 +68,9 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.compat.functools import cache
+from airflow.assets import Asset, AssetAlias
+from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -87,9 +87,9 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -154,13 +154,13 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.asset import AssetEvent
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -366,7 +366,7 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_dataset_changes(events=context["outlet_events"], session=session)
+                ti._register_asset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -1077,7 +1077,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1087,9 +1087,9 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
-        for event in dataset_events:
+        asset_events = dag_run.consumed_dataset_events
+        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        for event in asset_events:
             if event.dataset:
                 triggering_events[event.dataset.uri].append(event)
 
@@ -1144,7 +1144,7 @@ def _get_template_context(
         "ti": task_instance,
         "tomorrow_ds": get_tomorrow_ds(),
         "tomorrow_ds_nodash": get_tomorrow_ds_nodash(),
-        "triggering_dataset_events": lazy_object_proxy.Proxy(get_triggering_events),
+        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
         "ts": ts,
         "ts_nodash": ts_nodash,
         "ts_nodash_with_tz": ts_nodash_with_tz,
@@ -2886,64 +2886,57 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
+    def _register_asset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
-        # One task only triggers one dataset event for each dataset with the same extra.
-        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        # One task only triggers one asset event for each asset with the same extra.
+        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+        # there're assets with same uri but different extra that we need to emit more than one asset events.
+        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides datasets
-            if isinstance(obj, Dataset):
-                dataset_manager.register_dataset_change(
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
+                asset_manager.register_asset_change(
                     task_instance=self,
-                    dataset=obj,
+                    asset=obj,
                     extra=events[obj].extra,
                     session=session,
                 )
-            elif isinstance(obj, DatasetAlias):
-                for dataset_alias_event in events[obj].dataset_alias_events:
-                    dataset_alias_name = dataset_alias_event["source_alias_name"]
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = dataset_alias_event["extra"]
-                    frozen_extra = frozenset(extra.items())
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_uri = asset_alias_event["dest_asset_uri"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+        dataset_models: dict[str, AssetModel] = {
+            dataset_obj.uri: dataset_obj
+            for dataset_obj in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
+            )
+        }
+        if missing_datasets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
+            dataset_models.update(
+                (dataset_obj.uri, dataset_obj)
+                for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
+            )
+            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            session.flush()  # Needed because we need the id for fk.
 
-        dataset_objs_cache: dict[str, DatasetModel] = {}
-        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
-            if uri not in dataset_objs_cache:
-                dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-                dataset_objs_cache[uri] = dataset_obj
-            else:
-                dataset_obj = dataset_objs_cache[uri]
-
-            if not dataset_obj:
-                dataset_obj = DatasetModel(uri=uri)
-                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
-                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
-                session.flush()
-                dataset_objs_cache[uri] = dataset_obj
-
-            for alias in alias_names:
-                alias_obj = session.scalar(
-                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
-                )
-                dataset_obj.aliases.append(alias_obj)
-
-            extra = {k: v for k, v in extra_items}
+        for (uri, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = dataset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
-                dataset_obj,
+                asset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_dataset_change(
+            asset_manager.register_asset_change(
                 task_instance=self,
-                dataset=dataset_obj,
-                extra=extra,
+                asset=asset_obj,
+                aliases=[AssetAlias(name) for name in alias_names],
+                extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
             )
@@ -3411,53 +3404,6 @@ class TaskInstance(Base, LoggingMixin):
             self.task = context["ti"].task
 
         return original_task
-
-    def render_k8s_pod_yaml(self) -> dict | None:
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
-                "and call it with TaskInstance as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_k8s_pod_yaml_from_provider(self)
-
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-                "and call it with `TaskInstance` as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_rendered_k8s_spec_from_provider(self, session=session)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
@@ -4009,7 +3955,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

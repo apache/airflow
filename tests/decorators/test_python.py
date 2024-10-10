@@ -40,7 +40,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -983,8 +984,8 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-def test_task_decorator_dataset(dag_maker, session):
-    from airflow.datasets import Dataset
+def test_task_decorator_asset(dag_maker, session):
+    from airflow.assets import Asset
 
     result = None
     uri = "s3://bucket/name"
@@ -992,11 +993,11 @@ def test_task_decorator_dataset(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @dag.task()
-        def up1() -> Dataset:
-            return Dataset(uri)
+        def up1() -> Asset:
+            return Asset(uri)
 
         @dag.task()
-        def up2(src: Dataset) -> str:
+        def up2(src: Asset) -> str:
             return src.uri
 
         @dag.task()

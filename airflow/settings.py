@@ -377,7 +377,8 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
         if any(
-            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
             for filename, _, _, _ in airflow_frames
         ):
             # This is a fixture call or testing utilities
@@ -780,9 +781,6 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
 )
 
 ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
-
-# Whether or not to check each dagrun against defined SLAs
-CHECK_SLAS = conf.getboolean("core", "check_slas", fallback=True)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

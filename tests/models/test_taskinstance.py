@@ -39,7 +39,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.datasets import DatasetAlias
+from airflow.assets import AssetAlias
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -53,11 +53,11 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -76,9 +76,9 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -99,11 +99,12 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_connections, clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+
+from dev.tests_common.test_utils import db
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from dev.tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -158,7 +159,7 @@ class TestTaskInstance:
         db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
-        db.clear_db_datasets()
+        db.clear_db_assets()
         db.clear_db_xcom()
 
     def setup_method(self):
@@ -2269,16 +2270,16 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_datasets(self, create_task_instance):
+    def test_outlet_assets(self, create_task_instance):
         """
-        Verify that when we have an outlet dataset on a task, and the task
-        completes successfully, a DatasetDagRunQueue is logged.
+        Verify that when we have an outlet asset on a task, and the task
+        completes successfully, a AssetDagRunQueue is logged.
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag1
+        from airflow.example_dags import example_assets
+        from airflow.example_dags.example_assets import dag1
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
@@ -2293,52 +2294,54 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == TaskInstanceState.SUCCESS
 
-        # check that no other dataset events recorded
+        # check that no other asset events recorded
         event = (
-            session.query(DatasetEvent)
-            .join(DatasetEvent.dataset)
-            .filter(DatasetEvent.source_task_instance == ti)
+            session.query(AssetEvent)
+            .join(AssetEvent.dataset)
+            .filter(AssetEvent.source_task_instance == ti)
             .one()
         )
         assert event
         assert event.dataset
 
-        # check that one queue record created for each dag that depends on dataset 1
-        assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
-            dataset_id=event.dataset.id
-        ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
-            ("conditional_dataset_and_time_based_timetable",),
-            ("consume_1_and_2_with_dataset_expressions",),
-            ("consume_1_or_2_with_dataset_expressions",),
-            ("consume_1_or_both_2_and_3_with_dataset_expressions",),
-            ("dataset_consumes_1",),
-            ("dataset_consumes_1_and_2",),
-            ("dataset_consumes_1_never_scheduled",),
+        # check that one queue record created for each dag that depends on asset 1
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
+            AssetDagRunQueue.target_dag_id
+        ).all() == [
+            ("asset_consumes_1",),
+            ("asset_consumes_1_and_2",),
+            ("asset_consumes_1_never_scheduled",),
+            ("conditional_asset_and_time_based_timetable",),
+            ("consume_1_and_2_with_asset_expressions",),
+            ("consume_1_or_2_with_asset_expressions",),
+            ("consume_1_or_both_2_and_3_with_asset_expressions",),
         ]
 
-        # check that one event record created for dataset1 and this TI
-        assert session.query(DatasetModel.uri).join(DatasetEvent.dataset).filter(
-            DatasetEvent.source_task_instance == ti
+        # check that one event record created for asset1 and this TI
+        assert session.query(AssetModel.uri).join(AssetEvent.dataset).filter(
+            AssetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
-        # check that the dataset event has an earlier timestamp than the DDRQ's
-        ddrq_timestamps = (
-            session.query(DatasetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
+        # check that the asset event has an earlier timestamp than the ADRQ's
+        adrq_timestamps = (
+            session.query(AssetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
         )
-        assert all([event.timestamp < ddrq_timestamp for (ddrq_timestamp,) in ddrq_timestamps])
+        assert all(
+            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
+        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_datasets_failed(self, create_task_instance):
+    def test_outlet_assets_failed(self, create_task_instance):
         """
-        Verify that when we have an outlet dataset on a task, and the task
-        failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        Verify that when we have an outlet asset on a task, and the task
+        failed, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
-        from tests.dags import test_datasets
-        from tests.dags.test_datasets import dag_with_fail_task
+        from tests.dags import test_assets
+        from tests.dags.test_assets import dag_with_fail_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=test_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
@@ -2354,10 +2357,10 @@ class TestTaskInstance:
         assert ti.state == TaskInstanceState.FAILED
 
         # check that no dagruns were queued
-        assert session.query(DatasetDagRunQueue).count() == 0
+        assert session.query(AssetDagRunQueue).count() == 0
 
-        # check that no dataset events were generated
-        assert session.query(DatasetEvent).count() == 0
+        # check that no asset events were generated
+        assert session.query(AssetEvent).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mapped_current_state(self, dag_maker):
@@ -2384,17 +2387,17 @@ class TestTaskInstance:
                 assert task_instance.current_state() == TaskInstanceState.SUCCESS
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_datasets_skipped(self):
+    def test_outlet_assets_skipped(self):
         """
-        Verify that when we have an outlet dataset on a task, and the task
-        is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        Verify that when we have an outlet asset on a task, and the task
+        is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
-        from tests.dags import test_datasets
-        from tests.dags.test_datasets import dag_with_skip_task
+        from tests.dags import test_assets
+        from tests.dags.test_assets import dag_with_skip_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=test_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
@@ -2409,30 +2412,30 @@ class TestTaskInstance:
         assert ti.state == TaskInstanceState.SKIPPED
 
         # check that no dagruns were queued
-        assert session.query(DatasetDagRunQueue).count() == 0
+        assert session.query(AssetDagRunQueue).count() == 0
 
-        # check that no dataset events were generated
-        assert session.query(DatasetEvent).count() == 0
+        # check that no asset events were generated
+        assert session.query(AssetEvent).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_extra(self, dag_maker, session):
-        from airflow.datasets import Dataset
+    def test_outlet_asset_extra(self, dag_maker, session):
+        from airflow.assets import Asset
 
         with dag_maker(schedule=None, session=session) as dag:
 
-            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1(*, outlet_events):
-                outlet_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
+                outlet_events["test_outlet_asset_extra_1"].extra = {"foo": "bar"}
 
             write1()
 
             def _write2_post_execute(context, _):
-                context["outlet_events"]["test_outlet_dataset_extra_2"].extra = {"x": 1}
+                context["outlet_events"]["test_outlet_asset_extra_2"].extra = {"x": 1}
 
             BashOperator(
                 task_id="write2",
                 bash_command=":",
-                outlets=Dataset("test_outlet_dataset_extra_2"),
+                outlets=Asset("test_outlet_asset_extra_2"),
                 post_execute=_write2_post_execute,
             )
 
@@ -2441,30 +2444,30 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_extra_ignore_different(self, dag_maker, session):
-        from airflow.datasets import Dataset
+    def test_outlet_asset_extra_ignore_different(self, dag_maker, session):
+        from airflow.assets import Asset
 
         with dag_maker(schedule=None, session=session):
 
-            @task(outlets=Dataset("test_outlet_dataset_extra"))
+            @task(outlets=Asset("test_outlet_asset_extra"))
             def write(*, outlet_events):
-                outlet_events["test_outlet_dataset_extra"].extra = {"one": 1}
+                outlet_events["test_outlet_asset_extra"].extra = {"one": 1}
                 outlet_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
 
             write()
@@ -2472,34 +2475,34 @@ class TestTaskInstance:
         dr: DagRun = dag_maker.create_dagrun()
         dr.get_task_instance("write").run(session=session)
 
-        event = session.scalars(select(DatasetEvent)).one()
+        event = session.scalars(select(AssetEvent)).one()
         assert event.source_dag_id == dr.dag_id
         assert event.source_run_id == dr.run_id
         assert event.source_task_id == "write"
         assert event.extra == {"one": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_extra_yield(self, dag_maker, session):
-        from airflow.datasets import Dataset
-        from airflow.datasets.metadata import Metadata
+    def test_outlet_asset_extra_yield(self, dag_maker, session):
+        from airflow.assets import Asset
+        from airflow.assets.metadata import Metadata
 
         with dag_maker(schedule=None, session=session) as dag:
 
-            @task(outlets=Dataset("test_outlet_dataset_extra_1"))
+            @task(outlets=Asset("test_outlet_asset_extra_1"))
             def write1():
                 result = "write_1 result"
-                yield Metadata("test_outlet_dataset_extra_1", {"foo": "bar"})
+                yield Metadata("test_outlet_asset_extra_1", {"foo": "bar"})
                 return result
 
             write1()
 
             def _write2_post_execute(context, result):
-                yield Metadata("test_outlet_dataset_extra_2", {"x": 1})
+                yield Metadata("test_outlet_asset_extra_2", {"x": 1})
 
             BashOperator(
                 task_id="write2",
                 bash_command=":",
-                outlets=Dataset("test_outlet_dataset_extra_2"),
+                outlets=Asset("test_outlet_asset_extra_2"),
                 post_execute=_write2_post_execute,
             )
 
@@ -2513,37 +2516,37 @@ class TestTaskInstance:
         ).one()
         assert xcom.value == "write_1 result"
 
-        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_dataset_extra_1"
+        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_dataset_extra_2"
+        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_alias(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+    def test_outlet_asset_alias(self, dag_maker, session):
+        from airflow.assets import Asset, AssetAlias
 
-        ds_uri = "test_outlet_dataset_alias_test_case_ds"
-        dsa_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
+        asset_uri = "test_outlet_asset_alias_test_case_ds"
+        alias_name_1 = "test_outlet_asset_alias_test_case_asset_alias_1"
 
-        ds1 = DatasetModel(id=1, uri=ds_uri)
+        ds1 = AssetModel(id=1, uri=asset_uri)
         session.add(ds1)
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
-            @task(outlets=DatasetAlias(dsa_name_1))
+            @task(outlets=AssetAlias(alias_name_1))
             def producer(*, outlet_events):
-                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+                outlet_events[alias_name_1].add(Asset(asset_uri))
 
             producer()
 
@@ -2554,7 +2557,7 @@ class TestTaskInstance:
             ti.run(session=session)
 
         producer_events = session.execute(
-            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+            select(AssetEvent).where(AssetEvent.source_task_id == "producer")
         ).fetchall()
 
         assert len(producer_events) == 1
@@ -2564,39 +2567,45 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == ds_uri
+        assert producer_event.dataset.uri == asset_uri
         assert len(producer_event.source_aliases) == 1
         assert producer_event.extra == {}
-        assert producer_event.source_aliases[0].name == dsa_name_1
+        assert producer_event.source_aliases[0].name == alias_name_1
 
-        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
-        assert len(ds_obj.aliases) == 1
-        assert ds_obj.aliases[0].name == dsa_name_1
+        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
+        assert len(asset_obj.aliases) == 1
+        assert asset_obj.aliases[0].name == alias_name_1
 
-        dsa_obj = session.scalar(select(DatasetAliasModel).where(DatasetAliasModel.name == dsa_name_1))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == alias_name_1))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_multiple_dataset_alias(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+    def test_outlet_multiple_asset_alias(self, dag_maker, session):
+        from airflow.assets import Asset, AssetAlias
 
-        ds_uri = "test_outlet_mdsa_ds"
-        dsa_name_1 = "test_outlet_mdsa_dsa_1"
-        dsa_name_2 = "test_outlet_mdsa_dsa_2"
-        dsa_name_3 = "test_outlet_mdsa_dsa_3"
+        asset_uri = "test_outlet_maa_ds"
+        asset_alias_name_1 = "test_outlet_maa_asset_alias_1"
+        asset_alias_name_2 = "test_outlet_maa_asset_alias_2"
+        asset_alias_name_3 = "test_outlet_maa_asset_alias_3"
 
-        ds1 = DatasetModel(id=1, uri=ds_uri)
+        ds1 = AssetModel(id=1, uri=asset_uri)
         session.add(ds1)
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
-            @task(outlets=[DatasetAlias(dsa_name_1), DatasetAlias(dsa_name_2), DatasetAlias(dsa_name_3)])
+            @task(
+                outlets=[
+                    AssetAlias(asset_alias_name_1),
+                    AssetAlias(asset_alias_name_2),
+                    AssetAlias(asset_alias_name_3),
+                ]
+            )
             def producer(*, outlet_events):
-                outlet_events[dsa_name_1].add(Dataset(ds_uri))
-                outlet_events[dsa_name_2].add(Dataset(ds_uri))
-                outlet_events[dsa_name_3].add(Dataset(ds_uri), extra={"k": "v"})
+                outlet_events[asset_alias_name_1].add(Asset(asset_uri))
+                outlet_events[asset_alias_name_2].add(Asset(asset_uri))
+                outlet_events[asset_alias_name_3].add(Asset(asset_uri), extra={"k": "v"})
 
             producer()
 
@@ -2607,7 +2616,7 @@ class TestTaskInstance:
             ti.run(session=session)
 
         producer_events = session.execute(
-            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+            select(AssetEvent).where(AssetEvent.source_task_id == "producer")
         ).fetchall()
 
         assert len(producer_events) == 2
@@ -2617,44 +2626,51 @@ class TestTaskInstance:
             assert producer_event.source_dag_id == "producer_dag"
             assert producer_event.source_run_id == "test"
             assert producer_event.source_map_index == -1
-            assert producer_event.dataset.uri == ds_uri
+            assert producer_event.dataset.uri == asset_uri
 
             if not producer_event.extra:
                 assert producer_event.extra == {}
                 assert len(producer_event.source_aliases) == 2
-                assert {alias.name for alias in producer_event.source_aliases} == {dsa_name_1, dsa_name_2}
+                assert {alias.name for alias in producer_event.source_aliases} == {
+                    asset_alias_name_1,
+                    asset_alias_name_2,
+                }
             else:
                 assert producer_event.extra == {"k": "v"}
                 assert len(producer_event.source_aliases) == 1
-                assert producer_event.source_aliases[0].name == dsa_name_3
+                assert producer_event.source_aliases[0].name == asset_alias_name_3
 
-        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
-        assert len(ds_obj.aliases) == 3
-        assert {alias.name for alias in ds_obj.aliases} == {dsa_name_1, dsa_name_2, dsa_name_3}
+        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
+        assert len(asset_obj.aliases) == 3
+        assert {alias.name for alias in asset_obj.aliases} == {
+            asset_alias_name_1,
+            asset_alias_name_2,
+            asset_alias_name_3,
+        }
 
-        dsa_objs = session.scalars(select(DatasetAliasModel)).all()
-        assert len(dsa_objs) == 3
-        for dsa_obj in dsa_objs:
-            assert len(dsa_obj.datasets) == 1
-            assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_objs = session.scalars(select(AssetAliasModel)).all()
+        assert len(asset_alias_objs) == 3
+        for asset_alias_obj in asset_alias_objs:
+            assert len(asset_alias_obj.datasets) == 1
+            assert asset_alias_obj.datasets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
-        from airflow.datasets import DatasetAlias
-        from airflow.datasets.metadata import Metadata
+    def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
+        from airflow.assets import AssetAlias
+        from airflow.assets.metadata import Metadata
 
-        ds_uri = "test_outlet_dataset_alias_through_metadata_ds"
-        dsa_name = "test_outlet_dataset_alias_through_metadata_dsa"
+        asset_uri = "test_outlet_asset_alias_through_metadata_ds"
+        asset_alias_name = "test_outlet_asset_alias_through_metadata_asset_alias"
 
-        ds1 = DatasetModel(id=1, uri="test_outlet_dataset_alias_through_metadata_ds")
+        ds1 = AssetModel(id=1, uri="test_outlet_asset_alias_through_metadata_ds")
         session.add(ds1)
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
-            @task(outlets=DatasetAlias(dsa_name))
+            @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                yield Metadata(ds_uri, extra={"key": "value"}, alias=dsa_name)
+                yield Metadata(asset_uri, extra={"key": "value"}, alias=asset_alias_name)
 
             producer()
 
@@ -2664,37 +2680,37 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == ds_uri
+        assert producer_event.dataset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == dsa_name
+        assert producer_event.source_aliases[0].name == asset_alias_name
 
-        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
-        assert len(ds_obj.aliases) == 1
-        assert ds_obj.aliases[0].name == dsa_name
+        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
+        assert len(asset_obj.aliases) == 1
+        assert asset_obj.aliases[0].name == asset_alias_name
 
-        dsa_obj = session.scalar(select(DatasetAliasModel))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
-        from airflow.datasets import Dataset, DatasetAlias
+    def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
+        from airflow.assets import Asset, AssetAlias
 
-        dsa_name = "test_outlet_dataset_alias_dataset_not_exists_dsa"
-        ds_uri = "did_not_exists"
+        asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
+        asset_uri = "did_not_exists"
 
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
-            @task(outlets=DatasetAlias(dsa_name))
+            @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
-                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"key": "value"})
+                outlet_events[asset_alias_name].add(Asset(asset_uri), extra={"key": "value"})
 
             producer()
 
@@ -2704,51 +2720,51 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == ds_uri
+        assert producer_event.dataset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
-        assert producer_event.source_aliases[0].name == dsa_name
+        assert producer_event.source_aliases[0].name == asset_alias_name
 
-        ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
-        assert len(ds_obj.aliases) == 1
-        assert ds_obj.aliases[0].name == dsa_name
+        asset_obj = session.scalar(select(AssetModel).where(AssetModel.uri == asset_uri))
+        assert len(asset_obj.aliases) == 1
+        assert asset_obj.aliases[0].name == asset_alias_name
 
-        dsa_obj = session.scalar(select(DatasetAliasModel))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_inlet_dataset_extra(self, dag_maker, session):
-        from airflow.datasets import Dataset
+    def test_inlet_asset_extra(self, dag_maker, session):
+        from airflow.assets import Asset
 
         read_task_evaluated = False
 
         with dag_maker(schedule=None, session=session):
 
-            @task(outlets=Dataset("test_inlet_dataset_extra"))
+            @task(outlets=Asset("test_inlet_asset_extra"))
             def write(*, ti, outlet_events):
-                outlet_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
+                outlet_events["test_inlet_asset_extra"].extra = {"from": ti.task_id}
 
-            @task(inlets=Dataset("test_inlet_dataset_extra"))
+            @task(inlets=Asset("test_inlet_asset_extra"))
             def read(*, inlet_events):
-                second_event = inlet_events["test_inlet_dataset_extra"][1]
-                assert second_event.uri == "test_inlet_dataset_extra"
+                second_event = inlet_events["test_inlet_asset_extra"][1]
+                assert second_event.uri == "test_inlet_asset_extra"
                 assert second_event.extra == {"from": "write2"}
 
-                last_event = inlet_events["test_inlet_dataset_extra"][-1]
-                assert last_event.uri == "test_inlet_dataset_extra"
+                last_event = inlet_events["test_inlet_asset_extra"][-1]
+                assert last_event.uri == "test_inlet_asset_extra"
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
                     inlet_events["does_not_exist"]
                 with pytest.raises(IndexError):
-                    inlet_events["test_inlet_dataset_extra"][5]
+                    inlet_events["test_inlet_asset_extra"][5]
 
                 # TODO: Support slices.
 
@@ -2778,42 +2794,42 @@ class TestTaskInstance:
         assert read_task_evaluated
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_inlet_dataset_alias_extra(self, dag_maker, session):
-        ds_uri = "test_inlet_dataset_extra_ds"
-        dsa_name = "test_inlet_dataset_extra_dsa"
+    def test_inlet_asset_alias_extra(self, dag_maker, session):
+        asset_uri = "test_inlet_asset_extra_ds"
+        asset_alias_name = "test_inlet_asset_extra_asset_alias"
 
-        ds_model = DatasetModel(id=1, uri=ds_uri)
-        dsa_model = DatasetAliasModel(name=dsa_name)
-        dsa_model.datasets.append(ds_model)
-        session.add_all([ds_model, dsa_model])
+        asset_model = AssetModel(id=1, uri=asset_uri)
+        asset_alias_model = AssetAliasModel(name=asset_alias_name)
+        asset_alias_model.datasets.append(asset_model)
+        session.add_all([asset_model, asset_alias_model])
         session.commit()
 
-        from airflow.datasets import Dataset, DatasetAlias
+        from airflow.assets import Asset, AssetAlias
 
         read_task_evaluated = False
 
         with dag_maker(schedule=None, session=session):
 
-            @task(outlets=DatasetAlias(dsa_name))
+            @task(outlets=AssetAlias(asset_alias_name))
             def write(*, ti, outlet_events):
-                outlet_events[dsa_name].add(Dataset(ds_uri), extra={"from": ti.task_id})
+                outlet_events[asset_alias_name].add(Asset(asset_uri), extra={"from": ti.task_id})
 
-            @task(inlets=DatasetAlias(dsa_name))
+            @task(inlets=AssetAlias(asset_alias_name))
             def read(*, inlet_events):
-                second_event = inlet_events[DatasetAlias(dsa_name)][1]
-                assert second_event.uri == ds_uri
+                second_event = inlet_events[AssetAlias(asset_alias_name)][1]
+                assert second_event.uri == asset_uri
                 assert second_event.extra == {"from": "write2"}
 
-                last_event = inlet_events[DatasetAlias(dsa_name)][-1]
-                assert last_event.uri == ds_uri
+                last_event = inlet_events[AssetAlias(asset_alias_name)][-1]
+                assert last_event.uri == asset_uri
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
                     inlet_events["does_not_exist"]
                 with pytest.raises(KeyError):
-                    inlet_events[DatasetAlias("does_not_exist")]
+                    inlet_events[AssetAlias("does_not_exist")]
                 with pytest.raises(IndexError):
-                    inlet_events[DatasetAlias(dsa_name)][5]
+                    inlet_events[AssetAlias(asset_alias_name)][5]
 
                 nonlocal read_task_evaluated
                 read_task_evaluated = True
@@ -2840,21 +2856,21 @@ class TestTaskInstance:
         assert not dr.task_instance_scheduling_decisions(session=session).schedulable_tis
         assert read_task_evaluated
 
-    def test_inlet_unresolved_dataset_alias(self, dag_maker, session):
-        dsa_name = "test_inlet_dataset_extra_dsa"
+    def test_inlet_unresolved_asset_alias(self, dag_maker, session):
+        asset_alias_name = "test_inlet_asset_extra_asset_alias"
 
-        dsa_model = DatasetAliasModel(name=dsa_name)
-        session.add(dsa_model)
+        asset_alias_model = AssetAliasModel(name=asset_alias_name)
+        session.add(asset_alias_model)
         session.commit()
 
-        from airflow.datasets import DatasetAlias
+        from airflow.assets import AssetAlias
 
         with dag_maker(schedule=None, session=session):
 
-            @task(inlets=DatasetAlias(dsa_name))
+            @task(inlets=AssetAlias(asset_alias_name))
             def read(*, inlet_events):
                 with pytest.raises(IndexError):
-                    inlet_events[DatasetAlias(dsa_name)][0]
+                    inlet_events[AssetAlias(asset_alias_name)][0]
 
             read()
 
@@ -2877,16 +2893,16 @@ class TestTaskInstance:
             (lambda x: x[-5:5], []),
         ],
     )
-    def test_inlet_dataset_extra_slice(self, dag_maker, session, slicer, expected):
-        from airflow.datasets import Dataset
+    def test_inlet_asset_extra_slice(self, dag_maker, session, slicer, expected):
+        from airflow.assets import Asset
 
-        ds_uri = "test_inlet_dataset_extra_slice"
+        asset_uri = "test_inlet_asset_extra_slice"
 
         with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
 
-            @task(outlets=Dataset(ds_uri))
+            @task(outlets=Asset(asset_uri))
             def write(*, params, outlet_events):
-                outlet_events[ds_uri].extra = {"from": params["i"]}
+                outlet_events[asset_uri].extra = {"from": params["i"]}
 
             write()
 
@@ -2903,10 +2919,10 @@ class TestTaskInstance:
 
         with dag_maker(dag_id="read", schedule=None, session=session):
 
-            @task(inlets=Dataset(ds_uri))
+            @task(inlets=Asset(asset_uri))
             def read(*, inlet_events):
                 nonlocal result
-                result = [e.extra for e in slicer(inlet_events[ds_uri])]
+                result = [e.extra for e in slicer(inlet_events[asset_uri])]
 
             read()
 
@@ -2931,23 +2947,23 @@ class TestTaskInstance:
             (lambda x: x[-5:5], []),
         ],
     )
-    def test_inlet_dataset_alias_extra_slice(self, dag_maker, session, slicer, expected):
-        ds_uri = "test_inlet_dataset_alias_extra_slice_ds"
-        dsa_name = "test_inlet_dataset_alias_extra_slice_dsa"
+    def test_inlet_asset_alias_extra_slice(self, dag_maker, session, slicer, expected):
+        asset_uri = "test_inlet_asset_alias_extra_slice_ds"
+        asset_alias_name = "test_inlet_asset_alias_extra_slice_asset_alias"
 
-        ds_model = DatasetModel(id=1, uri=ds_uri)
-        dsa_model = DatasetAliasModel(name=dsa_name)
-        dsa_model.datasets.append(ds_model)
-        session.add_all([ds_model, dsa_model])
+        asset_model = AssetModel(id=1, uri=asset_uri)
+        asset_alias_model = AssetAliasModel(name=asset_alias_name)
+        asset_alias_model.datasets.append(asset_model)
+        session.add_all([asset_model, asset_alias_model])
         session.commit()
 
-        from airflow.datasets import Dataset
+        from airflow.assets import Asset
 
         with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
 
-            @task(outlets=DatasetAlias(dsa_name))
+            @task(outlets=AssetAlias(asset_alias_name))
             def write(*, params, outlet_events):
-                outlet_events[dsa_name].add(Dataset(ds_uri), {"from": params["i"]})
+                outlet_events[asset_alias_name].add(Asset(asset_uri), {"from": params["i"]})
 
             write()
 
@@ -2964,10 +2980,10 @@ class TestTaskInstance:
 
         with dag_maker(dag_id="read", schedule=None, session=session):
 
-            @task(inlets=DatasetAlias(dsa_name))
+            @task(inlets=AssetAlias(asset_alias_name))
             def read(*, inlet_events):
                 nonlocal result
-                result = [e.extra for e in slicer(inlet_events[DatasetAlias(dsa_name)])]
+                result = [e.extra for e in slicer(inlet_events[AssetAlias(asset_alias_name)])]
 
             read()
 
@@ -2981,16 +2997,16 @@ class TestTaskInstance:
         assert result == expected
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
+    def test_changing_of_asset_when_adrq_is_already_populated(self, dag_maker):
         """
-        Test that when a task that produces dataset has ran, that changing the consumer
-        dag dataset will not cause primary key blank-out
+        Test that when a task that produces asset has ran, that changing the consumer
+        dag asset will not cause primary key blank-out
         """
-        from airflow.datasets import Dataset
+        from airflow.assets import Asset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 
-            @task(outlets=Dataset("test/1"))
+            @task(outlets=Asset("test/1"))
             def test_task1():
                 print(1)
 
@@ -2999,7 +3015,7 @@ class TestTaskInstance:
         dr1 = dag_maker.create_dagrun()
         test_task1 = dag1.get_task("test_task1")
 
-        with dag_maker(dag_id="testdag", schedule=[Dataset("test/1")], serialized=True):
+        with dag_maker(dag_id="testdag", schedule=[Asset("test/1")], serialized=True):
 
             @task
             def test_task2():
@@ -3009,8 +3025,8 @@ class TestTaskInstance:
 
         ti = dr1.get_task_instance(task_id="test_task1")
         ti.run()
-        # Change the dataset.
-        with dag_maker(dag_id="testdag", schedule=[Dataset("test2/1")], serialized=True):
+        # Change the asset.
+        with dag_maker(dag_id="testdag", schedule=[Asset("test2/1")], serialized=True):
 
             @task
             def test_task2():
@@ -3151,19 +3167,19 @@ class TestTaskInstance:
         assert ti_1.start_date is None
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_context_triggering_dataset_events_none(self, session, create_task_instance):
+    def test_context_triggering_asset_events_none(self, session, create_task_instance):
         ti = create_task_instance()
         template_context = ti.get_template_context()
 
         assert ti in session
         session.expunge_all()
 
-        assert template_context["triggering_dataset_events"] == {}
+        assert template_context["triggering_asset_events"] == {}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_context_triggering_dataset_events(self, create_dummy_dag, session):
-        ds1 = DatasetModel(id=1, uri="one")
-        ds2 = DatasetModel(id=2, uri="two")
+    def test_context_triggering_asset_events(self, create_dummy_dag, session):
+        ds1 = AssetModel(id=1, uri="one")
+        ds2 = AssetModel(id=2, uri="two")
         session.add_all([ds1, ds2])
         session.commit()
 
@@ -3171,7 +3187,7 @@ class TestTaskInstance:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
-            dag_id="test_triggering_dataset_events",
+            dag_id="test_triggering_asset_events",
             schedule=None,
             start_date=DEFAULT_DATE,
             task_id="test_context",
@@ -3187,9 +3203,9 @@ class TestTaskInstance:
             data_interval=(execution_date, execution_date),
             **triggered_by_kwargs,
         )
-        ds1_event = DatasetEvent(dataset_id=1)
-        ds2_event_1 = DatasetEvent(dataset_id=2)
-        ds2_event_2 = DatasetEvent(dataset_id=2)
+        ds1_event = AssetEvent(dataset_id=1)
+        ds2_event_1 = AssetEvent(dataset_id=2)
+        ds2_event_2 = AssetEvent(dataset_id=2)
         dr.consumed_dataset_events.append(ds1_event)
         dr.consumed_dataset_events.append(ds2_event_1)
         dr.consumed_dataset_events.append(ds2_event_2)
@@ -3205,7 +3221,7 @@ class TestTaskInstance:
 
         template_context = ti.get_template_context()
 
-        assert template_context["triggering_dataset_events"] == {
+        assert template_context["triggering_asset_events"] == {
             "one": [ds1_event],
             "two": [ds2_event_1, ds2_event_2],
         }
@@ -4185,7 +4201,7 @@ class TestRunRawTaskQueriesCount:
         db.clear_db_dags()
         db.clear_db_sla_miss()
         db.clear_db_import_errors()
-        db.clear_db_datasets()
+        db.clear_db_assets()
 
     def setup_method(self) -> None:
         self._clean()

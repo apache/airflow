@@ -32,15 +32,16 @@ from airflow.utils import timezone
 from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import create_test_client
-from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
+
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.www import check_content_in_response
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_test_client
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
-def initialize_one_dag():
+def _initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
     yield

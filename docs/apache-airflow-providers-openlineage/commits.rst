@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.12.2
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
+`63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+=================================================================================================  ===========  ==================================================================
+
+1.12.1
+......
+
+Latest change: 2024-09-27
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`bcee926d49 <https://github.com/apache/airflow/commit/bcee926d494cabf4ddfa9f2569e36acc5b4d281d>`_  2024-09-27   ``Prepare docs for Sep 2nd adhoc wave of providers (#42519)``
+`84e8cdf674 <https://github.com/apache/airflow/commit/84e8cdf67475c4b2eeadde99cb11eb02459cc9f5>`_  2024-09-26   ``fix: OL dag start event not being emitted (#42448)``
+`ffff0e8b33 <https://github.com/apache/airflow/commit/ffff0e8b338855b44d89981f89109f50dbd0d279>`_  2024-09-23   ``Fix typo in error stack trace formatting for clearer output (#42017)``
+=================================================================================================  ===========  ========================================================================
+
 1.12.0
 ......
 
-Latest change: 2024-09-10
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  =======================================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `e05c0358af <https://github.com/apache/airflow/commit/e05c0358af23cd4ff8db755b6d02d081998b409a>`_  2024-09-10   ``chore: bump OL provider dependencies versions (#42059)``
 `aa23bfdbc7 <https://github.com/apache/airflow/commit/aa23bfdbc735645b2cdeda4bb1360b60ae60e6e1>`_  2024-09-02   ``feat: notify about potential serialization failures when sending DagRun, don't serialize unnecessary params, guard listener for exceptions (#41690)``
 `8640f3e397 <https://github.com/apache/airflow/commit/8640f3e397ae23d7b6db8e020e82277de32e83e6>`_  2024-09-02   ``move to dag_run.logical_date from execution date in OpenLineage provider (#41889)``

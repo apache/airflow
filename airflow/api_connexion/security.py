@@ -24,11 +24,11 @@ from flask import Response, g
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
-    DatasetDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -113,26 +113,32 @@ def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
 ) -> Callable[[T], T]:
     def _is_authorized_callback(dag_id: str):
-        def callback():
-            access = get_auth_manager().is_authorized_dag(
-                method=method,
-                access_entity=access_entity,
-                details=DagDetails(id=dag_id),
-            )
+        def callback() -> bool | DagAccessEntity:
+            if dag_id:
+                # a DAG id is provided; is the user authorized to access this DAG?
+                return get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                    details=DagDetails(id=dag_id),
+                )
+            else:
+                # here we know dag_id is not provided.
+                # check is the user authorized to access all DAGs?
+                if get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                ):
+                    return True
+                elif access_entity:
+                    # no dag_id provided, and user does not have access to all dags
+                    return False
 
-            # ``access`` means here:
-            # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
-            # - if no DAG id is provided: is the user authorized to access all DAGs
-            if dag_id or access or access_entity:
-                return access
-
-            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
-            # on DAG level
-            # If method is "GET", return whether the user has read access to any DAGs
-            # If method is "PUT", return whether the user has edit access to any DAGs
-            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
-                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
-            )
+            # dag_id is not provided, and the user is not authorized to access *all* DAGs
+            # so we check that the user can access at least *one* dag
+            # but we leave it to the endpoint function to properly restrict access beyond that
+            if method not in ("GET", "PUT"):
+                return False
+            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
 
         return callback
 
@@ -152,14 +158,14 @@ def requires_access_dag(
     return requires_access_decorator
 
 
-def requires_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
+def requires_access_asset(method: ResourceMethod) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             uri: str | None = kwargs.get("uri")
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
-                    method=method, details=DatasetDetails(uri=uri)
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
+                    method=method, details=AssetDetails(uri=uri)
                 ),
                 func=func,
                 args=args,

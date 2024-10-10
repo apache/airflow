@@ -22,13 +22,13 @@ import pytest
 
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -38,21 +38,17 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        ],
+        role_name="admin",
     )
 
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestDagStatsEndpoint:
