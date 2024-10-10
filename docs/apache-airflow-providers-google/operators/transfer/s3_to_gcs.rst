@@ -32,7 +32,7 @@ Prerequisite Tasks
 Use the :class:`~airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator`
 to transfer data from Amazon S3 to Google Cloud Storage.
 
-.. exampleinclude::/../tests/system/providers/google/cloud/gcs/example_s3_to_gcs.py
+.. exampleinclude::/../providers/tests/system/google/cloud/gcs/example_s3_to_gcs.py
     :language: python
     :start-after: [START howto_transfer_s3togcs_operator]
     :end-before: [END howto_transfer_s3togcs_operator]
@@ -42,7 +42,7 @@ There is a possibility to start S3ToGCSOperator asynchronously using deferrable 
 Transfer Service. By changing parameter ``poll_interval=10`` you can control frequency of polling a transfer
 job status.
 
-.. exampleinclude::/../tests/system/providers/google/cloud/gcs/example_s3_to_gcs.py
+.. exampleinclude::/../providers/tests/system/google/cloud/gcs/example_s3_to_gcs.py
     :language: python
     :start-after: [START howto_transfer_s3togcs_operator_async]
     :end-before: [END howto_transfer_s3togcs_operator_async]

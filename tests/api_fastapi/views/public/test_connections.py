@@ -20,7 +20,8 @@ import pytest
 
 from airflow.models import Connection
 from airflow.utils.session import provide_session
-from tests.test_utils.db import clear_db_connections
+
+from dev.tests_common.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
 

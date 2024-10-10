@@ -53,7 +53,7 @@ Transferring files
 
 The following Operator transfers one or more files from GCS into a BigQuery table.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_bigquery.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_bigquery]
@@ -61,7 +61,7 @@ The following Operator transfers one or more files from GCS into a BigQuery tabl
 
 Also you can use GCSToBigQueryOperator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery_async.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_bigquery_async.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_bigquery_async]

@@ -23,9 +23,14 @@ from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.db import clear_db_runs, clear_db_variables
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.db import clear_db_runs, clear_db_variables
+from dev.tests_common.test_utils.www import (
+    _check_last_log,
+    _check_last_log_masked_variable,
+    check_content_in_response,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -78,7 +83,7 @@ def dagruns(bash_dag, xcom_dag):
 
 
 @pytest.fixture(autouse=True)
-def clean_db():
+def _clean_db():
     clear_db_variables()
     yield
     clear_db_variables()
