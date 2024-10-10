@@ -18,6 +18,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import warnings
+from contextlib import suppress
+from functools import cached_property
+from json import JSONDecodeError
+from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
@@ -29,25 +35,326 @@ from requests.auth import HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.exceptions import AirflowException
+from airflow.compat.functools import cache
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
+from airflow.utils.log.secrets_masker import mask_secret
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
 
-    from airflow.models import Connection
+
+DEFAULT_AUTH_TYPES = frozenset(
+    {
+        "requests.auth.HTTPBasicAuth",
+        "requests.auth.HTTPProxyAuth",
+        "requests.auth.HTTPDigestAuth",
+        "requests_kerberos.HTTPKerberosAuth",
+        "aiohttp.BasicAuth",
+    }
+)
 
 
-def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
-    """Combine base url with endpoint."""
-    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-        return f"{base_url}/{endpoint}"
-    return (base_url or "") + (endpoint or "")
+@cache
+def get_auth_types() -> frozenset[str]:
+    """
+    Get comma-separated extra auth_types from airflow config.
+
+    Those auth_types can then be used in Connection configuration.
+    """
+    from airflow.configuration import conf
+
+    auth_types = DEFAULT_AUTH_TYPES.copy()
+    extra_auth_types = conf.get("http", "extra_auth_types", fallback=None)
+    if extra_auth_types:
+        auth_types |= frozenset({field.strip() for field in extra_auth_types.split(",")})
+    return auth_types
 
 
-class HttpHook(BaseHook):
+class ConnectionWithExtra(Connection):
+    """
+    Patched Connection class added for backward compatibility.
+
+    Implements the `get_extra_dejson` method which was added in the Connection class in Airflow 2.10.0.
+    This patched class must be removed once the http provider depends on Airflow 2.10.0 or higher.
+    """
+
+    def __init__(
+        self,
+        conn_id: str | None = None,
+        conn_type: str | None = None,
+        description: str | None = None,
+        host: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
+        schema: str | None = None,
+        port: int | None = None,
+        extra: str | dict | None = None,
+        uri: str | None = None,
+    ):
+        super().__init__(conn_id, conn_type, description, host, login, password, schema, port, extra, uri)
+
+    def get_extra_dejson(self, nested: bool = False) -> dict:
+        """
+        Deserialize extra property to JSON.
+
+        :param nested: Determines whether nested structures are also deserialized into JSON (default False).
+        """
+        extra = {}
+
+        if self.extra:
+            try:
+                if nested:
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
+                        if isinstance(value, str):
+                            with suppress(JSONDecodeError):
+                                extra[key] = json.loads(value)
+                else:
+                    extra = json.loads(self.extra)
+            except JSONDecodeError:
+                self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
+
+            # Mask sensitive keys from this list
+            mask_secret(extra)
+
+        return extra
+
+
+class HttpHookMixin:
+    """
+    Common superclass for the HttpHook and HttpAsyncHook.
+
+    Implements methods to create a Connection.
+    """
+
+    http_conn_id: str
+    conn_type: str
+    base_url: str
+    auth_type: Any
+    default_auth_type = HTTPBasicAuth
+    get_connection: Callable
+    log: Logger
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to the connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget, Select2Widget
+        from flask_babel import lazy_gettext
+        from wtforms.fields import BooleanField, SelectField, StringField, TextAreaField
+
+        default_auth_type: str = ""
+        auth_types_choices = frozenset({default_auth_type}) | get_auth_types()
+
+        return {
+            "timeout": StringField(lazy_gettext("Timeout"), widget=BS3TextFieldWidget()),
+            "allow_redirects": BooleanField(lazy_gettext("Allow redirects"), default=True),
+            "proxies": TextAreaField(lazy_gettext("Proxies"), widget=BS3TextAreaFieldWidget()),
+            "stream": BooleanField(lazy_gettext("Stream"), default=False),
+            "verify": BooleanField(lazy_gettext("Verify"), default=True),
+            "trust_env": BooleanField(lazy_gettext("Trust env"), default=True),
+            "cert": StringField(lazy_gettext("Cert"), widget=BS3TextFieldWidget()),
+            "max_redirects": StringField(
+                lazy_gettext("Max redirects"), widget=BS3TextFieldWidget(), default=DEFAULT_REDIRECT_LIMIT
+            ),
+            "auth_type": SelectField(
+                lazy_gettext("Auth type"),
+                choices=[(clazz, clazz) for clazz in auth_types_choices],
+                widget=Select2Widget(),
+                default=default_auth_type,
+            ),
+            "auth_kwargs": TextAreaField(lazy_gettext("Auth kwargs"), widget=BS3TextAreaFieldWidget()),
+            "headers": TextAreaField(
+                lazy_gettext("Headers"),
+                widget=BS3TextAreaFieldWidget(),
+                description=(
+                    "Warning: Passing headers parameters directly in 'Extra' field is deprecated, and "
+                    "will be removed in a future version of the Http provider. Use the 'Headers' "
+                    "field instead."
+                ),
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
+
+    @cached_property
+    def connection(self) -> Connection:
+        """
+        Return a cached connection property.
+
+        This method calls the original get_connection method from the BaseHook and returns a patched version
+        of the Connection class which also has the `get_extra_dejson` method that has been added in Apache
+        Airflow since 2.10.0. Once the provider depends on Airflow version 2.10.0 or higher, this method and
+        the ConnectionWithExtra class can be removed.
+        """
+        conn = BaseHook.get_connection(conn_id=self.http_conn_id)
+
+        return ConnectionWithExtra(
+            conn_id=self.http_conn_id,
+            conn_type=conn.conn_type,
+            description=conn.description,
+            host=conn.host,
+            login=conn.login,
+            password=conn.password,
+            schema=conn.schema,
+            port=conn.port,
+            extra=conn.extra,
+        )
+
+    def load_connection_settings(self, *, headers: dict[Any, Any] | None = None) -> tuple[dict, Any, dict]:
+        """
+        Load and update the class with Connection Settings.
+
+        Load the settings from the Connection and update the class.
+        Returns the headers and auth which are later passed into a request.Session
+        (for the HttpHook) or an aiohttp.Session (for the HttpAsyncHook).
+        """
+        _headers = {}
+        _auth = None
+        _session_conf = {}
+
+        if self.http_conn_id:
+            conn = self.connection
+
+            if conn.host and "://" in conn.host:
+                self.base_url = conn.host
+            else:
+                # schema defaults to HTTP
+                schema = conn.schema if conn.schema else "http"
+                host = conn.host if conn.host else ""
+                self.base_url = f"{schema}://{host}"
+
+            if conn.port:
+                self.base_url += f":{conn.port}"
+
+            conn_extra: dict = self._parse_extra(conn_extra=conn.get_extra_dejson(nested=True))
+            _session_conf = conn_extra["session_conf"]
+            auth_args: list[str | None] = [conn.login, conn.password]
+            auth_kwargs: dict[str, Any] = conn_extra["auth_kwargs"]
+            auth_type: Any = self.auth_type or self._load_conn_auth_type(module_name=conn_extra["auth_type"])
+
+            self.log.debug("auth_type: %s", auth_type)
+
+            if auth_type:
+                if any(auth_args) or auth_kwargs:
+                    _auth = auth_type(*auth_args, **auth_kwargs)
+                elif conn.login:
+                    _auth = auth_type(conn.login, conn.password)
+                else:
+                    _auth = auth_type()
+
+            extra_headers = conn_extra["headers"]
+            if extra_headers:
+                try:
+                    _headers.update(extra_headers)
+                except TypeError:
+                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+        if headers:
+            _headers.update(headers)
+
+        self.log.debug("headers: %s", _headers)
+        self.log.debug("auth: %s", _auth)
+        self.log.debug("session_conf: %s", _session_conf)
+
+        return _headers, _auth, _session_conf
+
+    def _parse_extra(self, conn_extra: dict) -> dict:
+        """
+        Parse the settings from 'extra' into dict.
+
+        The "auth_kwargs" and "headers" data from TextAreaField are returned as
+        string via the 'extra' field. This method converts the data to dict.
+        """
+        extra = conn_extra.copy()
+        session_conf = {}
+        timeout = extra.pop(
+            "timeout", None
+        )  # ignore this as timeout is only accepted in request method of Session
+        if timeout is not None:
+            session_conf["timeout"] = timeout
+        allow_redirects = extra.pop(
+            "allow_redirects", None
+        )  # ignore this as only max_redirects is accepted in Session
+        if allow_redirects is not None:
+            session_conf["allow_redirects"] = allow_redirects
+        session_conf["proxies"] = extra.pop("proxies", extra.pop("proxy", {}))
+        session_conf["stream"] = extra.pop("stream", False)
+        session_conf["verify"] = extra.pop("verify", extra.pop("verify_ssl", True))
+        session_conf["trust_env"] = extra.pop("trust_env", True)
+        cert = extra.pop("cert", None)
+        if cert is not None:
+            session_conf["cert"] = cert
+        session_conf["max_redirects"] = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        auth_type: str | None = extra.pop("auth_type", None)
+        auth_kwargs = extra.pop("auth_kwargs", {})
+        headers = extra.pop("headers", {})
+
+        if extra:
+            warnings.warn(
+                "Passing headers parameters directly in 'Extra' field is deprecated, and "
+                "will be removed in a future version of the Http provider. Use the 'Headers' "
+                "field instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            headers = {**extra, **headers}
+
+        return {
+            "auth_type": auth_type,
+            "auth_kwargs": auth_kwargs,
+            "session_conf": session_conf,
+            "headers": headers,
+        }
+
+    def _load_conn_auth_type(self, module_name: str | None) -> Any:
+        """
+        Load auth_type module from extra Connection parameters.
+
+        Check if the auth_type module is listed in 'extra_auth_types' and load it.
+        This method protects against the execution of random modules.
+        """
+        if module_name:
+            if module_name in get_auth_types():
+                try:
+                    module = import_string(module_name)
+                    self._is_auth_type_setup = True
+                    self.log.info("Loaded auth_type: %s", module_name)
+                    return module
+                except ImportError as error:
+                    self.log.error("Cannot import auth_type '%s' due to: %s", module_name, error)
+                    raise AirflowException(error)
+            self.log.warning(
+                "Skipping import of auth_type '%s'. The class should be listed in "
+                "'extra_auth_types' config of the http provider.",
+                module_name,
+            )
+        return None
+
+    def url_from_endpoint(self, endpoint: str | None) -> str:
+        """Combine base url with endpoint."""
+        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+            return self.base_url + "/" + endpoint
+        return (self.base_url or "") + (endpoint or "")
+
+
+class HttpHook(HttpHookMixin, BaseHook):
     """
     Interact with HTTP servers.
+
+    To configure the auth_type, in addition to the `auth_type` parameter, you can also:
+        * set the `auth_type` parameter in the Connection settings.
+        * define extra parameters passed to the `auth_type` class via the `auth_kwargs`, in the Connection
+            settings. The class will be instantiated with those parameters.
+
+    See :doc:`/connections/http` for full documentation.
 
     :param method: the API method to be called
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
@@ -67,6 +374,14 @@ class HttpHook(BaseHook):
     conn_type = "http"
     hook_name = "HTTP"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        return super().get_connection_form_widgets()
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        return super().get_ui_field_behaviour()
+
     def __init__(
         self,
         method: str = "POST",
@@ -82,19 +397,11 @@ class HttpHook(BaseHook):
         self.method = method.upper()
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
-        self._auth_type: Any = auth_type
+        self.auth_type: Any = auth_type
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
-
-    @property
-    def auth_type(self):
-        return self._auth_type or HTTPBasicAuth
-
-    @auth_type.setter
-    def auth_type(self, v):
-        self._auth_type = v
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -102,46 +409,29 @@ class HttpHook(BaseHook):
         """
         Create a Requests HTTP session.
 
-        :param headers: additional headers to be passed through as a dictionary
+        :param headers: additional headers to be passed through as a dictionary.
+                        Note: Headers may also be passed in the "Headers" field in the Connection definition
         """
+        headers, auth, session_conf = self.load_connection_settings(headers=headers)
+
+        session_conf.pop(
+            "timeout", None
+        )  # ignore this as timeout is only accepted in request method of Session
+        session_conf.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
+
         session = requests.Session()
+        session.auth = auth
+        session.proxies = session_conf["proxies"]
+        session.stream = session_conf["stream"]
+        session.verify = session_conf["verify"]
+        session.cert = session_conf.get("cert")
+        session.max_redirects = session_conf["max_redirects"]
+        session.trust_env = session_conf["trust_env"]
 
-        if self.http_conn_id:
-            conn = self.get_connection(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = f"{schema}://{host}"
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
-            elif self._auth_type:
-                session.auth = self.auth_type()
-            if conn.extra:
-                extra = conn.extra_dejson
-                extra.pop(
-                    "timeout", None
-                )  # ignore this as timeout is only accepted in request method of Session
-                extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
-                session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
-                session.stream = extra.pop("stream", False)
-                session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
-                session.cert = extra.pop("cert", None)
-                session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-                session.trust_env = extra.pop("trust_env", True)
-
-                try:
-                    session.headers.update(extra)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
+        try:
             session.headers.update(headers)
+        except TypeError:
+            self.log.warning("Connection to %s has invalid extra field.", self.http_conn_id)
 
         return session
 
@@ -169,7 +459,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = self.url_from_endpoint(endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -275,10 +565,6 @@ class HttpHook(BaseHook):
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
         return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
-    def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint."""
-        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
-
     def test_connection(self):
         """Test HTTP Connection."""
         try:
@@ -288,7 +574,7 @@ class HttpHook(BaseHook):
             return False, str(e)
 
 
-class HttpAsyncHook(BaseHook):
+class HttpAsyncHook(HttpHookMixin, BaseHook):
     """
     Interact with HTTP servers asynchronously.
 
@@ -308,7 +594,7 @@ class HttpAsyncHook(BaseHook):
         self,
         method: str = "POST",
         http_conn_id: str = default_conn_name,
-        auth_type: Any = aiohttp.BasicAuth,
+        auth_type: Any = None,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
     ) -> None:
@@ -342,38 +628,11 @@ class HttpAsyncHook(BaseHook):
             ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
+        _headers, auth, session_conf = await sync_to_async(self.load_connection_settings)(headers=headers)
+        session_conf = self._process_session_conf(session_conf)
+        session_conf.update(extra_options)
 
-        # headers may be passed through directly or in the "extra" field in the connection
-        # definition
-        _headers = {}
-        auth = None
-
-        if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
-            if conn.extra:
-                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
-
-                try:
-                    _headers.update(extra)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
-            _headers.update(headers)
-
-        url = _url_from_endpoint(self.base_url, endpoint)
+        url = self.url_from_endpoint(endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -425,30 +684,17 @@ class HttpAsyncHook(BaseHook):
                 raise NotImplementedError  # should not reach this, but makes mypy happy
 
     @classmethod
-    def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
-        extra = conn.extra_dejson
-        extra.pop("stream", None)
-        extra.pop("cert", None)
-        proxies = extra.pop("proxies", extra.pop("proxy", None))
-        timeout = extra.pop("timeout", None)
-        verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
-        allow_redirects = extra.pop("allow_redirects", None)
-        max_redirects = extra.pop("max_redirects", None)
-        trust_env = extra.pop("trust_env", None)
-
-        if proxies is not None and "proxy" not in extra_options:
-            extra_options["proxy"] = proxies
-        if timeout is not None and "timeout" not in extra_options:
-            extra_options["timeout"] = timeout
-        if verify_ssl is not None and "verify_ssl" not in extra_options:
-            extra_options["verify_ssl"] = verify_ssl
-        if allow_redirects is not None and "allow_redirects" not in extra_options:
-            extra_options["allow_redirects"] = allow_redirects
-        if max_redirects is not None and "max_redirects" not in extra_options:
-            extra_options["max_redirects"] = max_redirects
-        if trust_env is not None and "trust_env" not in extra_options:
-            extra_options["trust_env"] = trust_env
-        return extra
+    def _process_session_conf(cls, session_conf: dict) -> dict:
+        session_conf.pop("stream", None)
+        session_conf.pop("cert", None)
+        proxies = session_conf.pop("proxies")
+        if proxies is not None:
+            session_conf["proxy"] = proxies
+        verify = session_conf.pop("verify")
+        if verify is not None:
+            session_conf["verify_ssl"] = verify
+        session_conf.pop("trust_env")
+        return session_conf
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """

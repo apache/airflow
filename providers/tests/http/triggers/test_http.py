@@ -138,18 +138,3 @@ class TestHttpTrigger:
         assert response.encoding == client_response.get_encoding()
         assert response.reason == client_response.reason
         assert dict(response.cookies) == dict(client_response.cookies)
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    @mock.patch("aiohttp.client.ClientSession.post")
-    async def test_trigger_on_post_with_data(self, mock_http_post, trigger):
-        """
-        Test that HttpTrigger fires the correct event in case of an error.
-        """
-        generator = trigger.run()
-        await generator.asend(None)
-        mock_http_post.assert_called_once()
-        _, kwargs = mock_http_post.call_args
-        assert kwargs["data"] == TEST_DATA
-        assert kwargs["json"] is None
-        assert kwargs["params"] is None
