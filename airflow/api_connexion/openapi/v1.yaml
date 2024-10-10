@@ -3521,7 +3521,7 @@ components:
       allOf:
         - type: object
           properties:
-            import_errors:
+            dag_warnings:
               type: array
               items:
                 $ref: "#/components/schemas/DagWarning"
