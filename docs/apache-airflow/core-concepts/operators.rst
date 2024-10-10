@@ -44,6 +44,7 @@ If the operator you need isn't installed with Airflow by default, you can probab
 - :class:`~airflow.providers.http.operators.http.HttpOperator`
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
+- :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
 - :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
 - :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`
 - :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`
