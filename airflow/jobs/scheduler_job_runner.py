@@ -1096,12 +1096,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 span.set_attribute("category", "scheduler")
                 span.set_attribute("loop_count", loop_count)
-                    if self.using_sqlite and self.processor_agent:
-                        self.processor_agent.run_single_parsing_loop()
-                        # For the sqlite case w/ 1 thread, wait until the processor
-                        # is finished to avoid concurrent access to the DB.
-                        self.log.debug("Waiting for processors to finish since we're using sqlite")
-                        self.processor_agent.wait_until_finished()
+
+                if self.using_sqlite and self.processor_agent:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
