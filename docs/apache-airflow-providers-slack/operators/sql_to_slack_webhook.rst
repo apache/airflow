@@ -31,7 +31,7 @@ and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the SqlToSlackWebhookOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack_webhook.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_sql_to_slack_webhook.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_to_slack_webhook]

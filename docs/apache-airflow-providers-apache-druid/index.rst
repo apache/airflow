@@ -47,7 +47,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/druid/index>
+    System Tests <_api/tests/system/apache/druid/index>
 
 
 .. toctree::
@@ -57,7 +57,7 @@
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>
     Installing from sources <installing-providers-from-sources>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/tests/system/providers/apache/druid>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/providers/tests/system/apache/druid>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

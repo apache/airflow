@@ -38,12 +38,12 @@ Using the operator
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_labels]
@@ -51,7 +51,7 @@ Input uri is an uri to a file in Google Cloud Storage
 
 You can use the annotation output via Xcom:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_labels_result]
@@ -60,7 +60,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/video_intelligence.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_labels_template_fields]
@@ -87,7 +87,7 @@ Arguments
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
@@ -95,7 +95,7 @@ Input uri is an uri to a file in Google Cloud Storage
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_explicit_content]
@@ -103,7 +103,7 @@ Using the operator
 
 You can use the annotation output via Xcom:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_explicit_content_result]
@@ -112,7 +112,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/video_intelligence.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_explicit_content_template_fields]
@@ -139,7 +139,7 @@ Arguments
 
 Input uri is an uri to a file in Google Cloud Storage
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :start-after: [START howto_operator_video_intelligence_other_args]
       :end-before: [END howto_operator_video_intelligence_other_args]
@@ -147,7 +147,7 @@ Input uri is an uri to a file in Google Cloud Storage
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_video_shots]
@@ -155,7 +155,7 @@ Using the operator
 
 You can use the annotation output via Xcom:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/video_intelligence/example_video_intelligence.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/video_intelligence/example_video_intelligence.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_video_intelligence_detect_video_shots_result]
@@ -164,7 +164,7 @@ You can use the annotation output via Xcom:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/video_intelligence.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/video_intelligence.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_video_intelligence_detect_video_shots_template_fields]

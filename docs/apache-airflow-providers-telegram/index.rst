@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/telegram/index>
+    System Tests <_api/tests/system/telegram/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-telegram/|version|/tests/system/providers/telegram>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-telegram/|version|/providers/tests/system/telegram>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-telegram/>
     Installing from sources <installing-providers-from-sources>
 
