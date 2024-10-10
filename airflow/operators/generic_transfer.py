@@ -45,7 +45,13 @@ class GenericTransfer(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     """
 
-    template_fields: Sequence[str] = ("source_conn_id", "destination_conn_id", "sql", "destination_table", "preoperator")
+    template_fields: Sequence[str] = (
+        "source_conn_id",
+        "destination_conn_id",
+        "sql",
+        "destination_table",
+        "preoperator",
+    )
     template_ext: Sequence[str] = (
         ".sql",
         ".hql",
@@ -91,7 +97,9 @@ class GenericTransfer(BaseOperator):
 
     def execute(self, context: Context):
         source_hook = self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
-        destination_hook = self.get_hook(conn_id=self.destination_conn_id, hook_params=self.destination_hook_params)
+        destination_hook = self.get_hook(
+            conn_id=self.destination_conn_id, hook_params=self.destination_hook_params
+        )
 
         self.log.info("Extracting data from %s", self.source_conn_id)
         self.log.info("Executing: \n %s", self.sql)
