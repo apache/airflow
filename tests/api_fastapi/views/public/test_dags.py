@@ -25,7 +25,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -38,11 +38,15 @@ DAG2_ID = "test_dag2"
 DAG2_DISPLAY_NAME = "display2"
 DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
+DAG4_ID = "test_dag4"
+DAG4_DISPLAY_NAME = "display4"
+DAG5_ID = "test_dag5"
+DAG5_DISPLAY_NAME = "display5"
 TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
+API_PREFIX = "/public/dags"
 
 
-@provide_session
 def _create_deactivated_paused_dag(session=None):
     dag_model = DagModel(
         dag_id=DAG3_ID,
@@ -77,6 +81,29 @@ def _create_deactivated_paused_dag(session=None):
     session.add(dagrun_success)
 
 
+def _create_dag_for_deletion(
+    session,
+    dag_maker,
+    dag_id=None,
+    dag_display_name=None,
+    has_running_dagruns=False,
+):
+    with dag_maker(
+        dag_id,
+        dag_display_name=dag_display_name,
+        start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+    ):
+        EmptyOperator(task_id="dummy")
+
+    if has_running_dagruns:
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instances()[0]
+        ti.set_state(TaskInstanceState.RUNNING)
+
+    dag_maker.dagbag.sync_to_db()
+    session.commit()
+
+
 @pytest.fixture(autouse=True)
 @provide_session
 def setup(dag_maker, session=None) -> None:
@@ -109,11 +136,12 @@ def setup(dag_maker, session=None) -> None:
     ):
         EmptyOperator(task_id=TASK_ID)
 
+    _create_deactivated_paused_dag(session)
+
     dag_maker.dagbag.sync_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
     session.merge(dag_maker.dag_model)
     session.commit()
-    _create_deactivated_paused_dag()
 
 
 @pytest.mark.parametrize(
@@ -154,7 +182,7 @@ def setup(dag_maker, session=None) -> None:
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
-    response = test_client.get("/public/dags", params=query_params)
+    response = test_client.get(API_PREFIX, params=query_params)
 
     assert response.status_code == 200
     body = response.json()
@@ -175,7 +203,7 @@ def test_get_dags(test_client, query_params, expected_total_entries, expected_id
     ],
 )
 def test_patch_dag(test_client, query_params, dag_id, body, expected_status_code, expected_is_paused):
-    response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
+    response = test_client.patch(f"{API_PREFIX}/{dag_id}", json=body, params=query_params)
 
     assert response.status_code == expected_status_code
     if expected_status_code == 200:
@@ -225,7 +253,7 @@ def test_patch_dag(test_client, query_params, dag_id, body, expected_status_code
     ],
 )
 def test_patch_dags(test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids):
-    response = test_client.patch("/public/dags", json=body, params=query_params)
+    response = test_client.patch(API_PREFIX, json=body, params=query_params)
 
     assert response.status_code == expected_status_code
     if expected_status_code == 200:
@@ -238,12 +266,12 @@ def test_patch_dags(test_client, query_params, body, expected_status_code, expec
 @pytest.mark.parametrize(
     "query_params, dag_id, expected_status_code, dag_display_name, start_date",
     [
-        ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
-        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, DAG2_START_DATE),
+        ({}, "fake_dag_id", 404, "fake_dag", datetime(2021, 6, 15, tzinfo=timezone.utc)),
+        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, datetime(2021, 6, 15, tzinfo=timezone.utc)),
     ],
 )
 def test_dag_details(test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date):
-    response = test_client.get(f"/public/dags/{dag_id}/details", params=query_params)
+    response = test_client.get(f"{API_PREFIX}/{dag_id}/details", params=query_params)
     assert response.status_code == expected_status_code
     if expected_status_code != 200:
         return
@@ -351,3 +379,39 @@ def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_di
         "pickle_id": None,
     }
     assert res_json == expected
+
+
+@pytest.mark.parametrize(
+    "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",
+    [
+        ("test_nonexistent_dag_id", "nonexistent_display_name", 404, 404, False, False),
+        (DAG4_ID, DAG4_DISPLAY_NAME, 204, 404, False, True),
+        (DAG5_ID, DAG5_DISPLAY_NAME, 409, 200, True, True),
+    ],
+)
+@provide_session
+def test_delete_dag(
+    session,
+    dag_maker,
+    test_client,
+    dag_id,
+    dag_display_name,
+    status_code_delete,
+    status_code_details,
+    has_running_dagruns,
+    is_create_dag,
+):
+    if is_create_dag:
+        _create_dag_for_deletion(
+            session,
+            dag_maker,
+            dag_id=dag_id,
+            dag_display_name=dag_display_name,
+            has_running_dagruns=has_running_dagruns,
+        )
+
+    delete_response = test_client.delete(f"{API_PREFIX}/{dag_id}")
+    assert delete_response.status_code == status_code_delete
+
+    details_response = test_client.get(f"{API_PREFIX}/{dag_id}/details")
+    assert details_response.status_code == status_code_details
