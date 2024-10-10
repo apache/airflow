@@ -19,6 +19,7 @@
 export enum SearchParamsKeys {
   LIMIT = "limit",
   NAME_PATTERN = "name_pattern",
+  LAST_DAG_RUN_STATE = "last_dag_run_state",
   OFFSET = "offset",
   PAUSED = "paused",
   SORT = "sort"
