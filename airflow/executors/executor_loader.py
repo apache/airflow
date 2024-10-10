@@ -31,6 +31,7 @@ from airflow.executors.executor_constants import (
     CELERY_KUBERNETES_EXECUTOR,
     CORE_EXECUTOR_NAMES,
     DEBUG_EXECUTOR,
+    EDGE_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
     LOCAL_KUBERNETES_EXECUTOR,
@@ -70,6 +71,7 @@ class ExecutorLoader:
         "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         KUBERNETES_EXECUTOR: "airflow.providers.cncf.kubernetes."
         "executors.kubernetes_executor.KubernetesExecutor",
+        EDGE_EXECUTOR: "airflow.providers.edge.executors.EdgeExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
 
