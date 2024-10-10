@@ -74,12 +74,6 @@ def _sanitize_uri(uri: str) -> str:
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
-    if not uri:
-        raise ValueError("Asset URI cannot be empty")
-    if uri.isspace():
-        raise ValueError("Asset URI cannot be just whitespace")
-    if not uri.isascii():
-        raise ValueError("Asset URI must only consist of ASCII characters")
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -126,6 +120,15 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
+def _validate_identifier(instance, attribute, value):
+    if isinstance(value, str):
+        raise ValueError(f"{type(instance).__name__} {attribute.name} must be a non-empty string")
+    if value.isspace():
+        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
+    if value.isascii():
+        raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
+
+
 def extract_event_key(value: str | Asset | AssetAlias) -> str:
     """
     Extract the key of an inlet or an outlet event.
@@ -157,7 +160,7 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return [Asset(uri=asset.uri, extra=asset.extra) for asset in asset_alias_obj.datasets]
+        return [asset.to_public() for asset in asset_alias_obj.datasets]
     return []
 
 
@@ -214,7 +217,14 @@ class BaseAsset:
 class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
-    name: str
+    name: str = attr.field(
+        validator=[attr.validators.min_len(1), attr.validators.max_len(1500), _validate_identifier],
+    )
+    group: str = attr.field(
+        kw_only=True,
+        default="",
+        validator=[attr.validators.max_len(1500), _validate_identifier],
+    )
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
@@ -260,11 +270,23 @@ def _set_extra_default(extra: dict | None) -> dict:
 class Asset(os.PathLike, BaseAsset):
     """A representation of data dependencies between workflows."""
 
+    name: str = attr.field(
+        validator=[attr.validators.min_len(1), attr.validators.max_len(1500), _validate_identifier],
+    )
     uri: str = attr.field(
         converter=_sanitize_uri,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(1500)],
+        validator=[attr.validators.min_len(1), attr.validators.max_len(1500), _validate_identifier],
     )
-    extra: dict[str, Any] = attr.field(factory=dict, converter=_set_extra_default)
+    group: str = attr.field(
+        kw_only=True,
+        default="",
+        validator=[attr.validators.max_len(1500), _validate_identifier],
+    )
+    extra: dict[str, Any] = attr.field(
+        kw_only=True,
+        factory=dict,
+        converter=_set_extra_default,
+    )
 
     __version__: ClassVar[int] = 1
 
