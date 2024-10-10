@@ -23,6 +23,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.models import Connection
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from providers.tests.microsoft.conftest import load_file
 
@@ -57,7 +58,46 @@ PYMSSQL_CONN_ALT_2 = Connection(
 )
 
 
-def get_primary_keys(self, table: str) -> list[str]:
+def get_column_names(self, table: str) -> list[str] | None:
+    return [
+        "ReportRefreshDate",
+        "UserId",
+        "UserPrincipalName",
+        "LastActivityDate",
+        "IsDeleted",
+        "DeletedDate",
+        "AssignedProducts",
+        "TeamChatMessageCount",
+        "PrivateChatMessageCount",
+        "CallCount",
+        "MeetingCount",
+        "MeetingsOrganizedCount",
+        "MeetingsAttendedCount",
+        "AdHocMeetingsOrganizedCount",
+        "AdHocMeetingsAttendedCount",
+        "ScheduledOne-timeMeetingsOrganizedCount",
+        "ScheduledOne-timeMeetingsAttendedCount",
+        "ScheduledRecurringMeetingsOrganizedCount",
+        "ScheduledRecurringMeetingsAttendedCount",
+        "AudioDuration",
+        "VideoDuration",
+        "ScreenShareDuration",
+        "AudioDurationInSeconds",
+        "VideoDurationInSeconds",
+        "ScreenShareDurationInSeconds",
+        "HasOtherAction",
+        "UrgentMessages",
+        "PostMessages",
+        "TenantDisplayName",
+        "SharedChannelTenantDisplayNames",
+        "ReplyMessages",
+        "IsLicensed",
+        "ReportPeriod",
+        "LoadDate",
+    ]
+
+
+def get_primary_keys(self, table: str) -> list[str] | None:
     return [
         "GroupDisplayName",
         "OwnerPrincipalName",
@@ -183,7 +223,14 @@ class TestMsSqlHook:
         hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys", get_primary_keys)
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_column_names",
+        get_column_names,
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_primary_keys",
+        get_primary_keys,
+    )
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 
@@ -226,42 +273,14 @@ class TestMsSqlHook:
                 1,
                 "2024-07-17T00:00:00+00:00",
             ],
-            target_fields=[
-                "ReportRefreshDate",
-                "UserId",
-                "UserPrincipalName",
-                "LastActivityDate",
-                "IsDeleted",
-                "DeletedDate",
-                "AssignedProducts",
-                "TeamChatMessageCount",
-                "PrivateChatMessageCount",
-                "CallCount",
-                "MeetingCount",
-                "MeetingsOrganizedCount",
-                "MeetingsAttendedCount",
-                "AdHocMeetingsOrganizedCount",
-                "AdHocMeetingsAttendedCount",
-                "ScheduledOne-timeMeetingsOrganizedCount",
-                "ScheduledOne-timeMeetingsAttendedCount",
-                "ScheduledRecurringMeetingsOrganizedCount",
-                "ScheduledRecurringMeetingsAttendedCount",
-                "AudioDuration",
-                "VideoDuration",
-                "ScreenShareDuration",
-                "AudioDurationInSeconds",
-                "VideoDurationInSeconds",
-                "ScreenShareDurationInSeconds",
-                "HasOtherAction",
-                "UrgentMessages",
-                "PostMessages",
-                "TenantDisplayName",
-                "SharedChannelTenantDisplayNames",
-                "ReplyMessages",
-                "IsLicensed",
-                "ReportPeriod",
-                "LoadDate",
-            ],
             replace=True,
         )
         assert sql == load_file("resources", "replace.sql")
+
+    def test_dialect_name(self):
+        hook = MsSqlHook()
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect(self):
+        hook = MsSqlHook()
+        assert isinstance(hook.dialect, MsSqlDialect)

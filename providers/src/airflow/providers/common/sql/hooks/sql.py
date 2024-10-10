@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from typing import (
@@ -29,6 +29,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    MutableMapping,
     Protocol,
     Sequence,
     TypeVar,
@@ -38,9 +39,11 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
+from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Inspector
+from sqlalchemy.engine import Inspector, make_url
+from sqlalchemy.exc import ArgumentError
 
 from airflow.exceptions import (
     AirflowException,
@@ -48,6 +51,8 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -60,60 +65,62 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
+WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
+be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
-    """
-    Determine when results of single query only should be returned.
+    warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
 
-    For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
-    In some cases, when multiple queries are run, the return value will be an iterable (list) of results
-    -- one for each query. However, in other cases, when single query is run, the return value will be just
-    the result of that single query without wrapping the results in a list.
+    from airflow.providers.common.sql.hooks import handlers
 
-    The cases when single query results are returned without wrapping them in a list are as follows:
-
-    a) sql is string and ``return_last`` is True (regardless what ``split_statements`` value is)
-    b) sql is string and ``split_statements`` is False
-
-    In all other cases, the results are wrapped in a list, even if there is only one statement to process.
-    In particular, the return value will be a list of query results in the following circumstances:
-
-    a) when ``sql`` is an iterable of string statements (regardless what ``return_last`` value is)
-    b) when ``sql`` is string, ``split_statements`` is True and ``return_last`` is False
-
-    :param sql: sql to run (either string or list of strings)
-    :param return_last: whether last statement output should only be returned
-    :param split_statements: whether to split string statements.
-    :return: True if the hook should return single query results
-    """
-    return isinstance(sql, str) and (return_last or not split_statements)
+    return handlers.return_single_query_results(sql, return_last, split_statements)
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Return results for DbApiHook.run()."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        return cursor.fetchall()
-    else:
-        return None
+    warnings.warn(WARNING_MESSAGE.format("fetch_all_handler"), DeprecationWarning, stacklevel=2)
+
+    from airflow.providers.common.sql.hooks import handlers
+
+    return handlers.fetch_all_handler(cursor)
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
-    """Return first result for DbApiHook.run()."""
-    if not hasattr(cursor, "description"):
-        raise RuntimeError(
-            "The database we interact with does not support DBAPI 2.0. Use operator and "
-            "handlers that are specifically designed for your database."
-        )
-    if cursor.description is not None:
-        return cursor.fetchone()
-    else:
-        return None
+    warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
+
+    from airflow.providers.common.sql.hooks import handlers
+
+    return handlers.fetch_one_handler(cursor)
+
+
+def resolve_dialects() -> MutableMapping[str, MutableMapping]:
+    from airflow.providers_manager import ProvidersManager
+
+    providers_manager = ProvidersManager()
+
+    # TODO: this check can be removed once common sql provider depends on Airflow 3.0 or higher,
+    #       we could then also use DialectInfo and won't need to convert it to a dict.
+    if hasattr(providers_manager, "dialects"):
+        return {key: dict(value._asdict()) for key, value in providers_manager.dialects.items()}
+
+    # TODO: this can be removed once common sql provider depends on Airflow 3.0 or higher
+    return {
+        "default": dict(
+            name="default",
+            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+            provider_name="apache-airflow-providers-common-sql",
+        ),
+        "mssql": dict(
+            name="mssql",
+            dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
+            provider_name="apache-airflow-providers-microsoft-mssql",
+        ),
+        "postgres": dict(
+            name="postgres",
+            dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
+            provider_name="apache-airflow-providers-postgres",
+        ),
+    }
 
 
 class ConnectorProtocol(Protocol):
@@ -160,6 +167,7 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
+    _dialects: MutableMapping[str, MutableMapping] = resolve_dialects()
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -190,7 +198,8 @@ class DbApiHook(BaseHook):
         return getattr(self, self.conn_name_attr)
 
     @cached_property
-    def placeholder(self) -> str:
+    def placeholder(self):
+        """Return SQL placeholder."""
         placeholder = self.connection_extra.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
@@ -290,6 +299,50 @@ class DbApiHook(BaseHook):
     @property
     def inspector(self) -> Inspector:
         return Inspector.from_engine(self.get_sqlalchemy_engine())
+
+    @cached_property
+    def dialect_name(self) -> str:
+        try:
+            return make_url(self.get_uri()).get_dialect().name
+        except ArgumentError:
+            config = self.connection_extra
+            sqlalchemy_scheme = config.get("sqlalchemy_scheme")
+            if sqlalchemy_scheme:
+                return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
+            return config.get("dialect", "default")
+
+    @cached_property
+    def dialect(self) -> Dialect:
+        from airflow.utils.module_loading import import_string
+
+        dialect_info = self._dialects.get(self.dialect_name)
+
+        self.log.debug("dialect_info: %s", dialect_info)
+
+        if dialect_info:
+            try:
+                return import_string(dialect_info["dialect_class_name"])(self.dialect_name, self)
+            except ImportError:
+                raise AirflowOptionalProviderFeatureException(
+                    f"{dialect_info.dialect_class_name} not found, run: pip install "
+                    f"'{dialect_info.provider_name}'."
+                )
+        return Dialect(self.dialect_name, self)
+
+    @property
+    def reserved_words(self) -> set[str]:
+        return self.get_reserved_words(self.dialect_name)
+
+    @lru_cache(maxsize=None)
+    def get_reserved_words(self, dialect_name: str) -> set[str]:
+        result = set()
+        with suppress(ModuleNotFoundError):
+            dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
+
+            if hasattr(dialect_module, "RESERVED_WORDS"):
+                result = set(dialect_module.RESERVED_WORDS)
+        self.log.info("reserved words for '%s': %s", dialect_name, result)
+        return result
 
     def get_pandas_df(
         self,
@@ -576,7 +629,10 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+    def reserved_words(self) -> set[str]:
+        return set()
+
+    def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
 
@@ -584,24 +640,19 @@ class DbApiHook(BaseHook):
 
         :param table: Name of the target table
         :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
+        :param target_fields: The names of the columns to fill in the table. If no target fields are
+            specified, they will be determined dynamically from the table's metadata.
         :param replace: Whether to replace/upsert instead of insert
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
-        placeholders = [
-            self.placeholder,
-        ] * len(values)
+        if not target_fields:
+            with suppress(Exception):
+                target_fields = self.dialect.get_column_names(table)
 
-        if target_fields:
-            target_fields = ", ".join(target_fields)
-            target_fields = f"({target_fields})"
-        else:
-            target_fields = ""
+        if replace:
+            return self.dialect.generate_replace_sql(table, values, target_fields, **kwargs)
 
-        if not replace:
-            return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
-
-        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
+        return self.dialect.generate_insert_sql(table, values, target_fields, **kwargs)
 
     @contextmanager
     def _create_autocommit_connection(self, autocommit: bool = False):

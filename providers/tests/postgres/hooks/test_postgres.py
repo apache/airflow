@@ -27,6 +27,7 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
 
@@ -547,3 +548,9 @@ class TestPostgresHook:
                 assert "NOTICE:  Message from db: 42" in caplog.text
             finally:
                 hook.run(sql=f"DROP PROCEDURE {proc_name} (s text)")
+
+    def test_dialect_name(self):
+        assert self.db_hook.dialect_name == "postgres"
+
+    def test_dialect(self):
+        assert isinstance(self.db_hook.dialect, PostgresDialect)
