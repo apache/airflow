@@ -279,10 +279,9 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                             raise AirflowTaskExecutionError(
                                 f"Error running statement: {sql_statement}. {str(e)}"
                             )
-                        else:
-                            raise AirflowTaskExecutionTimeout(
-                                f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
-                            )
+                        raise AirflowTaskExecutionTimeout(
+                            f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
+                        )
                     finally:
                         if t is not None:
                             t.cancel()
