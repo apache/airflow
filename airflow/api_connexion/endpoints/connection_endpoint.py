@@ -92,6 +92,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 @security.requires_access_connection("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
+@mark_fastapi_migration_done
 def get_connections(
     *,
     limit: int,
