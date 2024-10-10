@@ -16,40 +16,60 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { forwardRef } from "react";
+import { ChangeEvent } from "react";
 import {
   Button,
-  type ButtonProps,
   Input,
   InputGroup,
-  type InputGroupProps,
   InputLeftElement,
-  type InputProps,
   InputRightElement,
+  type ButtonProps,
+  type InputGroupProps,
+  type InputProps,
 } from "@chakra-ui/react";
 import { FiSearch } from "react-icons/fi";
+import { useDebouncedCallback } from "use-debounce";
 
-export const SearchBar = forwardRef<HTMLInputElement, {
+const debounceDelay = 200;
+
+export const SearchBar = ({
+  buttonProps,
+  groupProps,
+  inputProps,
+}: {
   buttonProps?: ButtonProps;
   groupProps?: InputGroupProps;
   inputProps?: InputProps;
-}>(({ buttonProps, groupProps, inputProps }, ref) => (
-  <InputGroup {...groupProps}>
-    <InputLeftElement pointerEvents="none">
-      <FiSearch />
-    </InputLeftElement>
-    <Input placeholder="Search DAGs" pr={150} {...inputProps} ref={ref} />
-    <InputRightElement width={150}>
-      <Button
-        colorScheme="blue"
-        fontWeight="normal"
-        height="1.75rem"
-        variant="ghost"
-        width={140}
-        {...buttonProps}
-      >
-        Advanced Search
-      </Button>
-    </InputRightElement>
-  </InputGroup>
-));
+}) => {
+
+  const handleSearchChange = useDebouncedCallback(
+    (event: ChangeEvent<HTMLInputElement>) => inputProps?.onChange?.(event),
+    debounceDelay
+  );
+
+  return (
+    <InputGroup {...groupProps}>
+      <InputLeftElement pointerEvents="none">
+        <FiSearch />
+      </InputLeftElement>
+      <Input
+        placeholder="Search DAGs"
+        pr={150}
+        {...inputProps}
+        onChange={handleSearchChange}
+      />
+      <InputRightElement width={150}>
+        <Button
+          colorScheme="blue"
+          fontWeight="normal"
+          height="1.75rem"
+          variant="ghost"
+          width={140}
+          {...buttonProps}
+        >
+          Advanced Search
+        </Button>
+      </InputRightElement>
+    </InputGroup>
+  );
+};
