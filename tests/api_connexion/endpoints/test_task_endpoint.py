@@ -78,7 +78,6 @@ class TestTaskEndpoint:
         with DAG(self.unscheduled_dag_id, start_date=None, schedule=None) as unscheduled_dag:
             task4 = EmptyOperator(task_id=self.unscheduled_task_id1, params={"is_unscheduled": True})
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
-
         task1 >> task2
         task4 >> task5
         dag_bag = DagBag(os.devnull, include_examples=False)
@@ -87,6 +86,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
+        DagBag._sync_to_db(dag_bag.dags)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
