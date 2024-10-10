@@ -1,5 +1,3 @@
-import type { AxiosRequestConfig, AxiosResponse } from "axios";
-
 import type { ApiRequestOptions } from "./ApiRequestOptions";
 
 type Headers = Record<string, string>;
@@ -36,8 +34,8 @@ export type OpenAPIConfig = {
   VERSION: string;
   WITH_CREDENTIALS: boolean;
   interceptors: {
-    request: Interceptors<AxiosRequestConfig>;
-    response: Interceptors<AxiosResponse>;
+    request: Interceptors<RequestInit>;
+    response: Interceptors<Response>;
   };
 };
 

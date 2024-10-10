@@ -41,6 +41,7 @@ type DataTableProps<TData> = {
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  readonly errorMessage?: ReactNode | string;
   readonly getRowCanExpand?: (row: Row<TData>) => boolean;
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
@@ -62,6 +63,7 @@ export const DataTable = <TData,>({
   columns,
   data,
   displayMode = "table",
+  errorMessage,
   getRowCanExpand = defaultGetRowCanExpand,
   initialState,
   isFetching,
@@ -127,10 +129,9 @@ export const DataTable = <TData,>({
           Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
         }
       />
+      {errorMessage}
       {!Boolean(isLoading) && !rows.length && (
-        <Text fontSize="small">
-          {noRowsMessage ?? `No ${modelName}s found.`}
-        </Text>
+        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
       )}
       {display === "table" && <TableList table={table} />}
       {display === "card" && cardDef !== undefined && (
