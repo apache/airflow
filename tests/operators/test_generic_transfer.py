@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from contextlib import closing
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -151,3 +152,36 @@ class TestPostgres:
         assert mock_insert.called
         _, kwargs = mock_insert.call_args
         assert "replace" in kwargs
+
+
+class TestGenericTransfer:
+    def test_templated_fields(self):
+        dag = DAG(
+            "test_dag",
+            schedule=None,
+            start_date=datetime(2024, 10, 10),
+            render_template_as_native_obj=True,
+        )
+        operator = GenericTransfer(
+            task_id="test_task",
+            sql="{{ sql }}",
+            destination_table="{{ destination_table }}",
+            source_conn_id="{{ source_conn_id }}",
+            destination_conn_id="{{ destination_conn_id }}",
+            preoperator="{{ preoperator }}",
+            dag=dag,
+        )
+        operator.render_template_fields(
+            {
+                "sql": "my_sql",
+                "destination_table": "my_destination_table",
+                "source_conn_id": "my_source_conn_id",
+                "destination_conn_id": "my_destination_conn_id",
+                "preoperator": "my_preoperator",
+            }
+        )
+        assert operator.sql == "my_sql"
+        assert operator.destination_table == "my_destination_table"
+        assert operator.source_conn_id == "my_source_conn_id"
+        assert operator.destination_conn_id == "my_destination_conn_id"
+        assert operator.preoperator == "my_preoperator"
