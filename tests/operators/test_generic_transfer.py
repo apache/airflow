@@ -23,12 +23,13 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
+
 from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
@@ -174,13 +175,15 @@ class TestGenericTransfer:
             preoperator="{{ preoperator }}",
             dag=dag,
         )
-        operator.render_template_fields({
-            "sql": "my_sql",
-            "destination_table": "c",
-            "source_conn_id": "my_source_conn_id",
-            "destination_conn_id": "my_destination_conn_id",
-            "preoperator": "my_preoperator",
-        })
+        operator.render_template_fields(
+            {
+                "sql": "my_sql",
+                "destination_table": "c",
+                "source_conn_id": "my_source_conn_id",
+                "destination_conn_id": "my_destination_conn_id",
+                "preoperator": "my_preoperator",
+            }
+        )
         assert operator.sql == "my_sql"
         assert operator.destination_table == "destination_table"
         assert operator.source_conn_id == "my_source_conn_id"
