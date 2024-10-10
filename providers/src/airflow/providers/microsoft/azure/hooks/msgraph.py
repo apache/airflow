@@ -32,11 +32,14 @@ from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_abstractions.response_handler import ResponseHandler
+from kiota_abstractions.serialization import ParseNodeFactoryRegistry
 from kiota_authentication_azure.azure_identity_authentication_provider import (
     AzureIdentityAuthenticationProvider,
 )
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_http.middleware.options import ResponseHandlerOption
+from kiota_serialization_json.json_parse_node_factory import JsonParseNodeFactory
+from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactory
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
@@ -249,8 +252,12 @@ class KiotaRequestAdapterHook(BaseHook):
                 scopes=scopes,
                 allowed_hosts=allowed_hosts,
             )
+            parse_node_factory = ParseNodeFactoryRegistry()
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
             request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
+                parse_node_factory=parse_node_factory,
                 http_client=http_client,
                 base_url=base_url,
             )
