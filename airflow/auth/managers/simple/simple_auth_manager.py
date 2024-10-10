@@ -30,7 +30,7 @@ from termcolor import colored
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
-from hatch_build import AIRFLOW_ROOT_PATH
+from airflow.configuration import AIRFLOW_HOME
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
@@ -78,20 +78,22 @@ class SimpleAuthManager(BaseAuthManager):
     :param appbuilder: the flask app builder
     """
 
-    # File that contains the generated passwords
-    GENERATED_PASSWORDS_FILE = (
-        AIRFLOW_ROOT_PATH / "generated" / "simple_auth_manager_passwords.json.generated"
-    )
-
     # Cache containing the password associated to a username
     passwords: dict[str, str] = {}
+
+    @staticmethod
+    def get_generated_password_file() -> str:
+        return os.path.join(
+            os.getenv("AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY", AIRFLOW_HOME),
+            "simple_auth_manager_passwords.json.generated",
+        )
 
     def init(self) -> None:
         user_passwords_from_file = {}
 
         # Read passwords from file
-        if os.path.isfile(self.GENERATED_PASSWORDS_FILE):
-            with open(self.GENERATED_PASSWORDS_FILE) as file:
+        if os.path.isfile(self.get_generated_password_file()):
+            with open(self.get_generated_password_file()) as file:
                 passwords_str = file.read().strip()
                 user_passwords_from_file = json.loads(passwords_str)
 
@@ -109,7 +111,7 @@ class SimpleAuthManager(BaseAuthManager):
 
             self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
 
-        with open(self.GENERATED_PASSWORDS_FILE, "w") as file:
+        with open(self.get_generated_password_file(), "w") as file:
             file.write(json.dumps(self.passwords))
 
     def is_logged_in(self) -> bool:
