@@ -31,6 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -69,7 +70,6 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import dataset_manager
