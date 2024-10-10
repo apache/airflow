@@ -89,6 +89,7 @@ class TestDagRun:
         db.clear_db_assets()
         db.clear_db_xcom()
         db.clear_db_task_fail()
+        db.clear_db_dags()
 
     def create_dag_run(
         self,
@@ -302,6 +303,7 @@ class TestDagRun:
 
         now = pendulum.now("UTC")
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_id="test_dagrun_success_conditions",
             state=DagRunState.RUNNING,
@@ -347,6 +349,7 @@ class TestDagRun:
         dag.clear()
         now = pendulum.now("UTC")
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_id="test_dagrun_deadlock",
             state=DagRunState.RUNNING,
@@ -382,6 +385,7 @@ class TestDagRun:
             op2.set_upstream(op1)
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_id="test_dagrun_no_deadlock_with_shutdown",
             state=DagRunState.RUNNING,
@@ -404,6 +408,7 @@ class TestDagRun:
 
         dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_id="test_dagrun_no_deadlock_1",
             state=DagRunState.RUNNING,
@@ -666,6 +671,7 @@ class TestDagRun:
 
         now = pendulum.now("UTC")
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_id="test_dagrun_update_state_end_date",
             state=DagRunState.RUNNING,
@@ -922,6 +928,7 @@ class TestDagRun:
         session.add(orm_dag)
         session.flush()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=state,
@@ -995,6 +1002,7 @@ class TestDagRun:
             session.add(orm_dag)
             session.flush()
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 state=DagRunState.SUCCESS,
@@ -1063,6 +1071,7 @@ class TestDagRun:
         with dag_maker(session=session) as dag:
             PythonOperator(task_id="t1", python_callable=lambda: print)
             PythonOperator(task_id="t2", python_callable=lambda: print)
+
         dr = dag.create_dagrun(
             state=DagRunState.FAILED,
             triggered_by=DagRunTriggeredByType.TEST,
