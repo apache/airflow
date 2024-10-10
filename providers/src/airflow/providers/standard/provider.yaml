@@ -52,3 +52,10 @@ sensors:
       - airflow.providers.standard.sensors.time
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
+
+hooks:
+  - integration-name: Standard
+    python-modules:
+      - airflow.providers.standard.hooks.filesystem
+      - airflow.providers.standard.hooks.package_index
+      - airflow.providers.standard.hooks.subprocess
