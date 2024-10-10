@@ -265,6 +265,7 @@ ARG_NUM_EXECUTIONS = Arg(
 )
 
 # backfill
+ARG_DAG_RUN_CONF = Arg(("--dag-run-conf"), help="JSON dag run configuration.")
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
@@ -1230,35 +1231,15 @@ DAGS_COMMANDS = (
     ActionCommand(
         name="backfill",
         help="Run subsections of a DAG for a specified date range",
-        description=(
-            "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
-            "backfill will first prompt users whether airflow should clear all the previous dag_run and "
-            "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
-            "will auto re-run the previous failed task instances  within the backfill date range"
-        ),
+        description="Run subsections of a DAG for a specified date range.",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_backfill"),
         args=(
             ARG_DAG_ID,
-            ARG_TASK_REGEX,
             ARG_START_DATE,
             ARG_END_DATE,
-            ARG_MARK_SUCCESS,
-            ARG_LOCAL,
-            ARG_DONOT_PICKLE,
             ARG_YES,
-            ARG_CONTINUE_ON_FAILURES,
-            ARG_DISABLE_RETRY,
-            ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_SUBDIR,
-            ARG_POOL,
-            ARG_DELAY_ON_LIMIT,
-            ARG_DRY_RUN,
-            ARG_VERBOSE,
-            ARG_CONF,
-            ARG_RESET_DAG_RUN,
-            ARG_RERUN_FAILED_TASKS,
+            ARG_DAG_RUN_CONF,
             ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(

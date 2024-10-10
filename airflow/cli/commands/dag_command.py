@@ -39,10 +39,11 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.backfill import _create_backfill
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.cli import get_dag, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
@@ -130,27 +131,22 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
+def dag_backfill(args) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
-    args.ignore_first_depends_on_past = True
 
-    if not args.start_date and not args.end_date:
-        raise AirflowException("Provide a start_date and/or end_date")
+    if not args.start_date or not args.end_date:
+        raise AirflowException("Provide a start_date and end_date")
 
-    if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
-    elif isinstance(dag, list):
-        dags = dag
-    else:
-        dags = [dag]
-    del dag
-
-    dags.sort(key=lambda d: d.dag_id)
-    _run_dag_backfill(dags, args)
-    if len(dags) > 1:
-        log.info("All of the backfills are done.")
+    _create_backfill(
+        dag_id=args.dag_id,
+        from_date=args.from_date,
+        to_date=args.to_date,
+        max_active_runs=args.max_active_runs,
+        reverse=args.reverse,
+        dag_run_conf=args.dag_run_conf,
+    )
 
 
 @cli_utils.action_cli
