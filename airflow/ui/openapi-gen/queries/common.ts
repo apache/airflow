@@ -4,6 +4,7 @@ import { UseQueryResult } from "@tanstack/react-query";
 import {
   AssetService,
   ConnectionService,
+  DagRunService,
   DagService,
   DashboardService,
   VariableService,
@@ -98,6 +99,22 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type DagServiceGetDagDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDag>
+>;
+export type DagServiceGetDagQueryResult<
+  TData = DagServiceGetDagDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagKey = "DagServiceGetDag";
+export const UseDagServiceGetDagKeyFn = (
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagServiceGetDagKey, ...(queryKey ?? [{ dagId }])];
 export type DagServiceGetDagDetailsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDagDetails>
 >;
@@ -150,6 +167,24 @@ export const UseVariableServiceGetVariableKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
+export type DagRunServiceGetDagRunDefaultResponse = Awaited<
+  ReturnType<typeof DagRunService.getDagRun>
+>;
+export type DagRunServiceGetDagRunQueryResult<
+  TData = DagRunServiceGetDagRunDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
+export const UseDagRunServiceGetDagRunKeyFn = (
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
