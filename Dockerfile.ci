@@ -403,7 +403,7 @@ function install_airflow_dependencies_from_branch_tip() {
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    pip freeze | grep apache-airflow-providers | xargs --no-run-if-empty ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
+    pip freeze | (grep apache-airflow-providers || true) | xargs --no-run-if-empty ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS}
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
