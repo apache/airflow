@@ -83,11 +83,10 @@ class SimpleAuthManager(BaseAuthManager):
 
     @staticmethod
     def get_generated_password_file() -> str:
-        filename = "simple_auth_manager_passwords.json.generated"
-        if directory := os.getenv("AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY"):
-            return os.path.join(directory, filename)
-        else:
-            return os.path.join(AIRFLOW_HOME, filename)
+        return os.path.join(
+            os.getenv("AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY", AIRFLOW_HOME),
+            "simple_auth_manager_passwords.json.generated",
+        )
 
     def init(self) -> None:
         user_passwords_from_file = {}
