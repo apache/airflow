@@ -23,10 +23,8 @@ import os
 from pathlib import Path
 from typing import Any, Iterable
 
-import yaml
-
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
-from provider_yaml_utils import get_provider_yaml_paths
+from provider_yaml_utils import load_package_data
 
 from docs.exts.operators_and_hooks_ref import (
     DEFAULT_HEADER_SEPARATOR,
@@ -64,7 +62,7 @@ def get_import_mappings(tree):
 
 
 def _get_module_class_registry(
-    module_filepath: str, class_extras: dict[str, Any]
+    module_filepath: Path, module_name: str, class_extras: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
     """Extracts classes and its information from a Python module file.
 
@@ -80,7 +78,6 @@ def _get_module_class_registry(
     with open(module_filepath) as file:
         ast_obj = ast.parse(file.read())
 
-    module_name = module_filepath.replace("/", ".").replace(".py", "").lstrip(".")
     import_mappings = get_import_mappings(ast_obj)
     module_class_registry = {
         f"{module_name}.{node.name}": {
@@ -140,16 +137,26 @@ def _get_providers_class_registry() -> dict[str, dict[str, Any]]:
     :return: A dictionary with provider names as keys and a dictionary of classes as values.
     """
     class_registry = {}
-    for provider_yaml_path in get_provider_yaml_paths():
-        provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
-        for root, _, file_names in os.walk(Path(provider_yaml_path).parent):
+    for provider_yaml_content in load_package_data():
+        provider_pkg_root = Path(provider_yaml_content["package-dir"])
+        for root, _, file_names in os.walk(provider_pkg_root):
+            folder = Path(root)
             for file_name in file_names:
-                module_filepath = f"{os.path.relpath(root)}/{file_name}"
-                if not module_filepath.endswith(".py") or module_filepath == "__init__.py":
+                if not file_name.endswith(".py") or file_name == "__init__.py":
                     continue
+
+                module_filepath = folder.joinpath(file_name)
 
                 module_registry = _get_module_class_registry(
                     module_filepath=module_filepath,
+                    module_name=(
+                        provider_yaml_content["python-module"]
+                        + "."
+                        + module_filepath.relative_to(provider_pkg_root)
+                        .with_suffix("")
+                        .as_posix()
+                        .replace("/", ".")
+                    ),
                     class_extras={"provider_name": provider_yaml_content["package-name"]},
                 )
                 class_registry.update(module_registry)

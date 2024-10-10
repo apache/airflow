@@ -18,7 +18,9 @@ from __future__ import annotations
 
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.api_fastapi.views.ui.assets import assets_router
+from airflow.api_fastapi.views.ui.dashboard import dashboard_router
 
 ui_router = AirflowRouter(prefix="/ui")
 
 ui_router.include_router(assets_router)
+ui_router.include_router(dashboard_router)

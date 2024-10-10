@@ -43,7 +43,7 @@ To get more information about this operator visit:
 Example usage with a parser for a csv file. This parser loads the
 file into memory and returns a list of rows:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3_to_sql.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3_to_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_sql]
@@ -52,7 +52,7 @@ file into memory and returns a list of rows:
 
 Example usage with a parser function that returns a generator.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3_to_sql.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3_to_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_sql_generator]

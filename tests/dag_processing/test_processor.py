@@ -39,10 +39,11 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
+from dev.tests_common.test_utils.config import conf_vars, env_vars
+from dev.tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -50,7 +51,7 @@ from tests.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from tests.test_utils.mock_executor import MockExecutor
+from dev.tests_common.test_utils.mock_executor import MockExecutor
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

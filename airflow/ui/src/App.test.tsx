@@ -26,6 +26,9 @@ import type { DAGCollectionResponse } from "openapi/requests/types.gen";
 import { App } from "./App";
 import { Wrapper } from "./utils/Wrapper";
 
+// The null fields actually have to be null instead of undefined
+/* eslint-disable unicorn/no-null */
+
 const mockListDags: DAGCollectionResponse = {
   dags: [
     {
