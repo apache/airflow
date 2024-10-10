@@ -27,8 +27,8 @@ import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 const {
-  PAUSED: PAUSED_PARAM,
-  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM
+  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  PAUSED: PAUSED_PARAM
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const DagsFilters = () => {
