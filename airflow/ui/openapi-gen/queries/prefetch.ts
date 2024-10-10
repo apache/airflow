@@ -4,6 +4,7 @@ import { type QueryClient } from "@tanstack/react-query";
 import {
   AssetService,
   ConnectionService,
+  DagRunService,
   DagService,
   DashboardService,
   VariableService,
@@ -127,6 +128,26 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
+ * Get Dag
+ * Get basic information about a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDag = (
+  queryClient: QueryClient,
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }),
+    queryFn: () => DagService.getDag({ dagId }),
+  });
+/**
  * Get Dag Details
  * Get details of DAG.
  * @param data The data for the request.
@@ -185,4 +206,26 @@ export const prefetchUseVariableServiceGetVariable = (
   queryClient.prefetchQuery({
     queryKey: Common.UseVariableServiceGetVariableKeyFn({ variableKey }),
     queryFn: () => VariableService.getVariable({ variableKey }),
+  });
+/**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetDagRun = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
   });
