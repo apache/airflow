@@ -35,6 +35,7 @@
 !docs
 !licenses
 !providers/
+!task_sdk/
 
 # Add those folders to the context so that they are available in the CI container
 !scripts
