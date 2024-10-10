@@ -24,7 +24,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
-from tests.providers.microsoft.conftest import load_file
+from providers.tests.microsoft.conftest import load_file
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
