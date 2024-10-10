@@ -92,7 +92,7 @@ with DAG(
     "example_display_video_misc",
     start_date=START_DATE,
     catchup=False,
-) as dag2:
+) as dag_example_display_video_misc:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
         task_id="upload_erf_to_bq",
@@ -125,7 +125,7 @@ with DAG(
     "example_display_video_sdf",
     start_date=START_DATE,
     catchup=False,
-) as dag3:
+) as dag_example_display_video_sdf:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
         task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST

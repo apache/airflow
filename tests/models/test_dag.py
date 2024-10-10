@@ -25,7 +25,6 @@ import pickle
 import re
 import weakref
 from datetime import timedelta
-from importlib import reload
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,12 +44,8 @@ from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     UnknownExecutorException,
 )
-from airflow.executors import executor_loader
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -2739,20 +2734,6 @@ class TestDagModel:
                 {"alias": "test_name"},
             ]
         }
-
-    @mock.patch("airflow.models.dag.run_job")
-    def test_dag_executors(self, run_job_mock):
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            dag = DAG(dag_id="test", schedule=None)
-            reload(executor_loader)
-            with conf_vars({("core", "executor"): "SequentialExecutor"}):
-                dag.run()
-                assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
-
-                dag.run(local=True)
-                assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:

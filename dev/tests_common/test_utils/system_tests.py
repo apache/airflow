@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_test_run(dag):
+def get_test_run(dag, **test_kwargs):
     def callback(context: Context):
         ti = context["dag_run"].get_task_instances()
         if not ti:
@@ -60,7 +60,10 @@ def get_test_run(dag):
         dag.on_success_callback = add_callback(dag.on_success_callback, callback)
         # If the env variable ``_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR`` is set, then use an executor to run the
         # DAG
-        dag_run = dag.test(use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1")
+        dag_run = dag.test(
+            use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",
+            **test_kwargs,
+        )
         assert (
             dag_run.state == DagRunState.SUCCESS
         ), "The system test failed, please look at the logs to find out the underlying failed task(s)"
