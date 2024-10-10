@@ -311,7 +311,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME),
     ],
 )
-def test_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):
+def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):
     response = test_client.get(f"/public/dags/{dag_id}", params=query_params)
     assert response.status_code == expected_status_code
     if expected_status_code != 200:
