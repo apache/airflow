@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChangeEvent } from "react";
+import type { ChangeEvent } from "react";
 import {
   Button,
   Input,
@@ -37,9 +37,9 @@ export const SearchBar = ({
   groupProps,
   inputProps,
 }: {
-  buttonProps?: ButtonProps;
-  groupProps?: InputGroupProps;
-  inputProps?: InputProps;
+  readonly buttonProps?: ButtonProps;
+  readonly groupProps?: InputGroupProps;
+  readonly inputProps?: InputProps;
 }) => {
 
   const handleSearchChange = useDebouncedCallback(
