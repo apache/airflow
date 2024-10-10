@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from unittest import mock
-from urllib.parse import urlencode
 
 import pendulum
 import pytest
@@ -272,21 +271,21 @@ class TestCreateBackfill(TestBackfillEndpoint):
         to_date = pendulum.parse("2024-02-01")
         to_date_iso = to_date.isoformat()
         max_active_runs = 5
-        query = urlencode(
-            query={
-                "dag_id": dag.dag_id,
-                "from_date": f"{from_date_iso}",
-                "to_date": f"{to_date_iso}",
-                "max_active_runs": max_active_runs,
-                "reverse": False,
-            }
-        )
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "reverse": False,
+            "dag_run_conf": {"param1": "val1", "param2": True},
+        }
         kwargs = {}
         if user:
             kwargs.update(environ_overrides={"REMOTE_USER": user})
 
         response = self.client.post(
-            f"/api/v1/backfills?{query}",
+            "/api/v1/backfills",
+            json=data,
             **kwargs,
         )
         assert response.status_code == expected
@@ -295,7 +294,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
                 "completed_at": mock.ANY,
                 "created_at": mock.ANY,
                 "dag_id": "TEST_DAG_1",
-                "dag_run_conf": None,
+                "dag_run_conf": {"param1": "val1", "param2": True},
                 "from_date": from_date_iso,
                 "id": mock.ANY,
                 "is_paused": False,
