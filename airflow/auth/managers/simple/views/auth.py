@@ -23,8 +23,10 @@ from flask_appbuilder import expose
 
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.configuration import conf
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www.app import csrf
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.views import AirflowBaseView
 
 logger = logging.getLogger(__name__)
@@ -80,9 +82,20 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         if not username or not password or len(found_users) == 0:
             return redirect(url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"]))
 
-        session["user"] = SimpleAuthManagerUser(
+        user = SimpleAuthManagerUser(
             username=username,
             role=found_users[0]["role"],
         )
+        session["user"] = user
+
+        signer = JWTSigner(
+            secret_key=conf.get("api", "auth_jwt_secret"),
+            expiration_time_in_seconds=conf.getint("api", "auth_jwt_expiration_time"),
+            audience="apis",
+        )
+        token = signer.generate_signed_token(get_auth_manager().serialize_user(user))
+
+        logger.info("Generated JWT Token")
+        logger.info(token)
 
         return redirect(url_for("Airflow.index"))

@@ -80,7 +80,17 @@ paths:
       summary: Get Dags
       description: Get all DAGs.
       operationId: get_dags
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: limit
         in: query
         required: false
@@ -298,12 +308,16 @@ paths:
       summary: Get Dag
       description: Get basic information about a DAG.
       operationId: get_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       responses:
         '200':
@@ -348,12 +362,16 @@ paths:
       summary: Patch Dag
       description: Patch the specific DAG.
       operationId: patch_dag
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: update_mask
         in: query
@@ -415,12 +433,16 @@ paths:
       summary: Get Dag Details
       description: Get details of DAG.
       operationId: get_dag_details
+      security:
+      - OAuth2PasswordBearer: []
       parameters:
       - name: dag_id
         in: path
         required: true
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       responses:
         '200':
@@ -1462,3 +1484,10 @@ components:
       - description
       title: VariableResponse
       description: Variable serializer for responses.
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: token

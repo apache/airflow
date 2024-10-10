@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Container
+from typing import TYPE_CHECKING, Any, Container
 
 import packaging.version
 from connexion import FlaskApi
@@ -81,7 +81,7 @@ from airflow.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
@@ -133,12 +133,17 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 }
 
 
-class FabAuthManager(BaseAuthManager):
+class FabAuthManager(BaseAuthManager[User]):
     """
     Flask-AppBuilder auth manager.
 
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
+
+    def init(self) -> None:
+        """Run operations when Airflow is initializing."""
+        if self.appbuilder:
+            self._sync_appbuilder_roles()
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -190,9 +195,12 @@ class FabAuthManager(BaseAuthManager):
 
         return current_user
 
-    def init(self) -> None:
-        """Run operations when Airflow is initializing."""
-        self._sync_appbuilder_roles()
+    def deserialize_user(self, token: dict[str, Any]) -> User:
+        with create_session() as session:
+            return session.get(User, token["id"])
+
+    def serialize_user(self, user: User) -> dict[str, Any]:
+        return {"id": user.id}
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
@@ -200,8 +208,10 @@ class FabAuthManager(BaseAuthManager):
         if Version(Version(version).base_version) < Version("3.0.0"):
             return not user.is_anonymous and user.is_active
         else:
-            return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None) or (
-                not user.is_anonymous and user.is_active
+            return (
+                self.appbuilder
+                and self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+                or (not user.is_anonymous and user.is_active)
             )
 
     def is_authorized_configuration(
@@ -356,6 +366,9 @@ class FabAuthManager(BaseAuthManager):
         from airflow.providers.fab.auth_manager.security_manager.override import (
             FabAirflowSecurityManagerOverride,
         )
+
+        if not self.appbuilder:
+            raise AirflowException("AppBuilder is not initialized.")
 
         sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
@@ -528,6 +541,9 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
+        if not self.appbuilder:
+            raise AirflowException("AppBuilder is not initialized.")
+
         if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)

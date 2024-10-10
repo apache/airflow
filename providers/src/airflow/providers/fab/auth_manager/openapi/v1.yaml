@@ -329,6 +329,30 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /token:
+    get:
+      summary: Get a JWT token
+      description: |
+        Get a JWT token for the authenticated user.
+
+        *New in version 1.6.0*
+      x-openapi-router-controller: airflow.providers.fab.auth_manager.api_endpoints.token_endpoint
+      operationId: get_token
+      tags: [Token]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   # Reusable schemas (data models)
   schemas:
@@ -517,6 +541,24 @@ components:
           $ref: '#/components/schemas/Resource'
           description: The permission resource
 
+    Token:
+      description: |
+        A JWT token.
+
+        *New in version 1.6.0*
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: |
+            The encoded JWT token payload.
+          minLength: 1
+        token_type:
+          type: string
+          description: |
+            The token type.
+          minLength: 1
+
     # Generic
     Error:
       description: |
@@ -698,3 +740,4 @@ tags:
   - name: Role
   - name: Permission
   - name: User
+  - name: Token

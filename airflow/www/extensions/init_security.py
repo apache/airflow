@@ -56,7 +56,8 @@ def init_api_auth(app):
     try:
         for backend in auth_backends.split(","):
             auth = import_module(backend.strip())
-            auth.init_app(app)
+            if hasattr(auth, "init_app"):
+                auth.init_app(app)
             app.api_auth.append(auth)
     except ImportError as err:
         log.critical("Cannot import %s for API authentication due to: %s", backend, err)
