@@ -3673,21 +3673,12 @@ class TaskInstance(Base, LoggingMixin):
                 assert task
                 assert task.dag
 
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=True,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
+            # In many scenarios, get a partial DAG is an unsafe operation and will lead to many bad cases.
+            dag_run.dag = task.dag
             info = dag_run.task_instance_scheduling_decisions(session)
 
             skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
+                task_id for task_id in task.dag.task_ids if task_id not in task.downstream_task_ids
             }
 
             schedulable_tis = [
