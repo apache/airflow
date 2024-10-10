@@ -1092,10 +1092,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span:
+            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span, \
+                Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 span.set_attribute("category", "scheduler")
                 span.set_attribute("loop_count", loop_count)
-                with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                     if self.using_sqlite and self.processor_agent:
                         self.processor_agent.run_single_parsing_loop()
                         # For the sqlite case w/ 1 thread, wait until the processor
