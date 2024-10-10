@@ -106,7 +106,6 @@ dependencies:
   - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
-  - sqlalchemy_redshift>=0.8.6
   - asgiref>=2.3.0
   - PyAthena>=3.0.10
   - jmespath>=0.7.0
@@ -115,12 +114,7 @@ dependencies:
 additional-extras:
   - name: pandas
     dependencies:
-      # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-      # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-      # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-      # In addition FAB also limit sqlalchemy to < 2.0
-      - pandas>=2.1.2,<2.2;python_version>="3.9"
-      - pandas>=1.5.3,<2.2;python_version<"3.9"
+      - pandas
 
 
   # There is conflict between boto3 and aiobotocore dependency botocore.
