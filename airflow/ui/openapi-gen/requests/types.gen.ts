@@ -536,6 +536,10 @@ export type $OpenApiTs = {
          */
         204: void;
         /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
          * Unauthorized
          */
         401: HTTPExceptionResponse;

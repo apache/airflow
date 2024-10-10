@@ -275,6 +275,7 @@ export class ConnectionService {
         connection_id: data.connectionId,
       },
       errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
