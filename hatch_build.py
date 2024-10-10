@@ -106,11 +106,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "opentelemetry-exporter-prometheus",
     ],
     "pandas": [
-        # In pandas 2.2 minimal version of the sqlalchemy is 2.0
-        # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
-        # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
-        # In addition FAB also limit sqlalchemy to < 2.0
-        "pandas>=1.2.5,<2.2",
+        "pandas>=1.2.5",
     ],
     "password": [
         "bcrypt>=2.0.0",
@@ -347,7 +343,6 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
 DEPENDENCIES = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
-    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
@@ -374,14 +369,7 @@ DEPENDENCIES = [
     "eval-type-backport>=0.2.0",
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
-    "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
@@ -424,11 +412,7 @@ DEPENDENCIES = [
     "rich-argparse>=1.0.0",
     "rich>=12.4.4",
     "setproctitle>=1.3.3",
-    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
-    # See https://sqlalche.me/e/b8d9 for details of deprecated features
-    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
-    # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.36,<2.0",
+    "sqlalchemy>=2.0,<3.0",
     "sqlalchemy-jsonfield>=1.0",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
