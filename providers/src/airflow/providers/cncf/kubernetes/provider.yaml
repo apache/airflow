@@ -104,13 +104,13 @@ dependencies:
   # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
   # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
   # core is not hard-limited via install-requirements, only by extra).
-  - kubernetes>=29.0.0,<=30.1.0
+  - kubernetes>=29.0.0,<=31.0.0
   # The Kubernetes_asyncio package is used for providing Asynchronous (AsyncIO) client library for
   # standard Kubernetes API. The version is limited by minimum 18.20.1 because of introducing the ability to
   # load kubernetes config file from dictionary in that release and is limited to the next MAJOR version
   # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
   #  major changes in the package.
-  - kubernetes_asyncio>=29.0.0,<=30.1.0
+  - kubernetes_asyncio>=29.0.0,<=31.0.0
   - google-re2>=1.0
 
 integrations:
