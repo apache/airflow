@@ -396,6 +396,7 @@ export class DagRunService {
 
   /**
    * Delete Dag Run
+   * Delete a DAG Run entry.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.dagRunId

@@ -683,6 +683,7 @@ paths:
       tags:
       - DagRun
       summary: Delete Dag Run
+      description: Delete a DAG Run entry.
       operationId: delete_dag_run
       parameters:
       - name: dag_id
