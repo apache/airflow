@@ -39,24 +39,54 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
-def get_dag_stats(*, dag_ids: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag_stats(
+    *,
+    dag_ids: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get Dag statistics."""
     allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
-    dags_list = set(dag_ids.split(","))
-    filter_dag_ids = dags_list.intersection(allowed_dag_ids)
+    if dag_ids:
+        dags_list = set(dag_ids.split(","))
+        filter_dag_ids = dags_list.intersection(allowed_dag_ids)
+    else:
+        filter_dag_ids = allowed_dag_ids
 
     query = (
-        select(DagRun.dag_id, DagRun.state, func.count(DagRun.state))
+        select(DagRun.dag_id, DagRun.state, func.count(DagRun.state).label("count"))
         .group_by(DagRun.dag_id, DagRun.state)
         .where(DagRun.dag_id.in_(filter_dag_ids))
     )
-    dag_state_stats = session.execute(query)
+    if limit or offset:
+        query = query.subquery()
+        ranked_query = select(
+            query.c.dag_id,
+            query.c.state,
+            query.c.count,
+            func.dense_rank().over(order_by=query.c.dag_id).label("rank"),
+        ).subquery()
+        paginated_query = select(ranked_query.c.dag_id, ranked_query.c.state, ranked_query.c.count)
+        if offset:
+            paginated_query = paginated_query.where(ranked_query.c.rank > offset)
+        if limit:
+            paginated_query = paginated_query.where(
+                ranked_query.c.rank <= limit + (offset if offset is not None else 0)
+            )
+        dag_state_stats = session.execute(paginated_query)
+    else:
+        dag_state_stats = session.execute(query)
 
     dag_state_data = {(dag_id, state): count for dag_id, state, count in dag_state_stats}
-    dag_stats = {
-        dag_id: [{"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState]
-        for dag_id in filter_dag_ids
-    }
-
-    dags = [{"dag_id": stat, "stats": dag_stats[stat]} for stat in dag_stats]
-    return dag_stats_collection_schema.dump({"dags": dags, "total_entries": len(dag_stats)})
+    dag_ids = {dag[0] for dag in dag_state_data.keys()}
+    dag_stats = [
+        {
+            "dag_id": dag_id,
+            "stats": [
+                {"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState
+            ],
+        }
+        for dag_id in dag_ids
+    ]
+    return dag_stats_collection_schema.dump({"dags": dag_stats, "total_entries": len(dag_stats)})
