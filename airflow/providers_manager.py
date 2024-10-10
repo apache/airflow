@@ -36,8 +36,8 @@ from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, Typ
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.hooks.filesystem import FSHook
-from airflow.hooks.package_index import PackageIndexHook
+from airflow.providers.standard.hooks.filesystem import FSHook
+from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.typing_compat import ParamSpec
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
