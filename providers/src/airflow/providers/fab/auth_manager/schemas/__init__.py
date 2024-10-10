@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_run import dag_run_router
-from airflow.api_fastapi.views.public.dags import dags_router
-from airflow.api_fastapi.views.public.variables import variables_router
-from airflow.api_fastapi.views.router import AirflowRouter
-
-public_router = AirflowRouter(prefix="/public")
-
-
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_run_router)

@@ -14,19 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Session authentication backend."""
 
 from __future__ import annotations
 
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_run import dag_run_router
-from airflow.api_fastapi.views.public.dags import dags_router
-from airflow.api_fastapi.views.public.variables import variables_router
-from airflow.api_fastapi.views.router import AirflowRouter
+from functools import wraps
+from typing import Any, Callable, TypeVar, cast
 
-public_router = AirflowRouter(prefix="/public")
+from flask import Response
+
+from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_run_router)
+def init_app(_):
+    """Initialize authentication backend."""
+
+
+T = TypeVar("T", bound=Callable)
+
+
+def requires_authentication(function: T):
+    """Decorate functions that require authentication."""
+
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        if not get_auth_manager().is_logged_in():
+            return Response("Unauthorized", 401, {})
+        return function(*args, **kwargs)
+
+    return cast(T, decorated)
