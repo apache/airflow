@@ -82,22 +82,9 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
-    @classmethod
-    # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
-    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
-        """
-        Return default hook for this connection id.
-
-        :param conn_id: connection id
-        :param hook_params: hook parameters
-        :return: default hook for this connection
-        """
-        connection = BaseHook.get_connection(conn_id)
-        return connection.get_hook(hook_params=hook_params)
-
     def execute(self, context: Context):
-        source_hook = self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
-        destination_hook = self.get_hook(
+        source_hook = BaseHook.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
+        destination_hook = BaseHook.get_hook(
             conn_id=self.destination_conn_id, hook_params=self.destination_hook_params
         )
 
