@@ -356,5 +356,6 @@ def get_unique_dag_module_name(file_path: str) -> str:
     if isinstance(file_path, str):
         path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
         org_mod_name = Path(file_path).stem
+        org_mod_name = org_mod_name.replace("-", "_")
         return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
     raise ValueError("file_path should be a string to generate unique module name")
