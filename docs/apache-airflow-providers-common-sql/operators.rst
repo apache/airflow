@@ -38,7 +38,7 @@ different databases. Parameters of the operators are:
 
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
-.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_execute_query.py
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_execute_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_execute_query]
@@ -101,7 +101,7 @@ empty tables to return valid integers.
 
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
-.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_column_check]
@@ -141,7 +141,7 @@ checks.
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 
-.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py
+.. exampleinclude:: /../../providers/tests/system/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]

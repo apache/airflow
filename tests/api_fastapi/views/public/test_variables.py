@@ -20,20 +20,47 @@ import pytest
 
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
-from tests.test_utils.db import clear_db_variables
+
+from dev.tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
 TEST_VARIABLE_KEY = "test_variable_key"
-TEST_VARIABLE_VAL = 3
+TEST_VARIABLE_VALUE = "test_variable_value"
 TEST_VARIABLE_DESCRIPTION = "Some description for the variable"
-TEST_CONN_TYPE = "test_type"
+
+
+TEST_VARIABLE_KEY2 = "password"
+TEST_VARIABLE_VALUE2 = "some_password"
+TEST_VARIABLE_DESCRIPTION2 = "Some description for the password"
+
+
+TEST_VARIABLE_KEY3 = "dictionary_password"
+TEST_VARIABLE_VALUE3 = '{"password": "some_password"}'
+TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 
 @provide_session
 def _create_variable(session) -> None:
     Variable.set(
-        key=TEST_VARIABLE_KEY, value=TEST_VARIABLE_VAL, description=TEST_VARIABLE_DESCRIPTION, session=session
+        key=TEST_VARIABLE_KEY,
+        value=TEST_VARIABLE_VALUE,
+        description=TEST_VARIABLE_DESCRIPTION,
+        session=session,
+    )
+
+    Variable.set(
+        key=TEST_VARIABLE_KEY2,
+        value=TEST_VARIABLE_VALUE2,
+        description=TEST_VARIABLE_DESCRIPTION2,
+        session=session,
+    )
+
+    Variable.set(
+        key=TEST_VARIABLE_KEY3,
+        value=TEST_VARIABLE_VALUE3,
+        description=TEST_VARIABLE_DESCRIPTION3,
+        session=session,
     )
 
 
@@ -53,14 +80,58 @@ class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_variable()
         variables = session.query(Variable).all()
-        assert len(variables) == 1
+        assert len(variables) == 3
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 204
         variables = session.query(Variable).all()
-        assert len(variables) == 0
+        assert len(variables) == 2
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
+        assert response.status_code == 404
+        body = response.json()
+        assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+
+
+class TestGetVariable(TestVariableEndpoint):
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "key, expected_response",
+        [
+            (
+                TEST_VARIABLE_KEY,
+                {
+                    "key": TEST_VARIABLE_KEY,
+                    "value": TEST_VARIABLE_VALUE,
+                    "description": TEST_VARIABLE_DESCRIPTION,
+                },
+            ),
+            (
+                TEST_VARIABLE_KEY2,
+                {
+                    "key": TEST_VARIABLE_KEY2,
+                    "value": "***",
+                    "description": TEST_VARIABLE_DESCRIPTION2,
+                },
+            ),
+            (
+                TEST_VARIABLE_KEY3,
+                {
+                    "key": TEST_VARIABLE_KEY3,
+                    "value": '{"password": "***"}',
+                    "description": TEST_VARIABLE_DESCRIPTION3,
+                },
+            ),
+        ],
+    )
+    def test_get_should_respond_200(self, test_client, session, key, expected_response):
+        self.create_variable()
+        response = test_client.get(f"/public/variables/{key}")
+        assert response.status_code == 200
+        assert response.json() == expected_response
+
+    def test_get_should_respond_404(self, test_client):
+        response = test_client.get(f"/public/variables/{TEST_VARIABLE_KEY}")
         assert response.status_code == 404
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]

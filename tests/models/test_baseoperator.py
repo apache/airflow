@@ -50,7 +50,8 @@ from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+
+from dev.tests_common.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

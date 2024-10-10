@@ -40,7 +40,7 @@ Parameters
 
 For parameter definition, take a look at :class:`~airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook`
 
-.. exampleinclude:: /../../tests/system/providers/apache/pinot/example_pinot_dag.py
+.. exampleinclude:: /../../providers/tests/system/apache/pinot/example_pinot_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_pinot_admin_hook]
@@ -61,7 +61,7 @@ Parameters
 
 For parameter definition, take a look at :class:`~airflow.providers.apache.pinot.hooks.pinot.PinotDbApiHook`
 
-.. exampleinclude:: /../../tests/system/providers/apache/pinot/example_pinot_dag.py
+.. exampleinclude:: /../../providers/tests/system/apache/pinot/example_pinot_dag.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_pinot_dbapi_example]

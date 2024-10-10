@@ -60,8 +60,8 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
@@ -72,10 +72,12 @@ from tests.jobs.test_backfill_job import _mock_executor
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+from tests.utils.test_timezone import UTC
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars, env_vars
+from dev.tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
@@ -87,9 +89,8 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
     set_default_pool_slots,
 )
-from tests.test_utils.mock_executor import MockExecutor
-from tests.test_utils.mock_operators import CustomOperator
-from tests.utils.test_timezone import UTC
+from dev.tests_common.test_utils.mock_executor import MockExecutor
+from dev.tests_common.test_utils.mock_operators import CustomOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -2949,41 +2950,6 @@ class TestSchedulerJob:
                 },
                 dagrun_state=State.FAILED,
             )
-
-    def test_dagrun_root_fail_unfinished(self):
-        """
-        DagRuns with one unfinished and one failed root task -> RUNNING
-        """
-        # TODO: this should live in test_dagrun.py
-        # Run both the failed and successful tasks
-        dag_id = "test_dagrun_states_root_fail_unfinished"
-        dag = self.dagbag.get_dag(dag_id)
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=None,
-            data_interval=data_interval,
-            **triggered_by_kwargs,
-        )
-        self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
-
-        # todo: AIP-78 remove this test along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            for _ in _mock_executor(self.null_exec):
-                with pytest.raises(AirflowException):
-                    dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
-
-        # Mark the successful task as never having run since we want to see if the
-        # dagrun will be in a running state despite having an unfinished task.
-        with create_session() as session:
-            ti = dr.get_task_instance("test_dagrun_unfinished", session=session)
-            ti.state = State.NONE
-            session.commit()
-        dr.update_state()
-        assert dr.state == State.RUNNING
 
     def test_dagrun_root_after_dagrun_unfinished(self, mock_executor):
         """
