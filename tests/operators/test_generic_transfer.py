@@ -17,20 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 from contextlib import closing
 from datetime import datetime
 from unittest import mock
 
 import pytest
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.operators.generic_transfer import GenericTransfer
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
-
-from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
 
@@ -178,31 +174,14 @@ class TestGenericTransfer:
         operator.render_template_fields(
             {
                 "sql": "my_sql",
-                "destination_table": "c",
+                "destination_table": "my_destination_table",
                 "source_conn_id": "my_source_conn_id",
                 "destination_conn_id": "my_destination_conn_id",
                 "preoperator": "my_preoperator",
             }
         )
         assert operator.sql == "my_sql"
-        assert operator.destination_table == "destination_table"
+        assert operator.destination_table == "my_destination_table"
         assert operator.source_conn_id == "my_source_conn_id"
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
-
-    def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_get_hook_method(self):
-        """
-        Once this test starts failing due to the fact that the minimum Airflow version is now 3.0.0 or higher
-        for this provider, you should remove the obsolete get_hook method in the GenericTransfer operator
-        and remove this test.  This test was added to make sure to not forget to remove the fallback code
-        for backward compatibility with Airflow 2.8.x which isn't need anymore once this provider depends on
-        Airflow 3.0.0 or higher.
-        """
-        min_airflow_version = get_provider_min_airflow_version("apache-airflow-providers-common-sql")
-
-        # Check if the current Airflow version is 3.0.0 or higher
-        if min_airflow_version[0] >= 3:
-            method_source = inspect.getsource(GenericTransfer.get_hook)
-            raise AirflowProviderDeprecationWarning(
-                f"Check TODO's to remove obsolete get_hook method in GenericTransfer:\n\r\n\r\t\t\t{method_source}"
-            )
