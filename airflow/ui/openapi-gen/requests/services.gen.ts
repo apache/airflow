@@ -27,6 +27,8 @@ import type {
   GetVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
+  DeleteDagRunData,
+  DeleteDagRunResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -384,6 +386,34 @@ export class DagRunService {
         dag_run_id: data.dagRunId,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Dag Run
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteDagRun(
+    data: DeleteDagRunData,
+  ): CancelablePromise<DeleteDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

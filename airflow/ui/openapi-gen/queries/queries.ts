@@ -506,3 +506,45 @@ export const useVariableServiceDeleteVariable = <
       }) as unknown as Promise<TData>,
     ...options,
   });
+/**
+ * Delete Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceDeleteDagRun = <
+  TData = Common.DagRunServiceDeleteDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId }) =>
+      DagRunService.deleteDagRun({
+        dagId,
+        dagRunId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
