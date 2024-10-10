@@ -25,7 +25,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ChangeEvent, type ChangeEventHandler, useCallback, useState } from "react";
+import { type ChangeEvent, type ChangeEventHandler, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
@@ -37,7 +37,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { pluralize } from "src/utils/pluralize";
-import { searchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
@@ -90,7 +90,10 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
 ];
 
-const { PAUSED: PAUSED_PARAM, NAME_PATTERN: NAME_PATTERN_PARAM } = searchParamsKeys;
+const {
+  NAME_PATTERN: NAME_PATTERN_PARAM,
+  PAUSED: PAUSED_PARAM
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -159,11 +162,11 @@ export const DagsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          inputProps={{
-            onChange: handleSearchChange,
-            defaultValue: dagDisplayNamePattern
-          }}
           buttonProps={{ isDisabled: true }}
+          inputProps={{
+            defaultValue: dagDisplayNamePattern,
+            onChange: handleSearchChange
+          }}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

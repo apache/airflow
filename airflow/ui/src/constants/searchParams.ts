@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export enum searchParamsKeys {
-  NAME_PATTERN = "name_pattern",
-  PAUSED = "paused",
+export enum SearchParamsKeys {
   LIMIT = "limit",
+  NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
+  PAUSED = "paused",
   SORT = "sort"
 }
+
+export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
