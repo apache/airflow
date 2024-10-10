@@ -30,6 +30,7 @@ from time import sleep
 from typing import NoReturn
 
 import psutil
+import uvicorn
 from lockfile.pidlockfile import read_pid_from_pidfile
 from uvicorn.workers import UvicornWorker
 
@@ -50,6 +51,8 @@ log = logging.getLogger(__name__)
 AirflowUvicornWorker = UvicornWorker
 AirflowUvicornWorker.CONFIG_KWARGS = {"loop": "asyncio", "http": "auto"}
 
+_FASTAPI_APP_PATH = "airflow.api_fastapi.app:cached_app"
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
@@ -62,6 +65,7 @@ def fastapi_api(args):
     access_logformat = args.access_logformat
     num_workers = args.workers
     worker_timeout = args.worker_timeout
+    ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
 
     worker_class = "airflow.cli.commands.fastapi_api_command.AirflowUvicornWorker"
 
@@ -71,21 +75,15 @@ def fastapi_api(args):
         print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
         log.warning("Running in dev mode, ignoring gunicorn args")
 
-        run_args = [
-            "fastapi",
-            "dev",
-            "airflow/api_fastapi/main.py",
-            "--port",
-            str(args.port),
-            "--host",
-            str(args.hostname),
-        ]
-
-        with subprocess.Popen(
-            run_args,
-            close_fds=True,
-        ) as process:
-            process.wait()
+        uvicorn.run(
+            _FASTAPI_APP_PATH,
+            factory=True,
+            port=args.port,
+            host=args.hostname,
+            reload=True,
+            proxy_headers=True,
+            **({"ssl_certfile": ssl_cert, "ssl_keyfile": ssl_key} if ssl_cert and ssl_key else {}),
+        )
     else:
         log.info(
             textwrap.dedent(
@@ -125,17 +123,16 @@ def fastapi_api(args):
             "python:airflow.api_fastapi.gunicorn_config",
         ]
 
-        ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
-        if ssl_cert and ssl_key:
-            run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
-
         if args.access_logformat and args.access_logformat.strip():
             run_args += ["--access-logformat", str(args.access_logformat)]
 
         if args.daemon:
             run_args += ["--daemon"]
 
-        run_args += ["airflow.api_fastapi.app:cached_app()"]
+        if ssl_cert and ssl_key:
+            run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
+
+        run_args += [f"{_FASTAPI_APP_PATH}()"]
 
         # To prevent different workers creating the web app and
         # all writing to the database at the same time, we use the --preload option.
