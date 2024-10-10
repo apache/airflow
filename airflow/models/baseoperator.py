@@ -128,7 +128,9 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or type(retries) == int:  # noqa: E721
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)

@@ -54,7 +54,7 @@ To get information about jobs within a Azure Blob Storage use:
 :class:`~airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPToWasbOperator`
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_sftp_to_wasb.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_sftp_to_wasb.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_sftp_to_wasb]

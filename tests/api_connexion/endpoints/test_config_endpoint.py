@@ -21,8 +21,8 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
+from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
