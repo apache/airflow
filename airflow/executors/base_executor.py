@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import warnings
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
@@ -29,12 +28,11 @@ import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -228,7 +226,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @span
+    @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -321,7 +319,7 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
-    @span
+    @add_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -381,7 +379,7 @@ class BaseExecutor(LoggingMixin):
         if task_tuples:
             self._process_tasks(task_tuples)
 
-    @span
+    @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
             task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
@@ -467,7 +465,7 @@ class BaseExecutor(LoggingMixin):
                 span.set_attribute("dag_id", key.dag_id)
                 span.set_attribute("run_id", key.run_id)
                 span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number - 1)
+                span.set_attribute("try_number", key.try_number)
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
@@ -539,11 +537,11 @@ class BaseExecutor(LoggingMixin):
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
@@ -583,22 +581,6 @@ class BaseExecutor(LoggingMixin):
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
         return len(self.running) + len(self.queued_tasks)
-
-    @staticmethod
-    def validate_command(command: list[str]) -> None:
-        """
-        Back-compat method to Check if the command to execute is airflow command.
-
-        :param command: command to check
-        """
-        warnings.warn(
-            """
-            The `validate_command` method is deprecated. Please use ``validate_airflow_tasks_run_command``
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        BaseExecutor.validate_airflow_tasks_run_command(command)
 
     @staticmethod
     def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:

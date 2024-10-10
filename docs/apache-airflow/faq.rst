@@ -494,7 +494,7 @@ What does "MySQL Server has gone away" mean?
 
 You may occasionally experience ``OperationalError`` with the message "MySQL Server has gone away". This is due to the
 connection pool keeping connections open too long and you are given an old connection that has expired. To ensure a
-valid connection, you can set :ref:`config:core__sql_alchemy_pool_recycle` to ensure connections are invalidated after
+valid connection, you can set :ref:`config:database__sql_alchemy_pool_recycle` to ensure connections are invalidated after
 that many seconds and new ones are created.
 
 
@@ -548,3 +548,4 @@ The telemetry data collected is limited to the following:
 - Number of DAGs
 - Number of Airflow plugins
 - Number of timetables, Flask blueprints, Flask AppBuilder views, and Flask Appbuilder menu items from Airflow plugins
+- and information from tracking pixels like URL / IP-address as documented in the `Scarf Privacy Policy <https://about.scarf.sh/privacy-policy>`__.

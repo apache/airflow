@@ -1,0 +1,20 @@
+**Breaking Change**
+
+* Rename dataset endpoints as asset endpoints
+
+  * Rename ``/datasets`` as ``/assets``
+  * Rename ``/datasets/{uri}`` as ``/assets/{uri}``
+  * Rename ``/datasets/events`` as ``/assets/events``
+  * Rename ``/datasets/queuedEvent/{uri}`` as ``/ui/next_run_assets/upstream``
+  * Rename ``/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents`` as ``/ui/next_run_assets/upstream``
+  * Rename ``/dags/{dag_id}/datasets/queuedEvent/{uri}`` as ``/ui/next_run_assets/upstream``
+  * Rename ``/dags/{dag_id}/datasets/queuedEvent`` as ``/ui/next_run_assets/upstream``
+  * Rename ``/ui/next_run_datasets/upstream`` as ``/ui/next_run_assets/upstream``
+
+
+* Rename dataset schema as asset endpoints
+
+  * Rename ``AssetCollection.datasets`` as ``AssetCollection.assets``
+  * Rename ``AssetEventCollection.dataset_events`` as ``AssetEventCollection.asset_events``
+  * Rename ``AssetEventCollectionSchema.dataset_events`` as ``AssetEventCollectionSchema.asset_events``
+  * Rename ``CreateAssetEventSchema.dataset_uri`` as ``CreateAssetEventSchema.asset_uri``

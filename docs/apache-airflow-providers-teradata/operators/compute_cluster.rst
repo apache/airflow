@@ -33,7 +33,7 @@ to provision the new Compute Cluster in Teradata Vantage Cloud Lake.
 An example usage of the TeradataComputeClusterProvisionOperator to provision the new Compute Cluster in
 Teradata Vantage Cloud Lake is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_compute_cluster.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_compute_cluster.py
     :language: python
     :start-after: [START teradata_vantage_lake_compute_cluster_provision_howto_guide]
     :end-before: [END teradata_vantage_lake_compute_cluster_provision_howto_guide]
@@ -56,7 +56,7 @@ to decommission the specified Teradata Vantage Cloud Lake Compute Cluster.
 An example usage of the TeradataComputeClusterDecommissionOperator to decommission the specified Teradata Vantage Cloud
 Lake Compute Cluster is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_compute_cluster.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_compute_cluster.py
     :language: python
     :start-after: [START teradata_vantage_lake_compute_cluster_decommission_howto_guide]
     :end-before: [END teradata_vantage_lake_compute_cluster_decommission_howto_guide]
@@ -79,7 +79,7 @@ to start the specified Compute Cluster in Teradata Vantage Cloud Lake.
 An example usage of the TeradataComputeClusterSuspendOperator to start the specified Compute Cluster in
 Teradata Vantage Cloud Lake is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_compute_cluster.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_compute_cluster.py
     :language: python
     :start-after: [START teradata_vantage_lake_compute_cluster_resume_howto_guide]
     :end-before: [END teradata_vantage_lake_compute_cluster_resume_howto_guide]
@@ -101,7 +101,7 @@ to suspend the specified Compute Cluster in Teradata Vantage Cloud Lake.
 An example usage of the TeradataComputeClusterSuspendOperator to suspend the specified Compute Cluster in
 Teradata Vantage Cloud Lake is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_compute_cluster.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_compute_cluster.py
     :language: python
     :start-after: [START teradata_vantage_lake_compute_cluster_suspend_howto_guide]
     :end-before: [END teradata_vantage_lake_compute_cluster_suspend_howto_guide]

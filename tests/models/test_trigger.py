@@ -19,7 +19,9 @@ from __future__ import annotations
 import datetime
 import json
 from typing import Any, AsyncIterator
+from unittest.mock import patch
 
+import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
@@ -40,7 +42,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -161,11 +164,15 @@ def test_submit_failure(session, create_task_instance):
         (TaskSkippedEvent, "skipped"),
     ],
 )
-def test_submit_event_task_end(session, create_task_instance, event_cls, expected):
+@patch("airflow.utils.timezone.utcnow")
+def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event_cls, expected):
     """
     Tests that events inheriting BaseTaskEndEvent *don't* re-wake their dependent
     but mark them in the appropriate terminal state and send xcom
     """
+    now = pendulum.now("UTC")
+    mock_utcnow.return_value = now
+
     # Make a trigger
     trigger = Trigger(classpath="does.not.matter", kwargs={})
     trigger.id = 1
@@ -199,6 +206,8 @@ def test_submit_event_task_end(session, create_task_instance, event_cls, expecte
     ti = session.query(TaskInstance).one()
     assert ti.state == expected
     assert ti.next_kwargs is None
+    assert ti.end_date == now
+    assert ti.duration is not None
     actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
     assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": "d"}
 

@@ -1,3 +1,2 @@
-.*_invalid.*  # Skip invalid files
-subdir3       # Skip the nested subdir3 directory
-# *badrule      # This rule is an invalid regex. It would be warned about and skipped.
+*_invalid_*  # Skip invalid files
+subdir3      # Skip the nested subdir3 directory

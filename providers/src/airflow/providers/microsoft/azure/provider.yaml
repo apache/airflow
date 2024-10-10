@@ -1,0 +1,379 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+package-name: apache-airflow-providers-microsoft-azure
+name: Microsoft Azure
+description: |
+  `Microsoft Azure <https://azure.microsoft.com/>`__
+state: ready
+source-date-epoch: 1728485226
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 10.5.1
+  - 10.5.0
+  - 10.4.0
+  - 10.3.0
+  - 10.2.0
+  - 10.1.2
+  - 10.1.1
+  - 10.1.0
+  - 10.0.0
+  - 9.0.1
+  - 9.0.0
+  - 8.5.1
+  - 8.5.0
+  - 8.4.0
+  - 8.3.0
+  - 8.2.0
+  - 8.1.0
+  - 8.0.0
+  - 7.0.0
+  - 6.3.0
+  - 6.2.4
+  - 6.2.3
+  - 6.2.2
+  - 6.2.1
+  - 6.2.0
+  - 6.1.2
+  - 6.1.1
+  - 6.1.0
+  - 6.0.0
+  - 5.3.1
+  - 5.3.0
+  - 5.2.1
+  - 5.2.0
+  - 5.1.0
+  - 5.0.2
+  - 5.0.1
+  - 5.0.0
+  - 4.3.0
+  - 4.2.0
+  - 4.1.0
+  - 4.0.0
+  - 3.9.0
+  - 3.8.0
+  - 3.7.2
+  - 3.7.1
+  - 3.7.0
+  - 3.6.0
+  - 3.5.0
+  - 3.4.0
+  - 3.3.0
+  - 3.2.0
+  - 3.1.1
+  - 3.1.0
+  - 3.0.0
+  - 2.0.0
+  - 1.3.0
+  - 1.2.0
+  - 1.1.0
+  - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.8.0
+  - adlfs>=2023.10.0
+  - azure-batch>=8.0.0
+  - azure-cosmos>=4.6.0
+  - azure-mgmt-cosmosdb>=3.0.0
+  - azure-datalake-store>=0.0.45
+  - azure-identity>=1.3.1
+  - azure-keyvault-secrets>=4.1.0
+  - azure-mgmt-datalake-store>=0.5.0
+  - azure-mgmt-resource>=2.2.0
+  - azure-storage-blob>=12.14.0
+  - azure-mgmt-storage>=16.0.0
+  - azure-storage-file-share>=12.7.0
+  - azure-servicebus>=7.12.1
+  - azure-synapse-spark>=0.2.0
+  - azure-synapse-artifacts>=0.17.0
+  - adal>=1.2.7
+  - azure-storage-file-datalake>=12.9.1
+  # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
+  - azure-kusto-data>=4.1.0,!=4.6.0
+  - azure-mgmt-datafactory>=2.0.0
+  - azure-mgmt-containerregistry>=8.0.0
+  - azure-mgmt-containerinstance>=10.1.0
+  - msgraph-core>=1.0.0
+
+devel-dependencies:
+  - pywinrm
+
+integrations:
+  - integration-name: Microsoft Azure Batch
+    external-doc-url: https://azure.microsoft.com/en-us/services/batch/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/batch.rst
+    logo: /integration-logos/azure/Microsoft-Azure-Batch.png
+    tags: [azure]
+  - integration-name: Microsoft Azure Blob Storage
+    external-doc-url: https://azure.microsoft.com/en-us/services/storage/blobs/
+    logo: /integration-logos/azure/Blob Storage.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure Container Instances
+    external-doc-url: https://azure.microsoft.com/en-us/services/container-instances/
+    logo: /integration-logos/azure/Container Instances.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure Cosmos DB
+    external-doc-url: https://azure.microsoft.com/en-us/services/cosmos-db/
+    logo: /integration-logos/azure/Azure Cosmos DB.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure Data Explorer
+    external-doc-url: https://azure.microsoft.com/en-us/services/data-explorer/
+    logo: /integration-logos/azure/Microsoft-Azure-Data-Explorer.png
+    tags: [azure]
+  - integration-name: Microsoft Azure Data Lake Storage
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/adls.rst
+    external-doc-url: https://azure.microsoft.com/en-us/services/storage/data-lake-storage/
+    logo: /integration-logos/azure/Data Lake Storage.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure Files
+    external-doc-url: https://azure.microsoft.com/en-us/services/storage/files/
+    logo: /integration-logos/azure/Azure Files.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure FileShare
+    external-doc-url: https://cloud.google.com/storage/
+    logo: /integration-logos/azure/Microsoft-Azure-Fileshare.png
+    tags: [azure]
+  - integration-name: Microsoft Azure Data Factory
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/adf_run_pipeline.rst
+    external-doc-url: https://azure.microsoft.com/en-us/services/data-factory/
+    logo: /integration-logos/azure/Azure Data Factory.svg
+    tags: [azure]
+  - integration-name: Microsoft Azure
+    external-doc-url: https://azure.microsoft.com/
+    logo: /integration-logos/azure/Microsoft-Azure.png
+    tags: [azure]
+  - integration-name: Microsoft Azure Service Bus
+    external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
+    logo: /integration-logos/azure/Service-Bus.svg
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
+    tags: [azure]
+  - integration-name: Microsoft Azure Synapse
+    external-doc-url: https://azure.microsoft.com/en-us/services/synapse-analytics/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_synapse.rst
+    tags: [azure]
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
+    external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
+    logo: /integration-logos/azure/Data Lake Storage.svg
+    tags: [azure]
+  - integration-name: Microsoft Graph API
+    external-doc-url: https://learn.microsoft.com/en-us/graph/use-the-api/
+    logo: /integration-logos/azure/Microsoft-Graph-API.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
+    tags: [azure]
+  - integration-name: Microsoft Power BI
+    external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    tags: [azure]
+
+operators:
+  - integration-name: Microsoft Azure Data Lake Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.adls
+  - integration-name: Microsoft Azure Data Explorer
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.adx
+  - integration-name: Microsoft Azure Batch
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.batch
+  - integration-name: Microsoft Azure Container Instances
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.container_instances
+  - integration-name: Microsoft Azure Cosmos DB
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.cosmos
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.wasb_delete_blob
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.asb
+  - integration-name: Microsoft Azure Synapse
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.powerbi
+
+sensors:
+  - integration-name: Microsoft Azure Cosmos DB
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.cosmos
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.wasb
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.data_factory
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.sensors.msgraph
+
+filesystems:
+  - airflow.providers.microsoft.azure.fs.adls
+
+hooks:
+  - integration-name: Microsoft Azure Container Instances
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.container_volume
+      - airflow.providers.microsoft.azure.hooks.container_registry
+      - airflow.providers.microsoft.azure.hooks.container_instance
+  - integration-name: Microsoft Azure Data Explorer
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.adx
+  - integration-name: Microsoft Azure FileShare
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.fileshare
+  - integration-name: Microsoft Azure
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.base_azure
+  - integration-name: Microsoft Azure Batch
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.batch
+  - integration-name: Microsoft Azure Data Lake Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_lake
+  - integration-name: Microsoft Azure Cosmos DB
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.cosmos
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.wasb
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.asb
+  - integration-name: Microsoft Azure Data Lake Storage Client Gen2
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.data_lake
+  - integration-name: Microsoft Azure Synapse
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.powerbi
+
+triggers:
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.data_factory
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.wasb
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.powerbi
+
+transfers:
+  - source-integration-name: Local
+    target-integration-name: Microsoft Azure Data Lake Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/local_to_adls.rst
+    python-module: airflow.providers.microsoft.azure.transfers.local_to_adls
+  - source-integration-name: Oracle
+    target-integration-name: Microsoft Azure Data Lake Storage
+    python-module: airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake
+  - source-integration-name: Local
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/local_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.local_to_wasb
+  - source-integration-name: SSH File Transfer Protocol (SFTP)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/sftp_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.s3_to_wasb
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
+    python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
+
+connection-types:
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
+    connection-type: azure
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
+    connection-type: azure_data_explorer
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook
+    connection-type: azure_batch
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook
+    connection-type: azure_cosmos
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook
+    connection-type: azure_data_lake
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook
+    connection-type: azure_fileshare
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
+    connection-type: azure_container_volume
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
+    connection-type: azure_container_instance
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.wasb.WasbHook
+    connection-type: wasb
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
+    connection-type: azure_data_factory
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+    connection-type: azure_container_registry
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
+    connection-type: azure_service_bus
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.BaseAzureSynapseHook
+    connection-type: azure_synapse
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
+    connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook
+    connection-type: powerbi
+
+secrets-backends:
+  - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
+
+logging:
+  - airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler
+
+extra-links:
+  - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
+  - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink
+  - airflow.providers.microsoft.azure.operators.powerbi.PowerBILink
+
+config:
+  azure_remote_logging:
+    description: |
+      Configuration that needs to be set for enable remote logging in Azure Blob Storage
+    options:
+      remote_wasb_log_container:
+        description: |
+          WASB storage container where the remote logs will be stored.
+          The container should exist.
+        version_added: 8.0.0
+        type: string
+        example: ~
+        default: "airflow-logs"

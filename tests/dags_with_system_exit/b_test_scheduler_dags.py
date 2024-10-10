@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 
 DEFAULT_DATE = datetime(2000, 1, 1)
 
-dag1 = DAG(dag_id="exit_test_dag", start_date=DEFAULT_DATE)
+dag1 = DAG(dag_id="exit_test_dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
 dag1_task1 = EmptyOperator(task_id="dummy", dag=dag1, owner="airflow")

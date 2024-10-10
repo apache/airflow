@@ -18,42 +18,10 @@
 from __future__ import annotations
 
 import sys
-import warnings
 from collections import deque
-from functools import wraps
-from typing import Callable, TypeVar, cast
-
-from airflow.exceptions import RemovedInAirflow3Warning
+from typing import Callable, TypeVar
 
 T = TypeVar("T", bound=Callable)
-
-
-def apply_defaults(func: T) -> T:
-    """
-    Use apply_default decorator for the `default_args` feature to work properly; deprecated.
-
-    In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
-    `default_args` feature to work properly.
-
-    In current version, it is optional. The decorator is applied automatically using the metaclass.
-    """
-    warnings.warn(
-        "This decorator is deprecated. \n"
-        "\n"
-        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the "
-        "`default_args` feature to work properly.\n"
-        "\n"
-        "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
-        RemovedInAirflow3Warning,
-        stacklevel=3,
-    )
-
-    # Make it still be a wrapper to keep the previous behaviour of an extra stack frame
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-
-    return cast(T, wrapper)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
@@ -81,7 +49,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
             after_decorator = after_decorator[1:]
         return before_decorator + after_decorator
 
-    decorators = ["@setup", "@teardown", task_decorator_name]
+    decorators = ["@setup", "@teardown", "@task.skip_if", "@task.run_if", task_decorator_name]
     for decorator in decorators:
         python_source = _remove_task_decorator(python_source, decorator)
     return python_source

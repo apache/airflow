@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
 
@@ -28,6 +28,6 @@ from airflow.models.dag import DAG
 
 DEFAULT_DATE = datetime(2100, 1, 1)
 
-dag1 = DAG(dag_id="test_system_exit", start_date=DEFAULT_DATE)
+dag1 = DAG(dag_id="test_system_exit", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
 sys.exit(-1)

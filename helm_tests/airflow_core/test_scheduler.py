@@ -857,6 +857,20 @@ class TestScheduler:
             "whenDeleted": "Delete",
         } == jmespath.search("spec.persistentVolumeClaimRetentionPolicy", docs[0])
 
+    @pytest.mark.parametrize(
+        "scheduler_values, expected",
+        [
+            ({}, 10),
+            ({"scheduler": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_scheduler_termination_grace_period_seconds(self, scheduler_values, expected):
+        docs = render_chart(
+            values=scheduler_values,
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""

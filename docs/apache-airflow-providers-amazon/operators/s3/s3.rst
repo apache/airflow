@@ -38,7 +38,7 @@ Create an Amazon S3 bucket
 To create an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_create_bucket]
@@ -52,7 +52,7 @@ Delete an Amazon S3 bucket
 To delete an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_bucket]
@@ -66,7 +66,7 @@ Set the tags for an Amazon S3 bucket
 To set the tags for an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3PutBucketTaggingOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_put_bucket_tagging]
@@ -80,7 +80,7 @@ Get the tag of an Amazon S3 bucket
 To get the tag set associated with an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3GetBucketTaggingOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_get_bucket_tagging]
@@ -94,7 +94,7 @@ Delete the tags of an Amazon S3 bucket
 To delete the tags of an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteBucketTaggingOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_bucket_tagging]
@@ -108,7 +108,7 @@ Create an Amazon S3 object
 To create a new (or replace) Amazon S3 object you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3CreateObjectOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_create_object]
@@ -123,7 +123,7 @@ To copy an Amazon S3 object from one bucket to another you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3CopyObjectOperator`.
 The Amazon S3 connection used here needs to have access to both source and destination bucket/key.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_copy_object]
@@ -137,7 +137,7 @@ Delete Amazon S3 objects
 To delete one or multiple Amazon S3 objects you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3DeleteObjectsOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_delete_objects]
@@ -153,7 +153,7 @@ To transform the data from one Amazon S3 object and save it to another object yo
 You can also apply an optional `Amazon S3 Select expression <https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html>`_
 to select the data you want to retrieve from ``source_s3_key`` using ``select_expression``.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_file_transform]
@@ -169,7 +169,7 @@ To list all Amazon S3 prefixes within an Amazon S3 bucket you can use
 See `here <https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html>`__
 for more information about Amazon S3 prefixes.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_list_prefixes]
@@ -184,7 +184,7 @@ To list all Amazon S3 objects within an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3ListOperator`.
 You can specify a ``prefix`` to filter the objects whose name begins with such prefix.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_s3_list]
@@ -208,7 +208,7 @@ Please keep in mind, especially when used to check a large volume of keys, that 
 
 To check one file:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_single_key]
@@ -216,7 +216,7 @@ To check one file:
 
 To check multiple files:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_multiple_keys]
@@ -224,7 +224,7 @@ To check multiple files:
 
 To check a file with regular expression:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_regex]
@@ -244,13 +244,13 @@ multiple files can match one key. The list of matched S3 object attributes conta
 
     [{"Size": int}]
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_function_definition]
     :end-before: [END howto_sensor_s3_key_function_definition]
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_function]
@@ -262,7 +262,7 @@ the triggerer asynchronously. Note that this will need triggerer to be available
 
 To check one file:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_single_key_deferrable]
@@ -270,7 +270,7 @@ To check one file:
 
 To check multiple files:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_multiple_keys_deferrable]
@@ -278,7 +278,7 @@ To check multiple files:
 
 To check a file with regular expression:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_regex_deferrable]
@@ -295,7 +295,7 @@ the inactivity period has passed with no increase in the number of objects you c
 Note, this sensor will not behave correctly in reschedule mode,
 as the state of the listed objects in the Amazon S3 bucket will be lost between rescheduled invocations.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_s3_keys_unchanged]

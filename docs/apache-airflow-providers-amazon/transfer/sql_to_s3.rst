@@ -44,7 +44,7 @@ To get more information about this operator visit:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sql_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_sql_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_sql_to_s3]
@@ -57,7 +57,7 @@ We can group the data in the table by passing the ``groupby_kwargs`` param. This
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sql_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_sql_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_sql_to_s3_with_groupby_param]

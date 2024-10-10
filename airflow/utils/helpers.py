@@ -21,7 +21,6 @@ import copy
 import itertools
 import re
 import signal
-import warnings
 from datetime import datetime
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
@@ -29,8 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, M
 from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils.module_loading import import_string
+from airflow.exceptions import AirflowException
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -229,26 +227,6 @@ def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterabl
     """Use a predicate to partition entries into false entries and true entries."""
     iter_1, iter_2 = itertools.tee(iterable)
     return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
-
-
-def chain(*args, **kwargs):
-    """Use `airflow.models.baseoperator.chain`, this function is deprecated."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return import_string("airflow.models.baseoperator.chain")(*args, **kwargs)
-
-
-def cross_downstream(*args, **kwargs):
-    """Use `airflow.models.baseoperator.cross_downstream`, this function is deprecated."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return import_string("airflow.models.baseoperator.cross_downstream")(*args, **kwargs)
 
 
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:

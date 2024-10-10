@@ -21,12 +21,12 @@ import sys
 
 import pytest
 
-from airflow import models
-from airflow.cli import cli_parser
 from airflow.executors import local_executor
+from airflow.models.dagbag import DagBag
 from airflow.providers.celery.executors import celery_executor, celery_kubernetes_executor
 from airflow.providers.cncf.kubernetes.executors import kubernetes_executor, local_kubernetes_executor
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 # Create custom executors here because conftest is imported first
 custom_executor_module = type(sys)("custom_executor")
@@ -56,9 +56,11 @@ def load_examples():
 
 @pytest.fixture(scope="session")
 def dagbag():
-    return models.DagBag(include_examples=True)
+    return DagBag(include_examples=True)
 
 
 @pytest.fixture(scope="session")
 def parser():
+    from airflow.cli import cli_parser
+
     return cli_parser.get_parser()

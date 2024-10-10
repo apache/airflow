@@ -82,8 +82,7 @@ PARALLEL_PYTEST_ARGS = [
     "--maxfail=50",
     "--color=yes",
     # timeouts in seconds for individual tests
-    "--timeouts-order",
-    "moi",
+    "--timeouts-order=moi",
     "--setup-timeout=300",
     "--execution-timeout=300",
     "--teardown-timeout=300",
@@ -608,7 +607,7 @@ USER airflow
 
 COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
 
-COPY --chown=airflow:0 airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY --chown=airflow:0 providers/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """
@@ -1024,7 +1023,7 @@ def _deploy_helm_chart(
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.api.auth.backend.basic_auth",
+            "config.api.auth_backends=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
             "--set",
             "config.logging.logging_level=DEBUG",
             "--set",
@@ -1430,15 +1429,14 @@ def _run_tests(
         extra_shell_args.append("--no-rcs")
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
-    the_tests: list[str] = []
-    command_to_run = " ".join([quote(arg) for arg in ["pytest", *the_tests, *test_args]])
+    the_tests: list[str] = ["kubernetes_tests/"]
+    command_to_run = " ".join([quote(arg) for arg in ["uv", "run", "pytest", *the_tests, *test_args]])
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],
         output=output,
         env=env,
         check=False,
-        cwd="kubernetes_tests",
     )
     return result.returncode, f"Tests {kubectl_cluster_name}"
 

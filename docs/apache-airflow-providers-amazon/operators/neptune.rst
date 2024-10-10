@@ -49,7 +49,7 @@ the aiobotocore module to be installed.
 .. note::
     This operator only starts an existing Neptune database cluster, it does not create a cluster.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_neptune.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_neptune.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_neptune_cluster]
@@ -65,7 +65,7 @@ To stop a running Neptune database cluster, you can use
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_neptune.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_neptune.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_stop_neptune_cluster]

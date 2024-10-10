@@ -1,0 +1,1 @@
+Removed deprecated method ``requires_access`` from module ``airflow.api_connexion.security``. Please use ``requires_access_*`` instead.

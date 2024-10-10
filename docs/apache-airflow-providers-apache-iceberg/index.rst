@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/iceberg/index>
+    System Tests <_api/tests/system/apache/iceberg/index>
 
 
 .. toctree::
@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/tests/system/providers/apache/iceberg>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-iceberg/|version|/providers/tests/system/apache/iceberg>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-iceberg/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/apache/iceberg/index>
@@ -73,7 +73,7 @@ apache-airflow-providers-apache-iceberg package
 `Iceberg <https://iceberg.apache.org/>`__
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -91,10 +91,10 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ==================  ==================

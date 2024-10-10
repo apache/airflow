@@ -32,7 +32,7 @@ To transfer data between two Teradata instances, use the
 
 An example usage of the TeradataToTeradataOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_to_teradata_transfer.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_to_teradata_transfer.py
     :language: python
     :start-after: [START teradata_to_teradata_transfer_operator_howto_guide_transfer_data]
     :end-before: [END teradata_to_teradata_transfer_operator_howto_guide_transfer_data]
@@ -42,7 +42,7 @@ The complete TeradataToTeradata Transfer Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide]
     :end-before: [END teradata_operator_howto_guide]

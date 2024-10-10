@@ -49,7 +49,7 @@ the connection metadata is structured as follows:
    * - Port: int
      - Neo4j port
 
-.. exampleinclude:: /../../tests/system/providers/neo4j/example_neo4j.py
+.. exampleinclude:: /../../providers/tests/system/neo4j/example_neo4j.py
     :language: python
     :dedent: 4
     :start-after: [START run_query_neo4j_operator]

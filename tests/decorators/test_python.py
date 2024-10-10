@@ -41,6 +41,11 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
 pytestmark = pytest.mark.db_test
 
 
@@ -449,6 +454,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with self.dag_non_serialized:
             ret = return_dict(test_number)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -457,6 +463,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
             ),
+            **triggered_by_kwargs,
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -512,6 +519,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -520,6 +528,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
             ),
+            **triggered_by_kwargs,
         )
 
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -686,7 +695,7 @@ def test_mapped_decorator():
     def print_everything(**kwargs) -> None:
         print(kwargs)
 
-    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+    with DAG("test_mapped_decorator", schedule=None, start_date=DEFAULT_DATE):
         t0 = print_info.expand(m1=["a", "b"], m2={"foo": "bar"})
         t1 = print_info.partial(m1="hi").expand(m2=[1, 2, 3])
         t2 = print_everything.partial(whatever="123").expand(any_key=[1, 2], works=t1)
@@ -722,7 +731,7 @@ def test_partial_mapped_decorator() -> None:
 
     literal = [1, 2, 3]
 
-    with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         quadrupled = product.partial(multiple=3).expand(number=literal)
         doubled = product.partial(multiple=2).expand(number=literal)
         trippled = product.partial(multiple=3).expand(number=literal)
@@ -863,6 +872,22 @@ def test_task_decorator_has_wrapped_attr():
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
+def test_task_decorator_has_doc_attr():
+    """
+    Test @task original underlying function docstring
+    through the __doc__ attribute.
+    """
+
+    def org_test_func():
+        """Docstring"""
+
+    decorated_test_func = task_decorator(org_test_func)
+    assert hasattr(decorated_test_func, "__doc__"), "decorated function should have __doc__ attribute"
+    assert (
+        decorated_test_func.__doc__ == org_test_func.__doc__
+    ), "__doc__ attr should be the original docstring"
+
+
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
@@ -959,8 +984,8 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-def test_task_decorator_dataset(dag_maker, session):
-    from airflow.datasets import Dataset
+def test_task_decorator_asset(dag_maker, session):
+    from airflow.assets import Asset
 
     result = None
     uri = "s3://bucket/name"
@@ -968,11 +993,11 @@ def test_task_decorator_dataset(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @dag.task()
-        def up1() -> Dataset:
-            return Dataset(uri)
+        def up1() -> Asset:
+            return Asset(uri)
 
         @dag.task()
-        def up2(src: Dataset) -> str:
+        def up2(src: Asset) -> str:
             return src.uri
 
         @dag.task()

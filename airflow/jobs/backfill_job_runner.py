@@ -51,7 +51,7 @@ from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     import datetime
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 
 class BackfillJobRunner(BaseJobRunner, LoggingMixin):
     """
-    A backfill job runner consists of a dag or subdag for a specific time range.
+    A backfill job runner consists of a dag for a specific time range.
 
     It triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
@@ -327,7 +327,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             def _iter_task_needing_expansion() -> Iterator[AbstractOperator]:
                 from airflow.models.mappedoperator import AbstractOperator
 
-                for node in self.dag.get_task(ti.task_id, include_subdags=True).iter_mapped_dependants():
+                for node in self.dag.get_task(ti.task_id).iter_mapped_dependants():
                     if isinstance(node, AbstractOperator):
                         yield node
                     else:  # A (mapped) task group. All its children need expansion.
@@ -359,8 +359,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         """
         run_date = dagrun_info.logical_date
 
-        # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = bool(dag.timetable.can_be_scheduled and not dag.is_subdag)
+        respect_dag_max_active_limit = bool(dag.timetable.can_be_scheduled)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
@@ -394,6 +393,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             conf=self.conf,
             run_type=DagRunType.BACKFILL_JOB,
             creating_job_id=self.job.id,
+            triggered_by=DagRunTriggeredByType.TIMETABLE,
         )
 
         # set required transient field
@@ -500,7 +500,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             def _per_task_process(key, ti: TaskInstance, session):
                 ti.refresh_from_db(lock_for_update=True, session=session)
 
-                task = self.dag.get_task(ti.task_id, include_subdags=True)
+                task = self.dag.get_task(ti.task_id)
                 ti.task = task
 
                 self.log.debug("Task instance to run %s state %s", ti, ti.state)
@@ -636,7 +636,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 ti_status.not_ready.add(key)
 
             try:
-                for task in self.dag.topological_sort(include_subdag_tasks=True):
+                for task in self.dag.topological_sort():
                     for key, ti in list(ti_status.to_run.items()):
                         # Attempt to workaround deadlock on backfill by attempting to commit the transaction
                         # state update few times before giving up
@@ -839,9 +839,6 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             yield "\n\nThese tasks are deadlocked:\n"
             yield tabulate_ti_keys_set([ti.key for ti in ti_status.deadlocked])
 
-    def _get_dag_with_subdags(self) -> list[DAG]:
-        return [self.dag, *self.dag.subdags]
-
     @provide_session
     def _execute_dagruns(
         self,
@@ -863,12 +860,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param session: the current session object
         """
         for dagrun_info in dagrun_infos:
-            for dag in self._get_dag_with_subdags():
-                dag_run = self._get_dag_run(dagrun_info, dag, session=session)
-                if dag_run is not None:
-                    tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
-                    ti_status.active_runs.add(dag_run)
-                    ti_status.to_run.update(tis_map or {})
+            dag_run = self._get_dag_run(dagrun_info, self.dag, session=session)
+            if dag_run is not None:
+                tis_map = self._task_instances_for_dag_run(self.dag, dag_run, session=session)
+                ti_status.active_runs.add(dag_run)
+                ti_status.to_run.update(tis_map or {})
 
         tis_missing_executor = []
         for ti in ti_status.to_run.values():
@@ -948,9 +944,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 return
             dagrun_infos = [DagRunInfo.interval(dagrun_start_date, dagrun_end_date)]
 
-        dag_with_subdags_ids = [d.dag_id for d in self._get_dag_with_subdags()]
         running_dagruns = DagRun.find(
-            dag_id=dag_with_subdags_ids,
+            dag_id=self.dag.dag_id,
             execution_start_date=self.bf_start_date,
             execution_end_date=self.bf_end_date,
             no_backfills=True,

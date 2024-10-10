@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator,
 import attr
 import methodtools
 
-from airflow.exceptions import AirflowException, UnmappableOperator
+from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -157,10 +157,6 @@ class OperatorPartial:
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
-        from airflow.operators.subdag import SubDagOperator
-
-        if issubclass(self.operator_class, SubDagOperator):
-            raise TypeError("Mapping over deprecated SubDagOperator is not supported")
         validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
@@ -306,7 +302,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
@@ -333,11 +328,6 @@ class MappedOperator(AbstractOperator):
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
-        if self.partial_kwargs.get("sla") is not None:
-            raise AirflowException(
-                f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
-                f"{self.task_id!r}."
-            )
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
@@ -347,7 +337,6 @@ class MappedOperator(AbstractOperator):
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
-            "subdag",
             "task_group",
             "upstream_task_ids",
             "supports_lineage",
@@ -552,14 +541,6 @@ class MappedOperator(AbstractOperator):
     @weight_rule.setter
     def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
         self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
-
-    @property
-    def sla(self) -> datetime.timedelta | None:
-        return self.partial_kwargs.get("sla")
-
-    @sla.setter
-    def sla(self, value: datetime.timedelta | None) -> None:
-        self.partial_kwargs["sla"] = value
 
     @property
     def max_active_tis_per_dag(self) -> int | None:

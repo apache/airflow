@@ -42,7 +42,7 @@ To get more information about this operator visit:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_s3_transfers.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_redshift_s3_transfers.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_redshift]
@@ -50,7 +50,7 @@ Example usage:
 
 Example of ingesting multiple keys:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift_s3_transfers.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_redshift_s3_transfers.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_s3_to_redshift_multiple_keys]

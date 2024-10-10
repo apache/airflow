@@ -32,11 +32,11 @@ import ReactFlow, {
 
 import {
   useDagDetails,
-  useDatasetEvents,
-  useDatasets,
+  useAssetEvents,
+  useAssets,
   useGraphData,
   useGridData,
-  useUpstreamDatasetEvents,
+  useUpstreamAssetEvents,
 } from "src/api";
 import useSelection from "src/dag/useSelection";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
@@ -105,7 +105,7 @@ const getUpstreamDatasets = (
       nodes.push({
         id: d,
         value: {
-          class: "dataset",
+          class: "asset",
           label: d,
         },
       });
@@ -150,7 +150,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
-  const { data: datasetsCollection } = useDatasets({
+  const { data: datasetsCollection } = useAssets({
     dagIds: [dagId],
   });
 
@@ -164,8 +164,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     );
 
   const {
-    data: { datasetEvents: upstreamDatasetEvents = [] },
-  } = useUpstreamDatasetEvents({
+    data: { assetEvents: upstreamAssetEvents = [] },
+  } = useUpstreamAssetEvents({
     dagId,
     dagRunId: selected.runId || "",
     options: {
@@ -175,8 +175,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   });
 
   const {
-    data: { datasetEvents: downstreamDatasetEvents = [] },
-  } = useDatasetEvents({
+    data: { assetEvents: downstreamAssetEvents = [] },
+  } = useAssetEvents({
     sourceDagId: dagId,
     sourceRunId: selected.runId || undefined,
     options: { enabled: !!selected.runId && showDatasets },
@@ -185,11 +185,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   if (showDatasets) {
     datasetNodes = [...upstreamDatasetNodes];
     datasetEdges = [...upstreamDatasetEdges];
-    datasetsCollection?.datasets?.forEach((dataset) => {
-      const producingTask = dataset?.producingTasks?.find(
+    datasetsCollection?.assets?.forEach((asset) => {
+      const producingTask = asset?.producingTasks?.find(
         (t) => t.dagId === dagId
       );
-      if (dataset.uri) {
+      if (asset.uri) {
         // check that the task is in the graph
         if (
           producingTask?.taskId &&
@@ -197,13 +197,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         ) {
           datasetEdges.push({
             sourceId: producingTask.taskId,
-            targetId: dataset.uri,
+            targetId: asset.uri,
           });
           datasetNodes.push({
-            id: dataset.uri,
+            id: asset.uri,
             value: {
-              class: "dataset",
-              label: dataset.uri,
+              class: "asset",
+              label: asset.uri,
             },
           });
         }
@@ -211,7 +211,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     });
 
     // Check if there is a dataset event even though we did not find a dataset
-    downstreamDatasetEvents.forEach((de) => {
+    downstreamAssetEvents.forEach((de) => {
       const hasNode = datasetNodes.find((node) => node.id === de.datasetUri);
       if (!hasNode && de.sourceTaskId && de.datasetUri) {
         datasetEdges.push({
@@ -221,7 +221,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         datasetNodes.push({
           id: de.datasetUri,
           value: {
-            class: "dataset",
+            class: "asset",
             label: de.datasetUri,
           },
         });
@@ -264,8 +264,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         groups,
         hoveredTaskState,
         isZoomedOut,
-        datasetEvents: selected.runId
-          ? [...upstreamDatasetEvents, ...downstreamDatasetEvents]
+        assetEvents: selected.runId
+          ? [...upstreamAssetEvents, ...downstreamAssetEvents]
           : [],
       }),
     [
@@ -277,8 +277,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       groups,
       hoveredTaskState,
       isZoomedOut,
-      upstreamDatasetEvents,
-      downstreamDatasetEvents,
+      upstreamAssetEvents,
+      downstreamAssetEvents,
     ]
   );
 
@@ -335,7 +335,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         >
           <Panel position="top-right">
             <Box bg={colors.whiteAlpha[800]} p={1}>
-              {!!datasetsCollection?.datasets?.length && (
+              {!!datasetsCollection?.assets?.length && (
                 <Flex display="flex" alignItems="center">
                   <Text fontSize="sm" mr={1}>
                     Show datasets:

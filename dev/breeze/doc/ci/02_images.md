@@ -126,20 +126,20 @@ By adding `--python <PYTHON_MAJOR_MINOR_VERSION>` parameter you can
 build the image version for the chosen Python version.
 
 The images are built with default extras - different extras for CI and
-production image and you can change the extras via the `--extras`
+production image and you can change the extras via the `--airflow-extras`
 parameters and add new ones with `--additional-airflow-extras`.
 
-For example if you want to build Python 3.8 version of production image
+For example if you want to build Python 3.9 version of production image
 with "all" extras installed you should run this command:
 
 ``` bash
-breeze prod-image build --python 3.8 --extras "all"
+breeze prod-image build --python 3.9 --airflow-extras "all"
 ```
 
 If you just want to add new extras you can add them like that:
 
 ``` bash
-breeze prod-image build --python 3.8 --additional-airflow-extras "all"
+breeze prod-image build --python 3.9 --additional-airflow-extras "all"
 ```
 
 The command that builds the CI image is optimized to minimize the time
@@ -160,7 +160,7 @@ You can also build production images from PIP packages via providing
 `--install-airflow-version` parameter to Breeze:
 
 ``` bash
-breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-airflow-version=2.0.0
+breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-airflow-version=2.0.0
 ```
 
 This will build the image using command similar to:
@@ -168,7 +168,7 @@ This will build the image using command similar to:
 ``` bash
 pip install \
   apache-airflow[async,amazon,celery,cncf.kubernetes,docker,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.8.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.9.txt"
 ```
 
 > [!NOTE]
@@ -199,7 +199,7 @@ HEAD of development for constraints):
 
 ``` bash
 pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt"
 ```
 
 You can also skip installing airflow and install it from locally
@@ -207,7 +207,7 @@ provided files by using `--install-packages-from-context` parameter to
 Breeze:
 
 ``` bash
-breeze prod-image build --python 3.8 --additional-airflow-extras=trino --install-packages-from-context
+breeze prod-image build --python 3.9 --additional-airflow-extras=trino --install-packages-from-context
 ```
 
 In this case you airflow and all packages (.whl files) should be placed
@@ -241,20 +241,20 @@ flags: `registry` (default), `local`, or `disabled` flags when you run
 Breeze commands. For example:
 
 ``` bash
-breeze ci-image build --python 3.8 --docker-cache local
+breeze ci-image build --python 3.9 --docker-cache local
 ```
 
 Will build the CI image using local build cache (note that it will take
 quite a long time the first time you run it).
 
 ``` bash
-breeze prod-image build --python 3.8 --docker-cache registry
+breeze prod-image build --python 3.9 --docker-cache registry
 ```
 
 Will build the production image with cache used from registry.
 
 ``` bash
-breeze prod-image build --python 3.8 --docker-cache disabled
+breeze prod-image build --python 3.9 --docker-cache disabled
 ```
 
 Will build the production image from the scratch.
@@ -336,12 +336,12 @@ faster. It is enough to pass `--image-tag` and the registry and Breeze
 will download and execute commands using the same image that was used
 during the CI tests.
 
-For example this command will run the same Python 3.8 image as was used
+For example this command will run the same Python 3.9 image as was used
 in build identified with 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e commit
 SHA with enabled rabbitmq integration.
 
 ``` bash
-breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.8 --integration rabbitmq
+breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.9 --integration rabbitmq
 ```
 
 You can see more details and examples in[Breeze](../README.rst)
@@ -361,7 +361,7 @@ you can build the image in the
 Here just a few examples are presented which should give you general
 understanding of what you can customize.
 
-This builds the production image in version 3.8 with additional airflow
+This builds the production image in version 3.9 with additional airflow
 extras from 2.0.0 PyPI package and additional apt dev and runtime
 dependencies.
 
@@ -373,7 +373,7 @@ plugin installed.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
   --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
@@ -384,7 +384,7 @@ the same image can be built using `breeze` (it supports auto-completion
 of the options):
 
 ``` bash
-breeze ci-image build --python 3.8 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
+breeze ci-image build --python 3.9 --additional-airflow-extras=jdbc --additional-python-deps="pandas" \
     --additional-dev-apt-deps="gcc g++"
 ```
 
@@ -398,7 +398,7 @@ comment](https://github.com/apache/airflow/issues/8605#issuecomment-690065621):
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
   --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
@@ -423,8 +423,8 @@ can be used for CI images:
 
 | Build argument                    | Default value                                                           | Description                                                                                                                                                |
 |-----------------------------------|-------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `PYTHON_BASE_IMAGE`               | `python:3.8-slim-bookworm`                                              | Base Python image                                                                                                                                          |
-| `PYTHON_MAJOR_MINOR_VERSION`      | `3.8`                                                                   | major/minor version of Python (should match base image)                                                                                                    |
+| `PYTHON_BASE_IMAGE`               | `python:3.9-slim-bookworm`                                              | Base Python image                                                                                                                                          |
+| `PYTHON_MAJOR_MINOR_VERSION`      | `3.9`                                                                   | major/minor version of Python (should match base image)                                                                                                    |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                                                                     | increasing this number will reinstall all apt dependencies                                                                                                 |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                                                                         | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                         |
 | `PIP_NO_CACHE_DIR`                | `true`                                                                  | if true, then no pip cache will be stored                                                                                                                  |
@@ -455,59 +455,59 @@ can be used for CI images:
 Here are some examples of how CI images can built manually. CI is always
 built from local sources.
 
-This builds the CI image in version 3.8 with default extras ("all").
+This builds the CI image in version 3.9 with default extras ("all").
 
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
    --pull \
-   --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" --tag my-image:0.0.1
+   --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" --tag my-image:0.0.1
 ```
 
-This builds the CI image in version 3.8 with "gcp" extra only.
+This builds the CI image in version 3.9 with "gcp" extra only.
 
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 ```
 
-This builds the CI image in version 3.8 with "apache-beam" extra added.
+This builds the CI image in version 3.9 with "apache-beam" extra added.
 
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 ```
 
-This builds the CI image in version 3.8 with "mssql" additional package
+This builds the CI image in version 3.9 with "mssql" additional package
 added.
 
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 ```
 
-This builds the CI image in version 3.8 with "gcc" and "g++" additional
+This builds the CI image in version 3.9 with "gcc" and "g++" additional
 apt dev dependencies added.
 
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 ```
 
-This builds the CI image in version 3.8 with "jdbc" extra and
+This builds the CI image in version 3.9 with "jdbc" extra and
 "default-jre-headless" additional apt runtime dependencies added.
 
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+  --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
   --build-arg AIRFLOW_EXTRAS=jdbc \
   --tag my-image:0.0.1
 ```
@@ -573,8 +573,7 @@ percent-encoded when you access them via UI (/ = %2F)
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>:\<TAG\>      | faster to build or pull. Production image optimized for size. |
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
-- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.8",
-  "3.9", "3.10", "3.11", "3.12" \].
+- \<X.Y\> - Python version (Major + Minor).Should be one of \["3.9", "3.10", "3.11", "3.12" \].
 - \<COMMIT_SHA\> - full-length SHA of commit either from the tip of the
   branch (for pushes/schedule) or commit from the tip of the branch used
   for the PR.

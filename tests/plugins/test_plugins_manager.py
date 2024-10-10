@@ -33,8 +33,9 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_plugins import mock_plugin_manager
+
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -417,7 +418,7 @@ class TestPluginsManager:
             assert len(plugins_manager.plugins) == 0
             plugins_manager.load_entrypoint_plugins()
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) == 3
+            assert len(plugins_manager.plugins) == 4
 
 
 class TestPluginsDirectorySource:

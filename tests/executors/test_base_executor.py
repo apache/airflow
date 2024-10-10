@@ -145,7 +145,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-@mock.patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
+@mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
 def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
     mock_stats_gauge,
@@ -360,14 +360,6 @@ def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
     tis = dagrun.task_instances
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
     assert dag_id is None, task_id is None
-
-
-@pytest.mark.db_test
-def test_deprecate_validate_api(dag_maker):
-    dagrun = setup_dagrun(dag_maker)
-    tis = dagrun.task_instances
-    with pytest.warns(DeprecationWarning):
-        BaseExecutor.validate_command(tis[0].command_as_list())
 
 
 def test_debug_dump(caplog):

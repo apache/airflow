@@ -165,6 +165,12 @@ with DAG(
             title="Time Picker",
             description="Please select a time, use the button on the left for a pop-up tool.",
         ),
+        "multiline_text": Param(
+            "A multiline text Param\nthat will keep the newline\ncharacters in its value.",
+            description="This field allows for multiline text input. The returned value will be a single with newline (\\n) characters kept intact.",
+            type=["string", "null"],
+            format="multiline",
+        ),
         # Fields can be required or not. If the defined fields are typed they are getting required by default
         # (else they would not pass JSON schema validation) - to make typed fields optional you must
         # permit the optional "null" type.

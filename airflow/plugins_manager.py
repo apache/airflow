@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 import types
-from cgitb import Hook
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -70,6 +69,7 @@ executors_modules: list[Any] | None = None
 # Plugin components to integrate directly
 admin_views: list[Any] | None = None
 flask_blueprints: list[Any] | None = None
+fastapi_apps: list[Any] | None = None
 menu_links: list[Any] | None = None
 flask_appbuilder_views: list[Any] | None = None
 flask_appbuilder_menu_links: list[Any] | None = None
@@ -78,7 +78,7 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
-hook_lineage_reader_classes: list[type[Hook]] | None = None
+hook_lineage_reader_classes: list[type[HookLineageReader]] | None = None
 priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.
@@ -92,6 +92,7 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "macros",
     "admin_views",
     "flask_blueprints",
+    "fastapi_apps",
     "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
@@ -157,6 +158,7 @@ class AirflowPlugin:
     macros: list[Any] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
+    fastapi_apps: list[Any] = []
     menu_links: list[Any] = []
     appbuilder_views: list[Any] = []
     appbuilder_menu_items: list[Any] = []
@@ -416,6 +418,27 @@ def initialize_web_ui_plugins():
             )
 
 
+def initialize_fastapi_plugins():
+    """Collect extension points for the API."""
+    global plugins
+    global fastapi_apps
+
+    if fastapi_apps:
+        return
+
+    ensure_plugins_loaded()
+
+    if plugins is None:
+        raise AirflowPluginException("Can't load plugins.")
+
+    log.debug("Initialize FastAPI plugin")
+
+    fastapi_apps = []
+
+    for plugin in plugins:
+        fastapi_apps.extend(plugin.fastapi_apps)
+
+
 def initialize_ti_deps_plugins():
     """Create modules for loaded extension from custom task instance dependency rule plugins."""
     global registered_ti_dep_classes
@@ -595,6 +618,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
     integrate_executor_plugins()
     integrate_macros_plugins()
     initialize_web_ui_plugins()
+    initialize_fastapi_plugins()
     initialize_extra_operators_links_plugins()
     if not attrs_to_dump:
         attrs_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP
@@ -620,6 +644,11 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 elif attr == "flask_blueprints":
                     info[attr] = [
                         f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
+                        for d in getattr(plugin, attr)
+                    ]
+                elif attr == "fastapi_apps":
+                    info[attr] = [
+                        {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
                         for d in getattr(plugin, attr)
                     ]
                 else:

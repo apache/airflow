@@ -30,7 +30,12 @@
     <p>Unfortunately your user has no roles, and therefore you cannot use Airflow.</p>
     <p>Please contact your Airflow administrator
       (<a href="https://airflow.apache.org/docs/apache-airflow/stable/security/webserver.html#web-authentication">authentication</a>
-      may be misconfigured) or <a href="{{ logout_url }}">log out</a> to try again.</p>
+      may be misconfigured) or
+      <form method="POST" action="{{logout_url}}" id="logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <a href="javascript:{}" onclick="document.getElementById('logout-form').submit();">log out</a> to try again.
+      </form>
+    </p>
     <p>{{ hostname }}</p>
   </div>
 </body>

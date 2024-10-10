@@ -59,14 +59,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/cncf/kubernetes/index>
+    System Tests <_api/tests/system/cncf/kubernetes/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/tests/system/providers/cncf/kubernetes>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/providers/tests/system/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -87,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 8.3.4
+Release: 9.0.0
 
 Provider package
 ----------------
@@ -105,13 +105,13 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ======================  =====================
 PIP package             Version required
 ======================  =====================
 ``aiofiles``            ``>=23.2.0``
-``apache-airflow``      ``>=2.7.0``
+``apache-airflow``      ``>=2.8.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=41.0.0``
 ``kubernetes``          ``>=29.0.0,<=30.1.0``

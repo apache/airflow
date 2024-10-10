@@ -19,21 +19,28 @@
 
 from __future__ import annotations
 
-from airflow.api.client import api_client
+import httpx
+
 from airflow.api.common import delete_dag, trigger_dag
-from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
+from airflow.utils.types import DagRunTriggeredByType
 
 
-class Client(api_client.Client):
+class Client:
     """Local API client implementation."""
+
+    def __init__(self, auth=None, session: httpx.Client | None = None):
+        self._session: httpx.Client = session or httpx.Client()
+        if auth:
+            self._session.auth = auth
 
     def trigger_dag(
         self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
+            triggered_by=DagRunTriggeredByType.CLI,
             run_id=run_id,
             conf=conf,
             execution_date=execution_date,
@@ -87,7 +94,3 @@ class Client(api_client.Client):
     def delete_pool(self, name):
         pool = Pool.delete_pool(name=name)
         return pool.pool, pool.slots, pool.description
-
-    def get_lineage(self, dag_id, execution_date):
-        lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_date)
-        return lineage

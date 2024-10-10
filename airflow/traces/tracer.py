@@ -42,7 +42,7 @@ def gen_links_from_kv_list(list):
     return gen_links_from_kv_list(list)
 
 
-def span(func):
+def add_span(func):
     """Decorate a function with span."""
 
     def wrapper(*args, **kwargs):

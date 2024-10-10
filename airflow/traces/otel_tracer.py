@@ -67,7 +67,7 @@ class OtelTrace:
         self, component: str, trace_id: int | None = None, span_id: int | None = None
     ) -> OpenTelemetryTracer | Tracer:
         """Tracer that will use special AirflowOtelIdGenerator to control producing certain span and trace id."""
-        resource = Resource(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service})
+        resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service})
         if trace_id or span_id:
             # in case where trace_id or span_id was given
             tracer_provider = TracerProvider(
@@ -183,6 +183,7 @@ class OtelTrace:
         Essentially the span represents the ti itself if child == True, it will create a 'child' span under the given span.
         """
         dagrun = ti.dag_run
+        conf = dagrun.conf
         trace_id = int(gen_trace_id(dag_run=dagrun, as_int=True))
         span_id = int(gen_span_id(ti=ti, as_int=True))
         if span_name is None:
@@ -198,7 +199,12 @@ class OtelTrace:
 
         _links.append(
             Link(
-                context=trace.get_current_span().get_span_context(),
+                context=SpanContext(
+                    trace_id=trace.get_current_span().get_span_context().trace_id,
+                    span_id=span_id,
+                    is_remote=True,
+                    trace_flags=TraceFlags(0x01),
+                ),
                 attributes={"meta.annotation_type": "link", "from": "parenttrace"},
             )
         )
@@ -208,9 +214,16 @@ class OtelTrace:
         else:
             tracer = self.get_tracer(component=component)
 
+        tag_string = self.tag_string if self.tag_string else ""
+        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
+
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
         span = tracer.start_as_current_span(
-            name=span_name, context=ctx, start_time=datetime_to_nano(ti.queued_dttm), links=_links
+            name=span_name,
+            context=ctx,
+            links=_links,
+            start_time=datetime_to_nano(ti.queued_dttm),
+            attributes=parse_tracestate(tag_string),
         )
         return span
 

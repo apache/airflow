@@ -64,6 +64,29 @@ with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
 {% endif %}
 
+{% if use_airflow_context | default(false) -%}
+if len(sys.argv) > 5:
+    import json
+    from types import ModuleType
+
+    from airflow.operators import python as airflow_python
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+
+    class _MockPython(ModuleType):
+        @staticmethod
+        def get_current_context():
+            with open(sys.argv[5]) as file:
+                context = json.load(file)
+                return BaseSerialization.deserialize(context, use_pydantic_models=True)
+
+        def __getattr__(self, name: str):
+            return getattr(airflow_python, name)
+
+
+    MockPython = _MockPython("MockPython")
+    sys.modules["airflow.operators.python"] = MockPython
+{% endif %}
 
 try:
     res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])

@@ -79,7 +79,7 @@ Airflow passes in an additional set of keyword arguments: one for each of the
 :ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
 argument.
 
-The ``templates_dict`` argument is templated, so each value in the dictionary
+``templates_dict``, ``op_args``, ``op_kwargs`` arguments are templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
 .. tab-set::
@@ -101,6 +101,37 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
             :dedent: 4
             :start-after: [START howto_operator_python_render_sql]
             :end-before: [END howto_operator_python_render_sql]
+
+Context
+^^^^^^^
+
+The ``Context`` is a dictionary object that contains information
+about the environment of the ``DagRun``.
+For example, selecting ``task_instance`` will get the currently running ``TaskInstance`` object.
+
+It can be used implicitly, such as with ``**kwargs``,
+but can also be used explicitly with ``get_current_context()``.
+In this case, the type hint can be used for static analysis.
+
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context]
+            :end-before: [END get_current_context]
+
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context]
+            :end-before: [END get_current_context]
 
 .. _howto/operator:PythonVirtualenvOperator:
 
@@ -151,6 +182,7 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
+
 .. important::
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
@@ -167,6 +199,11 @@ If additional parameters for package installation are needed pass them in via th
   AnotherPackage==1.4.3 --no-index --find-links /my/local/archives
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
+
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 Virtual environment setup options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -203,6 +240,44 @@ In case you have problems during runtime with broken cached virtual environments
 Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
 operator is not maintaining or cleaning the cache path.
 
+Context
+^^^^^^^
+
+With some limitations, you can also use ``Context`` in virtual environments.
+
+.. important::
+    Using ``Context`` in a virtual environment is a bit of a challenge
+    because it involves library dependencies and serialization issues.
+
+    You can bypass this to some extent by using :ref:`Jinja template variables <templates:variables>` and explicitly passing it as a parameter.
+
+    You can also use ``get_current_context()`` in the same way as before, but with some limitations.
+
+    * Requires ``pydantic>=2``.
+
+    * Set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
+
+    * Set ``system_site_packages`` to ``True`` or set ``expect_airflow`` to ``True``
+
+.. tab-set::
+
+    .. tab-item:: @task.virtualenv
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_venv]
+            :end-before: [END get_current_context_venv]
+
+    .. tab-item:: PythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_venv]
+            :end-before: [END get_current_context_venv]
 
 .. _howto/operator:ExternalPythonOperator:
 
@@ -267,6 +342,36 @@ If you want the context related to datetime objects like ``data_interval_start``
     If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
     ``op_args`` and ``op_kwargs``.
 
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
+
+Context
+^^^^^^^
+
+You can use ``Context`` under the same conditions as ``PythonVirtualenvOperator``.
+
+.. tab-set::
+
+    .. tab-item:: @task.external_python
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_external]
+            :end-before: [END get_current_context_external]
+
+    .. tab-item:: ExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_context_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START get_current_context_external]
+            :end-before: [END get_current_context_external]
+
 .. _howto/operator:PythonBranchOperator:
 
 PythonBranchOperator
@@ -299,7 +404,10 @@ tasks.
             :start-after: [START howto_operator_branch_python]
             :end-before: [END howto_operator_branch_python]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchPythonVirtualenvOperator:
 
@@ -333,7 +441,10 @@ tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOpera
             :start-after: [START howto_operator_branch_virtualenv]
             :end-before: [END howto_operator_branch_virtualenv]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchExternalPythonOperator:
 
@@ -368,7 +479,11 @@ external Python environment.
             :start-after: [START howto_operator_branch_ext_py]
             :end-before: [END howto_operator_branch_ext_py]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
+
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 
@@ -444,16 +559,11 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
             :start-after: [START howto_operator_short_circuit_trigger_rules]
             :end-before: [END howto_operator_short_circuit_trigger_rules]
 
-Passing in arguments
-^^^^^^^^^^^^^^^^^^^^
 
-Pass extra arguments to the ``@task.short_circuit``-decorated function as you would with a normal Python function.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-Templating
-^^^^^^^^^^
-
-Jinja templating can be used in same way as described for the PythonOperator.
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:PythonSensor:
 

@@ -1,0 +1,3 @@
+Removed deprecated ``session_lifetime_days`` and ``force_log_out_after`` configuration parameters from ``webserver`` section. Please use ``session_lifetime_minutes``.
+
+Removed deprecated ``policy`` parameter from ``airflow_local_settings``. Please use ``task_policy``.

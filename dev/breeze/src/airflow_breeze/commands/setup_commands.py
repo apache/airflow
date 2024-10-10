@@ -520,6 +520,7 @@ DEVELOPER_COMMANDS = [
     "exec",
     "shell",
     "compile-www-assets",
+    "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
 ]

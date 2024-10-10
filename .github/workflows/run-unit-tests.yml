@@ -53,6 +53,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The list of backend versions (stringified JSON array) to run the tests on."
         required: true
         type: string
+      excluded-providers-as-string:
+        description: "Excluded providers (per Python version) as json string"
+        required: true
+        type: string
       excludes:
         description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
         required: true
@@ -88,11 +92,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade boto or not (true/false)"
         required: false
         default: "false"
-        type: string
-      pydantic:
-        description: "The version of pydantic to use"
-        required: false
-        default: "v2"
         type: string
       downgrade-pendulum:
         description: "Whether to downgrade pendulum or not (true/false)"
@@ -138,6 +137,7 @@ jobs:
       DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
       DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      EXCLUDED_PROVIDERS: "${{ inputs.excluded-providers-as-string }}"
       FORCE_LOWEST_DEPENDENCIES: "${{ inputs.force-lowest-dependencies }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,7 +148,6 @@ jobs:
       JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
       PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
-      PYDANTIC: "${{ inputs.pydantic }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"

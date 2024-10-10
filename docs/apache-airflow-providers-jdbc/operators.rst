@@ -73,7 +73,7 @@ commands against a database (or data storage) accessible via a JDBC driver.
 The :doc:`JDBC Connection <connections/jdbc>` must be passed as
 ``conn_id``.
 
-.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
+.. exampleinclude:: /../../providers/tests/system/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc]
     :end-before: [END howto_operator_jdbc]
@@ -91,7 +91,7 @@ Templating
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
-.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
+.. exampleinclude:: /../../providers/tests/system/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc_template]
     :end-before: [END howto_operator_jdbc_template]

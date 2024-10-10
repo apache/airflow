@@ -55,7 +55,7 @@ $("#pause_resume").on("change", function onChange() {
   const $input = $(this);
   const id = $input.data("dag-id");
   const isPaused = $input.is(":checked");
-  const requireConfirmation = $input.data("require-confirmation");
+  const requireConfirmation = $input.is("[data-require-confirmation]");
   if (requireConfirmation) {
     const confirmation = window.confirm(
       `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`

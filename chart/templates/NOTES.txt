@@ -78,7 +78,7 @@ Airflow Webserver:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.web.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}/
 {{- end }}
 {{- end }}
 {{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
@@ -92,7 +92,7 @@ Flower dashboard:
       {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.flower.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.flower.path }}/
 {{- end }}
 {{- end }}
 {{- else }}

@@ -162,7 +162,13 @@ class KeywordParameters:
         signature = inspect.signature(func)
         has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
 
-        for name in itertools.islice(signature.parameters.keys(), len(args)):
+        for name, param in itertools.islice(signature.parameters.items(), len(args)):
+            # Keyword-only arguments can't be passed positionally and are not checked.
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                continue
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                continue
+
             # Check if args conflict with names in kwargs.
             if name in kwargs:
                 raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
@@ -245,7 +251,7 @@ class ExecutionCallableRunner:
     def run(self, *args, **kwargs) -> Any:
         import inspect
 
-        from airflow.datasets.metadata import Metadata
+        from airflow.assets.metadata import Metadata
         from airflow.utils.types import NOTSET
 
         if not inspect.isgeneratorfunction(self.func):

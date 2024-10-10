@@ -23,12 +23,11 @@ import pytest
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
-    SlaCallbackRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -55,21 +54,16 @@ class TestCallbackRequest:
                 ),
                 DagCallbackRequest,
             ),
-            (
-                SlaCallbackRequest(
-                    full_filepath="filepath",
-                    dag_id="fake_dag",
-                    processor_subdir="/test_dir",
-                ),
-                SlaCallbackRequest,
-            ),
         ],
     )
     def test_from_json(self, input, request_class):
         if input is None:
             ti = TaskInstance(
                 task=BashOperator(
-                    task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                    task_id="test",
+                    bash_command="true",
+                    start_date=datetime.now(),
+                    dag=DAG(dag_id="id", schedule=None),
                 ),
                 run_id="fake_run",
                 state=State.RUNNING,
@@ -106,7 +100,7 @@ class TestCallbackRequest:
         from airflow.callbacks.callback_requests import TaskCallbackRequest
         from airflow.models import TaskInstance
         from airflow.models.taskinstance import SimpleTaskInstance
-        from airflow.operators.bash import BashOperator
+        from airflow.providers.standard.operators.bash import BashOperator
 
         test_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="hello", namespace="ns"))
         op = BashOperator(task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi")
@@ -121,7 +115,7 @@ class TestCallbackRequest:
         from airflow.callbacks.callback_requests import TaskCallbackRequest
         from airflow.models import TaskInstance
         from airflow.models.taskinstance import SimpleTaskInstance
-        from airflow.operators.bash import BashOperator
+        from airflow.providers.standard.operators.bash import BashOperator
 
         with dag_maker(schedule=timedelta(weeks=1), serialized=True):
             op = BashOperator(task_id="hi", bash_command="hi")

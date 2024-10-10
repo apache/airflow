@@ -117,6 +117,9 @@ spec:
             - name: PYTHONUNBUFFERED
               value: "1"
           {{- include "standard_airflow_environment" . | indent 10 }}
+          {{- if .Values.migrateDatabaseJob.env }}
+              {{- tpl (toYaml .Values.migrateDatabaseJob.env) $ | nindent 12 }}
+          {{- end }}
           resources: {{- toYaml .Values.migrateDatabaseJob.resources | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}

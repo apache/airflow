@@ -159,7 +159,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if result is None or result == b"":
             return None
         result = BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
-        if isinstance(result, AirflowException):
+        if isinstance(result, (KeyError, AttributeError, AirflowException)):
             raise result
         return result
 

@@ -48,7 +48,7 @@ Older versions of ``docker-compose`` do not support all the features required by
 
     .. code-block:: bash
 
-        docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+        docker run --rm "debian:bookworm-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
 
 .. warning::
 

@@ -35,7 +35,7 @@ List the Accounts
 To list accounts from Analytics you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminListAccountsOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_list_accounts_operator]
@@ -53,7 +53,7 @@ Creates a property.
 To create a property you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminCreatePropertyOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_create_property_operator]
@@ -71,7 +71,7 @@ Deletes a property.
 To delete a property you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminDeletePropertyOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_delete_property_operator]
@@ -89,7 +89,7 @@ Creates a data stream.
 To create a data stream you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminCreateDataStreamOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_create_data_stream_operator]
@@ -107,7 +107,7 @@ Deletes a data stream.
 To delete a data stream you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminDeleteDataStreamOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_delete_data_stream_operator]
@@ -124,7 +124,7 @@ List Google Ads Links
 To list Google Ads links you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminListGoogleAdsLinksOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_list_google_ads_links]
@@ -141,7 +141,7 @@ Get the Google Ads link
 To list Google Ads links you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics_admin.GoogleAnalyticsAdminGetGoogleAdsLinkOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics_admin.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_analytics_admin.py
     :language: python
     :dedent: 4
     :start-after: [START howto_marketing_platform_get_google_ad_link]

@@ -379,7 +379,6 @@ sequenceDiagram
         Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     and
         Artifacts ->> Tests: Download source constraints
-        Note over Tests: Build Bullseye PROD Images<br>[COMMIT_SHA]
     and
         GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
         Note over Tests: Run static checks

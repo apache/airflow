@@ -1,0 +1,1 @@
+Removed deprecated ``allow_raw_html_descriptions`` option from UI Trigger forms.

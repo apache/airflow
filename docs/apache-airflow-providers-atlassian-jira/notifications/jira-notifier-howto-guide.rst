@@ -31,7 +31,7 @@ Example Code
 
     from datetime import datetime
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.atlassian.jira.notifications.jira import send_jira_notification
 
     with DAG(

@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 with DAG(
     dag_id="child_dag",
@@ -34,7 +34,7 @@ with DAG(
     )
 
 
-from tests.system.utils import get_test_run
+from dev.tests_common.test_utils.system_tests import get_test_run
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

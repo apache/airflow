@@ -28,7 +28,7 @@ from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -39,16 +39,19 @@ if TYPE_CHECKING:
 def _trigger_dag(
     dag_id: str,
     dag_bag: DagBag,
+    *,
+    triggered_by: DagRunTriggeredByType,
     run_id: str | None = None,
     conf: dict | str | None = None,
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
-) -> list[DagRun | None]:
+) -> DagRun | None:
     """
     Triggers DAG run.
 
     :param dag_id: DAG ID
     :param dag_bag: DAG Bag model
+    :param triggered_by: the entity which triggers the dag_run
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param execution_date: date of execution
@@ -90,27 +93,26 @@ def _trigger_dag(
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
-    dag_runs = []
-    dags_to_run = [dag, *dag.subdags]
-    for _dag in dags_to_run:
-        dag_run = _dag.create_dagrun(
-            run_id=run_id,
-            execution_date=execution_date,
-            state=DagRunState.QUEUED,
-            conf=run_conf,
-            external_trigger=True,
-            dag_hash=dag_bag.dags_hash.get(dag_id),
-            data_interval=data_interval,
-        )
-        dag_runs.append(dag_run)
+    dag_run = dag.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=DagRunState.QUEUED,
+        conf=run_conf,
+        external_trigger=True,
+        dag_hash=dag_bag.dags_hash.get(dag_id),
+        data_interval=data_interval,
+        triggered_by=triggered_by,
+    )
 
-    return dag_runs
+    return dag_run
 
 
 @internal_api_call
 @provide_session
 def trigger_dag(
     dag_id: str,
+    *,
+    triggered_by: DagRunTriggeredByType,
     run_id: str | None = None,
     conf: dict | str | None = None,
     execution_date: datetime | None = None,
@@ -126,6 +128,7 @@ def trigger_dag(
     :param execution_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
     :param session: Unused. Only added in compatibility with database isolation mode
+    :param triggered_by: the entity which triggers the dag_run
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
     dag_model = DagModel.get_current(dag_id)
@@ -133,13 +136,14 @@ def trigger_dag(
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
     dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-    triggers = _trigger_dag(
+    dr = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,
         run_id=run_id,
         conf=conf,
         execution_date=execution_date,
         replace_microseconds=replace_microseconds,
+        triggered_by=triggered_by,
     )
 
-    return triggers[0] if triggers else None
+    return dr if dr else None

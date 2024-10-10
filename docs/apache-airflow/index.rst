@@ -41,7 +41,7 @@ Take a look at the following snippet of code:
 
     from airflow import DAG
     from airflow.decorators import task
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     # A DAG represents a workflow, a collection of tasks
     with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
@@ -166,7 +166,6 @@ so coding will always be required.
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
     Stable REST API <stable-rest-api-ref>
-    deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
 

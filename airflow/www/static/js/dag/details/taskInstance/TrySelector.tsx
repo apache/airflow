@@ -61,63 +61,10 @@ const TrySelector = ({
   const logAttemptDropdownLimit = 10;
   const showDropdown = finalTryNumber > logAttemptDropdownLimit;
 
-  const tries = (tiHistory?.taskInstances || []).filter(
-    (t) => t?.startDate !== taskInstance?.startDate
-  );
-  tries?.push(taskInstance);
-
   return (
     <Box my={3}>
       <Text as="strong">Task Tries</Text>
-      {!showDropdown && (
-        <Flex my={1} flexWrap="wrap">
-          {/* Even without try history showing up we should still show all try numbers */}
-          {Array.from({ length: finalTryNumber }, (_, i) => i + 1).map(
-            (tryNumber, i) => {
-              let attempt;
-              if (tries.length) {
-                attempt = tries[i];
-              }
-              return (
-                <Tooltip
-                  key={tryNumber}
-                  label={
-                    !!attempt && (
-                      <Box>
-                        <Text>Status: {attempt.state}</Text>
-                        <Text>
-                          Duration:{" "}
-                          {formatDuration(
-                            getDuration(attempt.startDate, attempt.endDate)
-                          )}
-                        </Text>
-                      </Box>
-                    )
-                  }
-                  hasArrow
-                  portalProps={{ containerRef }}
-                  placement="top"
-                  isDisabled={!attempt}
-                >
-                  <Button
-                    key={tryNumber}
-                    variant={
-                      selectedTryNumber === tryNumber ? "solid" : "ghost"
-                    }
-                    colorScheme="blue"
-                    onClick={() => onSelectTryNumber?.(tryNumber)}
-                    data-testid={`log-attempt-select-button-${tryNumber}`}
-                  >
-                    {tryNumber}
-                    {!!attempt && <SimpleStatus ml={2} state={attempt.state} />}
-                  </Button>
-                </Tooltip>
-              );
-            }
-          )}
-        </Flex>
-      )}
-      {showDropdown && (
+      {showDropdown ? (
         <Select
           onChange={(e) => {
             onSelectTryNumber?.(Number(e.target.value));
@@ -125,12 +72,47 @@ const TrySelector = ({
           value={selectedTryNumber}
           maxWidth="200px"
         >
-          {tries.map(({ tryNumber, state }) => (
+          {tiHistory?.taskInstances?.map(({ tryNumber, state }) => (
             <option key={tryNumber} value={tryNumber}>
               {tryNumber}: {state}
             </option>
           ))}
         </Select>
+      ) : (
+        <Flex my={1} flexWrap="wrap">
+          {tiHistory?.taskInstances?.map((ti) => (
+            <Tooltip
+              key={ti.tryNumber}
+              label={
+                <Box>
+                  <Text>Status: {ti.state}</Text>
+                  <Text>
+                    Duration:{" "}
+                    {formatDuration(getDuration(ti.startDate, ti.endDate))}
+                  </Text>
+                </Box>
+              }
+              hasArrow
+              portalProps={{ containerRef }}
+              placement="top"
+              isDisabled={!ti}
+            >
+              <Button
+                key={ti.tryNumber}
+                variant={selectedTryNumber === ti.tryNumber ? "solid" : "ghost"}
+                colorScheme="blue"
+                onClick={() => {
+                  if (onSelectTryNumber && ti.tryNumber)
+                    onSelectTryNumber(ti.tryNumber);
+                }}
+                data-testid={`log-attempt-select-button-${ti.tryNumber}`}
+              >
+                {ti.tryNumber}
+                <SimpleStatus ml={2} state={ti.state} />
+              </Button>
+            </Tooltip>
+          ))}
+        </Flex>
       )}
     </Box>
   );

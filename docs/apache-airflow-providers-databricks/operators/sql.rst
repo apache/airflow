@@ -49,7 +49,7 @@ Selecting data
 
 An example usage of the DatabricksSqlOperator to select data from a table is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sql.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sql.py
     :language: python
     :start-after: [START howto_operator_databricks_sql_select]
     :end-before: [END howto_operator_databricks_sql_select]
@@ -59,7 +59,7 @@ Selecting data into a file
 
 An example usage of the DatabricksSqlOperator to select data from a table and store in a file is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sql.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sql.py
     :language: python
     :start-after: [START howto_operator_databricks_sql_select_file]
     :end-before: [END howto_operator_databricks_sql_select_file]
@@ -69,7 +69,7 @@ Executing multiple statements
 
 An example usage of the DatabricksSqlOperator to perform multiple SQL statements is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sql.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sql.py
     :language: python
     :start-after: [START howto_operator_databricks_sql_multiple]
     :end-before: [END howto_operator_databricks_sql_multiple]
@@ -80,7 +80,7 @@ Executing multiple statements from a file
 
 An example usage of the DatabricksSqlOperator to perform statements from a file is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sql.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sql.py
     :language: python
     :start-after: [START howto_operator_databricks_sql_multiple_file]
     :end-before: [END howto_operator_databricks_sql_multiple_file]
@@ -107,7 +107,7 @@ Examples
 --------
 Configuring Databricks connection to be used with the Sensor.
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_connection_setup]
@@ -115,7 +115,7 @@ Configuring Databricks connection to be used with the Sensor.
 
 Poking the specific table with the SQL statement:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_sql]
@@ -154,7 +154,7 @@ Examples
 --------
 Configuring Databricks connection to be used with the Sensor.
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_connection_setup]
@@ -162,7 +162,7 @@ Configuring Databricks connection to be used with the Sensor.
 
 Poking the specific table for existence of data/partition:
 
-.. exampleinclude:: /../../tests/system/providers/databricks/example_databricks_sensors.py
+.. exampleinclude:: /../../providers/tests/system/databricks/example_databricks_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_databricks_partition]

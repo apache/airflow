@@ -18,9 +18,10 @@ import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
+
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str) -> BaseJobRunner:

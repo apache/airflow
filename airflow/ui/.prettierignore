@@ -1,0 +1,6 @@
+.mypy_cache/
+templates/**/*.html
+dist/
+*.md
+*.yaml
+coverage/*

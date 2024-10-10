@@ -43,9 +43,10 @@ from airflow.executors import base_executor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State, TaskInstanceState
-from tests.test_utils import db
+
+from dev.tests_common.test_utils import db
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +211,10 @@ class TestCeleryExecutor:
             # which will cause TypeError when calling task.apply_async()
             executor = celery_executor.CeleryExecutor()
             task = BashOperator(
-                task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                task_id="test",
+                bash_command="true",
+                dag=DAG(dag_id="id", schedule=None),
+                start_date=datetime.now(),
             )
             when = datetime.now()
             value_tuple = (
@@ -241,7 +245,10 @@ class TestCeleryExecutor:
             assert executor.task_publish_max_retries == 3, "Assert Default Max Retries is 3"
 
             task = BashOperator(
-                task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                task_id="test",
+                bash_command="true",
+                dag=DAG(dag_id="id", schedule=None),
+                start_date=datetime.now(),
             )
             when = datetime.now()
             value_tuple = (

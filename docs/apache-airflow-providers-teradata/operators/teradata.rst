@@ -33,7 +33,7 @@ Creating a Teradata database table
 
 An example usage of the TeradataOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :dedent: 4
     :start-after: [START teradata_operator_howto_guide_create_table]
@@ -42,7 +42,7 @@ An example usage of the TeradataOperator is as follows:
 You can also use an external file to execute the SQL commands. External file must be at the same level as DAG.py file.
 This way you can easily maintain the SQL queries separated from the code.
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide_create_table_from_external_file]
     :end-before: [END teradata_operator_howto_guide_create_table_from_external_file]
@@ -63,7 +63,7 @@ Inserting data into a Teradata database table
 ---------------------------------------------
 We can then create a TeradataOperator task that populate the ``Users`` table.
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide_populate_table]
     :end-before: [END teradata_operator_howto_guide_populate_table]
@@ -74,7 +74,7 @@ Fetching records from your Teradata database table
 
 Fetching records from your Teradata database table can be as simple as:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide_get_all_countries]
     :end-before: [END teradata_operator_howto_guide_get_all_countries]
@@ -88,7 +88,7 @@ SQL requests during runtime.
 
 To find the countries in Asian continent:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide_params_passing_get_query]
     :end-before: [END teradata_operator_howto_guide_params_passing_get_query]
@@ -99,7 +99,7 @@ Dropping a Teradata database table
 
 We can then create a TeradataOperator task that drops the ``Users`` table.
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide_drop_users_table]
     :end-before: [END teradata_operator_howto_guide_drop_users_table]
@@ -109,7 +109,7 @@ The complete Teradata Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata.py
     :language: python
     :start-after: [START teradata_operator_howto_guide]
     :end-before: [END teradata_operator_howto_guide]
@@ -152,21 +152,21 @@ This stored procedure can be invoked using
 
 One approach involves passing parameters positionally as a list, with output parameters specified as Python data types:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_call_teradata_stored_procedure_operator_with_types]
     :end-before: [END howto_call_teradata_stored_procedure_operator_with_types]
 
 Alternatively, parameters can be passed positionally as a list, with output parameters designated as placeholders:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_call_teradata_stored_procedure_operator_with_place_holder]
     :end-before: [END howto_call_teradata_stored_procedure_operator_with_place_holder]
 
 Another method entails passing parameters positionally as a dictionary:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_call_teradata_stored_procedure_operator_with_dict_input]
     :end-before: [END howto_call_teradata_stored_procedure_operator_with_dict_input]
@@ -186,7 +186,7 @@ This stored procedure yields a singular timestamp argument, out_timestamp, and i
 :class:`~airflow.providers.teradata.operators.teradata.TeradataStoredProcedureOperator`
 with parameters passed positionally as a list:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_call_teradata_stored_procedure_operator_timestamp]
     :end-before: [END howto_call_teradata_stored_procedure_operator_timestamp]
@@ -213,7 +213,7 @@ This stored procedure can be invoked using
 :class:`~airflow.providers.teradata.operators.teradata.TeradataStoredProcedureOperator`
 with parameters passed positionally as a list:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     :end-before: [END howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
@@ -223,7 +223,7 @@ The complete TeradataStoredProcedureOperator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/teradata/example_teradata_call_sp.py
+.. exampleinclude:: /../../providers/tests/system/teradata/example_teradata_call_sp.py
     :language: python
     :start-after: [START howto_teradata_operator_for_sp]
     :end-before: [END howto_teradata_operator_for_sp]

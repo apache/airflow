@@ -22,10 +22,18 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 from tests.models import DEFAULT_DATE
 
-with DAG(dag_id="test_external_task_sensor_check_existence_ext", start_date=DEFAULT_DATE) as dag1:
+with DAG(
+    dag_id="test_external_task_sensor_check_existence_ext",
+    schedule=None,
+    start_date=DEFAULT_DATE,
+) as dag1:
     EmptyOperator(task_id="empty")
 
-with DAG(dag_id="test_external_task_sensor_check_existence", start_date=DEFAULT_DATE) as dag2:
+with DAG(
+    dag_id="test_external_task_sensor_check_existence",
+    schedule=None,
+    start_date=DEFAULT_DATE,
+) as dag2:
     ExternalTaskSensor(
         task_id="external_task_sensor",
         external_dag_id="test_external_task_sensor_check_existence_ext",

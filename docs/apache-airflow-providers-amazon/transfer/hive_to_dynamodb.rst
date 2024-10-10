@@ -44,7 +44,7 @@ To get more information visit:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_hive_to_dynamodb.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_hive_to_dynamodb.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_hive_to_dynamodb]

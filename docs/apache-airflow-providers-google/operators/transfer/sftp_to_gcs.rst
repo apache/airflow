@@ -46,7 +46,7 @@ Copying single files
 
 The following Operator copies a single file.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_sftp_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_sftp_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_to_gcs_copy_single_file]
@@ -59,7 +59,7 @@ To move the file use the ``move_object`` parameter. Once the file is copied to G
 the original file from the SFTP is deleted.
 The ``destination_path`` parameter defines the full path of the file in the bucket.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_sftp_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_sftp_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_to_gcs_move_single_file_destination]
@@ -71,7 +71,7 @@ Copying directory
 
 Use the ``wildcard`` in ``source_path`` parameter to copy the directory.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_sftp_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_sftp_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_to_gcs_copy_directory]
@@ -87,7 +87,7 @@ e.g. ``tests_sftp_hook_dir/subdir/parent-1.bin`` is copied to ``specific_files/p
 and ``tests_sftp_hook_dir/subdir/parent-2.bin`` is copied to ``specific_files/parent-2.bin`` .
 ``tests_sftp_hook_dir/subdir/parent-3.txt`` is skipped.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_sftp_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_sftp_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sftp_to_gcs_move_specific_files]

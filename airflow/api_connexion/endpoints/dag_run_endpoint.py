@@ -39,6 +39,10 @@ from airflow.api_connexion.parameters import (
     format_datetime,
     format_parameters,
 )
+from airflow.api_connexion.schemas.asset_schema import (
+    AssetEventCollection,
+    asset_event_collection_schema,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     DAGRunCollectionSchema,
@@ -50,10 +54,6 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     set_dagrun_note_form_schema,
     set_dagrun_state_form_schema,
 )
-from airflow.api_connexion.schemas.dataset_schema import (
-    DatasetEventCollection,
-    dataset_event_collection_schema,
-)
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
@@ -63,10 +63,11 @@ from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -90,6 +91,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
     return NoContent, HTTPStatus.NO_CONTENT
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_run(
@@ -112,12 +114,10 @@ def get_dag_run(
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
-def get_upstream_dataset_events(
-    *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
-) -> APIResponse:
-    """If dag run is dataset-triggered, return the dataset events that triggered it."""
+def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
             DagRun.dag_id == dag_id,
@@ -130,8 +130,8 @@ def get_upstream_dataset_events(
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
     events = dag_run.consumed_dataset_events
-    return dataset_event_collection_schema.dump(
-        DatasetEventCollection(dataset_events=events, total_entries=len(events))
+    return asset_event_collection_schema.dump(
+        AssetEventCollection(asset_events=events, total_entries=len(events))
     )
 
 
@@ -172,7 +172,7 @@ def _fetch_dag_runs(
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
     total_entries = get_query_count(query, session=session)
-    to_replace = {"dag_run_id": "run_id"}
+    to_replace = {"dag_run_id": "run_id", "execution_date": "logical_date"}
     allowed_sort_attrs = [
         "id",
         "state",
@@ -351,6 +351,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
+                triggered_by=DagRunTriggeredByType.REST_API,
             )
             dag_run_note = post_body.get("note")
             if dag_run_note:
@@ -425,8 +426,6 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            include_subdags=True,
-            include_parentdag=True,
             only_failed=False,
             dry_run=True,
         )
@@ -438,8 +437,6 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            include_subdags=True,
-            include_parentdag=True,
             only_failed=False,
         )
         dag_run = session.execute(select(DagRun).where(DagRun.id == dag_run.id)).scalar_one()

@@ -51,7 +51,6 @@ __all__ = [
     "clear_task_instances",
 ]
 
-
 from typing import TYPE_CHECKING
 
 
@@ -59,12 +58,14 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
+    import airflow.models.asset
+    import airflow.models.backfill
     import airflow.models.dagwarning
-    import airflow.models.dataset
     import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):

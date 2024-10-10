@@ -45,11 +45,6 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-
-# We need to keep the import here because GCSToLocalFilesystemOperator released in
-# Google Provider before 3.0.0 imported apply_defaults from here.
-# See  https://github.com/apache/airflow/issues/16035
-from airflow.utils.decorators import apply_defaults  # noqa: F401
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:

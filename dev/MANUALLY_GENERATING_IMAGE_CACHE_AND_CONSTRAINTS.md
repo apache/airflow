@@ -23,10 +23,6 @@
 
 - [Purpose of the document](#purpose-of-the-document)
 - [Automated image cache and constraints refreshing in CI](#automated-image-cache-and-constraints-refreshing-in-ci)
-- [Figuring out backtracking dependencies](#figuring-out-backtracking-dependencies)
-  - [Why we need to figure out backtracking dependencies](#why-we-need-to-figure-out-backtracking-dependencies)
-  - [How to figure out backtracking dependencies](#how-to-figure-out-backtracking-dependencies)
-  - [Example backtracking session](#example-backtracking-session)
 - [Manually refreshing the image cache](#manually-refreshing-the-image-cache)
   - [Why we need to update image cache manually](#why-we-need-to-update-image-cache-manually)
   - [Prerequisites](#prerequisites)
@@ -43,6 +39,10 @@
   - [Is it safe to update constraints manually?](#is-it-safe-to-update-constraints-manually)
   - [How the command works under-the-hood ?](#how-the-command-works-under-the-hood-)
   - [Examples of running the command](#examples-of-running-the-command)
+- [Figuring out backtracking dependencies](#figuring-out-backtracking-dependencies)
+  - [Why we need to figure out backtracking dependencies](#why-we-need-to-figure-out-backtracking-dependencies)
+  - [How to figure out backtracking dependencies](#how-to-figure-out-backtracking-dependencies)
+  - [Example backtracking session](#example-backtracking-session)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -85,198 +85,6 @@ rebuilding of [Breeze](./breeze/doc/README.rst) images for development purpose. 
      there is no problem with conflicting dependencies.
 
 
-# Figuring out backtracking dependencies
-
-## Why we need to figure out backtracking dependencies
-
-Sometimes, very rarely the CI image in `canary` builds take a very long time to build. This is usually
-caused by `pip` trying to figure out the latest set of dependencies (`eager upgrade`) .
-The resolution of dependencies is a very complex problem and sometimes it takes a long time to figure out
-the best set of dependencies. This is especially true when we have a lot of dependencies and they all have
-to be found compatible with each other. In case new dependencies are released, sometimes `pip` enters
-a long loop trying to figure out if the newly released dependency can be used, but due to some other
-dependencies of ours it is impossible, but it will take `pip` a very long time to figure it out.
-
-This is visible in the "build output" as `pip` attempting to continuously backtrack and download many new
-versions of various dependencies, trying to find a good match.
-
-This is why we sometimes we need to help pip to skip newer versions of those dependencies, until the
-condition that caused the backtracking is solved.
-
-We do it by adding `dependency<=version` to the EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS variable in
-`Dockerfile.ci`. The trick is to find the dependency that is causing the backtracking.
-
-Here is how. We use `bisecting` methodology to try out candidates for backtrack triggering among the
-candidates that have been released in PyPI since the last time we successfully run
-``--upgrade-to-newer-dependencies`` and committed the constraints in the `canary` build.
-
-## How to figure out backtracking dependencies
-
-First - we have a breeze command that can help us with that:
-
-```bash
-breeze ci find-backtracking-candidates
-```
-
-This command should be run rather quickly after we notice that the CI build is taking a long time and fail,
-because it is based on the fact that eager upgrade produced valid constraints at some point of time and
-it tries to find out what dependencies have been added since then and limit them to the version that
-was used in the constraints.
-
-You can also - instead of running the command manually rely on the failing CI builds. We run the
-`find-backtracking-candidates` command in the `canary` build when it times out, so the
-easiest way to find backtracking candidates is to find the first build that failed with timeout - it
-will likely have the smallest number of backtracking candidates. The command outputs the limitation
-for those backtracking candidates that are guaranteed to work (because they are taken from the latest
-constraints and they already succeeded in the past when the constraints were updated).
-
-Then we run ``breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "REQUIREMENTS"``
-to check which of the candidates causes the long builds. Initially you put there the whole list of
-candidates that you got from the `find-backtracking-candidates` command. This **should** succeed. Now,
-the next step is to narrow down the list of candidates to the one that is causing the backtracking.
-
-We narrow-down the list by "bisecting" the list. We remove half of the dependency limits and see if it
-still works or not. It works - we continue. If it does not work, we restore the removed half and remove
-the other half. Rinse and repeat until there is only one dependency left - hopefully
-(sometimes you will need to leave few of them).
-
-This way we can relatively quickly narrow down the dependency that is causing the backtracking. Once we
-figure out which dependency is causing it, we can attempt to figure it out why it is causing the backtracking
-by specifying the latest released version of the dependency as `== <latest released version>` in the
-`--eager-upgrade-additional-requirements`. This should rather quickly fail and `pip` should show us what
-the dependency is conflicting with. There might be multiple reasons for that. Most often it is simply
-a dependency that has a requirement that is limited and we need to wait until new version of that
-dependency is released.
-
-Note that - such build **might** even succeed - surprisingly. Then this is simply a sign that `pip`
-algorithm for `--eager-upgrade` was not perfect and the solution could be found given sufficient time.
-In such case it might also be that removing the limit in the next few days will not cause the backtracking.
-
-Finally, in order to make the change permanent in our CI builds, we should add the limitation to the
-`EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS` arg in `Dockerfile.ci` and commit the change. We usually commit
-the limits with `<VERSION` suffix (where version is the version that causes backtracking - usually that will
-be the latest released version, unless that dependency had quick subsequent releases - you can try it before
-committing by simply adding it to `EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS` in Dockerfile.ci and
-running `breeze ci-image build --upgrade-to-newer-dependencies`. Make sure to add the comment explaining
-when we should remove the limit.
-
-
-Later on - periodically we might attempt to remove the limitation and see if the backtracking is still
-happening. If it is not - we just remove the limitation from `Dockerfile.ci` and commit the change.
-
-## Example backtracking session
-
-This is the example backtracking session run on 13th of August 2023 after the `canary` CI image build
-started to fail with timeout a day before.
-
-1. The `breeze ci-image build --upgrade-to-newer-dependencies` failed on CI after 80 minutes.
-
-2. The output of the `breeze ci find-backtracking-candidates` command:
-
-```
-Last constraint date: 2023-08-09 21:48:23
-Latest version aiobotocore==2.6.0 release date: 2023-08-11 20:43:19. In current constraints: 2.5.4)
-Latest version asana==4.0.5 release date: 2023-08-11 18:56:04. In current constraints: 3.2.1)
-Latest version async-timeout==4.0.3 release date: 2023-08-10 16:35:55. In current constraints: 4.0.2)
-Latest version aws-sam-translator==1.73.0 release date: 2023-08-10 00:01:00. In current constraints: 1.72.0)
-Latest version azure-core==1.29.1 release date: 2023-08-10 05:09:59. In current constraints: 1.29.0)
-Latest version azure-cosmos==4.5.0 release date: 2023-08-09 23:43:07. In current constraints: 4.4.0)
-Latest version boto3==1.28.25 release date: 2023-08-11 19:23:52. In current constraints: 1.28.17)
-Latest version botocore==1.31.25 release date: 2023-08-11 19:23:34. In current constraints: 1.31.17)
-Latest version cfgv==3.4.0 release date: 2023-08-12 20:38:16. In current constraints: 3.3.1)
-Latest version coverage==7.3.0 release date: 2023-08-12 18:34:06. In current constraints: 7.2.7)
-Latest version databricks-sql-connector==2.9.1 release date: 2023-08-11 17:32:12. In current constraints: 2.8.0)
-Latest version google-ads==21.3.0 release date: 2023-08-10 18:10:22. In current constraints: 21.2.0)
-Latest version google-cloud-aiplatform==1.30.1 release date: 2023-08-11 21:19:50. In current constraints: 1.29.0)
-Latest version grpcio-status==1.57.0 release date: 2023-08-10 15:54:17. In current constraints: 1.56.2)
-Latest version grpcio==1.57.0 release date: 2023-08-10 15:51:52. In current constraints: 1.56.2)
-Latest version mypy==1.5.0 release date: 2023-08-10 12:46:43. In current constraints: 1.2.0)
-Latest version pyzmq==25.1.1 release date: 2023-08-10 09:01:18. In current constraints: 25.1.0)
-Latest version tornado==6.3.3 release date: 2023-08-11 15:21:47. In current constraints: 6.3.2)
-Latest version tqdm==4.66.1 release date: 2023-08-10 11:38:57. In current constraints: 4.66.0)
-Latest version virtualenv==20.24.3 release date: 2023-08-11 15:52:32. In current constraints: 20.24.1)
-
-Found 20 candidates for backtracking
-
-Run `breeze ci-image --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 azure-core<=1.29.0
-azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7 databricks-sql-connector<=2.8.0 google-ads<=21.2.0 google-cloud-aiplatform<=1.29.0 grpcio-status<=1.56.2 grpcio<=1.56.2
-mypy<=1.2.0 pyzmq<=25.1.0 tornado<=6.3.2 tqdm<=4.66.0 virtualenv<=20.24.1"`. It should succeed.
-```
-
-3. As instructed, run:
-
-```bash
-breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
-aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 \
-azure-core<=1.29.0 azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7 \
-databricks-sql-connector<=2.8.0 google-ads<=21.2.0 google-cloud-aiplatform<=1.29.0 \
-grpcio-status<=1.56.2 grpcio<=1.56.2 mypy<=1.2.0 pyzmq<=25.1.0 tornado<=6.3.2 tqdm<=4.66.0 virtualenv<=20.24.1"
-```
-
-The build succeeded in ~ 8 minutes.
-
-4. Removed the second half:
-
-```
-breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
-aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 \
-azure-core<=1.29.0 azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7"
-```
-
-The build succeeded in ~ 8 minutes.
-
-5. Removed the second half:
-
-```
-breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
-aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0"
-```
-
-The build succeeded in ~ 8 minutes.
-
-6. Removed the second half:
-
-```
-breeze ci-image build --upgrade-to-newer-dependencies \
---eager-upgrade-additional-requirements "aiobotocore<=2.5.4 asana<=3.2.1"
-```
-
-The build succeeded in ~ 8 minutes.
-
-6. Removed aiobotocore
-
-```
-asana<=3.2.1
-```
-
-The image build continued running way past 10 minutes and downloading many versions  of many dependencies.
-
-7. Removed asana and restored aiobotocore
-
-```
-aiobotocore<=2.5.4
-```
-
-The build succeeded. Aiobotocore is our culprit.
-
-8. Check the reason for backtracking (using latest released version of aiobotocore):
-
-```bash
-breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "aiobotocore==2.6.0"
-```
-
-Note. In this case the build succeeded, which means that this was simply a flaw in the `pip` resolution
-algorithm (which is based on some heuristics) and not a real problem with the dependencies. We will
-attempt to remove the limit in the next few days to see if the problem is resolved by other dependencies
-released in the meantime.
-
-9. Updated additional dependencies in `Dockerfile.ci` with appropriate comment:
-
-```
-# aiobotocore is limited temporarily until it stops backtracking pip
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="aiobotocore<2.6.0"
-```
-
 # Manually refreshing the image cache
 
 ## Why we need to update image cache manually
@@ -292,9 +100,11 @@ Or sometimes we just refreshed the constraints (see below) and we want the cache
 ## Prerequisites
 
 Note that in order to refresh images you have to not only have `buildx` command installed for docker,
-but you should also make sure that you have the buildkit builder configured and set. Since we also build
-multi-platform images (for both AMD and ARM), you need to have support for qemu or hardware ARM/AMD builders
-configured. The chapters below explain both options.
+but you should also make sure that you have the buildkit builder configured and set.
+
+If you just refresh image cache for your platform (AMD or ARM) - buildx is all you need, but if
+you want to refresh the cache for both platforms, you need to have support for multi-platform builds
+you need to have support for qemu or hardware ARM/AMD builders configured. The chapters below explain both options.
 
 ### Setting up cache refreshing with emulation
 
@@ -348,9 +158,26 @@ rebuild all the images in parallel and push them to the registry.
 Note that you need to run `docker login ghcr.io` before you run the script and you need to be
 a committer in order to be able to push the cache to the registry.
 
+By default the command refreshes both ARM and AMD images:
+
 ```bash
 ./dev/refresh_images.sh
 ```
+
+But you can also set PLATFORM variable if you want to refresh only single platform:
+
+```bash
+export PLATFORM=linux/amd64
+./dev/refresh_images.sh
+```
+
+or
+
+```bash
+export PLATFORM=linux/arm64
+./dev/refresh_images.sh
+```
+
 
 ## Is it safe to refresh the image cache?
 
@@ -531,4 +358,192 @@ breeze release-management update-constraints --constraints-repo /home/user/airfl
     --updated-constraint Authlib==1.3.0 \
     --commit-message "Update pymssql constraint to 2.2.8 and Authlib to 1.3.0" \
     --airflow-constraints-mode constraints
+```
+
+
+# Figuring out backtracking dependencies
+
+## Why we need to figure out backtracking dependencies
+
+Very rarely the CI image in `canary` builds take a very long time to build. This is usually
+caused by `pip` trying to figure out the latest set of dependencies (`eager upgrade`) .
+The resolution of dependencies is a very complex problem and sometimes it takes a long time to figure out
+the best set of dependencies. This is especially true when we have a lot of dependencies and they all have
+to be found compatible with each other. In case new dependencies are released, `pip` might enter
+a long loop trying to figure out if these dependencies can be used. Unfortunately, this long loop could end up in an error due to conflicts.
+
+This is visible in the "build output" as `pip` attempting to continuously backtrack and download many new
+versions of various dependencies, trying to find a good match.
+
+This is why we need to help pip to skip newer versions of those dependencies, until the
+condition that caused the backtracking is solved.
+
+We do it by adding `dependency<=version` to the EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS variable in
+`Dockerfile.ci`. The trick is to find the dependency that is causing the backtracking.
+
+We use a "bisecting" methodology to test candidates for backtrack triggering among those released in PyPI since the last successful run
+of ``--upgrade-to-newer-dependencies`` and committed the constraints in the `canary` build.
+
+## How to figure out backtracking dependencies
+
+First - we have a breeze command that can help us with that:
+
+```bash
+breeze ci find-backtracking-candidates
+```
+
+This command should be run quickly after noticing that the CI build is taking a long time and failing. It relies on the fact that an eager upgrade produced valid constraints at some point of time, so it tries to identify which dependencies have been added since then. By doing it, it limits them to the versions used in the constraints.
+
+Instead of running the command manually, you could also rely on the failing CI builds. We run the
+`find-backtracking-candidates` command in the `canary` build when it times out, so the
+easiest way to find backtracking candidates is to find the first build that failed with timeout. It
+will likely have the smallest number of backtracking candidates. The command outputs the limitation
+for those backtracking candidates that are guaranteed to work (because they are taken from the latest
+constraints and they already succeeded in the past when the constraints were updated).
+
+Then, we run ``breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "REQUIREMENTS"``
+to check which of the candidates causes the long builds. Initially, you put there the whole list of
+candidates that you got from the `find-backtracking-candidates` command. This **should** succeed. Now,
+the next step is to narrow down the list of candidates to the one that is causing the backtracking.
+
+We narrow-down the list by "bisecting" the list. We remove half of the dependency limits and see if it
+still works or not. If it works, we continue. Otherwise, we restore the removed half and remove
+the other half. Repeat until there is only one dependency left - hopefully
+(sometimes you will need to leave few of them).
+
+This way we can relatively quickly narrow down the dependency that is causing the backtracking. Once we
+figure out which dependency is causing it, we can attempt to figure it out why it is causing the backtracking
+by specifying the latest released version of the dependency as `== <latest released version>` in the
+`--eager-upgrade-additional-requirements`. This should rather quickly fail and `pip` should show us what
+the dependency is conflicting with. There might be multiple reasons for that. Most often it is simply
+a dependency that has a requirement that is limited and we need to wait until new version of that
+dependency is released.
+
+Note that - such build **might** even succeed - surprisingly. Then this is simply a sign that `pip`
+algorithm for `--eager-upgrade` was not perfect and the solution could be found given sufficient time.
+In such case it might also be that removing the limit in the next few days will not cause the backtracking.
+
+Finally, in order to make the change permanent in our CI builds, we should add the limitation to the
+`EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS` arg in `Dockerfile.ci` and commit the change. We usually commit
+the limits with `<VERSION` suffix (where version is the version that causes backtracking - usually that will
+be the latest released version, unless that dependency had quick subsequent releases - you can try it before
+committing by simply adding it to `EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS` in Dockerfile.ci and
+running `breeze ci-image build --upgrade-to-newer-dependencies`. Make sure to add the comment explaining
+when we should remove the limit.
+
+
+Later on - periodically we might attempt to remove the limitation and see if the backtracking is still
+happening. If it is not - we just remove the limitation from `Dockerfile.ci` and commit the change.
+
+## Example backtracking session
+
+This is the example backtracking session run on 13th of August 2023 after the `canary` CI image build
+started to fail with timeout a day before.
+
+1. The `breeze ci-image build --upgrade-to-newer-dependencies` failed on CI after 80 minutes.
+
+2. The output of the `breeze ci find-backtracking-candidates` command:
+
+```
+Last constraint date: 2023-08-09 21:48:23
+Latest version aiobotocore==2.6.0 release date: 2023-08-11 20:43:19. In current constraints: 2.5.4)
+Latest version asana==4.0.5 release date: 2023-08-11 18:56:04. In current constraints: 3.2.1)
+Latest version async-timeout==4.0.3 release date: 2023-08-10 16:35:55. In current constraints: 4.0.2)
+Latest version aws-sam-translator==1.73.0 release date: 2023-08-10 00:01:00. In current constraints: 1.72.0)
+Latest version azure-core==1.29.1 release date: 2023-08-10 05:09:59. In current constraints: 1.29.0)
+Latest version azure-cosmos==4.5.0 release date: 2023-08-09 23:43:07. In current constraints: 4.4.0)
+Latest version boto3==1.28.25 release date: 2023-08-11 19:23:52. In current constraints: 1.28.17)
+Latest version botocore==1.31.25 release date: 2023-08-11 19:23:34. In current constraints: 1.31.17)
+Latest version cfgv==3.4.0 release date: 2023-08-12 20:38:16. In current constraints: 3.3.1)
+Latest version coverage==7.3.0 release date: 2023-08-12 18:34:06. In current constraints: 7.2.7)
+Latest version databricks-sql-connector==2.9.1 release date: 2023-08-11 17:32:12. In current constraints: 2.8.0)
+Latest version google-ads==21.3.0 release date: 2023-08-10 18:10:22. In current constraints: 21.2.0)
+Latest version google-cloud-aiplatform==1.30.1 release date: 2023-08-11 21:19:50. In current constraints: 1.29.0)
+Latest version grpcio-status==1.57.0 release date: 2023-08-10 15:54:17. In current constraints: 1.56.2)
+Latest version grpcio==1.57.0 release date: 2023-08-10 15:51:52. In current constraints: 1.56.2)
+Latest version mypy==1.5.0 release date: 2023-08-10 12:46:43. In current constraints: 1.2.0)
+Latest version pyzmq==25.1.1 release date: 2023-08-10 09:01:18. In current constraints: 25.1.0)
+Latest version tornado==6.3.3 release date: 2023-08-11 15:21:47. In current constraints: 6.3.2)
+Latest version tqdm==4.66.1 release date: 2023-08-10 11:38:57. In current constraints: 4.66.0)
+Latest version virtualenv==20.24.3 release date: 2023-08-11 15:52:32. In current constraints: 20.24.1)
+
+Found 20 candidates for backtracking
+
+Run `breeze ci-image --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 azure-core<=1.29.0
+azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7 databricks-sql-connector<=2.8.0 google-ads<=21.2.0 google-cloud-aiplatform<=1.29.0 grpcio-status<=1.56.2 grpcio<=1.56.2
+mypy<=1.2.0 pyzmq<=25.1.0 tornado<=6.3.2 tqdm<=4.66.0 virtualenv<=20.24.1"`. It should succeed.
+```
+
+3. As instructed, run:
+
+```bash
+breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
+aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 \
+azure-core<=1.29.0 azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7 \
+databricks-sql-connector<=2.8.0 google-ads<=21.2.0 google-cloud-aiplatform<=1.29.0 \
+grpcio-status<=1.56.2 grpcio<=1.56.2 mypy<=1.2.0 pyzmq<=25.1.0 tornado<=6.3.2 tqdm<=4.66.0 virtualenv<=20.24.1"
+```
+
+The build succeeded in ~ 8 minutes.
+
+4. Removed the second half:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
+aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0 \
+azure-core<=1.29.0 azure-cosmos<=4.4.0 boto3<=1.28.17 botocore<=1.31.17 cfgv<=3.3.1 coverage<=7.2.7"
+```
+
+The build succeeded in ~ 8 minutes.
+
+5. Removed the second half:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "\
+aiobotocore<=2.5.4 asana<=3.2.1 async-timeout<=4.0.2 aws-sam-translator<=1.72.0"
+```
+
+The build succeeded in ~ 8 minutes.
+
+6. Removed the second half:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies \
+--eager-upgrade-additional-requirements "aiobotocore<=2.5.4 asana<=3.2.1"
+```
+
+The build succeeded in ~ 8 minutes.
+
+6. Removed aiobotocore
+
+```
+asana<=3.2.1
+```
+
+The image build continued running way past 10 minutes and downloading many versions  of many dependencies.
+
+7. Removed asana and restored aiobotocore
+
+```
+aiobotocore<=2.5.4
+```
+
+The build succeeded. Aiobotocore is our culprit.
+
+8. Check the reason for backtracking (using latest released version of aiobotocore):
+
+```bash
+breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "aiobotocore==2.6.0"
+```
+
+Note. In this case the build succeeded, which means that this was simply a flaw in the `pip` resolution
+algorithm (which is based on some heuristics) and not a real problem with the dependencies. We will
+attempt to remove the limit in the next few days to see if the problem is resolved by other dependencies
+released in the meantime.
+
+9. Updated additional dependencies in `Dockerfile.ci` with appropriate comment:
+
+```
+# aiobotocore is limited temporarily until it stops backtracking pip
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="aiobotocore<2.6.0"
 ```
