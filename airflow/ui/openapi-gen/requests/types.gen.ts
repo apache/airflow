@@ -260,11 +260,11 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagDetailsData = {
+export type GetDagData = {
   dagId: string;
 };
 
-export type GetDagDetailsResponse = DAGDetailsResponse;
+export type GetDagResponse = DAGResponse;
 
 export type PatchDagData = {
   dagId: string;
@@ -273,6 +273,12 @@ export type PatchDagData = {
 };
 
 export type PatchDagResponse = DAGResponse;
+
+export type GetDagDetailsData = {
+  dagId: string;
+};
+
+export type GetDagDetailsResponse = DAGDetailsResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -379,6 +385,66 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}": {
+    get: {
+      req: GetDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
+      };
+    };
+    patch: {
+      req: PatchDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dags/{dag_id}/details": {
     get: {
       req: GetDagDetailsData;
@@ -407,37 +473,6 @@ export type $OpenApiTs = {
          * Unprocessable Entity
          */
         422: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/public/dags/{dag_id}": {
-    patch: {
-      req: PatchDagData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };
