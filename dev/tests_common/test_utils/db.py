@@ -29,7 +29,6 @@ from airflow.models import (
     Log,
     Pool,
     RenderedTaskInstanceFields,
-    SlaMiss,
     TaskFail,
     TaskInstance,
     TaskReschedule,

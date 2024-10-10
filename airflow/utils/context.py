@@ -418,7 +418,11 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
     :meta private:
     """
+    if not context:
+        context = {}
+
     context.update(*args, **kwargs)
+
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:

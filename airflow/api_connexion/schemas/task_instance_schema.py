@@ -26,7 +26,6 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
-from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -69,22 +68,15 @@ class TaskInstanceSchema(SQLAlchemySchema):
     executor = auto_field()
     executor_config = auto_field()
     note = auto_field()
-    sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
-        if attr == "sla_miss":
-            # Object is a tuple of task_instance and slamiss
-            # and the get_value expects a dict with key, value
-            # corresponding to the attr.
-            slamiss_instance = {"sla_miss": obj[1]}
-            return get_value(slamiss_instance, attr, default)
-        elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-        return get_value(obj[0], attr, default)
+        if attr == "rendered_fields":
+            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+        return get_value(obj, attr, default)
 
 
 class TaskInstanceHistorySchema(SQLAlchemySchema):
