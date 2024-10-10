@@ -89,6 +89,9 @@ services:
         source: ../../../providers
         target: /opt/airflow/providers
       - type: bind
+        source: ../../../task_sdk
+        target: /opt/airflow/task_sdk
+      - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
