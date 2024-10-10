@@ -253,7 +253,7 @@ def _create_backfill(
     from airflow.models.serialized_dag import SerializedDagModel
 
     with create_session() as session:
-        serdag = session.get(SerializedDagModel, dag_id)
+        serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
         # todo: if dag has no schedule, raise

@@ -22,8 +22,9 @@ import struct
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable
 
-from sqlalchemy import BigInteger, Column, String, Text, delete, select
+from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -50,18 +51,35 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-
-    fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
+    id = Column(Integer, primary_key=True)
+    fileloc_hash = Column(BigInteger, nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    dag_version_id = Column(Integer, ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False, cascade_backrefs=False)
 
     def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
         self.source_code = source_code or DagCode.code(self.fileloc)
+
+    @classmethod
+    @provide_session
+    def write_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
+        """
+        Write code into database.
+
+        :param fileloc: file path of DAG to sync
+        :param session: ORM Session
+        """
+        log.debug("Writing DAG file %s into DagCode table", fileloc)
+        dag_code = DagCode(fileloc, cls._get_code_from_file(fileloc))
+        session.add(dag_code)
+        log.debug("DAG file %s written into DagCode table", fileloc)
+        return dag_code
 
     @provide_session
     def sync_to_db(self, session: Session = NEW_SESSION) -> None:
@@ -170,7 +188,9 @@ class DagCode(Base):
         """
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
         return (
-            session.scalars(select(literal(True)).where(cls.fileloc_hash == fileloc_hash)).one_or_none()
+            session.scalars(
+                select(literal(True)).where(cls.fileloc_hash == fileloc_hash).order_by(cls.id.desc()).limit(1)
+            ).one_or_none()
             is not None
         )
 
@@ -203,7 +223,12 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def _get_code_from_db(cls, fileloc, session: Session = NEW_SESSION) -> str:
-        dag_code = session.scalar(select(cls).where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)))
+        dag_code = session.scalar(
+            select(cls)
+            .where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc))
+            .order_by(cls.id.desc())
+            .limit(1)
+        )
         if not dag_code:
             raise DagCodeNotFound()
         else:

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -25,20 +25,45 @@ import pytest
 import airflow.example_dags as example_dags_module
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
+from airflow.models.dag import DAG
 from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel as SDM
 
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.db import clear_db_dag_code
+from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+
+
+@pytest.fixture
+def file_updater():
+    @contextmanager
+    def _file_updater(file_path):
+        original_content = None
+        try:
+            with open(file_path) as file:
+                original_content = file.read()
+                updated_content = original_content.replace("2021", "2024")
+
+            with open(file_path, "w") as file:
+                file.write(updated_content)
+
+            yield file_path
+        finally:
+            if original_content is not None:
+                with open(file_path, "w") as file:
+                    file.write(original_content)
+
+    return _file_updater
 
 
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
     dagbag = DagBag(module.__path__[0])
+    DAG.bulk_write_to_db(dagbag.dags.values())
     return dagbag.dags
 
 
@@ -46,9 +71,11 @@ class TestDagCode:
     """Unit tests for DagCode."""
 
     def setup_method(self):
+        clear_db_dags()
         clear_db_dag_code()
 
     def teardown_method(self):
+        clear_db_dags()
         clear_db_dag_code()
 
     def _write_two_example_dags(self):
@@ -62,7 +89,7 @@ class TestDagCode:
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            dag.sync_to_db()
+            SDM.write_dag(dag)
         return example_dags
 
     def test_sync_to_db(self):
@@ -112,6 +139,8 @@ class TestDagCode:
                     session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
                     .filter(DagCode.fileloc == dag.fileloc)
                     .filter(DagCode.fileloc_hash == dag_fileloc_hash)
+                    .order_by(DagCode.id.desc())
+                    .limit(1)
                     .one()
                 )
 
@@ -126,7 +155,7 @@ class TestDagCode:
         Source Code should at least exist in one of DB or File.
         """
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        example_dag.sync_to_db()
+        SDM.write_dag(example_dag)
 
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
@@ -136,27 +165,37 @@ class TestDagCode:
             for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
 
-    def test_db_code_updated_on_dag_file_change(self):
-        """Test if DagCode is updated in DB when DAG file is changed"""
+    def test_db_code_created_on_dag_file_change(self, file_updater, session):
+        """Test DagCode is updated in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        example_dag.sync_to_db()
+        SDM.write_dag(example_dag)
 
-        with create_session() as session:
-            result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+        result = (
+            session.query(DagCode)
+            .filter(DagCode.fileloc == example_dag.fileloc)
+            .order_by(DagCode.id.desc())
+            .limit(1)
+            .one()
+        )
 
-            assert result.fileloc == example_dag.fileloc
-            assert result.source_code is not None
+        assert result.fileloc == example_dag.fileloc
+        assert result.source_code is not None
 
-        with patch("airflow.models.dagcode.os.path.getmtime") as mock_mtime:
-            mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
-
+        with file_updater(example_dag.fileloc):
+            example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+            SDM.write_dag(example_dag)
             with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
                 mock_code.return_value = "# dummy code"
-                example_dag.sync_to_db()
+                SDM.write_dag(example_dag)
 
-                with create_session() as session:
-                    new_result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+                new_result = (
+                    session.query(DagCode)
+                    .filter(DagCode.fileloc == example_dag.fileloc)
+                    .order_by(DagCode.id.desc())
+                    .limit(1)
+                    .one()
+                )
 
-                    assert new_result.fileloc == example_dag.fileloc
-                    assert new_result.source_code == "# dummy code"
-                    assert new_result.last_updated > result.last_updated
+                assert new_result.fileloc == example_dag.fileloc
+                assert new_result.source_code != result.source_code
+                assert new_result.last_updated > result.last_updated

@@ -251,6 +251,7 @@ class DagModelOperation(NamedTuple):
                 _update_dag_owner_links(dag.owner_links, dm, session=session)
             else:  # Optimization: no references at all, just clear everything.
                 dm.dag_owner_links = []
+            dm.version_name = dag.version_name
 
 
 def _find_all_assets(dags: Iterable[DAG]) -> Iterator[Asset]:
