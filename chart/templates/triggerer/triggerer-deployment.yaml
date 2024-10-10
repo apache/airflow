@@ -153,6 +153,9 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            - name: tmp-logs
+              mountPath: {{ template "airflow_logs" . }}            
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -199,6 +202,8 @@ spec:
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
               {{- include "airflow_dags_mount" . | nindent 12 }}
             {{- end }}
+            - name: tmp
+              mountPath: /tmp             
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
@@ -250,6 +255,8 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
+            - name: groomer-tmp
+              mountPath: /tmp              
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -289,6 +296,12 @@ spec:
         {{- if .Values.triggerer.extraVolumes }}
           {{- tpl (toYaml .Values.triggerer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - name: tmp-logs
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}   
+        - name: tmp
+          emptyDir: {}       
+        - name: groomer-tmp
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}                       
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
