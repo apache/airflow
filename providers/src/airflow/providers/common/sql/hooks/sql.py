@@ -39,7 +39,6 @@ from typing import (
 from urllib.parse import urlparse
 
 import sqlparse
-from airflow.utils.module_loading import import_string
 from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
@@ -53,6 +52,7 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame

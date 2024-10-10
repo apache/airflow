@@ -104,7 +104,7 @@ class Dialect(LoggingMixin):
     def reserved_words(self) -> set[str]:
         return self.hook.reserved_words()
 
-    def escape_reserved_word(self, column_name: str) -> str:
+    def escape_column_name(self, column_name: str) -> str:
         """
         Escape the column name if it's a reserved word.
 
@@ -115,15 +115,15 @@ class Dialect(LoggingMixin):
             return f"'{column_name}'"
         return column_name
 
-    def _joined_placeholders(self, values) ->str:
+    def _joined_placeholders(self, values) -> str:
         placeholders = [
-           self.placeholder,
+            self.placeholder,
         ] * len(values)
         return ",".join(placeholders)
 
     def _joined_target_fields(self, target_fields) -> str:
         if target_fields:
-            target_fields = ", ".join(map(self.escape_reserved_word, target_fields))
+            target_fields = ", ".join(map(self.escape_column_name, target_fields))
             return f"({target_fields})"
         return ""
 

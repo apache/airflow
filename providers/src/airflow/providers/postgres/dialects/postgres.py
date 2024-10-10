@@ -87,8 +87,8 @@ class PostgresDialect(Dialect):
             replace_index = [replace_index]
 
         sql = self.generate_insert_sql(table, values, target_fields, **kwargs)
-        on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_reserved_word, replace_index))})"
-        replace_target = [self.escape_reserved_word(f) for f in target_fields if f not in replace_index]
+        on_conflict_str = f" ON CONFLICT ({', '.join(map(self.escape_column_name, replace_index))})"
+        replace_target = [self.escape_column_name(f) for f in target_fields if f not in replace_index]
 
         if replace_target:
             replace_target_str = ", ".join(f"{col} = excluded.{col}" for col in replace_target)
