@@ -118,6 +118,7 @@ AIRFLOW_SOURCES_ROOT_DIR = (
 ).resolve()
 AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
 
+os.environ["AIRFLOW_TESTS_DIR"] = os.fspath(AIRFLOW_TESTS_DIR)
 os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plugins")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
