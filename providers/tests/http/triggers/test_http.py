@@ -170,7 +170,7 @@ class TestHttpTrigger:
 class TestHttpSensorTrigger:
     def test_serialization(self, sensor_trigger):
         """
-        Asserts that the HttpTrigger correctly serializes its arguments
+        Asserts that the HttpSensorTrigger correctly serializes its arguments
         and classpath.
         """
         classpath, kwargs = sensor_trigger.serialize()
