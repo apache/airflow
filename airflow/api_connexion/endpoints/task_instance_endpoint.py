@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 

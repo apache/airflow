@@ -424,7 +424,6 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     context.update(*args, **kwargs)
 
 
-
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     """
     Update context after task unmapping.

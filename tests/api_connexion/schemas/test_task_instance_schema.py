@@ -26,7 +26,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     set_task_instance_state_form,
     task_instance_schema,
 )
-from airflow.models import RenderedTaskInstanceFields as RTIF, TaskInstance as TI
+from airflow.models import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
