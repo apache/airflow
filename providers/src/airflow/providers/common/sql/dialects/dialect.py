@@ -112,7 +112,7 @@ class Dialect(LoggingMixin):
         :param column_name: Name of the column
         :return: The escaped column name if needed
         """
-        if column_name.casefold() in self.reserved_words:
+        if "'" not in column_name and column_name.casefold() in self.reserved_words:
             return f"'{column_name}'"
         return column_name
 
