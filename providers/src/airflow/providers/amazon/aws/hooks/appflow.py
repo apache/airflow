@@ -122,4 +122,4 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
             triggerConfig=response["triggerConfig"],
             description=response.get("description", "Flow description."),
             tasks=tasks,
-        )
+        )  # type: ignore[arg-type]
