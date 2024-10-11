@@ -34,6 +34,8 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
+from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from providers.tests.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
