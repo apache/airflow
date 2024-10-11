@@ -827,6 +827,7 @@
       "azure-storage-file-share>=12.7.0",
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
+      "microsoft-kiota-http>=1.3.0,!=1.3.4",
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
