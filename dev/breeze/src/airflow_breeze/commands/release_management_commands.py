@@ -797,7 +797,7 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
-    check_python_version()
+    check_python_version(release_provider_packages=True)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
