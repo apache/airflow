@@ -86,7 +86,10 @@ class DruidHook(BaseHook):
         """Get Druid connection url."""
         host = self.conn.host
         port = self.conn.port
-        conn_type = self.conn.conn_type or "http"
+        if self.conn.schema:
+            conn_type = self.conn.schema
+        else:
+            conn_type = self.conn.conn_type or "http"
         if ingestion_type == IngestionType.BATCH:
             endpoint = self.conn.extra_dejson.get("endpoint", "")
         else:
