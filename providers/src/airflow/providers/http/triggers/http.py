@@ -167,6 +167,7 @@ class HttpSensorTrigger(BaseTrigger):
             {
                 "endpoint": self.endpoint,
                 "data": self.data,
+                "method": self.method,
                 "headers": self.headers,
                 "extra_options": self.extra_options,
                 "http_conn_id": self.http_conn_id,
