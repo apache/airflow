@@ -23,6 +23,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+import re2
 
 from airflow.utils import file as file_utils
 from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
@@ -223,6 +224,15 @@ def test_get_unique_dag_module_name():
         "test-dag.dev.py",
         "test_dag.prod.py",
     ]
-    for filename in edge_filenames:
-        assert "-" not in file_utils.get_unique_dag_module_name(filename)
-        assert "." not in file_utils.get_unique_dag_module_name(filename)
+    # sha1 of file_path in middle
+    expected_regex = [
+        r"unusual_prefix_[0-9a-f]{40}_test_dag",
+        r"unusual_prefix_[0-9a-f]{40}_test_dag",
+        r"unusual_prefix_[0-9a-f]{40}_test_dag_1",
+        r"unusual_prefix_[0-9a-f]{40}_test_dag_1",
+        r"unusual_prefix_[0-9a-f]{40}_test_dag_dev",
+        r"unusual_prefix_[0-9a-f]{40}_test_dag_prod",
+    ]
+    for idx, filename in enumerate(edge_filenames):
+        modify_module_name = file_utils.get_unique_dag_module_name(filename)
+        assert re2.match(re2.compile(expected_regex[idx]), modify_module_name) is not None
