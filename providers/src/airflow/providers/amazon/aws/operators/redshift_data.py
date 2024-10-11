@@ -129,6 +129,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.deferrable = deferrable
         self.session_id = session_id
         self.session_keep_alive_seconds = session_keep_alive_seconds
+        self.statement_id: str
 
     def execute(self, context: Context) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """Execute a statement against Amazon Redshift."""
@@ -156,18 +157,19 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         )
 
         # Pull the statement ID, session ID
-        self.statement_id: str = query_execution_output.statement_id
+        statement_id: str = query_execution_output.statement_id
+        self.statement_id = statement_id  # To be used in "on_kill" if needed
 
         if query_execution_output.session_id:
             self.xcom_push(context, key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
-            is_finished: bool = self.hook.check_query_is_finished(self.statement_id)
+            is_finished: bool = self.hook.check_query_is_finished(statement_id)
             if not is_finished:
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=RedshiftDataTrigger(
-                        statement_id=self.statement_id,
+                        statement_id=statement_id,
                         task_id=self.task_id,
                         poll_interval=self.poll_interval,
                         aws_conn_id=self.aws_conn_id,
@@ -180,7 +182,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
         # Use the get_sql_results method to return the results of the SQL query, or the statement_ids,
         # depending on the value of self.return_sql_result
-        return self.get_sql_results(return_sql_result=self.return_sql_result)
+        return self.get_sql_results(statement_id=statement_id, return_sql_result=self.return_sql_result)
 
     def execute_complete(
         self, context: Context, event: dict[str, Any] | None = None
@@ -199,22 +201,24 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
         # Use the get_sql_results method to return the results of the SQL query, or the statement_ids,
         # depending on the value of self.return_sql_result
-        return self.get_sql_results(return_sql_result=self.return_sql_result)
+        return self.get_sql_results(statement_id=statement_id, return_sql_result=self.return_sql_result)
 
-    def get_sql_results(self, return_sql_result: bool) -> list[GetStatementResultResponseTypeDef] | list[str]:
+    def get_sql_results(
+        self, statement_id: str, return_sql_result: bool
+    ) -> list[GetStatementResultResponseTypeDef] | list[str]:
         """
         Retrieve either the result of the SQL query, or the statement ID(s).
 
-        :param return_sql_result:
+        :param statement_id: Statement ID of the running query(ies)
+        :param return_sql_result: Boolean, true if results should be returned
         """
         # ISSUE-40427: Pull the statement, and check to see if there are sub-statements. If that is the
-        # case, pull each of the sub-statement ID's, and grab the results. Otherwise, just use
-        # self.statement_id
-        statement: DescribeStatementResponseTypeDef = self.hook.conn.describe_statement(Id=self.statement_id)
+        # case, pull each of the sub-statement ID's, and grab the results. Otherwise, just use statement_id
+        statement: DescribeStatementResponseTypeDef = self.hook.conn.describe_statement(Id=statement_id)
         statement_ids: list[str] = (
             [sub_statement["Id"] for sub_statement in statement["SubStatements"]]
             if len(statement.get("SubStatements", [])) > 0
-            else [self.statement_id]
+            else [statement_id]
         )
 
         # If returning the SQL result, use get_statement_result to return the records for each query
