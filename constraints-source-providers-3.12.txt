@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-10T02:08:19.388475
+# This constraints file was automatically generated on 2024-10-11T02:08:04.311182
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -50,7 +50,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
-aiohttp==3.10.9
+aiohttp==3.10.10
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -118,7 +118,7 @@ backoff==2.2.1
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.1
-bitarray==2.9.2
+bitarray==2.9.3
 black==24.10.0
 blinker==1.8.2
 boto3==1.35.36
@@ -131,7 +131,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.16.0
+cfn-lint==1.16.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -147,7 +147,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.8.2
 comm==0.2.2
-confluent-kafka==2.5.3
+confluent-kafka==2.6.0
 connexion==2.14.2
 coverage==7.6.2
 crcmod==1.7
@@ -159,7 +159,7 @@ databricks-sql-connector==2.9.6
 dataclasses-json==0.6.7
 datadog==0.50.1
 db-dtypes==1.3.0
-debugpy==1.8.6
+debugpy==1.8.7
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.20.2
@@ -198,7 +198,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
 gcsfs==2024.9.0.post1
 geomet==0.2.1.post1
-gevent==24.2.1
+gevent==24.10.1
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
@@ -217,7 +217,7 @@ google-cloud-bigquery==3.26.0
 google-cloud-bigtable==2.26.0
 google-cloud-build==3.25.0
 google-cloud-compute==1.19.2
-google-cloud-container==2.51.0
+google-cloud-container==2.52.0
 google-cloud-core==2.4.1
 google-cloud-datacatalog==3.20.1
 google-cloud-dataflow-client==0.8.12
@@ -243,7 +243,7 @@ google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.17.2
+google-cloud-texttospeech==2.18.0
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -369,7 +369,7 @@ nbclient==0.10.0
 nbformat==5.10.4
 neo4j==5.25.0
 nest-asyncio==1.6.0
-networkx==3.3
+networkx==3.4
 nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
@@ -642,5 +642,5 @@ zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
 zope.event==5.0
-zope.interface==7.0.3
+zope.interface==7.1.0
 zstandard==0.23.0
