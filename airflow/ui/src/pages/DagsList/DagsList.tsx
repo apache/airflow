@@ -34,6 +34,7 @@ import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { pluralize } from "src/utils/pluralize";
@@ -113,7 +114,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, isFetching, isLoading } = useDagServiceGetDags({
+  const { data, error, isFetching, isLoading } = useDagServiceGetDags({
     lastDagRunState,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -169,6 +170,7 @@ export const DagsList = () => {
         columns={columns}
         data={data?.dags ?? []}
         displayMode={display}
+        errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
