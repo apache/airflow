@@ -42,39 +42,8 @@ TASK_ID = "op1"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
-@pytest.fixture(autouse=True)
 @provide_session
-def _create_dags(dag_maker, session=None):
-    with dag_maker(
-        DAG1_ID,
-        dag_display_name=DAG1_DISPLAY_NAME,
-        schedule=None,
-        start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
-        doc_md="details",
-        params={"foo": 1},
-        tags=["example"],
-    ):
-        EmptyOperator(task_id=TASK_ID)
-
-    dag_maker.create_dagrun(state=DagRunState.FAILED)
-
-    with dag_maker(
-        DAG2_ID,
-        dag_display_name=DAG2_DISPLAY_NAME,
-        schedule=None,
-        start_date=DAG2_START_DATE,
-        doc_md="details",
-        params={"foo": 1},
-        max_active_tasks=16,
-        max_active_runs=16,
-    ):
-        EmptyOperator(task_id=TASK_ID)
-
-    dag_maker.dagbag.sync_to_db()
-    dag_maker.dag_model.has_task_concurrency_limits = True
-    session.merge(dag_maker.dag_model)
-    session.commit()
-
+def _create_deactivated_paused_dag(session=None):
     dag_model = DagModel(
         dag_id=DAG3_ID,
         fileloc="/tmp/dag_del_1.py",
@@ -109,15 +78,45 @@ def _create_dags(dag_maker, session=None):
 
 
 class TestDagEndpoint:
-    @staticmethod
-    def clear() -> None:
+    def clear(self):
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    @provide_session
+    def setup(self, dag_maker, session=None) -> None:
         self.clear()
+
+        with dag_maker(
+            DAG1_ID,
+            dag_display_name=DAG1_DISPLAY_NAME,
+            schedule=None,
+            start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
+            doc_md="details",
+            params={"foo": 1},
+            tags=["example"],
+        ):
+            EmptyOperator(task_id=TASK_ID)
+
+        dag_maker.create_dagrun(state=DagRunState.FAILED)
+
+        with dag_maker(
+            DAG2_ID,
+            schedule=None,
+            start_date=DAG2_START_DATE,
+            doc_md="details",
+            params={"foo": 1},
+            max_active_tasks=16,
+            max_active_runs=16,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+
+        dag_maker.dagbag.sync_to_db()
+        dag_maker.dag_model.has_task_concurrency_limits = True
+        session.merge(dag_maker.dag_model)
+        session.commit()
+        _create_deactivated_paused_dag()
 
     def teardown_method(self) -> None:
         self.clear()
