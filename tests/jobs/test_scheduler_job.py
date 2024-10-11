@@ -5541,17 +5541,17 @@ class TestSchedulerJob:
         with pytest.raises(OperationalError):
             check_if_trigger_timeout(1)
 
-    def test_find_zombies_nothing(self):
+    def test_find_and_purge_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(scheduler_job)
         self.job_runner.processor_agent = mock.MagicMock()
 
-        self.job_runner._find_zombies()
+        self.job_runner._find_and_purge_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_not_called()
 
-    def test_find_zombies(self, load_examples):
+    def test_find_and_purge_zombies(self, load_examples):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             session.query(Job).delete()
@@ -5597,7 +5597,7 @@ class TestSchedulerJob:
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
 
-            self.job_runner._find_zombies()
+            self.job_runner._find_and_purge_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
         callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
@@ -5731,7 +5731,7 @@ class TestSchedulerJob:
         scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock()
 
-        self.job_runner._find_zombies()
+        self.job_runner._find_and_purge_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
 
