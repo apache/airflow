@@ -58,13 +58,13 @@ interface Props {
 
 const dagId = getMetaValue("dag_id");
 
-type DatasetExpression = {
-  all?: (string | DatasetExpression)[];
-  any?: (string | DatasetExpression)[];
+type AssetExpression = {
+  all?: (string | AssetExpression)[];
+  any?: (string | AssetExpression)[];
 };
 
 const getUpstreamDatasets = (
-  datasetExpression: DatasetExpression,
+  assetExpression: AssetExpression,
   firstChildId: string,
   level = 0
 ) => {
@@ -72,16 +72,16 @@ const getUpstreamDatasets = (
   let nodes: DepNode[] = [];
   let type: DepNode["value"]["class"] | undefined;
   const datasetIds: string[] = [];
-  let nestedExpression: DatasetExpression | undefined;
-  if (datasetExpression?.any) {
+  let nestedExpression: AssetExpression | undefined;
+  if (assetExpression?.any) {
     type = "or-gate";
-    datasetExpression.any.forEach((de) => {
+    assetExpression.any.forEach((de) => {
       if (typeof de === "string") datasetIds.push(de);
       else nestedExpression = de;
     });
-  } else if (datasetExpression?.all) {
+  } else if (assetExpression?.all) {
     type = "and-gate";
-    datasetExpression.all.forEach((de) => {
+    assetExpression.all.forEach((de) => {
       if (typeof de === "string") datasetIds.push(de);
       else nestedExpression = de;
     });
@@ -159,7 +159,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   const { nodes: upstreamDatasetNodes, edges: upstreamDatasetEdges } =
     getUpstreamDatasets(
-      dagDetails.datasetExpression as DatasetExpression,
+      dagDetails.assetExpression as AssetExpression,
       data?.nodes?.children?.[0]?.id ?? ""
     );
 
