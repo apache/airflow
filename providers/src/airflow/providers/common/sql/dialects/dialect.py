@@ -71,7 +71,7 @@ class Dialect(LoggingMixin):
         if schema is None:
             table, schema = self._extract_schema_from_table(table)
         column_names = list(
-            column["name"] for column in self.inspector.get_columns(*self._extract_schema_from_table(table))
+            column["name"] for column in self.inspector.get_columns(table_name=table, schema=schema)
         )
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
