@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -31,9 +31,6 @@ from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -114,7 +111,7 @@ class TaskInstanceHistorySchema(SQLAlchemySchema):
 class TaskInstanceCollection(NamedTuple):
     """List of task instances with metadata."""
 
-    task_instances: list[tuple[TaskInstance, SlaMiss | None]]
+    task_instances: list[TaskInstance | None]
     total_entries: int
 
 
