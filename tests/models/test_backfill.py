@@ -93,13 +93,14 @@ def test_create_backfill_simple(reverse, dag_maker, session):
     """
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
+    expected_run_conf = {"param1": "valABC"}
     b = _create_backfill(
         dag_id=dag.dag_id,
         from_date=pendulum.parse("2021-01-01"),
         to_date=pendulum.parse("2021-01-05"),
         max_active_runs=2,
         reverse=reverse,
-        dag_run_conf={},
+        dag_run_conf=expected_run_conf,
     )
     query = (
         select(DagRun)
@@ -114,6 +115,7 @@ def test_create_backfill_simple(reverse, dag_maker, session):
         expected_dates = list(reversed(expected_dates))
     assert dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+    assert all(x.conf == expected_run_conf for x in dag_runs)
 
 
 def test_params_stored_correctly(dag_maker, session):
