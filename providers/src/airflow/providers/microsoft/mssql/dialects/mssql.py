@@ -26,7 +26,7 @@ class MsSqlDialect(Dialect):
     """Microsoft SQL Server dialect implementation."""
 
     @lru_cache(maxsize=None)
-    def get_primary_keys(self, table: str) -> list[str] | None:
+    def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         primary_keys = self.run(
             f"""
                 SELECT c.name
