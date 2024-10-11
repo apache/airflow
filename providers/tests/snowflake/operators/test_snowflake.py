@@ -37,6 +37,8 @@ from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlA
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
@@ -177,15 +179,23 @@ def create_context(task, dag=None):
         dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("UTC")
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-    dag_run = DagRun(
-        dag_id=dag.dag_id,
-        logical_date=logical_date,
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            execution_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+        )
 
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.xcom_push = mock.Mock()
+    date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
     return {
         "dag": dag,
         "ts": logical_date.isoformat(),
@@ -195,7 +205,7 @@ def create_context(task, dag=None):
         "run_id": dag_run.run_id,
         "dag_run": dag_run,
         "data_interval_end": logical_date,
-        "logical_date": logical_date,
+        date_key: logical_date,
     }
 
 
