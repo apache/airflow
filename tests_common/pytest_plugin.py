@@ -888,9 +888,9 @@ def dag_maker(request):
                 raise ValueError(f"cannot create run after {dagrun}")
             return (
                 self.create_dagrun(
-                logical_date=next_info.logical_date,
-                data_interval=next_info.data_interval,
-                **kwargs,
+                    logical_date=next_info.logical_date,
+                    data_interval=next_info.data_interval,
+                    **kwargs,
                 )
                 if AIRFLOW_V_3_0_PLUS
                 else self.create_dagrun(
@@ -1160,11 +1160,10 @@ def create_serialized_task_instance_of_operator(dag_maker):
     ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, serialized=True, session=session):
             operator_class(**operator_kwargs)
-        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         if logical_date is None:
             dagrun_kwargs = {}
         else:
-            dagrun_kwargs = {date_key: logical_date}
+            dagrun_kwargs = {"logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date": logical_date}
         (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
         return ti
 
@@ -1183,11 +1182,10 @@ def create_task_instance_of_operator(dag_maker):
     ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
-        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         if logical_date is None:
             dagrun_kwargs = {}
         else:
-            dagrun_kwargs = {date_key: logical_date}
+            dagrun_kwargs = {"logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date": logical_date}
         (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
         return ti
 
