@@ -23,7 +23,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-import re2
 
 from airflow.utils import file as file_utils
 from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
@@ -215,24 +214,19 @@ class TestListPyFilesPath:
         assert len(modules) == 0
 
 
-def test_get_unique_dag_module_name():
-    edge_filenames = [
-        "test_dag.py",
-        "test-dag.py",
-        "test-dag-1.py",
-        "test-dag_1.py",
-        "test-dag.dev.py",
-        "test_dag.prod.py",
-    ]
-    # sha1 of file_path in middle
-    expected_regex = [
-        r"unusual_prefix_[0-9a-f]{40}_test_dag",
-        r"unusual_prefix_[0-9a-f]{40}_test_dag",
-        r"unusual_prefix_[0-9a-f]{40}_test_dag_1",
-        r"unusual_prefix_[0-9a-f]{40}_test_dag_1",
-        r"unusual_prefix_[0-9a-f]{40}_test_dag_dev",
-        r"unusual_prefix_[0-9a-f]{40}_test_dag_prod",
-    ]
-    for idx, filename in enumerate(edge_filenames):
-        modify_module_name = file_utils.get_unique_dag_module_name(filename)
-        assert re2.match(re2.compile(expected_regex[idx]), modify_module_name) is not None
+@pytest.mark.parametrize(
+    "edge_filename, expected_modification",
+    [
+        ("test_dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),
+        ("test-dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),
+        ("test-dag-1.py", "unusual_prefix_mocked_path_hash_sha1_test_dag_1"),
+        ("test-dag_1.py", "unusual_prefix_mocked_path_hash_sha1_test_dag_1"),
+        ("test-dag.dev.py", "unusual_prefix_mocked_path_hash_sha1_test_dag_dev"),
+        ("test_dag.prod.py", "unusual_prefix_mocked_path_hash_sha1_test_dag_prod"),
+    ],
+)
+def test_get_unique_dag_module_name(edge_filename, expected_modification):
+    with mock.patch("hashlib.sha1") as mocked_sha1:
+        mocked_sha1.return_value.hexdigest.return_value = "mocked_path_hash_sha1"
+        modify_module_name = file_utils.get_unique_dag_module_name(edge_filename)
+        assert modify_module_name == expected_modification
