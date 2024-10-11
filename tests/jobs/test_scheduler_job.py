@@ -48,7 +48,6 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -60,16 +59,16 @@ from airflow.models.dagrun import DagRun
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.jobs.test_backfill_job import _mock_executor
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
@@ -2916,22 +2915,16 @@ class TestSchedulerJob:
                 # because it would take the most recent run and start from there
                 # That behavior still exists, but now it will only do so if after the
                 # start date
-                bf_exec = MockExecutor()
-                for _ in _mock_executor(bf_exec):
-                    backfill_job = Job()
-                    job_runner = BackfillJobRunner(
-                        job=backfill_job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
-                    )
-                    run_job(job=backfill_job, execute_callable=job_runner._execute)
-
-                # one task ran
+                dag.create_dagrun(
+                    state="success",
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    run_id="abc123",
+                    execution_date=DEFAULT_DATE,
+                    run_type=DagRunType.BACKFILL_JOB,
+                    data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+                )
+                # one task "ran"
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
-                assert [
-                    (
-                        TaskInstanceKey(dag.dag_id, "dummy", f"backfill__{DEFAULT_DATE.isoformat()}", 1),
-                        (State.SUCCESS, None),
-                    ),
-                ] == bf_exec.sorted_tasks
                 session.commit()
 
                 scheduler_job = Job(
