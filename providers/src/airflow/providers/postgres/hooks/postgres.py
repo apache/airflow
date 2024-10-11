@@ -137,7 +137,7 @@ class PostgresHook(DbApiHook):
 
     @property
     def dialect_name(self) -> str:
-        return "postgres"
+        return "postgresql"
 
     @property
     def dialect(self) -> Dialect:

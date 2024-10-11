@@ -24,6 +24,7 @@ from unittest import mock
 
 import psycopg2.extras
 import pytest
+import sqlalchemy
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -550,7 +551,11 @@ class TestPostgresHook:
                 hook.run(sql=f"DROP PROCEDURE {proc_name} (s text)")
 
     def test_dialect_name(self):
-        assert self.db_hook.dialect_name == "postgres"
+        assert self.db_hook.dialect_name == "postgresql"
 
     def test_dialect(self):
         assert isinstance(self.db_hook.dialect, PostgresDialect)
+
+    def test_reserved_words(self):
+        hook = PostgresHook()
+        assert hook.reserved_words == sqlalchemy.dialects.postgresql.base.RESERVED_WORDS

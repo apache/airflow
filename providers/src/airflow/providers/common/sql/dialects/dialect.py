@@ -101,8 +101,9 @@ class Dialect(LoggingMixin):
     ) -> Any:
         return self.hook.get_records(sql=sql, parameters=parameters)
 
+    @property
     def reserved_words(self) -> set[str]:
-        return self.hook.reserved_words()
+        return self.hook.reserved_words
 
     def escape_column_name(self, column_name: str) -> str:
         """
@@ -111,7 +112,7 @@ class Dialect(LoggingMixin):
         :param column_name: Name of the column
         :return: The escaped column name if needed
         """
-        if column_name.casefold() in self.reserved_words():
+        if column_name.casefold() in self.reserved_words:
             return f"'{column_name}'"
         return column_name
 

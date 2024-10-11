@@ -21,6 +21,7 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import pytest
+import sqlalchemy
 
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
@@ -284,3 +285,7 @@ class TestMsSqlHook:
     def test_dialect(self):
         hook = MsSqlHook()
         assert isinstance(hook.dialect, MsSqlDialect)
+
+    def test_reserved_words(self):
+        hook = MsSqlHook()
+        assert hook.reserved_words == sqlalchemy.dialects.mssql.base.RESERVED_WORDS

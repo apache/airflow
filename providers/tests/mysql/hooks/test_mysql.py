@@ -24,18 +24,18 @@ from contextlib import closing
 from unittest import mock
 
 import pytest
+import sqlalchemy
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
 
 try:
     import MySQLdb.cursors
-
-    from airflow.providers.mysql.hooks.mysql import MySqlHook
+    MYSQL_AVAILABLE = True
 except ImportError:
-    pytest.skip("MySQL not available", allow_module_level=True)
+    MYSQL_AVAILABLE = False
 
-
+from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
 
 from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
@@ -43,6 +43,7 @@ from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spa
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 
 
+@pytest.mark.skipif(not MYSQL_AVAILABLE, reason="MySQL not available")
 class TestMySqlHookConn:
     def setup_method(self):
         self.connection = Connection(
@@ -327,6 +328,10 @@ class TestMySqlHook:
             ),
         )
 
+    def test_reserved_words(self):
+        hook = MySqlHook()
+        assert hook.reserved_words == sqlalchemy.dialects.mysql.reserved_words.RESERVED_WORDS_MYSQL
+
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -348,6 +353,7 @@ class MySqlContext:
 
 
 @pytest.mark.backend("mysql")
+@pytest.mark.skipif(not MYSQL_AVAILABLE, reason="MySQL not available")
 class TestMySql:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}

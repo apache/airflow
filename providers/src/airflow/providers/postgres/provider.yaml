@@ -89,7 +89,7 @@ operators:
       - airflow.providers.postgres.operators.postgres
 
 dialects:
-  - dialect-type: postgres
+  - dialect-type: postgresql
     dialect-class-name: airflow.providers.postgres.dialects.postgres.PostgresDialect
 
 hooks:

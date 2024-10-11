@@ -115,8 +115,8 @@ def resolve_dialects() -> MutableMapping[str, MutableMapping]:
             dialect_class_name="airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect",
             provider_name="apache-airflow-providers-microsoft-mssql",
         ),
-        "postgres": dict(
-            name="postgres",
+        "postgresql": dict(
+            name="postgresql",
             dialect_class_name="airflow.providers.postgres.dialects.postgres.PostgresDialect",
             provider_name="apache-airflow-providers-postgres",
         ),
@@ -336,14 +336,18 @@ class DbApiHook(BaseHook):
     @lru_cache(maxsize=None)
     def get_reserved_words(self, dialect_name: str) -> set[str]:
         result = set()
-        with suppress(ModuleNotFoundError):
+        with suppress(ImportError, ModuleNotFoundError):
             dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
-
-            self.log.info("dialect_module: %s", dialect_module)
 
             if hasattr(dialect_module, "RESERVED_WORDS"):
                 result = set(dialect_module.RESERVED_WORDS)
-        self.log.info("reserved words for '%s': %s", dialect_name, result)
+            else:
+                dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.reserved_words")
+
+                if hasattr(dialect_module, f"RESERVED_WORDS_{dialect_name.upper()}"):
+                    result = set(getattr(dialect_module, f"RESERVED_WORDS_{dialect_name.upper()}"))
+
+        self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
 
     def get_pandas_df(
