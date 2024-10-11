@@ -50,9 +50,6 @@ def check_python_version():
     if not sys.version_info >= (3, 9):
         get_console().print("[error]At least Python 3.9 is required to prepare reproducible archives.\n")
         error = True
-    elif not sys.version_info < (3, 12):
-        get_console().print("[error]Python 3.12 is not supported.\n")
-        error = True
     if error:
         get_console().print(
             "[warning]Please reinstall Breeze using Python 3.9 - 3.11 environment.[/]\n\n"
