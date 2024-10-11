@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime, timezone
 
 import pendulum
@@ -33,7 +32,6 @@ from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_d
 
 pytestmark = pytest.mark.db_test
 
-AIRFLOW_TESTS_DIR = os.environ["AIRFLOW_TESTS_DIR"]
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
@@ -274,7 +272,7 @@ class TestDagDetails:
             "description": None,
             "doc_md": "details",
             "end_date": None,
-            "fileloc": f"{AIRFLOW_TESTS_DIR}/api_fastapi/views/public/test_dags.py",
+            "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
@@ -337,7 +335,7 @@ class TestGetDag:
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "description": None,
-            "fileloc": f"{AIRFLOW_TESTS_DIR}/api_fastapi/views/public/test_dags.py",
+            "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
             "file_token": file_token,
             "is_paused": False,
             "is_active": True,
