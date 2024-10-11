@@ -37,7 +37,7 @@ from dev.tests_common.test_utils import db
 
 # The entire module into the quarantined mark, this might have unpredictable side effects to other tests
 # and should be moved into the isolated environment into the future.
-# pytestmark = [pytest.mark.platform("breeze"), pytest.mark.db_test, pytest.mark.quarantined]
+pytestmark = [pytest.mark.platform("breeze"), pytest.mark.db_test, pytest.mark.quarantined]
 
 DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
