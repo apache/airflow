@@ -72,8 +72,7 @@ Setting up debugging
 
 
     if __name__ == "__main__":
-        dag.clear()
-        dag.run()
+        dag.test()
 
 - Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
 

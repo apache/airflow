@@ -28,7 +28,6 @@ import pytest
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
-from airflow.models.dagbag import DagBag
 
 from dev.tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from dev.tests_common.test_utils.logging_command_executor import get_executor
@@ -130,31 +129,6 @@ class SystemTest:
                     print()
                     with open(filepath) as f:
                         print(f.read())
-
-    def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
-        """
-        Runs example dag by its ID.
-
-        :param dag_id: id of a DAG to be run
-        :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.
-        """
-        self.log.info("Looking for DAG: %s in %s", dag_id, dag_folder)
-        dag_bag = DagBag(dag_folder=dag_folder, include_examples=False)
-        dag = dag_bag.get_dag(dag_id)
-        if dag is None:
-            raise AirflowException(
-                f"The Dag {dag_id} could not be found. It's either an import problem, wrong dag_id or DAG is "
-                "not in provided dag_folder.The content of "
-                f"the {dag_folder} folder is {os.listdir(dag_folder)}"
-            )
-
-        self.log.info("Attempting to run DAG: %s", dag_id)
-        dag.clear()
-        try:
-            dag.run(ignore_first_depends_on_past=True, verbose=True)
-        except Exception:
-            self._print_all_log_files()
-            raise
 
     @staticmethod
     def create_dummy_file(filename, dir_path="/tmp"):

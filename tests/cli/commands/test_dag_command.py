@@ -322,7 +322,7 @@ class TestCliDags:
         We just check we call dag.run() right. The behaviour of that kwarg is
         tested in test_jobs
         """
-        dag_id = "test_dagrun_states_deadlock"
+        dag_id = "example_bash_operator"
         run_date = DEFAULT_DATE + timedelta(days=1)
         args = [
             "dags",
