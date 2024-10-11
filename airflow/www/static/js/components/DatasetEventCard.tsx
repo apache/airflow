@@ -69,7 +69,7 @@ const DatasetEventCard = ({
     <Box>
       <Grid
         templateColumns="repeat(4, 1fr)"
-        key={`${assetEvent.datasetId}-${assetEvent.timestamp}`}
+        key={`${assetEvent.assetId}-${assetEvent.timestamp}`}
         _hover={{ bg: "gray.50" }}
         transition="background-color 0.2s"
         p={2}
