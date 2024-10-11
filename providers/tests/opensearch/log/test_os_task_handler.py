@@ -91,20 +91,14 @@ class TestOpensearchTaskHandler:
     def ti(self, create_task_instance, create_log_template):
         if AIRFLOW_V_3_0_PLUS:
             create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
-            yield get_ti(
-                dag_id=self.DAG_ID,
-                task_id=self.TASK_ID,
-                logical_date=self.LOGICAL_DATE,
-                create_task_instance=create_task_instance,
-            )
         else:
             create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
-            yield get_ti(
-                dag_id=self.DAG_ID,
-                task_id=self.TASK_ID,
-                execution_date=self.LOGICAL_DATE,
-                create_task_instance=create_task_instance,
-            )
+        yield get_ti(
+            dag_id=self.DAG_ID,
+            task_id=self.TASK_ID,
+            logical_date=self.LOGICAL_DATE,
+            create_task_instance=create_task_instance,
+        )
         clear_db_runs()
         clear_db_dags()
 
