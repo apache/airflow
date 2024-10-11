@@ -212,3 +212,17 @@ class TestListPyFilesPath:
         modules = list(file_utils.iter_airflow_imports(file_path))
 
         assert len(modules) == 0
+
+
+def test_get_unique_dag_module_name():
+    edge_filenames = [
+        "test_dag.py",
+        "test-dag.py",
+        "test-dag-1.py",
+        "test-dag_1.py",
+        "test-dag.dev.py",
+        "test_dag.prod.py",
+    ]
+    for filename in edge_filenames:
+        assert "-" not in file_utils.get_unique_dag_module_name(filename)
+        assert "." not in file_utils.get_unique_dag_module_name(filename)
