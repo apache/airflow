@@ -339,6 +339,8 @@ class DbApiHook(BaseHook):
         with suppress(ModuleNotFoundError):
             dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
 
+            self.log.info("dialect_module: %s", dialect_module)
+
             if hasattr(dialect_module, "RESERVED_WORDS"):
                 result = set(dialect_module.RESERVED_WORDS)
         self.log.info("reserved words for '%s': %s", dialect_name, result)
