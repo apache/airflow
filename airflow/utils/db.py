@@ -733,6 +733,7 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
+@contextlib.contextmanager
 def _get_flask_db(sql_database_uri):
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
@@ -744,7 +745,8 @@ def _get_flask_db(sql_database_uri):
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db = SQLAlchemy(flask_app)
     AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
-    return db
+    with flask_app.app_context():
+        yield db
 
 
 def _create_db_from_orm(session):
@@ -753,8 +755,8 @@ def _create_db_from_orm(session):
     from airflow.models.base import Base
 
     def _create_flask_session_tbl(sql_database_uri):
-        db = _get_flask_db(sql_database_uri)
-        db.create_all()
+        with _get_flask_db(sql_database_uri) as db:
+            db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
@@ -1284,8 +1286,8 @@ def drop_airflow_models(connection):
     from airflow.models.base import Base
 
     Base.metadata.drop_all(connection)
-    db = _get_flask_db(connection.engine.url)
-    db.drop_all()
+    with _get_flask_db(connection.engine.url) as db:
+        db.drop_all()
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
@@ -1340,13 +1342,18 @@ def create_global_lock(
     lock_timeout: int = 1800,
 ) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
-    conn = session.get_bind().connect()
+    bind = session.get_bind()
+    if isinstance(bind, Engine):
+        conn = bind.connect()
+    else:
+        conn = bind
     dialect = conn.dialect
+    mysql_supports_locks = dialect.name == "mysql" and dialect.server_version_info and dialect.server_version_info >= (5, 6)
     try:
         if dialect.name == "postgresql":
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
             conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif mysql_supports_locks:
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
@@ -1356,7 +1363,7 @@ def create_global_lock(
             (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif mysql_supports_locks:
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 

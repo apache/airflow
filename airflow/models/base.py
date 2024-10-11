@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Column, Integer, MetaData, String, text
-from sqlalchemy.orm import registry
+from sqlalchemy.orm import DeclarativeBase
 
 from airflow.configuration import conf
 
@@ -45,13 +45,23 @@ def _get_schema():
 
 
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
 if TYPE_CHECKING:
     Base = Any
 else:
-    Base = mapper_registry.generate_base()
+
+    class Base(DeclarativeBase):
+        """
+        Base class to ease transition to SQLAv2.
+
+        :meta private:
+        """
+
+        metadata = metadata
+        # https://docs.sqlalchemy.org/en/20/changelog/migration_20.html#migration-20-step-six
+        __allow_unmapped__ = True
+
 
 ID_LEN = 250
 

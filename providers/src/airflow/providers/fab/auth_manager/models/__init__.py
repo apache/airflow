@@ -23,9 +23,9 @@ import datetime
 # Copyright 2013, Daniel Vaz Gaspar
 from typing import TYPE_CHECKING
 
+import flask_appbuilder.models.sqla
 import packaging.version
 from flask import current_app, g
-from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
     Boolean,
     Column,
@@ -41,7 +41,7 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import backref, declared_attr, registry, relationship
+from sqlalchemy.orm import DeclarativeBase, backref, declared_attr, relationship
 
 from airflow import __version__ as airflow_version
 from airflow.auth.managers.models.base_user import BaseUser
@@ -58,12 +58,25 @@ Compatibility note: The models in this file are duplicated from Flask AppBuilder
 """
 
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-mapper_registry = registry(metadata=metadata)
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
     "3.0.0"
 ):
+
+    class Model(DeclarativeBase):
+        """
+        Base class to ease transition to SQLAv2.
+
+        :meta private:
+        """
+
+        metadata = metadata
+        # https://docs.sqlalchemy.org/en/20/changelog/migration_20.html#migration-20-step-six
+        __allow_unmapped__ = True
+
     Model.metadata = metadata
+
+    flask_appbuilder.models.sqla.Model = Model
 else:
     from airflow.models.base import Base
 
