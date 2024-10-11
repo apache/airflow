@@ -43,7 +43,7 @@ from methodtools import lru_cache
 from more_itertools import chunked
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
-from sqlalchemy.exc import ArgumentError
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.exceptions import (
     AirflowException,
@@ -339,7 +339,7 @@ class DbApiHook(BaseHook):
     @lru_cache(maxsize=None)
     def get_reserved_words(self, dialect_name: str) -> set[str]:
         result = set()
-        with suppress(ImportError, ModuleNotFoundError):
+        with suppress(ImportError, ModuleNotFoundError, NoSuchModuleError):
             dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.base")
 
             if hasattr(dialect_module, "RESERVED_WORDS"):
