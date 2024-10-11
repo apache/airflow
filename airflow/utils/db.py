@@ -53,6 +53,7 @@ from sqlalchemy import (
     select,
     text,
 )
+from sqlalchemy.engine import Engine
 
 import airflow
 from airflow import settings
