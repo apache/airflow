@@ -290,7 +290,7 @@ To learn more about how Operators and Extractors work together under the hood, c
 When testing an Extractor, we want to firstly verify if ``OperatorLineage`` object is being created,
 specifically verifying that the object is being built with the correct input and output datasets and relevant facets.
 This is done in OpenLineage via pytest, with appropriate mocking and patching for connections and objects.
-Check out `example tests <https://github.com/apache/airflow/blob/main/tests/providers/openlineage/extractors/test_base.py>`_.
+Check out `example tests <https://github.com/apache/airflow/blob/main/providers/tests/openlineage/extractors/test_base.py>`_.
 
 Testing each facet is also important, as data or graphs in the UI can render incorrectly if the facets are wrong.
 For example, if the facet name is created incorrectly in the Extractor, then the Operator's task will not show up in the lineage graph,
@@ -390,7 +390,7 @@ An Operator inside the Airflow DAG can be annotated with inlets and outlets like
     import pendulum
 
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.lineage.entities import Table, File, Column, User
 
 

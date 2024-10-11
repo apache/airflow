@@ -41,7 +41,7 @@ To create Azure service bus queue with specific Parameter you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Create Queue.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_service_bus_queue]
@@ -58,7 +58,7 @@ To Send message or list of message or batch Message to the Azure Service Bus Que
 
 Below is an example of using this operator to execute an Azure Service Bus Send Message to Queue.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_send_message_to_service_bus_queue]
@@ -75,7 +75,7 @@ To Receive Message or list of message or Batch message in a Queue you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Create Queue.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_receive_message_service_bus_queue]
@@ -92,7 +92,7 @@ To Delete the Azure service bus queue you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Delete Queue.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_service_bus_queue]
@@ -113,7 +113,7 @@ To create Azure service bus topic with specific Parameter you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Create Topic.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_service_bus_topic]
@@ -129,7 +129,7 @@ To Delete the Azure service bus topic you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Delete topic.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_service_bus_topic]
@@ -150,7 +150,7 @@ To create Azure service bus topic Subscription with specific Parameter you can u
 
 Below is an example of using this operator to execute an Azure Service Bus Create Subscription.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_service_bus_subscription]
@@ -166,7 +166,7 @@ To Update the Azure service bus topic Subscription which is already created, wit
 
 Below is an example of using this operator to execute an Azure Service Bus Update Subscription.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_update_service_bus_subscription]
@@ -182,7 +182,7 @@ To Receive a Batch messages from a Service Bus Subscription under specific Topic
 
 Below is an example of using this operator to execute an Azure Service Bus Receive Subscription Message.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_receive_message_service_bus_subscription]
@@ -198,7 +198,7 @@ To Delete the Azure service bus topic Subscription you can use
 
 Below is an example of using this operator to execute an Azure Service Bus Delete Subscription under topic.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_service_bus.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_azure_service_bus.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_delete_service_bus_subscription]

@@ -25,7 +25,6 @@ import pickle
 import re
 import weakref
 from datetime import timedelta
-from importlib import reload
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,12 +44,8 @@ from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     UnknownExecutorException,
 )
-from airflow.executors import executor_loader
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -74,9 +69,9 @@ from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -102,13 +97,19 @@ from tests.plugins.priority_weight_strategy import (
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_plugins import mock_plugin_manager
-from tests.test_utils.timetables import cron_timetable, delta_timetable
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
+from dev.tests_common.test_utils.mapping import expand_mapped_task
+from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from dev.tests_common.test_utils.timetables import cron_timetable, delta_timetable
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -2296,14 +2297,14 @@ my_postgres_conn:
     )
     def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
         if expected_exception:
-            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+            with patch("airflow.providers.fab.__version__", fab_version):
                 with pytest.raises(
                     expected_exception,
                     match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
                 ):
                     DAG(dag_id="dag_test", schedule=None, access_control=perms)
         else:
-            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+            with patch("airflow.providers.fab.__version__", fab_version):
                 dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
             assert dag.access_control == expected_perms
 
@@ -2733,20 +2734,6 @@ class TestDagModel:
                 {"alias": "test_name"},
             ]
         }
-
-    @mock.patch("airflow.models.dag.run_job")
-    def test_dag_executors(self, run_job_mock):
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            dag = DAG(dag_id="test", schedule=None)
-            reload(executor_loader)
-            with conf_vars({("core", "executor"): "SequentialExecutor"}):
-                dag.run()
-                assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
-
-                dag.run(local=True)
-                assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:

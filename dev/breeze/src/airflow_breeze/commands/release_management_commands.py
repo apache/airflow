@@ -28,13 +28,14 @@ import tempfile
 import textwrap
 import time
 from collections import defaultdict
+from collections.abc import Generator, Iterable
 from copy import deepcopy
 from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, NamedTuple, Union
 
 import click
 from rich.progress import Progress
@@ -136,6 +137,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_SRC,
     AIRFLOW_SOURCES_ROOT,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
@@ -2124,7 +2126,7 @@ def generate_issue_content_providers(
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (
-                    AIRFLOW_SOURCES_ROOT
+                    AIRFLOW_PROVIDERS_SRC
                     / "airflow"
                     / "providers"
                     / provider_id.replace(".", os.sep)

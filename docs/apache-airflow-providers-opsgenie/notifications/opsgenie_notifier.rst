@@ -27,7 +27,7 @@ Using the Notifier
 ^^^^^^^^^^^^^^^^^^
 Send an alert to Opsgenie with a specific message.
 
-.. exampleinclude:: /../../tests/system/providers/opsgenie/example_opsgenie_notifier.py
+.. exampleinclude:: /../../providers/tests/system/opsgenie/example_opsgenie_notifier.py
     :language: python
     :start-after: [START howto_notifier_opsgenie]
     :end-before: [END howto_notifier_opsgenie]

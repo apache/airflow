@@ -50,10 +50,10 @@ from airflow.api_fastapi.serializers.dags import (
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import DAG, DagModel
 
-dags_router = AirflowRouter(tags=["DAG"])
+dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("/dags")
+@dags_router.get("/")
 async def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -92,9 +92,27 @@ async def get_dags(
     )
 
 
-@dags_router.get(
-    "/dags/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422])
-)
+@dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+async def get_dag(
+    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
+) -> DAGResponse:
+    """Get basic information about a DAG."""
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+
+    dag_model: DagModel = session.get(DagModel, dag_id)
+    if not dag_model:
+        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+
+    for key, value in dag.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag_model, key):
+            setattr(dag_model, key, value)
+
+    return DAGResponse.model_validate(dag_model, from_attributes=True)
+
+
+@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
@@ -114,7 +132,7 @@ async def get_dag_details(
     return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
@@ -141,7 +159,7 @@ async def patch_dag(
     return DAGResponse.model_validate(dag, from_attributes=True)
 
 
-@dags_router.patch("/dags", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch("/", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_dags(
     patch_body: DAGPatchBody,
     limit: QueryLimit,

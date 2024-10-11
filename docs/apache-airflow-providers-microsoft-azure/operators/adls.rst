@@ -35,7 +35,7 @@ upload data to Azure DataLake Storage
 
 Below is an example of using this operator to upload data to ADL.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_create.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adls_create.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_adls_create]
@@ -52,7 +52,7 @@ file(s) from Azure DataLake Storage
 
 Below is an example of using this operator to delete a file from ADL.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_delete.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adls_delete.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_adls_delete]
@@ -69,7 +69,7 @@ file(s) from Azure DataLake Storage
 
 Below is an example of using this operator to list files from ADL.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_list.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adls_list.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_adls_list]

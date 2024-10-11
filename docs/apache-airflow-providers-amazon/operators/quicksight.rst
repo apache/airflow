@@ -46,7 +46,7 @@ Amazon QuickSight create ingestion
 The ``QuickSightCreateIngestionOperator`` creates and starts a new SPICE ingestion for a dataset.
 The operator also refreshes existing SPICE datasets.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_quicksight.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_quicksight.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_quicksight_create_ingestion]
@@ -62,7 +62,7 @@ Amazon QuickSight ingestion sensor
 
 The ``QuickSightSensor`` waits for an Amazon QuickSight create ingestion until it reaches a terminal state.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_quicksight.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_quicksight.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_quicksight]

@@ -47,8 +47,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -321,7 +322,7 @@ class TestCliDags:
         We just check we call dag.run() right. The behaviour of that kwarg is
         tested in test_jobs
         """
-        dag_id = "test_dagrun_states_deadlock"
+        dag_id = "example_bash_operator"
         run_date = DEFAULT_DATE + timedelta(days=1)
         args = [
             "dags",

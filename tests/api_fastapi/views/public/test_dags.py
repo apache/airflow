@@ -27,14 +27,14 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG2_DISPLAY_NAME = "display2"
 DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
@@ -98,7 +98,6 @@ def setup(dag_maker, session=None) -> None:
 
     with dag_maker(
         DAG2_ID,
-        dag_display_name=DAG2_DISPLAY_NAME,
         schedule=None,
         start_date=DAG2_START_DATE,
         doc_md="details",
@@ -149,7 +148,7 @@ def setup(dag_maker, session=None) -> None:
         ),
         # Search
         ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
-        ({"dag_display_name_pattern": "display2"}, 1, [DAG2_ID]),
+        ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
@@ -238,7 +237,7 @@ def test_patch_dags(test_client, query_params, body, expected_status_code, expec
     "query_params, dag_id, expected_status_code, dag_display_name, start_date",
     [
         ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
-        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, DAG2_START_DATE),
+        ({}, DAG2_ID, 200, DAG2_ID, DAG2_START_DATE),
     ],
 )
 def test_dag_details(test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date):
@@ -300,5 +299,53 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "template_search_path": None,
         "timetable_description": "Never, external triggers only",
         "timezone": UTC_JSON_REPR,
+    }
+    assert res_json == expected
+
+
+@pytest.mark.parametrize(
+    "query_params, dag_id, expected_status_code, dag_display_name",
+    [
+        ({}, "fake_dag_id", 404, "fake_dag"),
+        ({}, DAG2_ID, 200, DAG2_ID),
+    ],
+)
+def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):
+    response = test_client.get(f"/public/dags/{dag_id}", params=query_params)
+    assert response.status_code == expected_status_code
+    if expected_status_code != 200:
+        return
+
+    # Match expected and actual responses below.
+    res_json = response.json()
+    last_parsed_time = res_json["last_parsed_time"]
+    file_token = res_json["file_token"]
+    expected = {
+        "dag_id": dag_id,
+        "dag_display_name": dag_display_name,
+        "description": None,
+        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "file_token": file_token,
+        "is_paused": False,
+        "is_active": True,
+        "owners": ["airflow"],
+        "timetable_summary": None,
+        "tags": [],
+        "next_dagrun": None,
+        "has_task_concurrency_limits": True,
+        "next_dagrun_data_interval_start": None,
+        "next_dagrun_data_interval_end": None,
+        "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
+        "next_dagrun_create_after": None,
+        "last_expired": None,
+        "max_active_tasks": 16,
+        "last_pickled": None,
+        "default_view": "grid",
+        "last_parsed_time": last_parsed_time,
+        "scheduler_lock": None,
+        "timetable_description": "Never, external triggers only",
+        "has_import_errors": False,
+        "pickle_id": None,
     }
     assert res_json == expected

@@ -19,11 +19,11 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.types import NOTSET
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -145,7 +145,6 @@ class TestXComArgBuild:
 
 @pytest.mark.system("core")
 class TestXComArgRuntime:
-    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_pass_to_op(self, dag_maker):
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
             operator = PythonOperator(
@@ -160,9 +159,8 @@ class TestXComArgRuntime:
                 task_id="assert_is_value_1",
             )
             operator >> operator2
-        dag.run()
+        dag.test()
 
-    @conf_vars({("core", "executor"): "DebugExecutor"})
     def test_xcom_push_and_pass(self, dag_maker):
         def push_xcom_value(key, value, **context):
             ti = context["task_instance"]
@@ -181,7 +179,7 @@ class TestXComArgRuntime:
                 op_args=[xarg],
             )
             op1 >> op2
-        dag.run()
+        dag.test()
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

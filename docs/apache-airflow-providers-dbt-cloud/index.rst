@@ -53,14 +53,14 @@ an Integrated Developer Environment (IDE).
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/dbt/cloud/index>
+    System Tests <_api/tests/system/dbt/cloud/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/tests/system/providers/dbt/cloud/example_dbt_cloud.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/providers/tests/system/dbt/cloud/example_dbt_cloud.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dbt-cloud/>
     Installing from sources <installing-providers-from-sources>
 
@@ -81,7 +81,7 @@ apache-airflow-providers-dbt-cloud package
 `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
 
 
-Release: 3.10.1
+Release: 3.11.0
 
 Provider package
 ----------------
@@ -136,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-dbt-cloud 3.10.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-dbt-cloud 3.10.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.10.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-dbt-cloud 3.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_dbt_cloud-3.11.0-py3-none-any.whl.sha512>`__)
