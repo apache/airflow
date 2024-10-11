@@ -1631,13 +1631,12 @@ def _get_previous_ti(
 
 
 @internal_api_call
-@provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
-    RenderedTaskInstanceFields.write(rtif, session=session)
-    RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+    RenderedTaskInstanceFields.write(rtif)
+    RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id)
 
 
 def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Session):
