@@ -75,7 +75,7 @@ def make_dag_runs(dag_maker, session, time_machine):
     run2 = dag_maker.create_dagrun(
         run_id="run_2",
         state=DagRunState.FAILED,
-        run_type=DagRunType.DATASET_TRIGGERED,
+        run_type=DagRunType.ASSET_TRIGGERED,
         execution_date=date + timedelta(days=1),
         start_date=date + timedelta(days=1),
     )
