@@ -30,7 +30,7 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
-from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.providers.http.triggers.http import HttpSensorTrigger, HttpTrigger
 from airflow.triggers.base import TriggerEvent
 
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
@@ -50,6 +50,18 @@ def trigger():
         auth_type=TEST_AUTH_TYPE,
         method=TEST_METHOD,
         endpoint=TEST_ENDPOINT,
+        headers=TEST_HEADERS,
+        data=TEST_DATA,
+        extra_options=TEST_EXTRA_OPTIONS,
+    )
+
+
+@pytest.fixture
+def sensor_trigger():
+    return HttpSensorTrigger(
+        http_conn_id=TEST_CONN_ID,
+        endpoint=TEST_ENDPOINT,
+        method=TEST_METHOD,
         headers=TEST_HEADERS,
         data=TEST_DATA,
         extra_options=TEST_EXTRA_OPTIONS,
@@ -138,3 +150,37 @@ class TestHttpTrigger:
         assert response.encoding == client_response.get_encoding()
         assert response.reason == client_response.reason
         assert dict(response.cookies) == dict(client_response.cookies)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.client.ClientSession.post")
+    async def test_trigger_on_post_with_data(self, mock_http_post, trigger):
+        """
+        Test that HttpTrigger fires the correct event in case of an error.
+        """
+        generator = trigger.run()
+        await generator.asend(None)
+        mock_http_post.assert_called_once()
+        _, kwargs = mock_http_post.call_args
+        assert kwargs["data"] == TEST_DATA
+        assert kwargs["json"] is None
+        assert kwargs["params"] is None
+
+
+class TestHttpSensorTrigger:
+    def test_serialization(self, sensor_trigger):
+        """
+        Asserts that the HttpSensorTrigger correctly serializes its arguments
+        and classpath.
+        """
+        classpath, kwargs = sensor_trigger.serialize()
+        assert classpath == "airflow.providers.http.triggers.http.HttpSensorTrigger"
+        assert kwargs == {
+            "http_conn_id": TEST_CONN_ID,
+            "endpoint": TEST_ENDPOINT,
+            "method": TEST_METHOD,
+            "headers": TEST_HEADERS,
+            "data": TEST_DATA,
+            "extra_options": TEST_EXTRA_OPTIONS,
+            "poke_interval": 5.0,
+        }
