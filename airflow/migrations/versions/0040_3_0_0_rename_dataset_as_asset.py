@@ -22,7 +22,6 @@ Rename dataset as asset.
 Revision ID: 05234396c6fc
 Revises: 3a8972ecb8f9
 Create Date: 2024-10-02 08:10:01.697128
-
 """
 
 from __future__ import annotations
@@ -33,11 +32,14 @@ import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op
 
+from airflow.settings import json
+
 # revision identifiers, used by Alembic.
 revision = "05234396c6fc"
 down_revision = "3a8972ecb8f9"
 branch_labels = None
 depends_on = None
+airflow_version = "3.0.0"
 
 if TYPE_CHECKING:
     from alembic.operations.base import BatchOperations

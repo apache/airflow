@@ -1381,7 +1381,7 @@ components:
           anyOf:
           - type: object
           - type: 'null'
-          title: Dataset Expression
+          title: Asset Expression
         doc_md:
           anyOf:
           - type: string
@@ -1844,7 +1844,7 @@ components:
       - backfill
       - scheduled
       - manual
-      - dataset_triggered
+      - asset_triggered
       title: DagRunType
       description: Class with DagRun types.
     DagTagPydantic:
