@@ -16,5 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from __future__ import annotations
+
 # Explicit namespaces are required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
