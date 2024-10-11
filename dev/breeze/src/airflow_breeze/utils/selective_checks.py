@@ -1370,6 +1370,12 @@ class SelectiveChecks:
     def is_legacy_ui_api_labeled(self) -> bool:
         # Selective check for legacy UI/API updates.
         # It is to ping the maintainer to add the label and make them aware of the changes.
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+
         if (
             self._matching_files(
                 FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
