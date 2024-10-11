@@ -4,3 +4,4 @@ dist/
 *.md
 *.yaml
 coverage/*
+.pnpm-store
