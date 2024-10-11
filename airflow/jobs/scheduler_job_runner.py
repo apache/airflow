@@ -108,7 +108,7 @@ class ConcurrencyMap:
 
     def __init__(self, states: Iterable[TaskInstanceState]):
         self.states = states
-        self.dag_run_active_tasks_map: dict[str, int] = Counter()
+        self.dag_run_active_tasks_map: dict[tuple[str, str], int] = Counter()
         self.task_concurrency_map: dict[tuple[str, str], int] = Counter()
         self.task_dagrun_concurrency_map: dict[tuple[str, str, str], int] = Counter()
 
