@@ -1434,3 +1434,8 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
     from itsdangerous import URLSafeSerializer
 
     return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture
+def new_thing():
+    return None

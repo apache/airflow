@@ -52,3 +52,7 @@ def test_deprecated_exception():
     with pytest.warns(DeprecationWarning, match=warning_pattern):
         # If there is no warning, then most possible it imported somewhere else.
         assert getattr(airflow, "AirflowException") is AirflowException
+
+
+def test_try_dag_maker(new_thing):
+    assert new_thing is None
