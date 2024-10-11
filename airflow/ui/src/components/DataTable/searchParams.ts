@@ -17,14 +17,19 @@
  * under the License.
  */
 import type { SortingState } from "@tanstack/react-table";
+
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
+
 import type { TableState } from "./types";
-import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 const {
   LIMIT: LIMIT_PARAM,
   OFFSET: OFFSET_PARAM,
-  SORT: SORT_PARAM
-} : SearchParamsKeysType = SearchParamsKeys;
+  SORT: SORT_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 export const stateToSearchParams = (
   state: TableState,

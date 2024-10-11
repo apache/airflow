@@ -23,12 +23,14 @@ import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
-
-import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
-  PAUSED: PAUSED_PARAM
+  PAUSED: PAUSED_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const DagsFilters = () => {

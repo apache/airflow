@@ -25,7 +25,12 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEvent, type ChangeEventHandler, useCallback, useState } from "react";
+import {
+  type ChangeEvent,
+  type ChangeEventHandler,
+  useCallback,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
@@ -37,8 +42,11 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
 import { pluralize } from "src/utils/pluralize";
-import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
@@ -94,7 +102,7 @@ const columns: Array<ColumnDef<DAGResponse>> = [
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  PAUSED: PAUSED_PARAM
+  PAUSED: PAUSED_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
@@ -109,17 +117,23 @@ export const DagsList = () => {
   const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
-  const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE_PARAM) as DagRunState;
+  const lastDagRunState = searchParams.get(
+    LAST_DAG_RUN_STATE_PARAM,
+  ) as DagRunState;
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
-  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(searchParams.get(NAME_PATTERN_PARAM) ?? undefined);
+  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
 
   // TODO: update API to accept multiple orderBy params
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const handleSearchChange = ({ target: { value } }: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -164,7 +178,7 @@ export const DagsList = () => {
           buttonProps={{ isDisabled: true }}
           inputProps={{
             defaultValue: dagDisplayNamePattern,
-            onChange: handleSearchChange
+            onChange: handleSearchChange,
           }}
         />
         <DagsFilters />

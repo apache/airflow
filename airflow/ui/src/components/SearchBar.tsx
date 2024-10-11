@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ChangeEvent } from "react";
 import {
   Button,
   Input,
@@ -27,6 +26,7 @@ import {
   type InputGroupProps,
   type InputProps,
 } from "@chakra-ui/react";
+import type { ChangeEvent } from "react";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
@@ -41,10 +41,9 @@ export const SearchBar = ({
   readonly groupProps?: InputGroupProps;
   readonly inputProps?: InputProps;
 }) => {
-
   const handleSearchChange = useDebouncedCallback(
     (event: ChangeEvent<HTMLInputElement>) => inputProps?.onChange?.(event),
-    debounceDelay
+    debounceDelay,
   );
 
   return (

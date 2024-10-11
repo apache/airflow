@@ -22,7 +22,10 @@ export enum SearchParamsKeys {
   NAME_PATTERN = "name_pattern",
   OFFSET = "offset",
   PAUSED = "paused",
-  SORT = "sort"
+  SORT = "sort",
 }
 
-export type SearchParamsKeysType = Record<keyof typeof SearchParamsKeys, string>;
+export type SearchParamsKeysType = Record<
+  keyof typeof SearchParamsKeys,
+  string
+>;
