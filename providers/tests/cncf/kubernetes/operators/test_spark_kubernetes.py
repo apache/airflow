@@ -34,7 +34,7 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
@@ -170,11 +170,18 @@ def create_context(task):
     dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-    dag_run = DagRun(
-        dag_id=dag.dag_id,
-        logical_date=logical_date,
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            execution_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
+        )
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
@@ -700,7 +707,6 @@ def test_template_body_templating(create_task_instance_of_operator, session):
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
         session=session,
-        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     session.add(ti)
     session.commit()
@@ -725,8 +731,10 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="test_template_body_templating_task",
         )
-
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
+    if AIRFLOW_V_3_0_PLUS:
+        ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
+    else:
+        ti = dag_maker.create_dagrun(execution_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()
@@ -766,8 +774,10 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="test_template_body_templating_task",
         )
-
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
+    if AIRFLOW_V_3_0_PLUS:
+        ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
+    else:
+        ti = dag_maker.create_dagrun(execution_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()
