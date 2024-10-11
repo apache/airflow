@@ -343,9 +343,10 @@ class DbApiHook(BaseHook):
                 result = set(dialect_module.RESERVED_WORDS)
             else:
                 dialect_module = import_string(f"sqlalchemy.dialects.{dialect_name}.reserved_words")
+                reserved_words_attr = f"RESERVED_WORDS_{dialect_name.upper()}"
 
-                if hasattr(dialect_module, f"RESERVED_WORDS_{dialect_name.upper()}"):
-                    result = set(getattr(dialect_module, f"RESERVED_WORDS_{dialect_name.upper()}"))
+                if hasattr(dialect_module, reserved_words_attr):
+                    result = set(getattr(dialect_module, reserved_words_attr))
 
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
