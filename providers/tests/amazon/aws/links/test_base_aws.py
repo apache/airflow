@@ -160,17 +160,30 @@ class BaseAwsLinksTestCase:
     ):
         """Helper method for generate operator and task instance"""
         op = link_test_operator(extra_link_class)
-        return OperatorAndTi(
-            task=op(task_id=task_id),
-            task_instance=self.ti_maker(
-                op,
-                dag_id=dag_id,
-                task_id=task_id,
-                logical_date=logical_date,
-                session=session,
-                **operator_kwargs,
-            ),
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            return OperatorAndTi(
+                task=op(task_id=task_id),
+                task_instance=self.ti_maker(
+                    op,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    logical_date=logical_date,
+                    session=session,
+                    **operator_kwargs,
+                ),
+            )
+        else:
+            return OperatorAndTi(
+                task=op(task_id=task_id),
+                task_instance=self.ti_maker(
+                    op,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    execution_date=logical_date,
+                    session=session,
+                    **operator_kwargs,
+                ),
+            )
 
     def assert_extra_link_url(
         self,
