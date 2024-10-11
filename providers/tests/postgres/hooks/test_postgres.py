@@ -563,13 +563,69 @@ class TestPostgresHook:
         assert hook.reserved_words == sqlalchemy.dialects.postgresql.base.RESERVED_WORDS
 
     def test_generate_insert_sql_without_already_escaped_column_name(self):
-        values = ["1", "mssql_conn", "postgres", "PostgresQL connection", "localhost", "airflow", "admin", "admin", 1433, False, False, {}]
-        target_fields = ["id", "conn_id", "conn_type", "description", "host", "schema", "login", "password", "port", "is_encrypted", "is_extra_encrypted", "extra"]
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "schema",
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
         hook = PostgresHook()
-        assert hook._generate_insert_sql(table="connection", values=values, target_fields=target_fields) == INSERT_SQL_STATEMENT.format("schema")
+        assert hook._generate_insert_sql(
+            table="connection", values=values, target_fields=target_fields
+        ) == INSERT_SQL_STATEMENT.format("schema")
 
     def test_generate_insert_sql_with_already_escaped_column_name(self):
-        values = ["1", "mssql_conn", "postgres", "PostgresQL connection", "localhost", "airflow", "admin", "admin", 1433, False, False, {}]
-        target_fields = ["id", "conn_id", "conn_type", "description", "host", "'schema'", "login", "password", "port", "is_encrypted", "is_extra_encrypted", "extra"]
+        values = [
+            "1",
+            "mssql_conn",
+            "mssql",
+            "MSSQL connection",
+            "localhost",
+            "airflow",
+            "admin",
+            "admin",
+            1433,
+            False,
+            False,
+            {},
+        ]
+        target_fields = [
+            "id",
+            "conn_id",
+            "conn_type",
+            "description",
+            "host",
+            "'schema'",
+            "login",
+            "password",
+            "port",
+            "is_encrypted",
+            "is_extra_encrypted",
+            "extra",
+        ]
         hook = PostgresHook()
-        assert hook._generate_insert_sql(table="connection", values=values, target_fields=target_fields) == INSERT_SQL_STATEMENT.format("'schema'")
+        assert hook._generate_insert_sql(
+            table="connection", values=values, target_fields=target_fields
+        ) == INSERT_SQL_STATEMENT.format("'schema'")
