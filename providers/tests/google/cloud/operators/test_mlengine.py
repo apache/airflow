@@ -1295,6 +1295,7 @@ def test_async_create_training_job_should_execute_successfully(
             labels=TEST_LABELS,
             deferrable=True,
             operator_class=MLEngineStartTrainingJobOperator,
+            dag_id="test_async_create_training",
         )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -1370,6 +1371,7 @@ def test_async_create_training_job_logging_should_execute_successfully(
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            dag_id="test_async_create_training_job_logging",
         )
 
     with mock.patch.object(ti.task.log, "info") as mock_log_info:
@@ -1407,6 +1409,7 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            dag_id="test_async_create_training_job_with_conflict",
         )
 
     with pytest.raises(TaskDeferred):
@@ -1439,6 +1442,7 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none(
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            dag_id="test_async_create_training_job",
         )
 
     with pytest.raises(
@@ -1466,6 +1470,7 @@ def test_async_create_training_job_should_throw_exception_if_project_id_none(
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            dag_id="test_async_create_training_job_exception",
         )
 
     with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
@@ -1493,6 +1498,7 @@ def test_async_create_training_job_should_throw_exception_if_custom_none(
             master_config={"config": "config"},
             master_type=None,
             deferrable=True,
+            dag_id="test_async_create_training_job_custom",
         )
 
     with pytest.raises(AirflowException, match=r"master_type must be set when master_config is provided"):
@@ -1519,6 +1525,7 @@ def test_async_create_training_job_should_throw_exception_if_package_none(
             training_args=TEST_TRAINING_ARGS,
             labels=TEST_LABELS,
             deferrable=True,
+            dag_id="test_async_create_training_job_package",
         )
 
     with pytest.raises(
@@ -1551,6 +1558,7 @@ def test_async_create_training_job_should_throw_exception_if_uris_none(
             master_config={"config": "config"},
             master_type="type",
             deferrable=True,
+            dag_id="test_async_create_training_job_with_uri",
         )
 
     with pytest.raises(

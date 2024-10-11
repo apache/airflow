@@ -862,7 +862,11 @@ def dag_maker(request):
                     else:
                         kwargs["execution_date"] = dag.next_dagrun_info(None).logical_date
             if "data_interval" not in kwargs:
-                logical_date = timezone.coerce_datetime(kwargs["logical_date"]) if AIRFLOW_V_3_0_PLUS else timezone.coerce_datetime(kwargs["execution_date"])
+                logical_date = (
+                    timezone.coerce_datetime(kwargs["logical_date"])
+                    if AIRFLOW_V_3_0_PLUS
+                    else timezone.coerce_datetime(kwargs["execution_date"])
+                )
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
@@ -882,14 +886,18 @@ def dag_maker(request):
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
-            return self.create_dagrun(
+            return (
+                self.create_dagrun(
                 logical_date=next_info.logical_date,
                 data_interval=next_info.data_interval,
                 **kwargs,
-            ) if AIRFLOW_V_3_0_PLUS else self.create_dagrun(
-                execution_date=next_info.logical_date,
-                data_interval=next_info.data_interval,
-                **kwargs,
+                )
+                if AIRFLOW_V_3_0_PLUS
+                else self.create_dagrun(
+                    execution_date=next_info.logical_date,
+                    data_interval=next_info.data_interval,
+                    **kwargs,
+                )
             )
 
         def __call__(

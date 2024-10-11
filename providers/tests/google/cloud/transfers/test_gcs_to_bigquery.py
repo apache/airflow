@@ -1579,7 +1579,6 @@ def create_task_instance(create_task_instance_of_operator, session):
         session=session,
         operator_class=GCSToBigQueryOperator,
         dag_id="adhoc_airflow",
-        logical_date=datetime(2022, 1, 1, 0, 0, 0),
     )
 
 
