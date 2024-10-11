@@ -29,6 +29,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -49,12 +50,20 @@ class TestOSSTaskHandler:
 
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance, dag_maker):
-        self.ti = ti = create_task_instance(
-            dag_id="dag_for_testing_oss_task_handler",
-            task_id="task_for_testing_oss_task_handler",
-            logical_date=datetime(2020, 1, 1),
-            state=TaskInstanceState.RUNNING,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.ti = ti = create_task_instance(
+                dag_id="dag_for_testing_oss_task_handler",
+                task_id="task_for_testing_oss_task_handler",
+                logical_date=datetime(2020, 1, 1),
+                state=TaskInstanceState.RUNNING,
+            )
+        else:
+            self.ti = ti = create_task_instance(
+                dag_id="dag_for_testing_oss_task_handler",
+                task_id="task_for_testing_oss_task_handler",
+                execution_date=datetime(2020, 1, 1),
+                state=TaskInstanceState.RUNNING,
+            )
         ti.try_number = 1
         ti.raw = False
         dag_maker.session.merge(ti)

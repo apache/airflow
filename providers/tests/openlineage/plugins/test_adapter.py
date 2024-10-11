@@ -52,8 +52,9 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
 
-from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import BashOperator, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
+
 
 pytestmark = pytest.mark.db_test
 
@@ -553,13 +554,22 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;", task_group=tg)  # noqa: F841
         task_2 = EmptyOperator(task_id="task_2.test.dot", task_group=tg2)  # noqa: F841
 
-    dag_run = DagRun(
-        dag_id=dag_id,
-        run_id=run_id,
-        start_date=event_time,
-        logical_date=event_time,
-        data_interval=(event_time, event_time),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            logical_date=event_time,
+            data_interval=(event_time, event_time),
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            execution_date=event_time,
+            data_interval=(event_time, event_time),
+        )
     dag_run.dag = dag
     generate_static_uuid.return_value = random_uuid
 
@@ -592,18 +602,30 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
             "start_date": event_time.isoformat(),
         },
     )
-
-    adapter.dag_started(
-        dag_id=dag_id,
-        start_date=event_time,
-        logical_date=event_time,
-        nominal_start_time=event_time.isoformat(),
-        nominal_end_time=event_time.isoformat(),
-        owners=["airflow"],
-        description=dag.description,
-        run_facets={"airflowDagRun": dag_run_facet},
-        job_facets=job_facets,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        adapter.dag_started(
+            dag_id=dag_id,
+            start_date=event_time,
+            logical_date=event_time,
+            nominal_start_time=event_time.isoformat(),
+            nominal_end_time=event_time.isoformat(),
+            owners=["airflow"],
+            description=dag.description,
+            run_facets={"airflowDagRun": dag_run_facet},
+            job_facets=job_facets,
+        )
+    else:
+        adapter.dag_started(
+            dag_id=dag_id,
+            start_date=event_time,
+            execution_date=event_time,
+            nominal_start_time=event_time.isoformat(),
+            nominal_end_time=event_time.isoformat(),
+            owners=["airflow"],
+            description=dag.description,
+            run_facets={"airflowDagRun": dag_run_facet},
+            job_facets=job_facets,
+        )
 
     assert len(client.emit.mock_calls) == 1
     client.emit.assert_called_once_with(
@@ -680,12 +702,20 @@ def test_emit_dag_complete_event(
             task_id="task_2.test",
         )
 
-    dag_run = DagRun(
-        dag_id=dag_id,
-        run_id=run_id,
-        start_date=event_time,
-        logical_date=event_time,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            logical_date=event_time,
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            execution_date=event_time,
+        )
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
     mocked_fetch_tis.return_value = [
@@ -695,14 +725,24 @@ def test_emit_dag_complete_event(
     ]
     generate_static_uuid.return_value = random_uuid
 
-    adapter.dag_success(
-        dag_id=dag_id,
-        run_id=run_id,
-        end_date=event_time,
-        logical_date=event_time,
-        dag_run_state=DagRunState.SUCCESS,
-        task_ids=["task_0", "task_1", "task_2.test"],
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        adapter.dag_success(
+            dag_id=dag_id,
+            run_id=run_id,
+            end_date=event_time,
+            logical_date=event_time,
+            dag_run_state=DagRunState.SUCCESS,
+            task_ids=["task_0", "task_1", "task_2.test"],
+        )
+    else:
+        adapter.dag_success(
+            dag_id=dag_id,
+            run_id=run_id,
+            end_date=event_time,
+            execution_date=event_time,
+            dag_run_state=DagRunState.SUCCESS,
+            task_ids=["task_0", "task_1", "task_2.test"],
+        )
 
     client.emit.assert_called_once_with(
         RunEvent(
@@ -760,13 +800,20 @@ def test_emit_dag_failed_event(
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(task_id="task_2.test")
-
-    dag_run = DagRun(
-        dag_id=dag_id,
-        run_id=run_id,
-        start_date=event_time,
-        logical_date=event_time,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            logical_date=event_time,
+        )
+    else:
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id=run_id,
+            start_date=event_time,
+            execution_date=event_time,
+        )
     dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time
     mocked_fetch_tis.return_value = [
@@ -775,16 +822,26 @@ def test_emit_dag_failed_event(
         TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
     ]
     generate_static_uuid.return_value = random_uuid
-
-    adapter.dag_failed(
-        dag_id=dag_id,
-        run_id=run_id,
-        end_date=event_time,
-        logical_date=event_time,
-        dag_run_state=DagRunState.FAILED,
-        task_ids=["task_0", "task_1", "task_2.test"],
-        msg="error msg",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        adapter.dag_failed(
+            dag_id=dag_id,
+            run_id=run_id,
+            end_date=event_time,
+            logical_date=event_time,
+            dag_run_state=DagRunState.FAILED,
+            task_ids=["task_0", "task_1", "task_2.test"],
+            msg="error msg",
+        )
+    else:
+        adapter.dag_failed(
+            dag_id=dag_id,
+            run_id=run_id,
+            end_date=event_time,
+            execution_date=event_time,
+            dag_run_state=DagRunState.FAILED,
+            task_ids=["task_0", "task_1", "task_2.test"],
+            msg="error msg",
+        )
 
     client.emit.assert_called_once_with(
         RunEvent(
@@ -845,80 +902,142 @@ def test_openlineage_adapter_stats_emit_failed(
 def test_build_dag_run_id_is_valid_uuid():
     dag_id = "test_dag"
     logical_date = datetime.datetime.now()
-    result = OpenLineageAdapter.build_dag_run_id(
-        dag_id=dag_id,
-        logical_date=logical_date,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result = OpenLineageAdapter.build_dag_run_id(
+            dag_id=dag_id,
+            logical_date=logical_date,
+        )
+    else:
+        result = OpenLineageAdapter.build_dag_run_id(
+            dag_id=dag_id,
+            execution_date=logical_date,
+        )
     uuid_result = uuid.UUID(result)
     assert uuid_result
     assert uuid_result.version == 7
 
 
 def test_build_dag_run_id_same_input_give_same_result():
-    result1 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
-    )
-    result2 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result1 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+        result2 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+    else:
+        result1 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+        result2 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
     assert result1 == result2
 
 
 def test_build_dag_run_id_different_inputs_give_different_results():
-    result1 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag1",
-        logical_date=datetime.datetime.now(),
-    )
-    result2 = OpenLineageAdapter.build_dag_run_id(
-        dag_id="dag2",
-        logical_date=datetime.datetime.now(),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result1 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            logical_date=datetime.datetime.now(),
+        )
+        result2 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag2",
+            logical_date=datetime.datetime.now(),
+        )
+    else:
+        result1 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag1",
+            execution_date=datetime.datetime.now(),
+        )
+        result2 = OpenLineageAdapter.build_dag_run_id(
+            dag_id="dag2",
+            execution_date=datetime.datetime.now(),
+        )
     assert result1 != result2
 
 
 def test_build_task_instance_run_id_is_valid_uuid():
-    result = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id="dag_id",
-        task_id="task_id",
-        try_number=1,
-        logical_date=datetime.datetime.now(),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag_id",
+            task_id="task_id",
+            try_number=1,
+            logical_date=datetime.datetime.now(),
+        )
+    else:
+        result = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag_id",
+            task_id="task_id",
+            try_number=1,
+            execution_date=datetime.datetime.now(),
+        )
     uuid_result = uuid.UUID(result)
     assert uuid_result
     assert uuid_result.version == 7
 
 
 def test_build_task_instance_run_id_same_input_gives_same_result():
-    result1 = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id="dag1",
-        task_id="task1",
-        try_number=1,
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
-    )
-    result2 = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id="dag1",
-        task_id="task1",
-        try_number=1,
-        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result1 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+        result2 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+    else:
+        result1 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
+        result2 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        )
     assert result1 == result2
 
 
 def test_build_task_instance_run_id_different_inputs_gives_different_results():
-    result1 = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id="dag1",
-        task_id="task1",
-        try_number=1,
-        logical_date=datetime.datetime.now(),
-    )
-    result2 = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id="dag2",
-        task_id="task2",
-        try_number=2,
-        logical_date=datetime.datetime.now(),
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        result1 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            logical_date=datetime.datetime.now(),
+        )
+        result2 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag2",
+            task_id="task2",
+            try_number=2,
+            logical_date=datetime.datetime.now(),
+        )
+    else:
+        result1 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag1",
+            task_id="task1",
+            try_number=1,
+            execution_date=datetime.datetime.now(),
+        )
+        result2 = OpenLineageAdapter.build_task_instance_run_id(
+            dag_id="dag2",
+            task_id="task2",
+            try_number=2,
+            execution_date=datetime.datetime.now(),
+        )
     assert result1 != result2
 
 

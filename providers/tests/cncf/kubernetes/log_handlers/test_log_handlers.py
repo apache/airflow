@@ -78,12 +78,20 @@ class TestFileTaskLogHandler:
         """Test for k8s executor, the log is read from get_task_log method"""
         mock_k8s_get_task_log.return_value = ([], [])
         executor_name = "KubernetesExecutor"
-        ti = create_task_instance(
-            dag_id="dag_for_testing_k8s_executor_log_read",
-            task_id="task_for_testing_k8s_executor_log_read",
-            run_type=DagRunType.SCHEDULED,
-            logical_date=DEFAULT_DATE,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti = create_task_instance(
+                dag_id="dag_for_testing_k8s_executor_log_read",
+                task_id="task_for_testing_k8s_executor_log_read",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+        else:
+            ti = create_task_instance(
+                dag_id="dag_for_testing_k8s_executor_log_read",
+                task_id="task_for_testing_k8s_executor_log_read",
+                run_type=DagRunType.SCHEDULED,
+                execution_date=DEFAULT_DATE,
+            )
         ti.state = state
         ti.triggerer_job = None
         with conf_vars({("core", "executor"): executor_name}):
