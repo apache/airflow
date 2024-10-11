@@ -67,12 +67,13 @@ class TestHiveCliHook:
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "test_run_cli"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "test_task_id",
-                "AIRFLOW_CTX_LOGICAL_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_TRY_NUMBER": "1",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
@@ -686,12 +687,13 @@ class TestHiveServer2Hook:
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_LOGICAL_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
@@ -713,12 +715,13 @@ class TestHiveServer2Hook:
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_LOGICAL_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
@@ -798,13 +801,13 @@ class TestHiveServer2Hook:
         ]
 
         hook = MockHiveServer2Hook()
-
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_LOGICAL_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",

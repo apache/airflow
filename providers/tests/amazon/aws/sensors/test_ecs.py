@@ -38,6 +38,8 @@ from airflow.providers.amazon.aws.sensors.ecs import (
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 _Operator = TypeVar("_Operator")
 TEST_CLUSTER_NAME = "fake-cluster"
 TEST_TASK_ARN = "arn:aws:ecs:us-east-1:012345678910:task/spam-egg"
@@ -62,13 +64,22 @@ class EcsBaseTestCase:
 
         This might help to prevent of unexpected behaviour in Jinja/task field serialisation
         """
-        ti = self.ti_maker(
-            operator_class,
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            logical_date=timezone.datetime(2021, 12, 21),
-            **kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti = self.ti_maker(
+                operator_class,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                logical_date=timezone.datetime(2021, 12, 21),
+                **kwargs,
+            )
+        else:
+            ti = self.ti_maker(
+                operator_class,
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                execution_date=timezone.datetime(2021, 12, 21),
+                **kwargs,
+            )
         self.session.add(ti)
         self.session.commit()
         return ti.render_templates()
