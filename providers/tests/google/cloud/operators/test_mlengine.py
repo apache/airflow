@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import copy
-import functools
 from unittest import mock
 from unittest.mock import ANY, MagicMock, patch
 
@@ -323,7 +322,6 @@ class TestMLEngineStartBatchPredictionJobOperator:
                 data_format="data_format",
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -402,7 +400,6 @@ class TestMLEngineTrainingCancelJobOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -484,7 +481,6 @@ class TestMLEngineModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -529,7 +525,6 @@ class TestMLEngineCreateModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -575,7 +570,6 @@ class TestMLEngineGetModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -621,7 +615,6 @@ class TestMLEngineDeleteModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -672,7 +665,6 @@ class TestMLEngineVersionOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -745,7 +737,6 @@ class TestMLEngineCreateVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -817,7 +808,6 @@ class TestMLEngineSetDefaultVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -875,7 +865,6 @@ class TestMLEngineListVersions:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -946,7 +935,6 @@ class TestMLEngineDeleteVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -1247,7 +1235,6 @@ class TestMLEngineStartTrainingJobOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -1283,22 +1270,10 @@ TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 
-@pytest.fixture
-def create_task_instance(create_task_instance_of_operator, session):
-    def _create_task_instance(operator_class, **kwargs):
-        return functools.partial(
-            create_task_instance_of_operator,
-            session=session,
-            operator_class=operator_class,
-            dag_id="adhoc_airflow",
-            logical_date=datetime(2022, 1, 1, 0, 0, 0),
-        )(**kwargs)
-
-    return _create_task_instance
-
-
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
-def test_async_create_training_job_should_execute_successfully(mock_hook, create_task_instance, session):
+def test_async_create_training_job_should_execute_successfully(
+    mock_hook, create_task_instance_of_operator, session
+):
     """
     Asserts that a task is deferred and a MLEngineStartTrainingJobTrigger will be fired
     when the MLEngineStartTrainingJobOperator is executed in deferrable mode when deferrable=True.
@@ -1306,7 +1281,7 @@ def test_async_create_training_job_should_execute_successfully(mock_hook, create
     mock_hook.return_value.create_job_without_waiting_result.return_value = "test_training"
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
             region=TEST_REGION,
@@ -1375,11 +1350,13 @@ def create_context(task):
     }
 
 
-def test_async_create_training_job_logging_should_execute_successfully(create_task_instance, session):
+def test_async_create_training_job_logging_should_execute_successfully(
+    create_task_instance_of_operator, session
+):
     """Asserts that logging occurs as expected"""
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
@@ -1406,7 +1383,7 @@ def test_async_create_training_job_logging_should_execute_successfully(create_ta
 
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
 def test_async_create_training_job_with_conflict_should_execute_successfully(
-    mock_hook, create_task_instance, session
+    mock_hook, create_task_instance_of_operator, session
 ):
     """Test that the operator defers correctly when a conflict occurs."""
 
@@ -1416,7 +1393,7 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(
     mock_hook.return_value.get_job.return_value = {"job_id": "test_training"}
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
@@ -1442,11 +1419,13 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(
     mock_hook.return_value.create_job_without_waiting_result.assert_called_once()
 
 
-def test_async_create_training_job_should_throw_exception_if_job_id_none(create_task_instance, session):
+def test_async_create_training_job_should_throw_exception_if_job_id_none(
+    create_task_instance_of_operator, session
+):
     """Test that the operator throws an exception if the job_id is None."""
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_GCP_PROJECT_ID,
@@ -1468,10 +1447,12 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none(create_
         ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_project_id_none(create_task_instance, session):
+def test_async_create_training_job_should_throw_exception_if_project_id_none(
+    create_task_instance_of_operator, session
+):
     """Test that the operator throws an exception if the project_id is None."""
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=None,
@@ -1491,10 +1472,12 @@ def test_async_create_training_job_should_throw_exception_if_project_id_none(cre
         ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_custom_none(create_task_instance, session):
+def test_async_create_training_job_should_throw_exception_if_custom_none(
+    create_task_instance_of_operator, session
+):
     """Test that the operator throws an exception if master_type is None while master_config is provided."""
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,
@@ -1516,11 +1499,13 @@ def test_async_create_training_job_should_throw_exception_if_custom_none(create_
         ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_package_none(create_task_instance, session):
+def test_async_create_training_job_should_throw_exception_if_package_none(
+    create_task_instance_of_operator, session
+):
     """Test that the operator throws an exception if both package_uris and training_python_module are None."""
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,
@@ -1544,11 +1529,13 @@ def test_async_create_training_job_should_throw_exception_if_package_none(create
         ti.task.execute({"ti": ti})
 
 
-def test_async_create_training_job_should_throw_exception_if_uris_none(create_task_instance, session):
+def test_async_create_training_job_should_throw_exception_if_uris_none(
+    create_task_instance_of_operator, session
+):
     """Test that the operator throws an exception if package_uris is None."""
 
     with pytest.warns(AirflowProviderDeprecationWarning):
-        ti = create_task_instance(
+        ti = create_task_instance_of_operator(
             operator_class=MLEngineStartTrainingJobOperator,
             task_id=TEST_TASK_ID,
             project_id=TEST_PROJECT_ID,

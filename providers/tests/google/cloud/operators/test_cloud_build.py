@@ -21,7 +21,6 @@ This module contains various unit tests for GCP Cloud Build Operators
 
 from __future__ import annotations
 
-import functools
 import json
 import tempfile
 from copy import deepcopy
@@ -405,17 +404,6 @@ class TestBuildProcessor:
         assert body == expected_body
 
 
-@pytest.fixture
-def create_task_instance(create_task_instance_of_operator, session):
-    return functools.partial(
-        create_task_instance_of_operator,
-        session=session,
-        operator_class=CloudBuildCreateBuildOperator,
-        dag_id="adhoc_airflow",
-        logical_date=datetime(2022, 1, 1, 0, 0, 0),
-    )
-
-
 def set_execute_complete(session, ti, **next_kwargs):
     ti.next_method = "execute_complete"
     ti.next_kwargs = next_kwargs
@@ -424,11 +412,11 @@ def set_execute_complete(session, ti, **next_kwargs):
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_fires_correct_trigger_should_execute_successfully(
-    mock_hook, create_task_instance, session
+    mock_hook, create_task_instance_of_operator, session
 ):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
 
-    ti = create_task_instance(
+    ti = create_task_instance_of_operator(
         build=BUILD,
         task_id="id",
         deferrable=True,
@@ -465,12 +453,12 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
 
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_correct_logging_should_execute_successfully(
-    mock_hook, create_task_instance, session
+    mock_hook, create_task_instance_of_operator, session
 ):
     mock_hook.return_value.create_build_without_waiting_for_result.return_value = (BUILD, BUILD_ID)
     mock_hook.return_value.get_build.return_value = Build()
 
-    ti = create_task_instance(
+    ti = create_task_instance_of_operator(
         build=BUILD,
         task_id="id",
         deferrable=True,
