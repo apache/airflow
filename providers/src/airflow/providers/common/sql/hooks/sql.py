@@ -631,9 +631,6 @@ class DbApiHook(BaseHook):
         """Return a cursor."""
         return self.get_conn().cursor()
 
-    def reserved_words(self) -> set[str]:
-        return set()
-
     def _generate_insert_sql(self, table, values, target_fields=None, replace: bool = False, **kwargs) -> str:
         """
         Generate the INSERT SQL statement.
