@@ -39,7 +39,6 @@ from typing import Any, Callable, Iterable, Mapping, TypeVar
 T = TypeVar("T")
 
 class Dialect(LoggingMixin):
-    name: str
     hook: Incomplete
     def __init__(self, name: str, hook, **kwargs) -> None: ...
     @property

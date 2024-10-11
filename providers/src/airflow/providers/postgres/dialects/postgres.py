@@ -24,6 +24,10 @@ from airflow.providers.common.sql.dialects.dialect import Dialect
 class PostgresDialect(Dialect):
     """Postgres dialect implementation."""
 
+    @property
+    def name(self) -> str:
+        return "postgresql"
+
     @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         """
