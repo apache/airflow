@@ -29,7 +29,6 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow import settings
-from airflow.cli import cli_parser
 from airflow.exceptions import (
     AirflowException,
     BackfillUnfinished,
@@ -186,7 +185,6 @@ class TestBackfillJob:
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self, dag_bag):
         self.clean_db()
-        self.parser = cli_parser.get_parser()
         self.dagbag = dag_bag
         # `airflow tasks run` relies on serialized_dag
         for dag in self.dagbag.dags.values():
@@ -1125,24 +1123,6 @@ class TestBackfillJob:
             job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
             with pytest.raises(AirflowException, match=expected_msg):
                 run_job(job=job, execute_callable=job_runner._execute)
-
-    def test_cli_receives_delay_arg(self):
-        """
-        Tests that the --delay argument is passed correctly to the BackfillJob
-        """
-        dag_id = "example_bash_operator"
-        run_date = DEFAULT_DATE
-        args = [
-            "dags",
-            "backfill",
-            dag_id,
-            "-s",
-            run_date.isoformat(),
-            "--delay-on-limit",
-            "0.5",
-        ]
-        parsed_args = self.parser.parse_args(args)
-        assert 0.5 == parsed_args.delay_on_limit
 
     def _get_dag_test_max_active_limits(
         self, dag_maker_fixture, dag_id="test_dag", max_active_runs=1, **kwargs
