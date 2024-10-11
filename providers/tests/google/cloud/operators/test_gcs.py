@@ -385,7 +385,6 @@ class TestGCSTimeSpanFileTransformOperator:
             session=session,
             operator_class=GCSTimeSpanFileTransformOperator,
             dag_id="adhoc_airflow",
-            logical_date=datetime(2022, 1, 1, 0, 0, 0),
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")

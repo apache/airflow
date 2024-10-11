@@ -23,6 +23,7 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
 
 from airflow.providers.google.cloud.operators.bigquery_dts import (
+    BigQueryCreateDataTransferOperator,
     BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
@@ -63,7 +64,11 @@ class TestBigQueryCreateDataTransferOperator:
     )
     def test_execute(self, mock_hook, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
-            transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID, task_id="id"
+            transfer_config=TRANSFER_CONFIG,
+            project_id=PROJECT_ID,
+            task_id="id",
+            operator_class=BigQueryCreateDataTransferOperator,
+            dag_id="create_data_transfer",
         )
         return_value = ti.task.execute({"ti": ti})
 

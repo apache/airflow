@@ -420,6 +420,8 @@ def test_async_create_build_fires_correct_trigger_should_execute_successfully(
         build=BUILD,
         task_id="id",
         deferrable=True,
+        operator_class=CloudBuildCreateBuildOperator,
+        dag_id="cloud_build_create_build_job",
     )
 
     with pytest.raises(TaskDeferred) as exc:
@@ -462,6 +464,8 @@ def test_async_create_build_correct_logging_should_execute_successfully(
         build=BUILD,
         task_id="id",
         deferrable=True,
+        operator_class=CloudBuildCreateBuildOperator,
+        dag_id="cloud_build_create_build_logging",
     )
 
     with mock.patch.object(ti.task.log, "info") as mock_log_info:
