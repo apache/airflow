@@ -239,7 +239,6 @@ class TestAzureDataFactoryRunPipelineOperator:
         ti = create_task_instance_of_operator(
             AzureDataFactoryRunPipelineOperator,
             dag_id="test_adf_run_pipeline_op_link",
-            logical_date=DEFAULT_DATE,
             task_id=TASK_ID,
             azure_data_factory_conn_id=AZURE_DATA_FACTORY_CONN_ID,
             pipeline_name=PIPELINE_NAME,
@@ -278,7 +277,6 @@ def create_task_instance(create_task_instance_of_operator, session):
             session=session,
             operator_class=operator_class,
             dag_id="adhoc_airflow",
-            logical_date=timezone.datetime(2022, 1, 1),
         )(**kwargs)
 
     return _create_task_instance

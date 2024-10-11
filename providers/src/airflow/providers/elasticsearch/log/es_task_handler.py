@@ -44,6 +44,8 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 if TYPE_CHECKING:
     from datetime import datetime
 
@@ -256,7 +258,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            logical_date = self._clean_date(dag_run.logical_date)
+            logical_date = (
+                self._clean_date(dag_run.logical_date)
+                if AIRFLOW_V_3_0_PLUS
+                else self._clean_date(dag_run.execution_date)
+            )
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -266,17 +272,32 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            logical_date = dag_run.logical_date.isoformat()
+            logical_date = (
+                dag_run.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else dag_run.execution_date.isoformat()
+            )
 
-        return log_id_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=getattr(ti, "run_id", ""),
-            data_interval_start=data_interval_start,
-            data_interval_end=data_interval_end,
-            logical_date=logical_date,
-            try_number=try_number,
-            map_index=getattr(ti, "map_index", ""),
+        return (
+            log_id_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=getattr(ti, "run_id", ""),
+                data_interval_start=data_interval_start,
+                data_interval_end=data_interval_end,
+                logical_date=logical_date,
+                try_number=try_number,
+                map_index=getattr(ti, "map_index", ""),
+            )
+            if AIRFLOW_V_3_0_PLUS
+            else log_id_template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=getattr(ti, "run_id", ""),
+                data_interval_start=data_interval_start,
+                data_interval_end=data_interval_end,
+                execution_date=logical_date,
+                try_number=try_number,
+                map_index=getattr(ti, "map_index", ""),
+            )
         )
 
     @staticmethod
@@ -444,7 +465,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
         self.mark_end_on_close = not is_ti_raw and not is_trigger_log_context
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
                 fmt=self.formatter._fmt,
@@ -452,7 +473,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
-                    "logical_date": self._clean_date(ti.logical_date),
+                    date_key: self._clean_date(ti.logical_date)
+                    if AIRFLOW_V_3_0_PLUS
+                    else self._clean_date(ti.execution_date),
                     "try_number": str(ti.try_number),
                     "log_id": self._render_log_id(ti, ti.try_number),
                 },

@@ -700,14 +700,25 @@ class TestSparkKubernetesOperator:
 
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):
-    ti = create_task_instance_of_operator(
-        SparkKubernetesOperator,
-        template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
-        kubernetes_conn_id="kubernetes_default_kube_config",
-        dag_id="test_template_body_templating_dag",
-        task_id="test_template_body_templating_task",
-        session=session,
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        ti = create_task_instance_of_operator(
+            SparkKubernetesOperator,
+            template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            session=session,
+        )
+    else:
+        ti = create_task_instance_of_operator(
+            SparkKubernetesOperator,
+            template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            session=session,
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
     session.add(ti)
     session.commit()
     ti.render_templates()
