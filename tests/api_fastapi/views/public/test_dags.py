@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 
 import pendulum
@@ -32,6 +33,7 @@ from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_d
 
 pytestmark = pytest.mark.db_test
 
+AIRFLOW_TESTS_DIR = os.environ["AIRFLOW_TESTS_DIR"]
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
@@ -114,51 +116,52 @@ def setup(dag_maker, session=None) -> None:
     _create_deactivated_paused_dag()
 
 
-@pytest.mark.parametrize(
-    "query_params, expected_total_entries, expected_ids",
-    [
-        # Filters
-        ({}, 2, [DAG1_ID, DAG2_ID]),
-        ({"limit": 1}, 2, [DAG1_ID]),
-        ({"offset": 1}, 2, [DAG2_ID]),
-        ({"tags": ["example"]}, 1, [DAG1_ID]),
-        ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
-        ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
-        ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
-        ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
-        ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
-        ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
-        ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
-        # # Sort
-        ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
-        ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
-        ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
-        ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-        ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
-        ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-        (
-            {"order_by": "last_run_start_date", "only_active": False},
-            3,
-            [DAG1_ID, DAG3_ID, DAG2_ID],
-        ),
-        (
-            {"order_by": "-last_run_start_date", "only_active": False},
-            3,
-            [DAG3_ID, DAG1_ID, DAG2_ID],
-        ),
-        # Search
-        ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
-        ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
-    ],
-)
-def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
-    response = test_client.get("/public/dags", params=query_params)
+class TestGetDags:
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_ids",
+        [
+            # Filters
+            ({}, 2, [DAG1_ID, DAG2_ID]),
+            ({"limit": 1}, 2, [DAG1_ID]),
+            ({"offset": 1}, 2, [DAG2_ID]),
+            ({"tags": ["example"]}, 1, [DAG1_ID]),
+            ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+            ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
+            ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
+            ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
+            ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
+            # # Sort
+            ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
+            ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
+            ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
+            ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
+            ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            (
+                {"order_by": "last_run_start_date", "only_active": False},
+                3,
+                [DAG1_ID, DAG3_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "-last_run_start_date", "only_active": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            # Search
+            ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+            ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+        ],
+    )
+    def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
+        response = test_client.get("/public/dags", params=query_params)
 
-    assert response.status_code == 200
-    body = response.json()
+        assert response.status_code == 200
+        body = response.json()
 
-    assert body["total_entries"] == expected_total_entries
-    assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        assert body["total_entries"] == expected_total_entries
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
 
 @pytest.mark.parametrize(
@@ -262,7 +265,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "description": None,
         "doc_md": "details",
         "end_date": None,
-        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "fileloc": f"{AIRFLOW_TESTS_DIR}/api_fastapi/views/public/test_dags.py",
         "file_token": file_token,
         "has_import_errors": False,
         "has_task_concurrency_limits": True,
@@ -324,7 +327,7 @@ def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_di
         "dag_id": dag_id,
         "dag_display_name": dag_display_name,
         "description": None,
-        "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
+        "fileloc": f"{AIRFLOW_TESTS_DIR}/api_fastapi/views/public/test_dags.py",
         "file_token": file_token,
         "is_paused": False,
         "is_active": True,
