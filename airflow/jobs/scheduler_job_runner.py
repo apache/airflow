@@ -116,7 +116,7 @@ class ConcurrencyMap:
         self.dag_run_active_tasks_map.clear()
         self.task_concurrency_map.clear()
         self.task_dagrun_concurrency_map.clear()
-        query = session.scalars(
+        query = session.execute(
             select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
             .where(TI.state.in_(self.states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
