@@ -47,22 +47,6 @@ class PostgresDialect(Dialect):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
-    def generate_insert_sql(self, table, values, target_fields, **kwargs) -> str:
-        """
-        Generate the INSERT SQL statement.
-
-        :param table: Name of the target table
-        :param values: The row to insert into the table
-        :param target_fields: The names of the columns to fill in the table
-        :param replace: Whether to replace instead of insert
-        :param replace_index: the column or list of column names to act as
-            index for the ON CONFLICT clause
-        :return: The generated INSERT or REPLACE SQL statement
-        """
-        target_fields_fragment = self._joined_target_fields(target_fields)
-
-        return f"INSERT INTO {table} {target_fields_fragment} VALUES ({self._joined_placeholders(values)})"
-
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """
         Generate the REPLACE SQL statement.
