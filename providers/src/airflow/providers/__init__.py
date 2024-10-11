@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-# Explicit namespaces are required by some IDEs to resolve the import paths.
+# Make `airflow` a namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)  This is required by some IDEs to resolve the import paths.
 #
 # Note: this file is not installed or distributed in any distribution!
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
