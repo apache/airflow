@@ -296,6 +296,45 @@ export const useDagRunServiceGetDagRun = <
     ...options,
   });
 /**
+ * Post Variable
+ * Create a variable.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePostVariable = <
+  TData = Common.VariableServicePostVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.postVariable({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dags
  * Patch multiple DAGs.
  * @param data The data for the request.
