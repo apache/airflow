@@ -36,6 +36,7 @@ class TestPostgresDialect:
         ]
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = lambda sql, parameters: [("id",)]
+        self.test_db_hook._insert_statement_format = "INSERT INTO {} {} VALUES ({})"
 
     def test_placeholder(self):
         assert PostgresDialect("postgres", self.test_db_hook).placeholder == "?"
