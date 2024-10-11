@@ -58,6 +58,10 @@ class Dialect(LoggingMixin):
     def _replace_statement_format(self) -> str:
         return self.hook._replace_statement_format  # type: ignore
 
+    @property
+    def _escape_column_name_format(self) -> str:
+        return self.hook._escape_column_name_format  # type: ignore
+
     @classmethod
     def _extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
         parts = table.split(".")
@@ -112,8 +116,8 @@ class Dialect(LoggingMixin):
         :param column_name: Name of the column
         :return: The escaped column name if needed
         """
-        if "'" not in column_name and column_name.casefold() in self.reserved_words:
-            return f"'{column_name}'"
+        if column_name != self._escape_column_name_format.format(column_name) and column_name.casefold() in self.reserved_words:
+            return self._escape_column_name_format.format(column_name)
         return column_name
 
     def _joined_placeholders(self, values) -> str:

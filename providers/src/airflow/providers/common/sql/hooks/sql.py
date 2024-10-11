@@ -192,6 +192,9 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str = kwargs.get(
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
+        self._escape_column_name_format: str = kwargs.get(
+            "escape_column_name_format", '"{}"'
+        )
         self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:

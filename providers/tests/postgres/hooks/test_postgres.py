@@ -628,4 +628,4 @@ class TestPostgresHook:
         hook = PostgresHook()
         assert hook._generate_insert_sql(
             table="connection", values=values, target_fields=target_fields
-        ) == INSERT_SQL_STATEMENT.format("'schema'")
+        ) == INSERT_SQL_STATEMENT.format('"schema"')

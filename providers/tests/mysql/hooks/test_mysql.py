@@ -42,7 +42,7 @@ from airflow.utils import timezone
 from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
-INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, 'schema', login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+INSERT_SQL_STATEMENT = 'INSERT INTO connection (id, conn_id, conn_type, description, host, "schema", login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)'
 
 
 @pytest.mark.skipif(not MYSQL_AVAILABLE, reason="MySQL not available")
@@ -390,7 +390,7 @@ class TestMySqlHook:
             "conn_type",
             "description",
             "host",
-            "'schema'",
+            '"schema"',
             "login",
             "password",
             "port",
