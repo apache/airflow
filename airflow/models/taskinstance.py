@@ -3673,7 +3673,10 @@ class TaskInstance(Base, LoggingMixin):
                 assert task
                 assert task.dag
 
-            # In many scenarios, get a partial DAG is an unsafe operation and will lead to many bad cases.
+            # Previously, this section used task.dag.partial_subset to retrieve a partial DAG.
+            # However, this approach is unsafe as it can result in incomplete or incorrect task execution,
+            # leading to potential bad cases. As a result, the operation has been removed.
+            # For more details, refer to the discussion in PR #[https://github.com/apache/airflow/pull/42582].
             dag_run.dag = task.dag
             info = dag_run.task_instance_scheduling_decisions(session)
 
