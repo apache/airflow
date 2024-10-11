@@ -2293,9 +2293,6 @@ class DAG(LoggingMixin):
 
         self.task_count = len(self.task_dict)
 
-    def run(self, *args, **kwargs):
-        """Leaving this here to be removed in other PR for simpler review."""
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
