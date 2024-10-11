@@ -219,7 +219,7 @@ def get_mapped_task_instances(
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
+    task_instances = session.scalars(entry_query.offset(offset).limit(limit))
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
