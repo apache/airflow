@@ -157,7 +157,9 @@ dependencies:
   - grpcio-gcp>=0.2.2
   - httpx>=0.25.0
   - json-merge-patch>=0.2
-  - looker-sdk>=22.4.0
+  # looker-sdk 24.18.0 has issues in import looker_sdk.rtl,  No module named looker_sdk.rtl
+  # See https://github.com/looker-open-source/sdk-codegen/issues/1518
+  - looker-sdk>=22.4.0,!=24.18.0
   - pandas-gbq>=0.7.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
