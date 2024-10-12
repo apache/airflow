@@ -53,33 +53,19 @@ def get_dag_stats(
         filter_dag_ids = dags_list.intersection(allowed_dag_ids)
     else:
         filter_dag_ids = allowed_dag_ids
+    query_dag_ids = sorted(list(filter_dag_ids))
+    if offset is not None:
+        query_dag_ids = query_dag_ids[offset:]
+    if limit is not None:
+        query_dag_ids = query_dag_ids[:limit]
 
     query = (
         select(DagRun.dag_id, DagRun.state, func.count(DagRun.state).label("count"))
         .group_by(DagRun.dag_id, DagRun.state)
-        .where(DagRun.dag_id.in_(filter_dag_ids))
+        .where(DagRun.dag_id.in_(query_dag_ids))
     )
-    if limit or offset:
-        query = query.subquery()
-        ranked_query = select(
-            query.c.dag_id,
-            query.c.state,
-            query.c.count,
-            func.dense_rank().over(order_by=query.c.dag_id).label("rank"),
-        ).subquery()
-        paginated_query = select(ranked_query.c.dag_id, ranked_query.c.state, ranked_query.c.count)
-        if offset:
-            paginated_query = paginated_query.where(ranked_query.c.rank > offset)
-        if limit:
-            paginated_query = paginated_query.where(
-                ranked_query.c.rank <= limit + (offset if offset is not None else 0)
-            )
-        dag_state_stats = session.execute(paginated_query)
-    else:
-        dag_state_stats = session.execute(query)
-
+    dag_state_stats = session.execute(query)
     dag_state_data = {(dag_id, state): count for dag_id, state, count in dag_state_stats}
-    dag_ids = {dag[0] for dag in dag_state_data.keys()}
     dag_stats = [
         {
             "dag_id": dag_id,
@@ -87,6 +73,6 @@ def get_dag_stats(
                 {"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState
             ],
         }
-        for dag_id in dag_ids
+        for dag_id in query_dag_ids
     ]
     return dag_stats_collection_schema.dump({"dags": dag_stats, "total_entries": len(dag_stats)})

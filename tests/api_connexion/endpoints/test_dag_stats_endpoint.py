@@ -341,6 +341,7 @@ class TestDagStatsEndpoint:
                     "total_entries": 1,
                 },
             ),
+            ("api/v1/dagStats?offset=10&limit=1", {"dags": [], "total_entries": 0}),
         ],
     )
     def test_optional_dag_ids_with_limit_offset(self, url, exp_payload, session):
