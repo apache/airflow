@@ -117,7 +117,7 @@ def on_celery_import_modules(*args, **kwargs):
         import airflow.providers.standard.operators.bash
     except ImportError:
         import airflow.operators.bash  # noqa: F401
-        import airflow.operators.python # noqa: F401
+        import airflow.operators.python  # noqa: F401
 
     with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
