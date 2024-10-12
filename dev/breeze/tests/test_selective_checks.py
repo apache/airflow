@@ -288,10 +288,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
-                    "ExternalPython Operators PythonVenv",
+                    "ExternalPython PythonVenv",
                     "providers-test-types-list-as-string": "",
                     "separate-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
-                    "ExternalPython Operators PythonVenv",
+                    "ExternalPython PythonVenv",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-airflow']",
                 },
@@ -751,7 +751,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": "standard",
+                "affected-providers-list-as-string": "apache.spark celery docker google standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -790,7 +790,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[standard] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[apache.spark,celery,docker,standard] Providers[google] Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -1306,7 +1306,7 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.compat common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
+                "mysql openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "needs-helm-tests": "false",
@@ -1336,7 +1336,7 @@ def test_expected_output_full_tests_needed(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh trino",
+                "presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1454,7 +1454,7 @@ def test_expected_output_pull_request_v2_7(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1773,7 +1773,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
-                "postgres presto salesforce samba sftp ssh trino",
+                "postgres presto salesforce samba sftp ssh standard trino",
             },
             id="Google provider docs changed",
         ),
@@ -1821,7 +1821,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("providers/src/airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "celery cncf.kubernetes"},
+            {"docs-list-as-string": "celery cncf.kubernetes standard"},
             id="Celery python files changed",
         ),
         pytest.param(
