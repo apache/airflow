@@ -151,6 +151,32 @@ export const useDagServiceGetDagsSuspense = <
     ...options,
   });
 /**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.tags
+ * @returns DAGTagResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagTagsSuspense = <
+  TData = Common.DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    tags,
+  }: {
+    tags?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ tags }, queryKey),
+    queryFn: () => DagService.getDagTags({ tags }) as TData,
+    ...options,
+  });
+/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.

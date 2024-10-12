@@ -186,6 +186,14 @@ export type DagProcessorInfoSchema = {
 };
 
 /**
+ * DAG Tags serializer for responses.
+ */
+export type DAGTagResponse = {
+  name: string;
+  selected: boolean;
+};
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -370,6 +378,12 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
+export type GetDagTagsData = {
+  tags?: Array<string>;
+};
+
+export type GetDagTagsResponse = Array<DAGTagResponse>;
+
 export type GetDagData = {
   dagId: string;
 };
@@ -546,6 +560,33 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/tags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Array<DAGTagResponse>;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -11,6 +11,8 @@ import type {
   GetDagsResponse,
   PatchDagsData,
   PatchDagsResponse,
+  GetDagTagsData,
+  GetDagTagsResponse,
   GetDagData,
   GetDagResponse,
   PatchDagData,
@@ -179,6 +181,32 @@ export class DagService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Tags
+   * Get all DAG tags.
+   * @param data The data for the request.
+   * @param data.tags
+   * @returns DAGTagResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagTags(
+    data: GetDagTagsData = {},
+  ): CancelablePromise<GetDagTagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/tags",
+      query: {
+        tags: data.tags,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

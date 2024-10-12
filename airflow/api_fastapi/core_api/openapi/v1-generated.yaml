@@ -291,6 +291,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/tags:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Tags
+      description: Get all DAG tags.
+      operationId: get_dag_tags
+      parameters:
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DAGTagResponse'
+                title: Response Get Dag Tags
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}:
     get:
       tags:
@@ -1696,6 +1746,20 @@ components:
       - latest_dag_processor_heartbeat
       title: DagProcessorInfoSchema
       description: Schema for DagProcessor info.
+    DAGTagResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        selected:
+          type: boolean
+          title: Selected
+      type: object
+      required:
+      - name
+      - selected
+      title: DAGTagResponse
+      description: DAG Tags serializer for responses.
     DagRunState:
       type: string
       enum:
