@@ -245,7 +245,9 @@ class DagBag(LoggingMixin):
 
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
-        is_expired = orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired
+        is_expired = (
+            orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
+        )
         if is_expired:
             # Remove associated dags so we can re-add them.
             self.dags = {key: dag for key, dag in self.dags.items()}
