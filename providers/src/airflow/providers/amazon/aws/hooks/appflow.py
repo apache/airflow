@@ -115,11 +115,11 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
             # Clean up attribute to force on-demand trigger
             del response["triggerConfig"]["triggerProperties"]
 
-        self.conn.update_flow(
+        self.conn.update_flow(  # type: ignore[arg-type]
             flowName=response["flowName"],
             destinationFlowConfigList=response["destinationFlowConfigList"],
             sourceFlowConfig=response["sourceFlowConfig"],
             triggerConfig=response["triggerConfig"],
             description=response.get("description", "Flow description."),
             tasks=tasks,
-        )  # type: ignore[arg-type]
+        )
