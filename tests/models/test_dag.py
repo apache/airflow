@@ -70,8 +70,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable

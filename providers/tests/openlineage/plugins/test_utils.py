@@ -50,8 +50,10 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
+PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
 if not AIRFLOW_V_2_10_PLUS:
     BASH_OPERATOR_PATH = "airflow.operators.bash"
+    PYTHON_OPERATOR_PATH = "airflow.operators.python"
 
 
 class SafeStrDict(dict):
@@ -283,7 +285,7 @@ def test_is_operator_disabled(mock_disabled_operators):
 
     mock_disabled_operators.return_value = {
         f"{BASH_OPERATOR_PATH}.BashOperator",
-        "airflow.operators.python.PythonOperator",
+        f"{PYTHON_OPERATOR_PATH}.PythonOperator",
     }
     assert is_operator_disabled(op) is True
 

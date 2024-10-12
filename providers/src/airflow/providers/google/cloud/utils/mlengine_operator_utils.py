@@ -32,7 +32,11 @@ from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
-from airflow.providers.standard.operators.python import PythonOperator
+
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     from airflow import DAG
