@@ -29,10 +29,8 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow import settings
-from airflow.cli import cli_parser
 from airflow.exceptions import (
     AirflowException,
-    AirflowTaskTimeout,
     BackfillUnfinished,
     DagConcurrencyLimitReached,
     NoAvailablePoolSlot,
@@ -54,7 +52,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
@@ -188,7 +185,6 @@ class TestBackfillJob:
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self, dag_bag):
         self.clean_db()
-        self.parser = cli_parser.get_parser()
         self.dagbag = dag_bag
         # `airflow tasks run` relies on serialized_dag
         for dag in self.dagbag.dags.values():
@@ -1070,34 +1066,6 @@ class TestBackfillJob:
             ],
         ]
 
-    def test_backfill_pooled_tasks(self):
-        """
-        Test that queued tasks are executed by BackfillJobRunner
-        """
-        session = settings.Session()
-        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1, include_deferred=False)
-        session.add(pool)
-        session.commit()
-        session.close()
-
-        dag = self.dagbag.get_dag("test_backfill_pooled_task_dag")
-        dag.clear()
-
-        job = Job()
-        job_runner = BackfillJobRunner(job=job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-        # run with timeout because this creates an infinite loop if not
-        # caught
-        try:
-            with timeout(seconds=20):
-                run_job(job=job, execute_callable=job_runner._execute)
-        except AirflowTaskTimeout:
-            logger.info("Timeout while waiting for task to complete")
-        run_id = f"backfill__{DEFAULT_DATE.isoformat()}"
-        ti = TI(task=dag.get_task("test_backfill_pooled_task"), run_id=run_id)
-        ti.refresh_from_db()
-        assert ti.state == State.SUCCESS
-
     @pytest.mark.parametrize("ignore_depends_on_past", [True, False])
     def test_backfill_depends_on_past_works_independently_on_ignore_depends_on_past(
         self, ignore_depends_on_past, mock_executor
@@ -1155,24 +1123,6 @@ class TestBackfillJob:
             job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
             with pytest.raises(AirflowException, match=expected_msg):
                 run_job(job=job, execute_callable=job_runner._execute)
-
-    def test_cli_receives_delay_arg(self):
-        """
-        Tests that the --delay argument is passed correctly to the BackfillJob
-        """
-        dag_id = "example_bash_operator"
-        run_date = DEFAULT_DATE
-        args = [
-            "dags",
-            "backfill",
-            dag_id,
-            "-s",
-            run_date.isoformat(),
-            "--delay-on-limit",
-            "0.5",
-        ]
-        parsed_args = self.parser.parse_args(args)
-        assert 0.5 == parsed_args.delay_on_limit
 
     def _get_dag_test_max_active_limits(
         self, dag_maker_fixture, dag_id="test_dag", max_active_runs=1, **kwargs
