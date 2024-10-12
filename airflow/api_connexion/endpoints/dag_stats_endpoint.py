@@ -60,13 +60,13 @@ def get_dag_stats(
         query_dag_ids = query_dag_ids[:limit]
 
     query = (
-        select(DagRun.dag_id, DagRun.state, func.count(DagRun.state).label("count"))
+        select(DagRun.dag_id, DagRun.state, func.count(DagRun.state))
         .group_by(DagRun.dag_id, DagRun.state)
         .where(DagRun.dag_id.in_(query_dag_ids))
     )
     dag_state_stats = session.execute(query)
     dag_state_data = {(dag_id, state): count for dag_id, state, count in dag_state_stats}
-    dag_stats = [
+    dags = [
         {
             "dag_id": dag_id,
             "stats": [
@@ -75,4 +75,4 @@ def get_dag_stats(
         }
         for dag_id in query_dag_ids
     ]
-    return dag_stats_collection_schema.dump({"dags": dag_stats, "total_entries": len(dag_stats)})
+    return dag_stats_collection_schema.dump({"dags": dags, "total_entries": len(dags)})
