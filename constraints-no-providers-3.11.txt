@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-11T13:44:07.464217
+# This constraints file was automatically generated on 2024-10-12T10:00:50.594004
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -59,7 +59,7 @@ cgroupspy==0.2.3
 charset-normalizer==3.4.0
 click==8.1.7
 clickclick==20.10.2
-cloudpickle==3.0.0
+cloudpickle==3.1.0
 colorama==0.4.6
 colorlog==6.8.2
 connexion==2.14.2
@@ -76,7 +76,7 @@ email_validator==2.2.0
 eval_type_backport==0.2.0
 eventlet==0.37.0
 fastapi-cli==0.0.5
-fastapi==0.115.0
+fastapi==0.115.1
 fastavro==1.9.7
 filelock==3.16.1
 frozenlist==1.4.1
@@ -194,7 +194,7 @@ watchfiles==0.24.0
 websockets==13.1
 wirerope==0.4.7
 wrapt==1.16.0
-yarl==1.14.0
+yarl==1.15.0
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.1.0

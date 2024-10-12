@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-11T13:51:23.001060
+# This constraints file was automatically generated on 2024-10-12T10:08:03.822820
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -253,7 +253,7 @@ click-plugins==1.1.1
 click-repl==0.3.0
 click==8.1.7
 clickclick==20.10.2
-cloudpickle==3.0.0
+cloudpickle==3.1.0
 cohere==4.57
 colorama==0.4.6
 colorlog==6.8.2
@@ -421,7 +421,7 @@ joserfc==1.0.0
 json-merge-patch==0.2
 jsondiff==2.2.1
 jsonpatch==1.33
-jsonpath-ng==1.6.1
+jsonpath-ng==1.7.0
 jsonpath-python==1.0.6
 jsonpointer==3.0.0
 jsonschema-path==0.3.3
@@ -468,7 +468,7 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.35.0
+mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.31
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.32
@@ -480,7 +480,7 @@ nbclient==0.10.0
 nbformat==5.10.4
 neo4j==5.25.0
 nest-asyncio==1.6.0
-networkx==3.4
+networkx==3.4.1
 nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
@@ -677,7 +677,7 @@ sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.18
+teradatasql==20.0.0.19
 teradatasqlalchemy==20.0.0.2
 termcolor==2.5.0
 text-unidecode==1.3
@@ -747,7 +747,7 @@ xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
-yarl==1.14.0
+yarl==1.15.0
 ydb==3.18.2
 zeep==4.2.1
 zenpy==2.0.53
