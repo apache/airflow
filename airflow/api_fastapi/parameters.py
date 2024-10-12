@@ -29,7 +29,7 @@ from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
-from airflow.models import Base
+from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -158,6 +158,7 @@ class SortParam(BaseParam[str]):
     attr_mapping = {
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
+        "connection_id": Connection.conn_id,
     }
 
     def __init__(
