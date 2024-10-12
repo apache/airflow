@@ -1124,7 +1124,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         return kwargs
 
     @mock.patch("shutil.which")
-    @mock.patch("airflow.operators.python.importlib")
+    @mock.patch("airflow.providers.standard.operators.python.importlib")
     def test_virtualenv_not_installed(self, importlib_mock, which_mock):
         which_mock.return_value = None
         importlib_mock.util.find_spec.return_value = None
@@ -1270,7 +1270,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_operator(f, requirements="requirements.txt", system_site_packages=False)
 
-    @mock.patch("airflow.operators.python.prepare_virtualenv")
+    @mock.patch("airflow.providers.standard.operators.python.prepare_virtualenv")
     def test_pip_install_options(self, mocked_prepare_virtualenv):
         def f():
             import funcsigs  # noqa: F401

@@ -38,17 +38,13 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-standard/operators.rst
 
-integrations:
-  - integration-name: Standard
-    external-doc-url: https://airflow.apache.org/
-    tags: [apache]
-
 operators:
   - integration-name: Standard
     python-modules:
       - airflow.providers.standard.operators.datetime
       - airflow.providers.standard.operators.weekday
       - airflow.providers.standard.operators.bash
+      - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
 
 sensors:
@@ -59,7 +55,7 @@ sensors:
       - airflow.providers.standard.sensors.time
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
-
+      - airflow.providers.standard.sensors.python
 hooks:
   - integration-name: Standard
     python-modules:

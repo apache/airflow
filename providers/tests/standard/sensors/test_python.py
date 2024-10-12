@@ -21,11 +21,11 @@ from collections import namedtuple
 from datetime import date
 
 import pytest
+from tests.providers.standard.operators.test_python import BasePythonTest
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import PokeReturnValue
-from tests.providers.standard.operators.test_python import BasePythonTest
 
 pytestmark = pytest.mark.db_test
 

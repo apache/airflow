@@ -29,7 +29,6 @@ from datetime import datetime
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -39,6 +38,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

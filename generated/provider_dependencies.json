@@ -67,7 +67,8 @@
       "mongo",
       "openlineage",
       "salesforce",
-      "ssh"
+      "ssh",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -1250,7 +1251,8 @@
     "cross-providers-deps": [
       "common.compat",
       "common.sql",
-      "openlineage"
+      "openlineage",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"

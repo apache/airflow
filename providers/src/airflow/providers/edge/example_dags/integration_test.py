@@ -33,7 +33,7 @@ from airflow.models.dag import DAG
 from airflow.models.param import Param
 from airflow.models.variable import Variable
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator

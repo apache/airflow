@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models import DagRun
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState
 from airflow.utils.trigger_rule import TriggerRule

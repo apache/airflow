@@ -48,8 +48,10 @@ from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
 from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
+PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
 if not AIRFLOW_V_2_10_PLUS:
     BASH_OPERATOR_PATH = "airflow.operators.bash"
+    PYTHON_OPERATOR_PATH = "airflow.operators.python"
 
 
 class CustomOperatorForTest(BashOperator):
@@ -97,7 +99,7 @@ def test_get_airflow_job_facet():
                     "downstream_task_ids": ["section_1.task_3"],
                 },
                 "section_1.task_3": {
-                    "operator": "airflow.operators.python.PythonOperator",
+                    "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
                     "task_group": "section_1",
                     "emits_ol_events": True,
                     "ui_color": "#ffefeb",
@@ -351,7 +353,7 @@ def test_get_tasks_details():
             ],
         },
         "task_2": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
@@ -416,7 +418,7 @@ def test_get_tasks_details():
             ],
         },
         "section_1.task_3": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1",
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,
@@ -440,7 +442,7 @@ def test_get_tasks_details():
             "downstream_task_ids": [],
         },
         "section_1.section_2.section_3.task_12": {
-            "operator": "airflow.operators.python.PythonOperator",
+            "operator": f"{PYTHON_OPERATOR_PATH}.PythonOperator",
             "task_group": "section_1.section_2.section_3",
             "emits_ol_events": True,
             "ui_color": PythonOperator.ui_color,

@@ -271,7 +271,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/providers/standard/operators/python.py",),
+                ("providers/src/airflow/providers/standard/operators/python.py",),
                 {
                     "affected-providers-list-as-string": None,
                     "all-python-versions": "['3.9']",
@@ -773,7 +773,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers standard tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
-            ("providers/tests/standard/operators/bash.py",),
+            ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
                 "affected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",
@@ -1465,7 +1465,7 @@ def test_expected_output_pull_request_v2_7(
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh trino",
+                "presto salesforce samba sftp ssh standard trino",
                 "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -1821,7 +1821,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("providers/src/airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "celery cncf.kubernetes standard"},
+            {"docs-list-as-string": "celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(

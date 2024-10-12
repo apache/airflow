@@ -33,10 +33,10 @@ from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
