@@ -156,3 +156,10 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
+
+
+class DAGTagResponse(BaseModel):
+    """DAG Tags serializer for responses."""
+
+    name: str
+    selected: bool

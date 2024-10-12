@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request, Response
-from sqlalchemy import update
+from sqlalchemy import distinct, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
@@ -48,9 +48,10 @@ from airflow.api_fastapi.core_api.serializers.dags import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
+    DAGTagResponse,
 )
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel
+from airflow.models import DAG, DagModel, DagTag
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -93,6 +94,28 @@ async def get_dags(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
         total_entries=total_entries,
     )
+
+
+@dags_router.get(
+    "/tags",
+    response_model=list[DAGTagResponse],
+    responses=create_openapi_http_exception_doc([400, 401, 403]),
+)
+async def get_dag_tags(
+    tags: QueryTagsFilter,
+    session: Annotated[Session, Depends(get_session)],
+) -> list[DAGTagResponse]:
+    """Get all DAG tags."""
+    dag_tag_names = session.query(distinct(DagTag.name)).order_by(DagTag.name).all()
+    if not dag_tag_names:
+        return []
+    selected_dag_tags = {}
+    if tags.value:
+        selected_dag_tags = {tag: True for tag in tags.value}
+    return [
+        DAGTagResponse(name=tag_name_row[0], selected=selected_dag_tags.get(tag_name_row[0], False))
+        for tag_name_row in dag_tag_names
+    ]
 
 
 @dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))

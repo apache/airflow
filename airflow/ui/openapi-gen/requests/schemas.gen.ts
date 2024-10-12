@@ -1044,6 +1044,23 @@ export const $DagProcessorInfoSchema = {
   description: "Schema for DagProcessor info.",
 } as const;
 
+export const $DAGTagResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    selected: {
+      type: "boolean",
+      title: "Selected",
+    },
+  },
+  type: "object",
+  required: ["name", "selected"],
+  title: "DAGTagResponse",
+  description: "DAG Tags serializer for responses.",
+} as const;
+
 export const $DagRunState = {
   type: "string",
   enum: ["queued", "running", "success", "failed"],
