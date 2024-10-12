@@ -155,7 +155,7 @@ paths:
         required: false
         schema:
           type: string
-          default: ''
+          default: dag_id
           title: Order By
       responses:
         '200':
@@ -620,7 +620,7 @@ paths:
         required: false
         schema:
           type: string
-          default: ''
+          default: id
           title: Order By
       responses:
         '200':

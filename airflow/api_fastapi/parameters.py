@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import importlib
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
@@ -28,7 +29,7 @@ from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
-from airflow.models import Base, Connection
+from airflow.models import Base
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -157,12 +158,6 @@ class SortParam(BaseParam[str]):
     attr_mapping = {
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
-        "connection_id": Connection.conn_id,
-        "conn_type": Connection.conn_type,
-        "description": Connection.description,
-        "host": Connection.host,
-        "port": Connection.port,
-        "id": Connection.id,
     }
 
     def __init__(
@@ -205,8 +200,23 @@ class SortParam(BaseParam[str]):
         else:
             return select.order_by(nullscheck, column.asc(), column.asc())
 
+    def get_primary_key(self) -> str:
+        """Get the primary key of the model of SortParam object."""
+        return inspect(self.model).primary_key[0].name
+
+    @staticmethod
+    def get_primary_key_of_given_model_string(model_string: str) -> str:
+        """
+        Get the primary key of given 'airflow.models' class as a string. The class should have driven be from 'airflow.models.base'.
+
+        :param model_string: The string representation of the model class.
+        :return: The primary key of the model class.
+        """
+        dynamic_return_model = getattr(importlib.import_module("airflow.models"), model_string)
+        return inspect(dynamic_return_model).primary_key[0].name
+
     def depends(self, order_by: str = "") -> SortParam:
-        return self.set_value(inspect(self.model).primary_key[0].name if order_by == "" else order_by)
+        return self.set_value(self.get_primary_key() if order_by == "" else order_by)
 
 
 class _TagsFilter(BaseParam[List[str]]):
