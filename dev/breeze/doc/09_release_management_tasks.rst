@@ -666,3 +666,26 @@ properties of the dependencies. This is done by the ``export-dependency-informat
 
 Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
 learn more about Breeze internals.
+
+Preparing airflow Task SDK packages
+"""""""""""""""""""""""""""""""""""
+
+You can prepare airflow packages using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-task-sdk-package
+
+This prepares airflow Task SDK .whl package in the dist folder.
+
+Again, you can specify optional ``--package-format`` flag to build selected formats of the Task SDK packages,
+default is to build ``both`` type of packages ``sdist`` and ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-task-sdk-package --package-format=wheel
+
+.. image:: ./images/output_release-management_prepare-task-sdk-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-package.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-task-sdk-package

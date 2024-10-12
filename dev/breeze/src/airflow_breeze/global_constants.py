@@ -185,6 +185,7 @@ class SelectiveUnitTestTypes(Enum):
     PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
     PYTHON_VENV = "PythonVenv"
+    TASK_SDK = "TaskSDK"
     WWW = "WWW"
 
 
@@ -216,6 +217,23 @@ def all_helm_test_packages() -> list[str]:
 ALLOWED_HELM_TEST_PACKAGES = [
     "all",
     *all_helm_test_packages(),
+]
+
+
+@cache
+def all_task_sdk_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
+        ]
+    )
+
+
+ALLOWED_TASK_SDK_TEST_PACKAGES = [
+    "all",
+    *all_task_sdk_test_packages(),
 ]
 
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]

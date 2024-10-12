@@ -679,6 +679,9 @@ labelPRBasedOnFilePath:
   area:system-tests:
     - tests/system/**/*
 
+  area:task-sdk:
+    - task_sdk/**/*
+
   area:db-migrations:
     - airflow/migrations/versions/*
 
