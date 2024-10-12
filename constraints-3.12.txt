@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-12T10:08:03.822820
+# This constraints file was automatically generated on 2024-10-12T13:49:05.148277
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -296,7 +296,7 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==20.0.3
 fastapi-cli==0.0.5
-fastapi==0.115.0
+fastapi==0.115.2
 fastavro==1.9.7
 fastjsonschema==2.20.0
 filelock==3.16.1
@@ -669,7 +669,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.38.6
+starlette==0.39.2
 statsd==4.0.1
 std-uritemplate==2.0.0
 strictyaml==1.7.3
@@ -691,7 +691,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2024.10.11
+trove-classifiers==2024.10.12
 twine==5.1.1
 typed_ast==1.5.5
 typer==0.12.5
