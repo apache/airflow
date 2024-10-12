@@ -111,22 +111,13 @@ def on_celery_import_modules(*args, **kwargs):
 
     import airflow.jobs.local_task_job_runner
     import airflow.macros
-<<<<<<< HEAD:providers/src/airflow/providers/celery/executors/celery_executor_utils.py
 
     try:
-        import airflow.providers.standard.core.operators.python
+        import airflow.providers.standard.operators.python
         import airflow.providers.standard.operators.bash
     except ImportError:
         import airflow.operators.bash  # noqa: F401
         import airflow.operators.python # noqa: F401
-=======
-    import airflow.operators.bash
-
-    try:
-        import airflow.providers.standard.operators.python
-    except ImportError:
-        import airflow.operators.python  # noqa: F401
->>>>>>> 5f2d337113 (move python operator inside standard/operators):airflow/providers/celery/executors/celery_executor_utils.py
 
     with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
