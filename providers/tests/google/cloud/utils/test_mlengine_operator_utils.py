@@ -29,7 +29,8 @@ from airflow.models import DAG
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
-from airflow.providers.standard.operators.python import PythonOperator
+
+from dev.tests_common.test_utils.compat import PythonOperator
 
 TASK_PREFIX = "test-task-prefix"
 TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"
