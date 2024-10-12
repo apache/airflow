@@ -254,6 +254,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
         "jmespath>=0.7.0",
+        "kgb>=7.0.0",
         "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",

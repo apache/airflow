@@ -59,6 +59,7 @@ from airflow.models.expandinput import (
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
@@ -442,7 +443,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
-        base_signature = inspect.signature(BaseOperator)
+        base_signature = inspect.signature(TaskSDKBaseOperator)
         ignore = {
             "default_args",  # This is target we are working on now.
             "kwargs",  # A common name for a keyword argument.

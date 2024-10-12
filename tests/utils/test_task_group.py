@@ -37,7 +37,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
+from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
 from tests.models import DEFAULT_DATE
 from tests_common.test_utils.compat import BashOperator
@@ -1665,12 +1665,3 @@ def test_task_group_with_invalid_arg_type_raises_error():
         with pytest.raises(TypeError, match=error_msg):
             with TaskGroup("group_1", ui_color=123):
                 EmptyOperator(task_id="task1")
-
-
-@mock.patch("airflow.utils.task_group.validate_instance_args")
-def test_task_group_init_validates_arg_types(mock_validate_instance_args):
-    with DAG(dag_id="dag_with_tg_valid_arg_types", schedule=None):
-        with TaskGroup("group_1", ui_color="red") as tg:
-            EmptyOperator(task_id="task1")
-
-    mock_validate_instance_args.assert_called_with(tg, TASKGROUP_ARGS_EXPECTED_TYPES)

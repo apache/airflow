@@ -21,7 +21,11 @@ version = "0.1.0.dev0"
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.9, <3.13"
-dependencies = []
+dependencies = [
+    "attrs>=24.2.0",
+    "google-re2>=1.1.20240702",
+    "methodtools>=0.4.7",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -33,8 +37,35 @@ packages = ["src/airflow"]
 [tool.ruff]
 extend = "../pyproject.toml"
 src = ["src"]
+namespace-packages = ["src/airflow"]
 
 [tool.ruff.lint.per-file-ignores]
 
 # Ignore Doc rules et al for anything outside of tests
 "!src/*" = ["D", "TID253", "S101", "TRY002"]
+
+[tool.uv]
+dev-dependencies = [
+    "kgb>=7.1.1",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.3",
+]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["src/airflow"]
+include_namespace_packages = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+    "@(typing(_extensions)?\\.)?overload",
+    "if (typing(_extensions)?\\.)?TYPE_CHECKING:",
+]

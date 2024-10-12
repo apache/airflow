@@ -592,7 +592,7 @@ class TestStringifiedDAGs:
 
         assert serialized_dag.timetable.summary == dag.timetable.summary
         assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
-        assert serialized_dag.timezone.name == dag.timezone.name
+        assert serialized_dag.timezone == dag.timezone
 
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))

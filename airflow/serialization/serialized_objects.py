@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
+    from airflow.sdk.defintions.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
@@ -1672,7 +1672,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
         # Set _task_group
         if "_task_group" in encoded_dag:
-            dag._task_group = TaskGroupSerialization.deserialize_task_group(
+            dag.task_group = TaskGroupSerialization.deserialize_task_group(
                 encoded_dag["_task_group"],
                 None,
                 dag.task_dict,
@@ -1681,7 +1681,7 @@ class SerializedDAG(DAG, BaseSerialization):
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
             # all tasks to it.
-            dag._task_group = TaskGroup.create_root(dag)
+            dag.task_group = TaskGroup.create_root(dag)
             for task in dag.tasks:
                 dag.task_group.add(task)
 

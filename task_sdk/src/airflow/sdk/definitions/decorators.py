@@ -14,19 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-import airflow.sdk
-
-if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
-
-EdgeModifier: TypeAlias = airflow.sdk.EdgeModifier
+import sys
+from types import FunctionType
 
 
-# Factory functions
-def Label(label: str):
-    """Create an EdgeModifier that sets a human-readable label on the edge."""
-    return EdgeModifier(label=label)
+class _autostacklevel_warn:
+    def __init__(self):
+        self.warnings = __import__("warnings")
+
+    def __getattr__(self, name: str):
+        return getattr(self.warnings, name)
+
+    def __dir__(self):
+        return dir(self.warnings)
+
+    def warn(self, message, category=None, stacklevel=1, source=None):
+        self.warnings.warn(message, category, stacklevel + 2, source)
+
+
+def fixup_decorator_warning_stack(func: FunctionType):
+    if func.__globals__.get("warnings") is sys.modules["warnings"]:
+        # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
+        # `warnings.warn` to ignore the decorator.
+        func.__globals__["warnings"] = _autostacklevel_warn()

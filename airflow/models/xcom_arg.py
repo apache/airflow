@@ -29,22 +29,22 @@ from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DependencyMixin
+from airflow.sdk.types import NOTSET, ArgNotSet
 from airflow.utils.db import exists_query
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG
+    # from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
+    from airflow.sdk import DAG, BaseOperator
     from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 
@@ -122,7 +122,7 @@ class XComArg(ResolveMixin, DependencyMixin):
                 yield from XComArg.iter_xcom_references(getattr(arg, attr))
 
     @staticmethod
-    def apply_upstream_relationship(op: Operator, arg: Any):
+    def apply_upstream_relationship(op: DependencyMixin, arg: Any):
         """
         Set dependency for XComArgs.
 
@@ -134,12 +134,12 @@ class XComArg(ResolveMixin, DependencyMixin):
             op.set_upstream(operator)
 
     @property
-    def roots(self) -> list[DAGNode]:
+    def roots(self) -> list[Operator]:
         """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
-    def leaves(self) -> list[DAGNode]:
+    def leaves(self) -> list[Operator]:
         """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 

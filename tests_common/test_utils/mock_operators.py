@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 import attr
@@ -204,14 +203,3 @@ class GithubLink(BaseOperatorLink):
 
     def get_link(self, operator, *, ti_key):
         return "https://github.com/apache/airflow"
-
-
-class DeprecatedOperator(BaseOperator):
-    """Deprecated Operator for testing purposes."""
-
-    def __init__(self, **kwargs):
-        warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context):
-        pass

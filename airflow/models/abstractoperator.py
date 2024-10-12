@@ -19,9 +19,8 @@ from __future__ import annotations
 
 import datetime
 import inspect
-from abc import abstractproperty
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Sequence
 
 import methodtools
 from sqlalchemy import select
@@ -29,7 +28,8 @@ from sqlalchemy import select
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DependencyMixin
+from airflow.sdk.definitions.abstractoperator import AbstractOperator as TaskSDKAbstractOperator
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
@@ -39,21 +39,24 @@ from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.sdk.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink
-    from airflow.models.dag import DAG
+    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk import BaseOperator, DAG
+    from airflow.sdk.defintions.node import DAGNode
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
@@ -86,7 +89,7 @@ class NotMapped(Exception):
     """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
-class AbstractOperator(Templater, DAGNode):
+class AbstractOperator(Templater, TaskSDKAbstractOperator):
     """
     Common implementation for operators, including unmapped and mapped.
 
@@ -100,85 +103,8 @@ class AbstractOperator(Templater, DAGNode):
     :meta private:
     """
 
-    operator_class: type[BaseOperator] | dict[str, Any]
-
-    weight_rule: PriorityWeightStrategy
-    priority_weight: int
-
-    # Defines the operator level extra links.
-    operator_extra_links: Collection[BaseOperatorLink]
-
-    owner: str
-    task_id: str
-
-    outlets: list
-    inlets: list
     trigger_rule: TriggerRule
-    _needs_expansion: bool | None = None
-    _on_failure_fail_dagrun = False
-
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
-        (
-            "log",
-            "dag",  # We show dag_id, don't need to show this too
-            "node_id",  # Duplicates task_id
-            "task_group",  # Doesn't have a useful repr, no point showing in UI
-            "inherits_from_empty_operator",  # impl detail
-            # Decide whether to start task execution from triggerer
-            "start_trigger_args",
-            "start_from_trigger",
-            # For compatibility with TG, for operators these are just the current task, no point showing
-            "roots",
-            "leaves",
-            # These lists are already shown via *_task_ids
-            "upstream_list",
-            "downstream_list",
-            # Not useful, implementation detail, already shown elsewhere
-            "global_operator_extra_link_dict",
-            "operator_extra_link_dict",
-        )
-    )
-
-    def get_dag(self) -> DAG | None:
-        raise NotImplementedError()
-
-    @property
-    def task_type(self) -> str:
-        raise NotImplementedError()
-
-    @property
-    def operator_name(self) -> str:
-        raise NotImplementedError()
-
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        raise NotImplementedError()
-
-    @property
-    def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc + owner."""
-        dag = self.get_dag()
-        if dag:
-            return dag.dag_id
-        return f"adhoc_{self.owner}"
-
-    @property
-    def node_id(self) -> str:
-        return self.task_id
-
-    @abstractproperty
-    def task_display_name(self) -> str: ...
-
-    @property
-    def label(self) -> str | None:
-        if self.task_display_name and self.task_display_name != self.task_id:
-            return self.task_display_name
-        # Prefix handling if no display is given is cloned from taskmixin for compatibility
-        tg = self.task_group
-        if tg and tg.node_id and tg.prefix_group_id:
-            # "task_group_id.task_id" -> "task_id"
-            return self.task_id[len(tg.node_id) + 1 :]
-        return self.task_id
+    weight_rule: PriorityWeightStrategy
 
     @property
     def is_setup(self) -> bool:
@@ -219,6 +145,72 @@ class AbstractOperator(Templater, DAGNode):
             )
         self._on_failure_fail_dagrun = value
 
+    def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
+        """Get the template environment for rendering templates."""
+        if dag is None:
+            dag = self.get_dag()
+        return super().get_template_env(dag=dag)
+
+    def _render(self, template, context, dag: DAG | None = None):
+        if dag is None:
+            dag = self.get_dag()
+        return super()._render(template, context, dag=dag)
+
+    def _do_render_template_fields(
+        self,
+        parent: Any,
+        template_fields: Iterable[str],
+        context: Mapping[str, Any],
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
+    ) -> None:
+        """Override the base to use custom error logging."""
+        for attr_name in template_fields:
+            try:
+                value = getattr(parent, attr_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"{attr_name!r} is configured as a template field "
+                    f"but {parent.task_type} does not have this attribute."
+                )
+            try:
+                if not value:
+                    continue
+            except Exception:
+                # This may happen if the templated field points to a class which does not support `__bool__`,
+                # such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
+                self.log.info(
+                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                    type(value).__name__,
+                    self.task_id,
+                    attr_name,
+                )
+                # We may still want to render custom classes which do not support __bool__
+                pass
+
+            try:
+                if callable(value):
+                    rendered_content = value(context=context, jinja_env=jinja_env)
+                else:
+                    rendered_content = self.render_template(
+                        value,
+                        context,
+                        jinja_env,
+                        seen_oids,
+                    )
+            except Exception:
+                value_masked = redact(name=attr_name, value=value)
+                self.log.exception(
+                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
+                    self.task_id,
+                    attr_name,
+                    value_masked,
+                )
+                raise
+            else:
+                setattr(parent, attr_name, rendered_content)
+
     def as_setup(self):
         self.is_setup = True
         return self
@@ -239,12 +231,6 @@ class AbstractOperator(Templater, DAGNode):
                 s.is_setup = True
                 s >> self
         return self
-
-    def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
-        """Get direct relative IDs to the current task, upstream or downstream."""
-        if upstream:
-            return self.upstream_task_ids
-        return self.downstream_task_ids
 
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
@@ -394,7 +380,9 @@ class AbstractOperator(Templater, DAGNode):
         """
         if (group := self.task_group) is None:
             return
-        yield from group.iter_mapped_task_groups()
+        # TODO: Task-SDK: this type ignore shouldn't be necssary, revisit once mapping support is fully in the
+        # SDK
+        yield from group.iter_mapped_task_groups()  # type: ignore[misc]
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """
@@ -460,6 +448,7 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
+        # TODO: This should live in the WeightStragies themselves, not in here
         from airflow.task.priority_strategy import (
             _AbsolutePriorityWeightStrategy,
             _DownstreamPriorityWeightStrategy,
@@ -587,9 +576,9 @@ class AbstractOperator(Templater, DAGNode):
         """
         from sqlalchemy import func, or_
 
-        from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
         from airflow.models.taskinstance import TaskInstance
+        from airflow.sdk import BaseOperator
         from airflow.settings import task_instance_mutation_hook
 
         if not isinstance(self, (BaseOperator, MappedOperator)):
@@ -624,6 +613,9 @@ class AbstractOperator(Templater, DAGNode):
         all_expanded_tis: list[TaskInstance] = []
 
         if unmapped_ti:
+            if TYPE_CHECKING:
+                assert self.dag is None or isinstance(self.dag, SchedulerDAG)
+
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
             if total_length is None:
@@ -720,72 +712,6 @@ class AbstractOperator(Templater, DAGNode):
         If the operator is not mapped, this should modify the operator in-place.
         """
         raise NotImplementedError()
-
-    def _render(self, template, context, dag: DAG | None = None):
-        if dag is None:
-            dag = self.get_dag()
-        return super()._render(template, context, dag=dag)
-
-    def get_template_env(self, dag: DAG | None = None) -> jinja2.Environment:
-        """Get the template environment for rendering templates."""
-        if dag is None:
-            dag = self.get_dag()
-        return super().get_template_env(dag=dag)
-
-    def _do_render_template_fields(
-        self,
-        parent: Any,
-        template_fields: Iterable[str],
-        context: Context,
-        jinja_env: jinja2.Environment,
-        seen_oids: set[int],
-    ) -> None:
-        """Override the base to use custom error logging."""
-        for attr_name in template_fields:
-            try:
-                value = getattr(parent, attr_name)
-            except AttributeError:
-                raise AttributeError(
-                    f"{attr_name!r} is configured as a template field "
-                    f"but {parent.task_type} does not have this attribute."
-                )
-            try:
-                if not value:
-                    continue
-            except Exception:
-                # This may happen if the templated field points to a class which does not support `__bool__`,
-                # such as Pandas DataFrames:
-                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
-                self.log.info(
-                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
-                    type(value).__name__,
-                    self.task_id,
-                    attr_name,
-                )
-                # We may still want to render custom classes which do not support __bool__
-                pass
-
-            try:
-                if callable(value):
-                    rendered_content = value(context=context, jinja_env=jinja_env)
-                else:
-                    rendered_content = self.render_template(
-                        value,
-                        context,
-                        jinja_env,
-                        seen_oids,
-                    )
-            except Exception:
-                value_masked = redact(name=attr_name, value=value)
-                self.log.exception(
-                    "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                    self.task_id,
-                    attr_name,
-                    value_masked,
-                )
-                raise
-            else:
-                setattr(parent, attr_name, rendered_content)
 
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:

@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-import airflow.sdk
-
-if TYPE_CHECKING:
-    from airflow.typing_compat import TypeAlias
-
-EdgeModifier: TypeAlias = airflow.sdk.EdgeModifier
-
-
-# Factory functions
-def Label(label: str):
-    """Create an EdgeModifier that sets a human-readable label on the edge."""
-    return EdgeModifier(label=label)
