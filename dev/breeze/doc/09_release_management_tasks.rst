@@ -26,7 +26,7 @@ do not need or have no access to run). Those are usually connected with releasin
 Those are all of the available release management commands:
 
 .. image:: ./images/output_release-management.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management.svg
   :width: 100%
   :alt: Breeze release management
 
@@ -55,7 +55,7 @@ default is to build ``both`` type of packages ``sdist`` and ``wheel``.
      breeze release-management prepare-airflow-package --package-format=wheel
 
 .. image:: ./images/output_release-management_prepare-airflow-package.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-airflow-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-package
 
@@ -79,7 +79,7 @@ tarball for.
      breeze release-management prepare-airflow-tarball --version 2.8.0rc1
 
 .. image:: ./images/output_release-management_prepare-airflow-tarball.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-airflow-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-tarball.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-tarball
 
@@ -94,7 +94,7 @@ automates it.
      breeze release-management create-minor-branch
 
 .. image:: ./images/output_release-management_create-minor-branch.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_create-minor-branch.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_create-minor-branch.svg
   :width: 100%
   :alt: Breeze release-management create-minor-branch
 
@@ -109,7 +109,7 @@ When we prepare release candidate, we automate some of the steps we need to do.
      breeze release-management start-rc-process
 
 .. image:: ./images/output_release-management_start-rc-process.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_start-rc-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-rc-process.svg
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
@@ -123,7 +123,7 @@ When we prepare final release, we automate some of the steps we need to do.
      breeze release-management start-release
 
 .. image:: ./images/output_release-management_start-release.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_start-rc-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-rc-process.svg
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
@@ -154,7 +154,7 @@ You can also generate python client with custom security schemes.
 These are all of the available flags for the command:
 
 .. image:: ./images/output_release-management_prepare-python-client.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-python-client.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-python-client.svg
   :width: 100%
   :alt: Breeze release management prepare Python client
 
@@ -185,7 +185,7 @@ step can be skipped if you pass the ``--skip-latest`` flag.
 These are all of the available flags for the ``release-prod-images`` command:
 
 .. image:: ./images/output_release-management_release-prod-images.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_release-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_release-prod-images.svg
   :width: 100%
   :alt: Breeze release management release prod images
 
@@ -208,7 +208,7 @@ However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS 
 These are all of the available flags for the ``tag-providers`` command:
 
 .. image:: ./images/output_release-management_tag-providers.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_tag-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_tag-providers.svg
   :width: 100%
   :alt: Breeze release management tag-providers
 
@@ -234,7 +234,7 @@ which version of Helm Chart you are preparing the tarball for.
      breeze release-management prepare-helm-chart-tarball --version 1.12.0 --version-suffix rc1
 
 .. image:: ./images/output_release-management_prepare-helm-chart-tarball.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-helm-chart-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-helm-chart-tarball.svg
   :width: 100%
   :alt: Breeze release-management prepare-helm-chart-tarball
 
@@ -256,7 +256,7 @@ This prepares helm chart .tar.gz package in the dist folder.
      breeze release-management prepare-helm-chart-package --sign myemail@apache.org
 
 .. image:: ./images/output_release-management_prepare-helm-chart-package.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-helm-chart-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-helm-chart-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-helm-chart-package
 
@@ -292,7 +292,7 @@ The below example perform documentation preparation for provider packages.
 You can also add ``--answer yes`` to perform non-interactive build.
 
 .. image:: ./images/output_release-management_prepare-provider-documentation.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-provider-documentation.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-documentation.svg
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
@@ -325,7 +325,7 @@ You can see all providers available by running this command:
      breeze release-management prepare-provider-packages --help
 
 .. image:: ./images/output_release-management_prepare-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-packages.svg
   :width: 100%
   :alt: Breeze prepare-provider-packages
 
@@ -349,7 +349,7 @@ You can also run the verification with an earlier airflow version to check for c
 All the command parameters are here:
 
 .. image:: ./images/output_release-management_install-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_install-provider-packages.svg
   :width: 100%
   :alt: Breeze install-provider-packages
 
@@ -373,7 +373,7 @@ You can also run the verification with an earlier airflow version to check for c
 All the command parameters are here:
 
 .. image:: ./images/output_release-management_verify-provider-packages.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_verify-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
 
@@ -387,7 +387,7 @@ provider has been released) and date of the release of the provider version.
 These are all of the available flags for the ``generate-providers-metadata`` command:
 
 .. image:: ./images/output_release-management_generate-providers-metadata.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-providers-metadata.svg
   :width: 100%
   :alt: Breeze release management generate providers metadata
 
@@ -398,7 +398,7 @@ Generating Provider Issue
 You can use Breeze to generate a provider issue when you release new providers.
 
 .. image:: ./images/output_release-management_generate-issue-content-providers.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-providers.svg
   :width: 100%
   :alt: Breeze generate-issue-content-providers
 
@@ -414,7 +414,7 @@ command.
 These are all available flags of ``clean-old-provider-artifacts`` command:
 
 .. image:: ./images/output_release-management_clean-old-provider-artifacts.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_clean-old-provider-artifacts.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_clean-old-provider-artifacts.svg
   :width: 100%
   :alt: Breeze Clean Old Provider Artifacts
 
@@ -462,7 +462,7 @@ Constraints are generated separately for each python version and there are separ
 These are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/output_release-management_generate-constraints.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_generate-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-constraints.svg
   :width: 100%
   :alt: Breeze generate-constraints
 
@@ -485,7 +485,7 @@ tagged already in the past. This can be done using ``breeze release-management u
 These are all available flags of ``update-constraints`` command:
 
 .. image:: ./images/output_release-management_update-constraints.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_update-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_update-constraints.svg
   :width: 100%
   :alt: Breeze update-constraints
 
@@ -552,7 +552,7 @@ publishing docs for multiple providers.
 These are all available flags of ``release-management publish-docs`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_publish-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-docs.svg
   :width: 100%
   :alt: Breeze Publish documentation
 
@@ -596,7 +596,7 @@ providers - you can mix apache-airflow, helm-chart and provider packages this wa
 These are all available flags of ``release-management add-back-references`` command:
 
 .. image:: ./images/output_release-management_add-back-references.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_add-back-references.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_add-back-references.svg
   :width: 100%
   :alt: Breeze Add Back References
 
@@ -606,7 +606,7 @@ SBOM generation tasks
 Maintainers also can use Breeze for SBOM generation:
 
 .. image:: ./images/output_sbom.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom.svg
   :width: 100%
   :alt: Breeze sbom
 
@@ -619,7 +619,7 @@ done by the ``generate-providers-requirements`` command. This command generates 
 selected provider and python version, using the airflow version specified.
 
 .. image:: ./images/output_sbom_generate-providers-requirements.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_generate-providers-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom_generate-providers-requirements.svg
   :width: 100%
   :alt: Breeze generate SBOM provider requirements
 
@@ -634,7 +634,7 @@ information is written directly to ``docs-archive`` in airflow-site repository.
 These are all of the available flags for the ``update-sbom-information`` command:
 
 .. image:: ./images/output_sbom_update-sbom-information.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbomt_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbomt_update-sbom-information.svg
   :width: 100%
   :alt: Breeze update sbom information
 
@@ -646,7 +646,7 @@ such images are built with the ``build-all-airflow-images`` command.
 This command will build one docker image per python version, with all the airflow versions >=2.0.0 compatible.
 
 .. image:: ./images/output_sbom_build-all-airflow-images.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_build-all-airflow-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom_build-all-airflow-images.svg
   :width: 100%
   :alt: Breeze build all airflow images
 
@@ -658,7 +658,7 @@ The SBOM information published on our website can be converted into a spreadshee
 properties of the dependencies. This is done by the ``export-dependency-information`` command.
 
 .. image:: ./images/output_sbom_export-dependency-information.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_export-dependency-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_sbom_export-dependency-information.svg
   :width: 100%
   :alt: Breeze sbom export dependency information
 
