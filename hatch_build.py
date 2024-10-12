@@ -49,6 +49,7 @@ PRE_INSTALLED_PROVIDERS = [
     "imap",
     "smtp",
     "sqlite",
+    "standard",
 ]
 
 # Those extras are dynamically added by hatch in the build hook to metadata optional dependencies
