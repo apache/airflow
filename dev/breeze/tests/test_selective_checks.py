@@ -287,10 +287,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
-                    "ExternalPython PythonVenv",
+                    "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
                     "providers-test-types-list-as-string": "",
-                    "separate-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
+                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google] "
                     "ExternalPython PythonVenv",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
@@ -729,7 +728,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[standard] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google] Serialization",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -753,7 +752,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[apache.spark,celery,docker,standard] Providers[google] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google] Serialization",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
