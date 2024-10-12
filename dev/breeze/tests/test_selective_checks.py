@@ -284,7 +284,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
-                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always BranchExternalPython BranchPythonVenv "
@@ -625,7 +625,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
                 "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,standard,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -677,7 +677,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[amazon] "
                 "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
+                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,standard,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -723,7 +723,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
-                "run-amazon-tests": "false",
+                "run-amazon-tests": "true",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
@@ -748,7 +748,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "run-amazon-tests": "true",
-                "docs-build": "false",
+                "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
@@ -1407,7 +1407,7 @@ def test_expected_output_pull_request_v2_7(
                 "parallel-test-types-list-as-string": "Always CLI Providers[amazon] "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,samba,sftp,ssh,trino] Providers[google]",
+                "salesforce,samba,sftp,ssh,standard,trino] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow', 'providers']",
             },

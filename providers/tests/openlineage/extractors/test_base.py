@@ -34,12 +34,14 @@ from airflow.providers.openlineage.extractors.base import (
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
-from dev.tests_common.test_utils.compat import PythonOperator
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet
 pytestmark = pytest.mark.db_test
-
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]

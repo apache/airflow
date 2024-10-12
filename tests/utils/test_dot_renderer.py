@@ -24,7 +24,6 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
@@ -32,6 +31,11 @@ from airflow.utils.task_group import TaskGroup
 
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.db import clear_db_dags
+
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 START_DATE = timezone.utcnow()
 
