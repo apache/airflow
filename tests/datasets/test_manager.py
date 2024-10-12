@@ -144,6 +144,7 @@ class TestDatasetManager:
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
         assert session.query(DatasetDagRunQueue).count() == 2
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("clear_datasets")
     def test_register_dataset_change_with_alias(self, session, dag_maker, mock_task_instance):
         consumer_dag_1 = DagModel(dag_id="conumser_1", is_active=True, fileloc="dag1.py")
