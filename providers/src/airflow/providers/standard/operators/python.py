@@ -94,7 +94,7 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
         Defaults to False.
     """
     # To maintain backwards compatibility, we import the task object into this file
-    # This prevents breakages in dags that use `from airflow.providers.standard.core.operators.python import task`
+    # This prevents breakages in dags that use `from airflow.providers.standard.operators.python import task`
     from airflow.decorators.python import python_task
 
     warnings.warn(

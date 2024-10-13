@@ -289,9 +289,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
                     "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
+                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark] Providers[docker] Providers[google] Providers[snowflake] Providers[standard]",
                     "needs-mypy": "true",
-                    "mypy-checks": "['mypy-airflow']",
+                    "mypy-checks": "['mypy-providers']",
                 },
                 id="Only Python tests",
             )

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import logging
+import logging.config
 import os
 import pickle
 import re
@@ -38,6 +39,7 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
@@ -188,6 +190,9 @@ class BasePythonTest:
 
 class TestPythonOperator(BasePythonTest):
     opcls = PythonOperator
+
+    def setup_method(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_tests(self):
@@ -1553,6 +1558,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 @pytest.mark.external_python_operator
 class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
+
+    def setup_method(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @staticmethod
     def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
