@@ -191,6 +191,9 @@ export type DagServicePatchDagsMutationResult = Awaited<
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
 >;
+export type DagRunServiceModifyDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.modifyDagRun>
+>;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
 >;

@@ -121,6 +121,18 @@ export type DAGResponse = {
 };
 
 /**
+ * Enum for DAG Run states when updating a DAG Run.
+ */
+export type DAGRunModifyFormStates = "queued" | "success" | "failed";
+
+/**
+ * DAG Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+  state: DAGRunModifyFormStates;
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
@@ -354,6 +366,14 @@ export type GetDagRunData = {
 };
 
 export type GetDagRunResponse = DAGRunResponse;
+
+export type ModifyDagRunData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunPatchBody;
+};
+
+export type ModifyDagRunResponse = DAGRunResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -639,6 +659,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: ModifyDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

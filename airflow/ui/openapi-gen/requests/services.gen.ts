@@ -27,6 +27,8 @@ import type {
   GetVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
+  ModifyDagRunData,
+  ModifyDagRunResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -384,6 +386,38 @@ export class DagRunService {
         dag_run_id: data.dagRunId,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Modify Dag Run
+   * Modify a DAG Run.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static modifyDagRun(
+    data: ModifyDagRunData,
+  ): CancelablePromise<ModifyDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

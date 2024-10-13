@@ -372,6 +372,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
 @action_logging

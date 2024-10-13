@@ -18,11 +18,26 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
 
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+
+class DAGRunModifyFormStates(str, Enum):
+    """Enum for DAG Run states when updating a DAG Run."""
+
+    QUEUED = DagRunState.QUEUED
+    SUCCESS = DagRunState.SUCCESS
+    FAILED = DagRunState.FAILED
+
+
+class DAGRunPatchBody(BaseModel):
+    """DAG Run Serializer for PATCH requests."""
+
+    state: DAGRunModifyFormStates
 
 
 class DAGRunResponse(BaseModel):
