@@ -461,7 +461,7 @@ class TestFileTaskLogHandler:
 
 class TestFilenameRendering:
     def test_python_formatting(self, create_log_template, create_task_instance):
-        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
