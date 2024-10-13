@@ -121,6 +121,13 @@ export type DAGResponse = {
 };
 
 /**
+ * Dag Run note Serializer for Patch requests.
+ */
+export type DAGRunNotePatchBody = {
+  note: string;
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
@@ -354,6 +361,14 @@ export type GetDagRunData = {
 };
 
 export type GetDagRunResponse = DAGRunResponse;
+
+export type SetDagRunNoteData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunNotePatchBody;
+};
+
+export type SetDagRunNoteResponse = unknown;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -639,6 +654,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/setNote": {
+    patch: {
+      req: SetDagRunNoteData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */
