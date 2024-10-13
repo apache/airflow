@@ -36,6 +36,8 @@ from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
@@ -44,10 +46,10 @@ def generate_pod_yaml(args):
     logical_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
-    if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
-        dr = DagRun(dag.dag_id, execution_date=logical_date)
-    else:
+    if AIRFLOW_V_3_0_PLUS:
         dr = DagRun(dag.dag_id, logical_date=logical_date)
+    else:
+        dr = DagRun(dag.dag_id, execution_date=logical_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
         ti = TaskInstance(task, None)
@@ -58,7 +60,7 @@ def generate_pod_yaml(args):
             pod_id=create_unique_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
-            date=ti.logical_date,
+            date=ti.logical_date if AIRFLOW_V_3_0_PLUS else ti.execution_date,
             args=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
