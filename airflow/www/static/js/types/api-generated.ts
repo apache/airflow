@@ -4962,8 +4962,12 @@ export interface operations {
   get_dag_stats: {
     parameters: {
       query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
         /** One or more DAG IDs separated by commas to filter relevant Dags. */
-        dag_ids: string;
+        dag_ids?: string;
       };
     };
     responses: {
