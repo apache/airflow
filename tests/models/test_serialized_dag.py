@@ -23,20 +23,22 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 import airflow.example_dags as example_dags_module
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
+
+from dev.tests_common.test_utils import db
+from dev.tests_common.test_utils.asserts import assert_queries_count
 
 pytestmark = pytest.mark.db_test
 
@@ -237,16 +239,16 @@ class TestSerializedDagModel:
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                 schedule=[
-                    Dataset("1"),
-                    Dataset("2"),
-                    Dataset("3"),
-                    Dataset("4"),
-                    Dataset("5"),
+                    Asset("1"),
+                    Asset("2"),
+                    Asset("3"),
+                    Asset("4"),
+                    Asset("5"),
                 ],
             ) as dag6:
                 BashOperator(
                     task_id="any",
-                    outlets=[Dataset("0*"), Dataset("6*")],
+                    outlets=[Asset("0*"), Asset("6*")],
                     bash_command="sleep 5",
                 )
             deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
@@ -264,3 +266,21 @@ class TestSerializedDagModel:
 
             # dag hash should not change without change in structure (we're in a loop)
             assert this_dag_hash == first_dag_hash
+
+    def test_example_dag_hashes_are_always_consistent(self, session):
+        """
+        This test asserts that the hashes of the example dags are always consistent.
+        """
+
+        def get_hash_set():
+            example_dags = self._write_example_dags()
+            ordered_example_dags = dict(sorted(example_dags.items()))
+            hashes = set()
+            for dag_id in ordered_example_dags.keys():
+                smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
+                hashes.add(smd.dag_hash)
+            return hashes
+
+        first_hashes = get_hash_set()
+        # assert that the hashes are the same
+        assert first_hashes == get_hash_set()

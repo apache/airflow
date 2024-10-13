@@ -86,7 +86,7 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-dataset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-asset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
 The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
@@ -101,7 +101,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
     from airflow.models.dag import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
     import pendulum
@@ -137,7 +137,7 @@ as that interval hasn't completed) and the scheduler will execute them sequentia
 
 Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
-This behavior is great for atomic datasets that can easily be split into periods. Turning catchup off is great
+This behavior is great for atomic assets that can easily be split into periods. Turning catchup off is great
 if your DAG performs catchup internally.
 
 
@@ -241,7 +241,7 @@ Example of a parameterized DAG:
     import pendulum
 
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(
         "example_parameterized_dag",

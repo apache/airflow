@@ -34,6 +34,7 @@ import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
+from threading import local
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -127,7 +128,9 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or type(retries) == int:  # noqa: E721
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -358,6 +361,11 @@ def partial(
     partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+    if partial_kwargs["pool_slots"] < 1:
+        dag_str = ""
+        if dag:
+            dag_str = f" in dag {dag.dag_id}"
+        raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
@@ -385,6 +393,8 @@ class ExecutorSafeguard:
     """
 
     test_mode = conf.getboolean("core", "unit_test_mode")
+    _sentinel = local()
+    _sentinel.callers = {}
 
     @classmethod
     def decorator(cls, func):
@@ -392,7 +402,13 @@ class ExecutorSafeguard:
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
 
-            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            if sentinel:
+                cls._sentinel.callers[sentinel_key] = sentinel
+            else:
+                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"

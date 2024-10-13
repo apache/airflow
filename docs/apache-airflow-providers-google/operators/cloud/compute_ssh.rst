@@ -45,7 +45,7 @@ Please note that the target instance must allow tcp traffic on port 22.
 
 Below is the code to create the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_ssh.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_ssh.py
     :language: python
     :dedent: 4
     :start-after: [START howto_execute_command_on_remote_1]
@@ -54,7 +54,7 @@ Below is the code to create the operator:
 You can also create the hook without project id - project id will be retrieved
 from the Google credentials used:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_ssh.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/compute/example_compute_ssh.py
     :language: python
     :dedent: 4
     :start-after: [START howto_execute_command_on_remote_2]

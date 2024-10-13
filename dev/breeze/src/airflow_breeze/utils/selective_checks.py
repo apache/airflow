@@ -23,9 +23,9 @@ import re
 import sys
 from collections import defaultdict
 from enum import Enum
-from functools import cached_property, lru_cache
+from functools import cache, cached_property
 from pathlib import Path
-from typing import Any, Dict, List, TypeVar
+from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -59,7 +59,7 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     AIRFLOW_SOURCES_ROOT,
     DOCS_DIR,
     SYSTEM_TESTS_PROVIDERS_ROOT,
@@ -76,6 +76,8 @@ DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+LEGACY_UI_LABEL = "legacy ui"
+LEGACY_API_LABEL = "legacy api"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
@@ -85,12 +87,12 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization WWW"
+    "PythonVenv Serialization TaskSDK WWW"
 )
 
 ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW"
 )
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
@@ -102,13 +104,15 @@ class FileGroupForCi(Enum):
     ALWAYS_TESTS_FILES = "always_test_files"
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
+    LEGACY_API_FILES = "legacy_api_files"
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     UI_FILES = "ui_files"
-    WWW_FILES = "www_files"
+    LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
+    TASK_SDK_FILES = "task_sdk_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -122,7 +126,7 @@ class FileGroupForCi(Enum):
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
 
 
-class HashableDict(Dict[T, List[str]]):
+class HashableDict(dict[T, list[str]]):
     def __hash__(self):
         return hash(frozenset(self))
 
@@ -157,6 +161,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/api_connexion/openapi/v1\.yaml",
             r"^clients/gen",
         ],
+        FileGroupForCi.LEGACY_API_FILES: [
+            r"^airflow/api_connexion/",
+        ],
         FileGroupForCi.HELM_FILES: [
             r"^chart",
             r"^airflow/kubernetes",
@@ -171,7 +178,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers",
+            r"^providers/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -185,7 +192,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/[^/]+\.json$",
             r"^airflow/ui/.*\.lock$",
         ],
-        FileGroupForCi.WWW_FILES: [
+        FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
             r"^airflow/www/[^/]+\.json$",
@@ -194,9 +201,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^airflow/providers/cncf/kubernetes/",
-            r"^tests/providers/cncf/kubernetes/",
-            r"^tests/system/providers/cncf/kubernetes/",
+            r"^providers/src/airflow/providers/cncf/kubernetes/",
+            r"^providers/tests/cncf/kubernetes/",
+            r"^providers/tests/system/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r".*\.py$",
@@ -205,9 +212,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r".*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
-            r"^airflow/providers/.*\.py$",
-            r"^tests/providers/.*\.py$",
-            r"^tests/system/providers/.*\.py$",
+            r"^providers/src/airflow/providers/.*\.py$",
+            r"^providers/tests/.*\.py$",
+            r"^providers/tests/system/.*\.py$",
         ],
         FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
             r"^docs/.*\.py$",
@@ -219,6 +226,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^.pre-commit-config.yaml$",
             r"^airflow",
             r"^chart",
+            r"^providers/src/",
+            r"^providers/tests/",
+            r"^task_sdk/src/",
+            r"^task_sdk/tests/",
             r"^tests",
             r"^kubernetes_tests",
         ],
@@ -233,6 +244,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
+            r"^dev/tests_common/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_FILES: [
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ],
     }
 )
@@ -242,13 +258,15 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^airflow/providers/.*",
+            r"^providers/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
             r"^provider_packages/.*",
-            r"^tests/providers/.*",
-            r"^tests/system/providers/.*",
+            r"^providers/tests/.*",
+            r"^providers/tests/system/.*",
             r"^tests/dags/test_imports.py",
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ]
     }
 )
@@ -279,13 +297,17 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
-            r"^airflow/providers/",
-            r"^tests/system/providers/",
-            r"^tests/providers/",
+            r"^providers/src/airflow/providers/",
+            r"^providers/tests/system/",
+            r"^providers/tests/",
         ],
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
+        ],
+        SelectiveUnitTestTypes.TASK_SDK: [
+            r"^task_sdk/src/airflow/sdk/",
+            r"^task_sdk/tests/",
         ],
         SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
@@ -301,7 +323,7 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
+    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
         try:
             file_path.relative_to(provider_root)
             relative_base_path = provider_root
@@ -322,7 +344,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
         if parent_dir_path == relative_base_path:
             break
         relative_path = parent_dir_path.relative_to(relative_base_path)
-        if (AIRFLOW_PROVIDERS_ROOT / relative_path / "provider.yaml").exists():
+        if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
             return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
@@ -341,7 +363,7 @@ def _exclude_files_with_regexps(files: tuple[str, ...], matched_files, exclude_r
                 matched_files.remove(file)
 
 
-@lru_cache(maxsize=None)
+@cache
 def _matching_files(
     files: tuple[str, ...], match_group: FileGroupForCi, match_dict: HashableDict, exclude_dict: HashableDict
 ) -> list[str]:
@@ -680,7 +702,7 @@ class SelectiveChecks:
 
     @cached_property
     def run_www_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.WWW_FILES)
+        return self._should_be_run(FileGroupForCi.LEGACY_WWW_FILES)
 
     @cached_property
     def run_amazon_tests(self) -> bool:
@@ -690,6 +712,10 @@ class SelectiveChecks:
             "amazon" in self.parallel_test_types_list_as_string
             or "Providers" in self.parallel_test_types_list_as_string.split(" ")
         )
+
+    @cached_property
+    def run_task_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -1055,7 +1081,9 @@ class SelectiveChecks:
             # when full tests are needed, we do not want to skip any checks and we should
             # run all the pre-commits just to be sure everything is ok when some structural changes occurred
             return ",".join(sorted(pre_commits_to_skip))
-        if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not self._matching_files(
+            FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
         if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
@@ -1103,6 +1131,10 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def disable_airflow_repo_cache(self) -> bool:
+        return self.docker_cache == "disabled"
 
     @cached_property
     def helm_test_packages(self) -> str:
@@ -1354,3 +1386,38 @@ class SelectiveChecks:
             self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
             and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
         ) or CANARY_LABEL in self._pr_labels
+
+    @cached_property
+    def is_legacy_ui_api_labeled(self) -> bool:
+        # Selective check for legacy UI/API updates.
+        # It is to ping the maintainer to add the label and make them aware of the changes.
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+
+        if (
+            self._matching_files(
+                FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            and LEGACY_API_LABEL not in self._pr_labels
+        ):
+            get_console().print(
+                f"[error]Please ask maintainer to assign "
+                f"the '{LEGACY_API_LABEL}' label to the PR in order to continue"
+            )
+            sys.exit(1)
+        elif (
+            self._matching_files(
+                FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            and LEGACY_UI_LABEL not in self._pr_labels
+        ):
+            get_console().print(
+                f"[error]Please ask maintainer to assign "
+                f"the '{LEGACY_UI_LABEL}' label to the PR in order to continue"
+            )
+            sys.exit(1)
+        else:
+            return True

@@ -841,7 +841,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.27.2-pr579"
+                            "default": "v0.27.2"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -1597,6 +1597,18 @@
                         "object"
                     ],
                     "default": null
+                },
+                "podManagementPolicy": {
+                    "description": "Specifies the policy for managing pods within the worker. Only applicable to StatefulSet.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null,
+                    "enum": [
+                        "OrderedReady",
+                        "Parallel"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
@@ -7669,6 +7681,39 @@
                     "description": "Grace period for Redis to exit after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 600
+                },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "clusterIP": {
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "nodePort": {
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
                 },
                 "persistence": {
                     "description": "Persistence configuration.",

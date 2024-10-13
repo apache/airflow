@@ -34,9 +34,10 @@ AIRFLOW_PROVIDERS_IMPORT_PREFIX = "airflow.providers."
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 
-AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
-AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "system" / "tests" / "providers"
+AIRFLOW_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "providers"
+AIRFLOW_PROVIDERS_SRC_DIR = AIRFLOW_PROVIDERS_DIR / "src" / "airflow" / "providers"
+AIRFLOW_TESTS_PROVIDERS_DIR = AIRFLOW_PROVIDERS_DIR / "tests"
+AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR = AIRFLOW_TESTS_PROVIDERS_DIR / "tests" / "system"
 
 DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
 
@@ -95,16 +96,18 @@ class ImportFinder(NodeVisitor):
 
 
 def find_all_providers_and_provider_files():
-    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_DIR):
+    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_SRC_DIR):
         for filename in filenames:
             if filename == "provider.yaml":
                 provider_file = Path(root, filename)
-                provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
+                provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)).replace(
                     os.sep, "."
                 )
                 provider_info = yaml.safe_load(provider_file.read_text())
                 if provider_info["state"] == "suspended":
-                    suspended_paths.append(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix())
+                    suspended_paths.append(
+                        provider_file.parent.relative_to(AIRFLOW_PROVIDERS_SRC_DIR).as_posix()
+                    )
                 ALL_PROVIDERS[provider_name] = provider_info
             path = Path(root, filename)
             if path.is_file() and path.name.endswith(".py"):
@@ -145,7 +148,7 @@ def get_imports_from_file(file_path: Path) -> list[str]:
 def get_provider_id_from_file_name(file_path: Path) -> str | None:
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
     try:
-        relative_path = file_path.relative_to(AIRFLOW_PROVIDERS_DIR)
+        relative_path = file_path.relative_to(AIRFLOW_PROVIDERS_SRC_DIR)
     except ValueError:
         try:
             relative_path = file_path.relative_to(AIRFLOW_SYSTEM_TESTS_PROVIDERS_DIR)
@@ -173,7 +176,14 @@ def check_if_different_provider_used(file_path: Path) -> None:
         imported_provider = get_provider_id_from_import(import_name, file_path)
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
-        elif imported_provider and file_provider != imported_provider:
+            continue
+
+        if imported_provider == "standard":
+            # Standard -- i.e. BashOperator is used in a lot of example dags, but we don't want to mark this
+            # as a provider cross dependency
+            if file_path.name == "celery_executor_utils.py" or "/example_dags/" in file_path.as_posix():
+                continue
+        if imported_provider and file_provider != imported_provider:
             ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 

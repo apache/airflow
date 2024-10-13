@@ -22,10 +22,10 @@ import pytest
 
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
-from airflow.security import permissions
 from airflow.utils.session import create_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.db import clear_db_dag_warnings, clear_db_dags
+
+from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from dev.tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -34,30 +34,16 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        ],  # type: ignore
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(
-        app,  # type:ignore
-        username="test_with_dag2_read",
-        role_name="TestWithDag2Read",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
-            (permissions.ACTION_CAN_READ, f"{permissions.RESOURCE_DAG_PREFIX}dag2"),
-        ],  # type: ignore
-    )
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield minimal_app_for_api
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_with_dag2_read")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestBaseDagWarning:
@@ -160,13 +146,5 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dagWarnings", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
-        assert response.status_code == 403
-
-    def test_should_raise_403_forbidden_when_user_has_no_dag_read_permission(self):
-        response = self.client.get(
-            "/api/v1/dagWarnings",
-            environ_overrides={"REMOTE_USER": "test_with_dag2_read"},
-            query_string={"dag_id": "dag1"},
         )
         assert response.status_code == 403

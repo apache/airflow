@@ -24,8 +24,9 @@ import pytest
 
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.log.task_context_logger import TaskContextLogger
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from dev.tests_common.test_utils.config import conf_vars
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

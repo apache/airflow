@@ -42,7 +42,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -60,17 +60,15 @@ from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.security import permissions
-from airflow.sensors.bash import BashSensor
-from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
-    DependencyDetector,
     SerializedBaseOperator,
     SerializedDAG,
 )
@@ -82,45 +80,19 @@ from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.test_utils.compat import BaseOperatorLink
-from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
-from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
+
+from dev.tests_common.test_utils.compat import BaseOperatorLink
+from dev.tests_common.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
+from dev.tests_common.test_utils.timetables import (
+    CustomSerializationTimetable,
+    cron_timetable,
+    delta_timetable,
+)
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
     from airflow.utils.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
-
-
-class CustomDepOperator(BashOperator):
-    """
-    Used for testing custom dependency detector.
-
-    TODO: remove in Airflow 3.0
-    """
-
-
-class CustomDependencyDetector(DependencyDetector):
-    """
-    Prior to deprecation of custom dependency detector, the return type as DagDependency | None.
-    This class verifies that custom dependency detector classes which assume that return type will still
-    work until support for them is removed in 3.0.
-
-    TODO: remove in Airflow 3.0
-    """
-
-    @staticmethod
-    def detect_task_dependencies(task: Operator) -> DagDependency | None:  # type: ignore
-        if isinstance(task, CustomDepOperator):
-            return DagDependency(
-                source=task.dag_id,
-                target="nothing",
-                dependency_type="abc",
-                dependency_id=task.task_id,
-            )
-        else:
-            return DependencyDetector().detect_task_dependencies(task)  # type: ignore
 
 
 executor_config_pod = k8s.V1Pod(
@@ -187,7 +159,7 @@ serialized_simple_dag_ground_truth = {
                     "template_fields_renderers": {"bash_command": "bash", "env": "json"},
                     "bash_command": "echo {{ task.task_id }}",
                     "_task_type": "BashOperator",
-                    "_task_module": "airflow.operators.bash",
+                    "_task_module": "airflow.providers.standard.operators.bash",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -218,7 +190,9 @@ serialized_simple_dag_ground_truth = {
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
-                    "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
+                    "_operator_extra_links": [
+                        {"dev.tests_common.test_utils.mock_operators.CustomOpLink": {}}
+                    ],
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
                     "template_ext": [],
@@ -226,7 +200,7 @@ serialized_simple_dag_ground_truth = {
                     "template_fields_renderers": {},
                     "_task_type": "CustomOperator",
                     "_operator_name": "@custom",
-                    "_task_module": "tests.test_utils.mock_operators",
+                    "_task_module": "dev.tests_common.test_utils.mock_operators",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -266,7 +240,7 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 CUSTOM_TIMETABLE_SERIALIZED = {
-    "__type": "tests.test_utils.timetables.CustomSerializationTimetable",
+    "__type": "dev.tests_common.test_utils.timetables.CustomSerializationTimetable",
     "__var": {"value": "foo"},
 }
 
@@ -343,8 +317,8 @@ def get_excluded_patterns() -> Generator[str, None, None]:
         if python_version in provider_info.get("excluded-python-versions"):
             provider_path = provider.replace(".", "/")
             yield f"airflow/providers/{provider_path}/"
-            yield f"tests/providers/{provider_path}/"
-            yield f"tests/system/providers/{provider_path}/"
+            yield f"providers/tests/{provider_path}/"
+            yield f"providers/tests/system/{provider_path}/"
 
 
 def collect_dags(dag_folder=None):
@@ -361,10 +335,10 @@ def collect_dags(dag_folder=None):
     else:
         patterns = [
             "airflow/example_dags",
-            "airflow/providers/*/example_dags",  # TODO: Remove once AIP-47 is completed
-            "airflow/providers/*/*/example_dags",  # TODO: Remove once AIP-47 is completed
-            "tests/system/providers/*/",
-            "tests/system/providers/*/*/",
+            "providers/src/airflow/providers/*/example_dags",  # TODO: Remove once AIP-47 is completed
+            "providers/src/airflow/providers/*/*/example_dags",  # TODO: Remove once AIP-47 is completed
+            "providers/tests/system/*/",
+            "providers/tests/system/*/*/",
         ]
     excluded_patterns = [f"{ROOT_FOLDER}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()]
     for pattern in patterns:
@@ -399,7 +373,7 @@ def timetable_plugin(monkeypatch):
     monkeypatch.setattr(
         plugins_manager,
         "timetable_classes",
-        {"tests.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+        {"dev.tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
     )
 
 
@@ -495,7 +469,7 @@ class TestStringifiedDAGs:
 
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
-            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "'dev.tests_common.test_utils.timetables.CustomSerializationTimetable' "
             "is not registered or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
@@ -562,8 +536,8 @@ class TestStringifiedDAGs:
     def test_roundtrip_provider_example_dags(self):
         dags = collect_dags(
             [
-                "airflow/providers/*/example_dags",
-                "airflow/providers/*/*/example_dags",
+                "src/providers/airflow/providers/*/example_dags",
+                "src/providers/airflow/providers/*/*/example_dags",
             ]
         )
 
@@ -860,7 +834,7 @@ class TestStringifiedDAGs:
             SerializedDAG.from_dict(serialized)
         message = (
             "Timetable class "
-            "'tests.test_utils.timetables.CustomSerializationTimetable' "
+            "'dev.tests_common.test_utils.timetables.CustomSerializationTimetable' "
             "is not registered or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
@@ -1012,15 +986,15 @@ class TestStringifiedDAGs:
         [
             pytest.param(
                 "true",
-                [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
+                [{"dev.tests_common.test_utils.mock_operators.CustomOpLink": {}}],
                 {"Google Custom": "http://google.com/custom_base_link?search=true"},
                 id="non-indexed-link",
             ),
             pytest.param(
                 ["echo", "true"],
                 [
-                    {"tests.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 0}},
-                    {"tests.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 1}},
+                    {"dev.tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 0}},
+                    {"dev.tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 1}},
                 ],
                 {
                     "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=echo",
@@ -1323,7 +1297,7 @@ class TestStringifiedDAGs:
             "template_fields": ["bash_command"],
             "template_fields_renderers": {},
             "_task_type": "CustomOperator",
-            "_task_module": "tests.test_utils.mock_operators",
+            "_task_module": "dev.tests_common.test_utils.mock_operators",
             "pool": "default_pool",
             "ui_color": "#fff",
             "ui_fgcolor": "#000",
@@ -1656,16 +1630,16 @@ class TestStringifiedDAGs:
             ]
 
     @pytest.mark.db_test
-    def test_dag_deps_datasets_with_duplicate_dataset(self):
+    def test_dag_deps_assets_with_duplicate_asset(self):
         """
-        Check that dag_dependencies node is populated correctly for a DAG with duplicate datasets.
+        Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
             ExternalTaskSensor(
@@ -1673,13 +1647,13 @@ class TestStringifiedDAGs:
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
 
             @dag.task(outlets=[d4])
-            def other_dataset_writer(x):
+            def other_asset_writer(x):
                 pass
 
-            other_dataset_writer.expand(x=[1, 2])
+            other_asset_writer.expand(x=[1, 2])
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -1687,8 +1661,8 @@ class TestStringifiedDAGs:
             [
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d4",
                 },
                 {
@@ -1699,44 +1673,44 @@ class TestStringifiedDAGs:
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d3",
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d2",
                 },
                 {
-                    "source": "dataset",
+                    "source": "asset",
                     "target": "test",
-                    "dependency_type": "dataset",
+                    "dependency_type": "asset",
                     "dependency_id": "d1",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
                 {
                     "dependency_id": "d1",
-                    "dependency_type": "dataset",
-                    "source": "dataset",
+                    "dependency_type": "asset",
+                    "source": "asset",
                     "target": "test",
                 },
             ],
@@ -1745,16 +1719,16 @@ class TestStringifiedDAGs:
         assert actual == expected
 
     @pytest.mark.db_test
-    def test_dag_deps_datasets(self):
+    def test_dag_deps_assets(self):
         """
-        Check that dag_dependencies node is populated correctly for a DAG with datasets.
+        Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
             ExternalTaskSensor(
@@ -1762,13 +1736,13 @@ class TestStringifiedDAGs:
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="dataset_writer", bash_command="echo hello", outlets=[d2, d3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d3])
 
             @dag.task(outlets=[d4])
-            def other_dataset_writer(x):
+            def other_asset_writer(x):
                 pass
 
-            other_dataset_writer.expand(x=[1, 2])
+            other_asset_writer.expand(x=[1, 2])
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -1776,8 +1750,8 @@ class TestStringifiedDAGs:
             [
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d4",
                 },
                 {
@@ -1788,20 +1762,20 @@ class TestStringifiedDAGs:
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d3",
                 },
                 {
                     "source": "test",
-                    "target": "dataset",
-                    "dependency_type": "dataset",
+                    "target": "asset",
+                    "dependency_type": "asset",
                     "dependency_id": "d2",
                 },
                 {
-                    "source": "dataset",
+                    "source": "asset",
                     "target": "test",
-                    "dependency_type": "dataset",
+                    "dependency_type": "asset",
                     "dependency_id": "d1",
                 },
             ],
@@ -2317,7 +2291,7 @@ def test_operator_expand_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "airflow.operators.bash",
+        "_task_module": "airflow.providers.standard.operators.bash",
         "_task_type": "BashOperator",
         "start_trigger_args": None,
         "start_from_trigger": False,
@@ -2380,7 +2354,7 @@ def test_operator_expand_xcomarg_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "tests.test_utils.mock_operators",
+        "_task_module": "dev.tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2435,7 +2409,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "tests.test_utils.mock_operators",
+        "_task_module": "dev.tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2490,7 +2464,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "tests.test_utils.mock_operators",
+        "_task_module": "dev.tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2853,7 +2827,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "downstream_task_ids": [],
-        "_operator_extra_links": [{"tests.test_utils.mock_operators.AirflowLink2": {}}],
+        "_operator_extra_links": [{"dev.tests_common.test_utils.mock_operators.AirflowLink2": {}}],
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "template_ext": [],

@@ -41,5 +41,5 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
 
     cron
     timezone
-    datasets
+    Assets <datasets>
     timetable

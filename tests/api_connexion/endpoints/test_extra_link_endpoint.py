@@ -26,16 +26,16 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.security import permissions
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.mock_operators import CustomOperator
-from tests.test_utils.mock_plugins import mock_plugin_manager
+
+from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from dev.tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from dev.tests_common.test_utils.mock_operators import CustomOperator
+from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -48,21 +48,16 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestGetExtraLinks:
@@ -78,8 +73,8 @@ class TestGetExtraLinks:
         self.dag = self._create_dag()
 
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
-        self.app.dag_bag.sync_to_db()  # type: ignore
+        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
+        self.app.dag_bag.sync_to_db()
 
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(

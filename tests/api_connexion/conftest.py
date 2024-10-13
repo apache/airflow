@@ -19,8 +19,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.www import app
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+from dev.tests_common.test_utils.config import conf_vars
+from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
@@ -36,9 +37,16 @@ def minimal_app_for_api():
         ]
     )
     def factory():
-        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
+        with conf_vars(
+            {
+                ("api", "auth_backends"): "dev.tests_common.test_utils.remote_user_api_auth_backend",
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
+            }
+        ):
             _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
-            _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app
 
     return factory()

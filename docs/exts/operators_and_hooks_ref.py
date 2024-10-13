@@ -519,8 +519,8 @@ class DatasetSchemeDirective(BaseJinjaReferenceDirective):
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _common_render_list_content(
             header_separator=header_separator,
-            resource_type="dataset-uris",
-            template="dataset-uri-schemes.rst.jinja2",
+            resource_type="asset-uris",
+            template="asset-uri-schemes.rst.jinja2",
         )
 
 

@@ -29,12 +29,13 @@ from packaging.version import Version
 
 from airflow.models import DagBag
 from airflow.utils import yaml
-from tests.test_utils.asserts import assert_queries_count
+
+from dev.tests_common.test_utils.asserts import assert_queries_count
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
+PROVIDERS_PREFIXES = ("providers/src/airflow/providers/", "providers/tests/system/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
     # that are not included in certain CI checks.
@@ -50,17 +51,17 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
-    "tests/system/providers/google/cloud/dataflow/example_dataflow_sql.py",
-    "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
-    "tests/system/providers/google/cloud/datapipelines/example_datapipeline.py",
-    "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
-    "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
+    "providers/tests/system/google/cloud/bigquery/example_bigquery_operations.py",
+    "providers/tests/system/google/cloud/dataflow/example_dataflow_sql.py",
+    "providers/tests/system/google/cloud/dataproc/example_dataproc_gke.py",
+    "providers/tests/system/google/cloud/datapipelines/example_datapipeline.py",
+    "providers/tests/system/google/cloud/gcs/example_gcs_sensor.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
+    "providers/tests/system/google/cloud/life_sciences/example_life_sciences.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
 
@@ -89,7 +90,7 @@ def get_suspended_providers_folders() -> list[str]:
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
-                .replace("airflow/providers/", "")
+                .replace("providers/src/airflow/providers/", "")
             )
     return suspended_providers
 
@@ -107,7 +108,7 @@ def get_python_excluded_providers_folders() -> list[str]:
             excluded_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
-                .replace("airflow/providers/", "")
+                .replace("providers/src/airflow/providers/", "")
             )
     return excluded_providers
 

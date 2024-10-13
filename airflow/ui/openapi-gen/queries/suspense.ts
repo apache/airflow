@@ -1,43 +1,75 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagRunService,
+  DagService,
+  DashboardService,
+  VariableService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Next Run Datasets
+ * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
-  <
-    TData = Common.DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
-    TError = unknown,
-    TQueryKey extends Array<unknown> = unknown[],
-  >(
-    {
-      dagId,
-    }: {
-      dagId: string;
-    },
-    queryKey?: TQueryKey,
-    options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-  ) =>
-    useSuspenseQuery<TData, TError>({
-      queryKey:
-        Common.UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn(
-          { dagId },
-          queryKey,
-        ),
-      queryFn: () =>
-        DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet({
-          dagId,
-        }) as TData,
-      ...options,
-    });
+export const useAssetServiceNextRunAssetsSuspense = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetricsSuspense = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
+      { endDate, startDate },
+      queryKey,
+    ),
+    queryFn: () =>
+      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
 /**
  * Get Dags
  * Get all DAGs.
@@ -55,8 +87,8 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceGetDagsPublicDagsGetSuspense = <
-  TData = Common.DagServiceGetDagsPublicDagsGetDefaultResponse,
+export const useDagServiceGetDagsSuspense = <
+  TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -87,7 +119,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
+    queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -103,7 +135,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
         lastDagRunState,
@@ -115,5 +147,146 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag
+ * Get basic information about a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagSuspense = <
+  TData = Common.DagServiceGetDagDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }, queryKey),
+    queryFn: () => DagService.getDag({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Details
+ * Get details of DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGDetailsResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagDetailsSuspense = <
+  TData = Common.DagServiceGetDagDetailsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
+    queryFn: () => DagService.getDagDetails({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnectionSuspense = <
+  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
+      { connectionId },
+      queryKey,
+    ),
+    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
+    ...options,
+  });
+/**
+ * Get Variable
+ * Get a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceGetVariableSuspense = <
+  TData = Common.VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseVariableServiceGetVariableKeyFn(
+      { variableKey },
+      queryKey,
+    ),
+    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetDagRunSuspense = <
+  TData = Common.DagRunServiceGetDagRunDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
+      { dagId, dagRunId },
+      queryKey,
+    ),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
     ...options,
   });

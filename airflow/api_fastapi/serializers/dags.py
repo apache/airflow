@@ -17,12 +17,16 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from collections import abc
+from datetime import datetime, timedelta
+from typing import Any, Iterable
 
 from itsdangerous import URLSafeSerializer
+from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
+    AliasGenerator,
     BaseModel,
+    ConfigDict,
     computed_field,
     field_validator,
 )
@@ -73,6 +77,14 @@ class DAGResponse(BaseModel):
             return v.split(",")
         return v
 
+    @field_validator("timetable_summary", mode="before")
+    @classmethod
+    def get_timetable_summary(cls, tts: str | None) -> str | None:
+        """Validate the string representation of timetable_summary."""
+        if tts is None or tts == "None":
+            return None
+        return str(tts)
+
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[misc]
     @property
@@ -93,3 +105,54 @@ class DAGCollectionResponse(BaseModel):
 
     dags: list[DAGResponse]
     total_entries: int
+
+
+class DAGDetailsResponse(DAGResponse):
+    """Specific serializer for DAG Details responses."""
+
+    catchup: bool
+    dag_run_timeout: timedelta | None
+    dataset_expression: dict | None
+    doc_md: str | None
+    start_date: datetime | None
+    end_date: datetime | None
+    is_paused_upon_creation: bool | None
+    orientation: str
+    params: abc.MutableMapping | None
+    render_template_as_native_obj: bool
+    template_search_path: Iterable[str] | None
+    timezone: str | None
+    last_parsed: datetime | None
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: {
+                "dag_run_timeout": "dagrun_timeout",
+                "last_parsed": "last_loaded",
+                "template_search_path": "template_searchpath",
+            }.get(field_name, field_name),
+        )
+    )
+
+    @field_validator("timezone", mode="before")
+    @classmethod
+    def get_timezone(cls, tz: Timezone | FixedTimezone) -> str | None:
+        """Convert timezone attribute to string representation."""
+        if tz is None:
+            return None
+        return str(tz)
+
+    @field_validator("params", mode="before")
+    @classmethod
+    def get_params(cls, params: abc.MutableMapping | None) -> dict | None:
+        """Convert params attribute to dict representation."""
+        if params is None:
+            return None
+        return {param_name: param_val.dump() for param_name, param_val in params.items()}
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
+    @property
+    def concurrency(self) -> int:
+        """Return max_active_tasks as concurrency."""
+        return self.max_active_tasks

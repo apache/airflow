@@ -277,57 +277,12 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
       operationId: create_backfill
       tags: [Backfill]
-      parameters:
-        - name: dag_id
-          in: query
-          schema:
-            type: string
-          required: true
-          description: |
-            Create dag runs for this dag.
-
-        - name: from_date
-          in: query
-          schema:
-            type: string
-            format: date-time
-          required: true
-          description: |
-            Create dag runs with logical dates from this date onward, including this date.
-
-        - name: to_date
-          in: query
-          schema:
-            type: string
-            format: date-time
-          required: true
-          description: |
-            Create dag runs for logical dates up to but not including this date.
-
-        - name: max_active_runs
-          in: query
-          schema:
-            type: integer
-          required: false
-          description: |
-            Maximum number of active DAG runs for the the backfill.
-
-        - name: reverse
-          in: query
-          schema:
-            type: boolean
-          required: false
-          description: |
-            If true, run the dag runs in descending order of logical date.
-
-        - name: config
-          in: query
-          schema:
-            # todo: AIP-78 make this object
-            type: string
-          required: false
-          description: |
-            If true, run the dag runs in descending order of logical date.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Backfill"
       responses:
         "200":
           description: Success.
@@ -1181,26 +1136,26 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
     get:
-      summary: Get dataset events for a DAG run
+      summary: Get asset events for a DAG run
       description: |
-        Get datasets for a dag run.
+        Get asset for a dag run.
 
         *New in version 2.4.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: get_upstream_dataset_events
-      tags: [DAGRun, Dataset]
+      operationId: get_upstream_asset_events
+      tags: [DAGRun, Asset]
       responses:
         "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1245,22 +1200,22 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent/{uri}:
+  /dags/{dag_id}/assets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
-      summary: Get a queued Dataset event for a DAG
+      summary: Get a queued asset event for a DAG
       description: |
-        Get a queued Dataset event for a DAG.
+        Get a queued asset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queued_event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1276,16 +1231,16 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete a queued Dataset event for a DAG.
+      summary: Delete a queued Asset event for a DAG.
       description: |
-        Delete a queued Dataset event for a DAG.
+        Delete a queued Asset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queued_event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1298,21 +1253,21 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent:
+  /dags/{dag_id}/assets/queuedEvent:
     parameters:
       - $ref: "#/components/parameters/DAGID"
 
     get:
-      summary: Get queued Dataset events for a DAG.
+      summary: Get queued Asset events for a DAG.
       description: |
-        Get queued Dataset events for a DAG.
+        Get queued Asset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queued_events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_dag_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1328,16 +1283,16 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete queued Dataset events for a DAG.
+      summary: Delete queued Asset events for a DAG.
       description: |
-        Delete queued Dataset events for a DAG.
+        Delete queued Asset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queued_events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_dag_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1371,21 +1326,21 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/queuedEvent/{uri}:
+  /assets/queuedEvent/{uri}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
-      summary: Get queued Dataset events for a Dataset.
+      summary: Get queued Asset events for an Asset.
       description: |
-        Get queued Dataset events for a Dataset
+        Get queued Asset events for an Asset
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_queued_events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1401,16 +1356,16 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete queued Dataset events for a Dataset.
+      summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Dataset events for a Dataset.
+        Delete queued Asset events for a Asset.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dataset_queued_events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -2517,12 +2472,12 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets:
+  /assets:
     get:
-      summary: List datasets
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_datasets
-      tags: [Dataset]
+      summary: List assets
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_assets
+      tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
@@ -2533,14 +2488,14 @@ paths:
             type: string
           required: false
           description: |
-            If set, only return datasets with uris matching this pattern.
+            If set, only return assets with uris matching this pattern.
         - name: dag_ids
           in: query
           schema:
             type: string
           required: false
           description: |
-            One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+            One or more DAG IDs separated by commas to filter assets by associated DAGs either consuming or producing.
 
             *New in version 2.9.0*
       responses:
@@ -2549,28 +2504,28 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetCollection"
+                $ref: "#/components/schemas/AssetCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets/{uri}:
+  /assets/{uri}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
     get:
-      summary: Get a dataset
-      description: Get a dataset by uri.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset
-      tags: [Dataset]
+      summary: Get an asset
+      description: Get an asset by uri.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset
+      tags: [Asset]
       responses:
         "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2578,18 +2533,18 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/events:
+  /assets/events:
     get:
-      summary: Get dataset events
-      description: Get dataset events
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_events
-      tags: [Dataset]
+      summary: Get asset events
+      description: Get asset events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset_events
+      tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
         - $ref: "#/components/parameters/OrderBy"
-        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterAssetID"
         - $ref: "#/components/parameters/FilterSourceDAGID"
         - $ref: "#/components/parameters/FilterSourceTaskID"
         - $ref: "#/components/parameters/FilterSourceRunID"
@@ -2600,7 +2555,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2608,24 +2563,24 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     post:
-      summary: Create dataset event
-      description: Create dataset event
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: create_dataset_event
-      tags: [Dataset]
+      summary: Create asset event
+      description: Create asset event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: create_asset_event
+      tags: [Asset]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDatasetEvent'
+              $ref: '#/components/schemas/CreateAssetEvent'
       responses:
         '200':
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEvent'
+                $ref: '#/components/schemas/AssetEvent'
         "400":
           $ref: "#/components/responses/BadRequest"
         '401':
@@ -2920,7 +2875,7 @@ components:
           nullable: true
           description: To date of the backfill (exclusive).
         dag_run_conf:
-          type: string
+          type: object
           nullable: true
           description: Dag run conf to be forwarded to the dag runs.
         is_paused:
@@ -3463,7 +3418,7 @@ components:
       allOf:
         - type: object
           properties:
-            import_errors:
+            dag_warnings:
               type: array
               items:
                 $ref: "#/components/schemas/DagWarning"
@@ -4133,7 +4088,7 @@ components:
               nullable: true
             dataset_expression:
               type: object
-              description: Nested dataset any/all conditions
+              description: Nested asset any/all conditions
               nullable: true
             doc_md:
               type: string
@@ -4359,6 +4314,12 @@ components:
             type: string
             nullable: true
           description: The flask blueprints
+        fastapi_apps:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The fastapi apps
         appbuilder_views:
           type: array
           items:
@@ -4507,133 +4468,133 @@ components:
           $ref: "#/components/schemas/Resource"
           description: The permission resource
 
-    Dataset:
+    Asset:
       description: |
-        A dataset item.
+        An asset item.
 
         *New in version 2.4.0*
       type: object
       properties:
         id:
           type: integer
-          description: The dataset id
+          description: The asset id
         uri:
           type: string
-          description: The dataset uri
+          description: The asset uri
           nullable: false
         extra:
           type: object
-          description: The dataset extra
+          description: The asset extra
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
         consuming_dags:
           type: array
           items:
-            $ref: "#/components/schemas/DagScheduleDatasetReference"
+            $ref: "#/components/schemas/DagScheduleAssetReference"
         producing_tasks:
           type: array
           items:
-            $ref: "#/components/schemas/TaskOutletDatasetReference"
+            $ref: "#/components/schemas/TaskOutletAssetReference"
 
-    TaskOutletDatasetReference:
+    TaskOutletAssetReference:
       description: |
-        A datasets reference to an upstream task.
+        An asset reference to an upstream task.
 
         *New in version 2.4.0*
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that updates the dataset.
+          description: The DAG ID that updates the asset.
           nullable: true
         task_id:
           type: string
-          description: The task ID that updates the dataset.
+          description: The task ID that updates the asset.
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
 
-    DagScheduleDatasetReference:
+    DagScheduleAssetReference:
       description: |
-        A datasets reference to a downstream DAG.
+        An asset reference to a downstream DAG.
 
         *New in version 2.4.0*
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that depends on the dataset.
+          description: The DAG ID that depends on the asset.
           nullable: true
         created_at:
           type: string
-          description: The dataset reference creation time
+          description: The asset reference creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset reference update time
+          description: The asset reference update time
           nullable: false
 
-    DatasetCollection:
+    AssetCollection:
       description: |
-        A collection of datasets.
+        A collection of assets.
 
         *New in version 2.4.0*
       type: object
       allOf:
         - type: object
           properties:
-            datasets:
+            assets:
               type: array
               items:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
         - $ref: "#/components/schemas/CollectionInfo"
 
-    DatasetEvent:
+    AssetEvent:
       description: |
-        A dataset event.
+        An asset event.
 
         *New in version 2.4.0*
       type: object
       properties:
         dataset_id:
           type: integer
-          description: The dataset id
+          description: The asset id
         dataset_uri:
           type: string
-          description: The URI of the dataset
+          description: The URI of the asset
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
         source_dag_id:
           type: string
-          description: The DAG ID that updated the dataset.
+          description: The DAG ID that updated the asset.
           nullable: true
         source_task_id:
           type: string
-          description: The task ID that updated the dataset.
+          description: The task ID that updated the asset.
           nullable: true
         source_run_id:
           type: string
-          description: The DAG run ID that updated the dataset.
+          description: The DAG run ID that updated the asset.
           nullable: true
         source_map_index:
           type: integer
-          description: The task map index that updated the dataset.
+          description: The task map index that updated the asset.
           nullable: true
         created_dagruns:
           type: array
@@ -4641,21 +4602,21 @@ components:
             $ref: "#/components/schemas/BasicDAGRun"
         timestamp:
           type: string
-          description: The dataset event creation time
+          description: The asset event creation time
           nullable: false
 
-    CreateDatasetEvent:
+    CreateAssetEvent:
       type: object
       required:
-        - dataset_uri
+        - asset_uri
       properties:
-        dataset_uri:
+        asset_uri:
           type: string
-          description: The URI of the dataset
+          description: The URI of the asset
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
 
     QueuedEvent:
@@ -4663,7 +4624,7 @@ components:
       properties:
         uri:
           type: string
-          description: The datata uri.
+          description: The asset uri.
         dag_id:
           type: string
           description: The DAG ID.
@@ -4674,14 +4635,14 @@ components:
 
     QueuedEventCollection:
       description: |
-        A collection of Dataset Dag Run Queues.
+        A collection of asset Dag Run Queues.
 
         *New in version 2.9.0*
       type: object
       allOf:
         - type: object
           properties:
-            datasets:
+            queued_events:
               type: array
               items:
                 $ref: "#/components/schemas/QueuedEvent"
@@ -4737,19 +4698,19 @@ components:
         state:
           $ref: "#/components/schemas/DagState"
 
-    DatasetEventCollection:
+    AssetEventCollection:
       description: |
-        A collection of dataset events.
+        A collection of asset events.
 
         *New in version 2.4.0*
       type: object
       allOf:
         - type: object
           properties:
-            dataset_events:
+            asset_events:
               type: array
               items:
-                $ref: "#/components/schemas/DatasetEvent"
+                $ref: "#/components/schemas/AssetEvent"
         - $ref: "#/components/schemas/CollectionInfo"
 
     # Configuration
@@ -5545,14 +5506,14 @@ components:
       required: true
       description: The import error ID.
 
-    DatasetURI:
+    AssetURI:
       in: path
       name: uri
       schema:
         type: string
         format: path
       required: true
-      description: The encoded Dataset URI
+      description: The encoded Asset URI
 
     PoolName:
       in: path
@@ -5733,40 +5694,40 @@ components:
 
         *New in version 2.2.0*
 
-    FilterDatasetID:
+    FilterAssetID:
       in: query
-      name: dataset_id
+      name: asset_id
       schema:
         type: integer
-      description: The Dataset ID that updated the dataset.
+      description: The Asset ID that updated the asset.
 
     FilterSourceDAGID:
       in: query
       name: source_dag_id
       schema:
         type: string
-      description: The DAG ID that updated the dataset.
+      description: The DAG ID that updated the asset.
 
     FilterSourceTaskID:
       in: query
       name: source_task_id
       schema:
         type: string
-      description: The task ID that updated the dataset.
+      description: The task ID that updated the asset.
 
     FilterSourceRunID:
       in: query
       name: source_run_id
       schema:
         type: string
-      description: The DAG run ID that updated the dataset.
+      description: The DAG run ID that updated the asset.
 
     FilterSourceMapIndex:
       in: query
       name: source_map_index
       schema:
         type: integer
-      description: The map index that updated the dataset.
+      description: The map index that updated the asset.
 
     FilterMapIndex:
       in: query
@@ -6024,12 +5985,12 @@ components:
 security: []
 
 tags:
+  - name: Asset
   - name: Config
   - name: Connection
   - name: DAG
   - name: DAGRun
   - name: DagWarning
-  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring

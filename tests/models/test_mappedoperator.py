@@ -42,8 +42,13 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
+
+from dev.tests_common.test_utils.mapping import expand_mapped_task
+from dev.tests_common.test_utils.mock_operators import (
+    MockOperator,
+    MockOperatorWithNestedFields,
+    NestedFields,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -218,6 +223,15 @@ def test_partial_on_class_invalid_ctor_args() -> None:
     """
     with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
         MockOperator.partial(task_id="a", foo="bar", bar=2)
+
+
+def test_partial_on_invalid_pool_slots_raises() -> None:
+    """Test that when we pass an invalid value to pool_slots in partial(),
+
+    i.e. if the value is not an integer, an error is raised at import time."""
+
+    with pytest.raises(TypeError, match="'<' not supported between instances of 'str' and 'int'"):
+        MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

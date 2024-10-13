@@ -18,14 +18,18 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
+from pendulum.parsing.exceptions import ParserError
+from pydantic import AfterValidator
 from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -37,9 +41,10 @@ T = TypeVar("T")
 class BaseParam(Generic[T], ABC):
     """Base class for filters."""
 
-    def __init__(self) -> None:
+    def __init__(self, skip_none: bool = True) -> None:
         self.value: T | None = None
         self.attribute: ColumnElement | None = None
+        self.skip_none = skip_none
 
     @abstractmethod
     def to_orm(self, select: Select) -> Select:
@@ -58,7 +63,7 @@ class _LimitFilter(BaseParam[int]):
     """Filter on the limit."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if self.value is None and self.skip_none:
             return select
 
         return select.limit(self.value)
@@ -71,7 +76,7 @@ class _OffsetFilter(BaseParam[int]):
     """Filter on offset."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if self.value is None and self.skip_none:
             return select
         return select.offset(self.value)
 
@@ -83,7 +88,7 @@ class _PausedFilter(BaseParam[bool]):
     """Filter on is_paused."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if self.value is None and self.skip_none:
             return select
         return select.where(DagModel.is_paused == self.value)
 
@@ -95,7 +100,7 @@ class _OnlyActiveFilter(BaseParam[bool]):
     """Filter on is_active."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value:
+        if self.value and self.skip_none:
             return select.where(DagModel.is_active == self.value)
         return select
 
@@ -106,33 +111,40 @@ class _OnlyActiveFilter(BaseParam[bool]):
 class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
-    def __init__(self, attribute: ColumnElement) -> None:
-        super().__init__()
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none)
         self.attribute: ColumnElement = attribute
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if self.value is None and self.skip_none:
             return select
         return select.where(self.attribute.ilike(f"%{self.value}"))
+
+    def transform_aliases(self, value: str | None) -> str | None:
+        if value == "~":
+            value = "%"
+        return value
 
 
 class _DagIdPatternSearch(_SearchParam):
     """Search on dag_id."""
 
-    def __init__(self) -> None:
-        super().__init__(DagModel.dag_id)
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagModel.dag_id, skip_none)
 
     def depends(self, dag_id_pattern: str | None = None) -> _DagIdPatternSearch:
+        dag_id_pattern = super().transform_aliases(dag_id_pattern)
         return self.set_value(dag_id_pattern)
 
 
 class _DagDisplayNamePatternSearch(_SearchParam):
     """Search on dag_display_name."""
 
-    def __init__(self) -> None:
-        super().__init__(DagModel.dag_display_name)
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagModel.dag_display_name, skip_none)
 
     def depends(self, dag_display_name_pattern: str | None = None) -> _DagDisplayNamePatternSearch:
+        dag_display_name_pattern = super().transform_aliases(dag_display_name_pattern)
         return self.set_value(dag_display_name_pattern)
 
 
@@ -149,6 +161,9 @@ class SortParam(BaseParam[str]):
         self.allowed_attrs = allowed_attrs
 
     def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
         if self.value is None:
             return select
 
@@ -165,6 +180,10 @@ class SortParam(BaseParam[str]):
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
         nullscheck = case((column.isnot(None), 0), else_=1)
+
+        # Reset default sorting
+        select = select.order_by(None)
+
         if self.value[0] == "-":
             return select.order_by(nullscheck, column.desc(), DagModel.dag_id.desc())
         else:
@@ -178,6 +197,9 @@ class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
         if not self.value:
             return select
 
@@ -192,6 +214,9 @@ class _OwnersFilter(BaseParam[List[str]]):
     """Filter on owners."""
 
     def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
         if not self.value:
             return select
 
@@ -206,7 +231,7 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
     """Filter on the state of the latest DagRun."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if self.value is None and self.skip_none:
             return select
         return select.where(DagRun.state == self.value)
 
@@ -214,6 +239,24 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+def _safe_parse_datetime(date_to_check: str) -> datetime:
+    """
+    Parse datetime and raise error for invalid dates.
+
+    :param date_to_check: the string value to be parsed
+    """
+    if not date_to_check:
+        raise ValueError(f"{date_to_check} cannot be None.")
+    try:
+        return timezone.parse(date_to_check, strict=True)
+    except (TypeError, ParserError):
+        raise HTTPException(
+            400, f"Invalid datetime: {date_to_check!r}. Please check the date parameter have this value."
+        )
+
+
+# Common Safe DateTime
+DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
@@ -222,6 +265,9 @@ QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter()
 QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)]
 QueryDagDisplayNamePatternSearch = Annotated[
     _DagDisplayNamePatternSearch, Depends(_DagDisplayNamePatternSearch().depends)
+]
+QueryDagIdPatternSearchWithNone = Annotated[
+    _DagIdPatternSearch, Depends(_DagIdPatternSearch(skip_none=False).depends)
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]

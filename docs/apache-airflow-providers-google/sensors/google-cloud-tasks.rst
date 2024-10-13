@@ -32,7 +32,7 @@ Google Cloud Tasks Empty Sensor
 To sense Queue being empty use
 :class:`~airflow.providers.google.cloud.sensor.tasks.TaskQueueEmptySensor`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_task.py
+.. exampleinclude:: /../../providers/src/airflow/providers/google/cloud/example_dags/example_cloud_task.py
     :language: python
     :dedent: 4
     :start-after: [START cloud_tasks_empty_sensor]
