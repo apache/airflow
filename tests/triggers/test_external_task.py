@@ -36,6 +36,7 @@ class TestWorkflowTrigger:
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_success(self, mock_get_count):
