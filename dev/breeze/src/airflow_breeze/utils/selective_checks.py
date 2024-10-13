@@ -1133,6 +1133,10 @@ class SelectiveChecks:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
 
     @cached_property
+    def disable_airflow_repo_cache(self) -> bool:
+        return self.docker_cache == "disabled"
+
+    @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
 

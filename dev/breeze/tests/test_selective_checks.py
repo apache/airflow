@@ -2308,6 +2308,26 @@ def test_mypy_matches(
             ("non committer build",),
             id="Committer regular PR - forcing non-committer build",
         ),
+        pytest.param(
+            ("README.md",),
+            {
+                "docker-cache": "disabled",
+                "disable-airflow-repo-cache": "true",
+            },
+            "potiuk",
+            ("disable image cache",),
+            id="Disabled cache",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "docker-cache": "registry",
+                "disable-airflow-repo-cache": "false",
+            },
+            "potiuk",
+            (),
+            id="Standard cache",
+        ),
     ],
 )
 def test_pr_labels(

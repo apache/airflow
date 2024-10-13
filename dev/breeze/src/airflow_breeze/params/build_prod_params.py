@@ -44,7 +44,6 @@ class BuildProdParams(CommonBuildParams):
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
     airflow_extras: str = field(default_factory=get_airflow_extras)
-    disable_airflow_repo_cache: bool = False
     disable_mssql_client_installation: bool = False
     disable_mysql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
@@ -185,10 +184,6 @@ class BuildProdParams(CommonBuildParams):
             ]
         )
         return extra_build_flags
-
-    @property
-    def airflow_pre_cached_pip_packages(self) -> str:
-        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def install_mssql_client(self) -> str:

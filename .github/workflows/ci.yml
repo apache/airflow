@@ -57,6 +57,7 @@ jobs:
     outputs:
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
       affected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -208,6 +209,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -264,6 +266,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -559,6 +562,7 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
 
   wait-for-prod-images:
     timeout-minutes: 80
@@ -615,6 +619,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -670,6 +675,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
 
   notify-slack-failure:

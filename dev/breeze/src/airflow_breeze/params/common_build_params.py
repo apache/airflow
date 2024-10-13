@@ -56,6 +56,7 @@ class CommonBuildParams:
     commit_sha: str | None = None
     dev_apt_command: str | None = None
     dev_apt_deps: str | None = None
+    disable_airflow_repo_cache: bool = False
     docker_cache: str = "registry"
     docker_host: str | None = os.environ.get("DOCKER_HOST")
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
@@ -89,8 +90,8 @@ class CommonBuildParams:
         raise NotImplementedError()
 
     @property
-    def airflow_pre_cached_pip_packages(self):
-        raise NotImplementedError()
+    def airflow_pre_cached_pip_packages(self) -> str:
+        return "false" if self.disable_airflow_repo_cache else "true"
 
     @property
     def airflow_base_image_name(self):
