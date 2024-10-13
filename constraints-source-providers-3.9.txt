@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-13T07:41:26.115035
+# This constraints file was automatically generated on 2024-10-13T13:44:02.783172
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -465,7 +465,7 @@ pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.1
 pyodbc==5.1.0
-pyparsing==3.1.4
+pyparsing==3.2.0
 pypsrp==0.8.1
 pyspark==3.5.3
 pyspnego==0.11.1
@@ -590,7 +590,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2024.10.12
+trove-classifiers==2024.10.13
 twine==5.1.1
 typed-ast==1.5.5
 typer==0.12.5
@@ -647,7 +647,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.320.0
 yarl==1.15.1
 ydb==3.18.2
-zeep==4.2.1
+zeep==4.3.0
 zenpy==2.0.53
 zipp==3.20.2
 zope.event==5.0
