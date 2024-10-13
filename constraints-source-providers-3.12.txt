@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-10T20:18:06.945714
+# This constraints file was automatically generated on 2024-10-13T21:25:23.494700
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -50,7 +50,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
-aiohttp==3.10.9
+aiohttp==3.10.10
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -71,7 +71,7 @@ amqp==5.2.0
 analytics-python==1.2.9
 annotated-types==0.7.0
 anyascii==0.3.2
-anyio==4.6.0
+anyio==4.6.1
 apispec==6.6.1
 apprise==1.9.0
 argcomplete==3.5.1
@@ -141,11 +141,11 @@ click-repl==0.3.0
 click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
-cloudpickle==3.0.0
+cloudpickle==3.1.0
 cohere==4.57
 colorama==0.4.6
 colorlog==6.8.2
-confluent-kafka==2.5.3
+confluent-kafka==2.6.0
 connexion==2.14.2
 coverage==7.6.2
 crcmod==1.7
@@ -189,7 +189,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
 gcsfs==2024.9.0.post1
 geomet==0.2.1.post1
-gevent==24.10.1
+gevent==24.10.2
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
@@ -243,7 +243,7 @@ google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.65.0
-graphql-core==3.2.4
+graphql-core==3.2.5
 graphviz==0.20.3
 greenlet==3.1.1
 grpc-google-iam-v1==0.13.1
@@ -296,7 +296,7 @@ joserfc==1.0.0
 json-merge-patch==0.2
 jsondiff==2.2.1
 jsonpatch==1.33
-jsonpath-ng==1.6.1
+jsonpath-ng==1.7.0
 jsonpointer==3.0.0
 jsonschema-path==0.3.3
 jsonschema-specifications==2023.12.1
@@ -339,7 +339,7 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.35.0
+mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.31
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.32
@@ -348,7 +348,7 @@ mypy==1.9.0
 mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 neo4j==5.25.0
-networkx==3.4
+networkx==3.4.1
 nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
@@ -434,7 +434,7 @@ pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.1
 pyodbc==5.1.0
-pyparsing==3.1.4
+pyparsing==3.2.0
 pypsrp==0.8.1
 pyspark==3.5.3
 pyspnego==0.11.1
@@ -540,7 +540,7 @@ sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.18
+teradatasql==20.0.0.19
 teradatasqlalchemy==20.0.0.2
 termcolor==2.5.0
 text-unidecode==1.3
@@ -554,7 +554,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2024.9.12
+trove-classifiers==2024.10.13
 twine==5.1.1
 typed_ast==1.5.5
 types-Deprecated==1.2.9.20240311
@@ -604,9 +604,9 @@ xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
-yarl==1.14.0
+yarl==1.15.2
 ydb==3.18.2
-zeep==4.2.1
+zeep==4.3.0
 zenpy==2.0.53
 zipp==3.20.2
 zope.event==5.0

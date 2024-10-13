@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-10T20:23:51.346312
+# This constraints file was automatically generated on 2024-10-13T21:31:07.769028
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -35,13 +35,13 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.15.2
 aiohappyeyeballs==2.4.3
-aiohttp==3.10.9
+aiohttp==3.10.10
 aioitertools==0.12.0
 aiosignal==1.3.1
 alembic==1.13.3
 amqp==5.2.0
 annotated-types==0.7.0
-anyio==4.6.0
+anyio==4.6.1
 apispec==6.6.1
 argcomplete==3.5.1
 asgiref==3.8.1
@@ -58,7 +58,7 @@ cgroupspy==0.2.3
 charset-normalizer==3.4.0
 click==8.1.7
 clickclick==20.10.2
-cloudpickle==3.0.0
+cloudpickle==3.1.0
 colorama==0.4.6
 colorlog==6.8.2
 connexion==2.14.2
@@ -77,7 +77,7 @@ fastavro==1.9.7
 filelock==3.16.1
 frozenlist==1.4.1
 fsspec==2024.9.0
-gevent==24.10.1
+gevent==24.10.2
 google-re2==1.1.20240702
 googleapis-common-protos==1.65.0
 graphviz==0.20.3
@@ -187,7 +187,7 @@ virtualenv==20.26.6
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-yarl==1.14.0
+yarl==1.15.2
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.1.0
