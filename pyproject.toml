@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.2; python_version < '3.11'",
-    "trove-classifiers==2024.9.12",
+    "trove-classifiers==2024.10.12",
 ]
 build-backend = "hatchling.build"
 
@@ -342,7 +342,7 @@ section-order = [
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
-testing = ["dev", "providers.tests"]
+testing = ["dev", "providers.tests", "task_sdk.tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "airflow/__init__.py" = ["F401", "TCH004"]
@@ -626,12 +626,14 @@ ignore_errors = true
 [tool.uv]
 dev-dependencies = [
   "local-providers",
+  "apache-airflow-task-sdk"
 ]
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
 # *not* the workspace folder paths
 local-providers = { workspace = true }
+apache-airflow-task-sdk = { workspace = true }
 
 [tool.uv.workspace]
-members = ["providers"]
+members = ["providers", "task_sdk"]
