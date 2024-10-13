@@ -23,4 +23,4 @@ pytest_plugins = "dev.tests_common.pytest_plugin"
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
-    config.inicfg["airflow_deprecations_ignore"] = ()  # type: ignore[assignment,operator]
+    config.inicfg["airflow_deprecations_ignore"] = ""
