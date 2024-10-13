@@ -37,12 +37,14 @@ from airflow.providers.cncf.kubernetes.pod_generator import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 now = pendulum.now("UTC")
 
-if __version__.startswith("2."):
-    LOGICAL_DATE_KEY = "execution_date"
-else:
+if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
+else:
+    LOGICAL_DATE_KEY = "execution_date"
 
 
 class TestPodGenerator:

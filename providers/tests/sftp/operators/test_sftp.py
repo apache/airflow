@@ -343,12 +343,20 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
             )
+        from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-            ):
-                ti.run()
+        if AIRFLOW_V_3_0_PLUS:
+            for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+                ):
+                    ti.run()
+        else:
+            for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
+                with pytest.warns(
+                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+                ):
+                    ti.run()
 
         # Test the received content.
         content_received = None
