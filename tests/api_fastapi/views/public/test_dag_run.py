@@ -136,3 +136,37 @@ def test_get_dag_run_not_found(test_client):
     assert response.status_code == 404
     body = response.json()
     assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestModifyDagRun:
+    @pytest.mark.parametrize(
+        "dag_id, run_id, state, response_state",
+        [
+            (DAG1_ID, DAG1_RUN1_ID, DagRunState.FAILED, DagRunState.FAILED),
+            (DAG1_ID, DAG1_RUN2_ID, DagRunState.SUCCESS, DagRunState.SUCCESS),
+            (DAG2_ID, DAG2_RUN1_ID, DagRunState.QUEUED, DagRunState.QUEUED),
+        ],
+    )
+    def test_modify_dag_run(self, test_client, dag_id, run_id, state, response_state):
+        response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_id"] == dag_id
+        assert body["run_id"] == run_id
+        assert body["state"] == response_state
+
+    def test_modify_dag_run_not_found(self, test_client):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/invalid", json={"state": DagRunState.SUCCESS}
+        )
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    def test_modify_dag_run_bad_request(self, test_client):
+        response = test_client.patch(
+            f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"}
+        )
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
