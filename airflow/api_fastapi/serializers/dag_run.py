@@ -42,3 +42,9 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class DAGRunClearBody(BaseModel):
+    """DAG Run serializer for clear endpoint body."""
+
+    dry_run: bool = True
