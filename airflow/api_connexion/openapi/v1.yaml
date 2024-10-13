@@ -2384,11 +2384,13 @@ paths:
       operationId: get_dag_stats
       tags: [DagStats]
       parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
         - name: dag_ids
           in: query
           schema:
             type: string
-          required: true
+          required: false
           description: |
             One or more DAG IDs separated by commas to filter relevant Dags.
       responses:
