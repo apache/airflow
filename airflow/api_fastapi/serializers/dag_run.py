@@ -42,3 +42,9 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class DAGRunNotePatchBody(BaseModel):
+    """Dag Run note Serializer for Patch requests."""
+
+    note: str

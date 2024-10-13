@@ -679,6 +679,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/setNote:
+    patch:
+      tags:
+      - DagRun
+      summary: Set Dag Run Note
+      operationId: set_dag_run_note
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunNotePatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     ConnectionResponse:
@@ -1147,6 +1202,16 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunNotePatchBody:
+      properties:
+        note:
+          type: string
+          title: Note
+      type: object
+      required:
+      - note
+      title: DAGRunNotePatchBody
+      description: Dag Run note Serializer for Patch requests.
     DAGRunResponse:
       properties:
         run_id:

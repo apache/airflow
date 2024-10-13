@@ -14,7 +14,11 @@ import {
   DashboardService,
   VariableService,
 } from "../requests/services.gen";
-import { DAGPatchBody, DagRunState } from "../requests/types.gen";
+import {
+  DAGPatchBody,
+  DAGRunNotePatchBody,
+  DagRunState,
+} from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -425,6 +429,52 @@ export const useDagServicePatchDag = <
         dagId,
         requestBody,
         updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Set Dag Run Note
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.requestBody
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceSetDagRunNote = <
+  TData = Common.DagRunServiceSetDagRunNoteMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        requestBody: DAGRunNotePatchBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      requestBody: DAGRunNotePatchBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
+      DagRunService.setDagRunNote({
+        dagId,
+        dagRunId,
+        requestBody,
       }) as unknown as Promise<TData>,
     ...options,
   });

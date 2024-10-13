@@ -784,6 +784,19 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunNotePatchBody = {
+  properties: {
+    note: {
+      type: "string",
+      title: "Note",
+    },
+  },
+  type: "object",
+  required: ["note"],
+  title: "DAGRunNotePatchBody",
+  description: "Dag Run note Serializer for Patch requests.",
+} as const;
+
 export const $DAGRunResponse = {
   properties: {
     run_id: {
