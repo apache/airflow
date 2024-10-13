@@ -76,9 +76,10 @@ class TestDagStatsEndpoint:
         self.app.dag_bag.bag_dag(dag)
         return dag_instance
 
-    def test_should_respond_200(self, session):
+    def _create_dag_runs(self, session):
         self._create_dag("dag_stats_dag")
         self._create_dag("dag_stats_dag_2")
+        self._create_dag("dag_stats_dag_3")
         dag_1_run_1 = DagRun(
             dag_id="dag_stats_dag",
             run_id="test_dag_run_id_1",
@@ -106,8 +107,20 @@ class TestDagStatsEndpoint:
             external_trigger=True,
             state="queued",
         )
-        session.add_all((dag_1_run_1, dag_1_run_2, dag_2_run_1))
+        dag_3_run_1 = DagRun(
+            dag_id="dag_stats_dag_3",
+            run_id="test_dag_3_run_id_1",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state="success",
+        )
+        session.add_all((dag_1_run_1, dag_1_run_2, dag_2_run_1, dag_3_run_1))
         session.commit()
+
+    def test_should_respond_200(self, session):
+        self._create_dag_runs(session)
         exp_payload = {
             "dags": [
                 {
@@ -165,7 +178,182 @@ class TestDagStatsEndpoint:
         assert sorted(response.json["dags"], key=lambda d: d["dag_id"]) == sorted(
             exp_payload["dags"], key=lambda d: d["dag_id"]
         )
-        response.json["total_entries"] == 2
+        assert response.json["total_entries"] == 2
+
+    @pytest.mark.parametrize(
+        "url, exp_payload",
+        [
+            (
+                "api/v1/dagStats",
+                {
+                    "dags": [
+                        {
+                            "dag_id": "dag_stats_dag",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 1,
+                                },
+                            ],
+                        },
+                        {
+                            "dag_id": "dag_stats_dag_2",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 0,
+                                },
+                            ],
+                        },
+                        {
+                            "dag_id": "dag_stats_dag_3",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 0,
+                                },
+                            ],
+                        },
+                    ],
+                    "total_entries": 3,
+                },
+            ),
+            (
+                "api/v1/dagStats?limit=1",
+                {
+                    "dags": [
+                        {
+                            "dag_id": "dag_stats_dag",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 1,
+                                },
+                            ],
+                        }
+                    ],
+                    "total_entries": 1,
+                },
+            ),
+            (
+                "api/v1/dagStats?offset=2",
+                {
+                    "dags": [
+                        {
+                            "dag_id": "dag_stats_dag_3",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 0,
+                                },
+                            ],
+                        },
+                    ],
+                    "total_entries": 1,
+                },
+            ),
+            (
+                "api/v1/dagStats?offset=1&limit=1",
+                {
+                    "dags": [
+                        {
+                            "dag_id": "dag_stats_dag_2",
+                            "stats": [
+                                {
+                                    "state": DagRunState.QUEUED,
+                                    "count": 1,
+                                },
+                                {
+                                    "state": DagRunState.RUNNING,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.SUCCESS,
+                                    "count": 0,
+                                },
+                                {
+                                    "state": DagRunState.FAILED,
+                                    "count": 0,
+                                },
+                            ],
+                        },
+                    ],
+                    "total_entries": 1,
+                },
+            ),
+            ("api/v1/dagStats?offset=10&limit=1", {"dags": [], "total_entries": 0}),
+        ],
+    )
+    def test_optional_dag_ids_with_limit_offset(self, url, exp_payload, session):
+        self._create_dag_runs(session)
+
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        num_dags = len(exp_payload["dags"])
+        assert response.status_code == 200
+        assert sorted(response.json["dags"], key=lambda d: d["dag_id"]) == sorted(
+            exp_payload["dags"], key=lambda d: d["dag_id"]
+        )
+        assert response.json["total_entries"] == num_dags
 
     def test_should_raises_401_unauthenticated(self):
         dag_ids = "dag_stats_dag,dag_stats_dag_2"
