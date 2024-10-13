@@ -209,7 +209,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         """
         Retrieve either the result of the SQL query, or the statement ID(s).
 
-        :param statement_id: Statement ID of the running query(ies)
+        :param statement_id: Statement ID of the running queries
         :param return_sql_result: Boolean, true if results should be returned
         """
         # ISSUE-40427: Pull the statement, and check to see if there are sub-statements. If that is the
