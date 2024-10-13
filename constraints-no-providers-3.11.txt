@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-12T13:41:50.156160
+# This constraints file was automatically generated on 2024-10-13T07:41:34.353790
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -194,7 +194,7 @@ watchfiles==0.24.0
 websockets==13.1
 wirerope==0.4.7
 wrapt==1.16.0
-yarl==1.15.0
+yarl==1.15.1
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.1.0
