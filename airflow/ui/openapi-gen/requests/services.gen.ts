@@ -27,6 +27,8 @@ import type {
   GetVariableResponse,
   PatchVariableData,
   PatchVariableResponse,
+  PostVariableData,
+  PostVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -396,6 +398,30 @@ export class VariableService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Variable
+   * Create a variable.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static postVariable(
+    data: PostVariableData,
+  ): CancelablePromise<PostVariableResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/variables/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

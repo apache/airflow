@@ -365,6 +365,12 @@ export type PatchVariableData = {
 
 export type PatchVariableResponse = VariableResponse;
 
+export type PostVariableData = {
+  requestBody: VariableBody;
+};
+
+export type PostVariableResponse = VariableResponse;
+
 export type GetDagRunData = {
   dagId: string;
   dagRunId: string;
@@ -677,6 +683,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/": {
+    post: {
+      req: PostVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
