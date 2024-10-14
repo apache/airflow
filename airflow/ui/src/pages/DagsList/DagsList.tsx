@@ -152,12 +152,20 @@ export const DagsList = () => {
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
         ? `%${dagDisplayNamePattern}%`
         : undefined,
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: true,
-    orderBy,
-    paused: showPaused === null ? undefined : showPaused === "true",
-  }, [dagDisplayNamePattern, showPaused]);
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      onlyActive: true,
+      orderBy,
+      paused: showPaused === null ? undefined : showPaused === "true",
+    },
+    [dagDisplayNamePattern, showPaused],
+    {
+      refetchOnMount: true,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
 
   const handleSortChange = useCallback<ChangeEventHandler<HTMLSelectElement>>(
     ({ currentTarget: { value } }) => {
