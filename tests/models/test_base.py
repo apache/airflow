@@ -19,8 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.base import get_id_collation_args
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
