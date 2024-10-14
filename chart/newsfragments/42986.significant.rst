@@ -1,0 +1,1 @@
+Dropped support for Git-Sync image ``v3``, now only support ``v4``
