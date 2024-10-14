@@ -39,24 +39,40 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
-def get_dag_stats(*, dag_ids: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag_stats(
+    *,
+    dag_ids: str | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
     """Get Dag statistics."""
     allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
-    dags_list = set(dag_ids.split(","))
-    filter_dag_ids = dags_list.intersection(allowed_dag_ids)
+    if dag_ids:
+        dags_list = set(dag_ids.split(","))
+        filter_dag_ids = dags_list.intersection(allowed_dag_ids)
+    else:
+        filter_dag_ids = allowed_dag_ids
+    query_dag_ids = sorted(list(filter_dag_ids))
+    if offset is not None:
+        query_dag_ids = query_dag_ids[offset:]
+    if limit is not None:
+        query_dag_ids = query_dag_ids[:limit]
 
     query = (
         select(DagRun.dag_id, DagRun.state, func.count(DagRun.state))
         .group_by(DagRun.dag_id, DagRun.state)
-        .where(DagRun.dag_id.in_(filter_dag_ids))
+        .where(DagRun.dag_id.in_(query_dag_ids))
     )
     dag_state_stats = session.execute(query)
-
     dag_state_data = {(dag_id, state): count for dag_id, state, count in dag_state_stats}
-    dag_stats = {
-        dag_id: [{"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState]
-        for dag_id in filter_dag_ids
-    }
-
-    dags = [{"dag_id": stat, "stats": dag_stats[stat]} for stat in dag_stats]
-    return dag_stats_collection_schema.dump({"dags": dags, "total_entries": len(dag_stats)})
+    dags = [
+        {
+            "dag_id": dag_id,
+            "stats": [
+                {"state": state, "count": dag_state_data.get((dag_id, state), 0)} for state in DagRunState
+            ],
+        }
+        for dag_id in query_dag_ids
+    ]
+    return dag_stats_collection_schema.dump({"dags": dags, "total_entries": len(dags)})

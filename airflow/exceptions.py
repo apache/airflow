@@ -327,31 +327,6 @@ class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
 
 
-class NoAvailablePoolSlot(AirflowException):
-    """Raise when there is not enough slots in pool."""
-
-
-class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG max_active_tasks limit is reached."""
-
-
-class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task max_active_tasks limit is reached."""
-
-
-class BackfillUnfinished(AirflowException):
-    """
-    Raises when not all tasks succeed in backfill.
-
-    :param message: The human-readable description of the exception
-    :param ti_status: The information about all task statuses
-    """
-
-    def __init__(self, message, ti_status):
-        super().__init__(message)
-        self.ti_status = ti_status
-
-
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
 

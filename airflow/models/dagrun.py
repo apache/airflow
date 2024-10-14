@@ -1111,7 +1111,7 @@ class DagRun(Base, LoggingMixin):
         elif self.state == DagRunState.FAILED:
             get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
         # deliberately not notifying on QUEUED
-        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(
