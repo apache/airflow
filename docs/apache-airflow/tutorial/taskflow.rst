@@ -629,6 +629,62 @@ method.
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
+Using templates in decorated tasks
+----------------------------------------------
+
+Arguments passed to your decorated function are automatically templated.
+
+You can also use the ``templates_exts`` parameter to template entire files.
+
+.. code-block:: python
+
+    @task(templates_exts=[".sql"])
+    def template_test(sql):
+        print(f"sql: {sql}")
+
+
+    template_test(sql="sql/test.sql")
+
+This will read the content of ``sql/test.sql`` and replace all template variables. You can also pass a list of files and all of them will be templated.
+
+You can pass additional parameters to the template engine through `the params parameter </concepts/params.html>`_.
+
+However, the ``params`` parameter must be passed to the decorator and not to your function directly, such as ``@task(templates_exts=['.sql'], params={'my_param'})`` and can then be used with ``{{ params.my_param }}`` in your templated files and function parameters.
+
+Alternatively, you can also pass it using the ``.override()`` method:
+
+.. code-block:: python
+
+    @task()
+    def template_test(input_var):
+        print(f"input_var: {input_var}")
+
+
+    template_test.override(params={"my_param": "wow"})(
+        input_var="my param is: {{ params.my_param }}",
+    )
+
+Finally, you can also manually render templates:
+
+.. code-block:: python
+
+    @task(params={"my_param": "wow"})
+    def template_test():
+        template_str = "run_id: {{ run_id }}; params.my_param: {{ params.my_param }}"
+
+        context = get_current_context()
+        rendered_template = context["task"].render_template(
+            template_str,
+            context,
+        )
+
+Here is a full example that demonstrates everything above:
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_templates.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
+
 Conditionally skipping tasks
 ----------------------------
 
