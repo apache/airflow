@@ -187,7 +187,20 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self.gcp_conn_id = gcp_conn_id
         self.beam_hook: BeamHook
         self.dataflow_hook: DataflowHook | None = None
-        self.dataflow_job_id: str | None = None
+        self._dataflow_job_id: str | None = None
+        self._execute_context: Context | None = None
+
+    @property
+    def dataflow_job_id(self):
+        return self._dataflow_job_id
+
+    @dataflow_job_id.setter
+    def dataflow_job_id(self, new_value):
+        if all([new_value, not self._dataflow_job_id, self._execute_context]):
+            # push job_id as soon as it's ready, to let Sensors work before the job finished
+            # and job_id pushed as returned value item.
+            self.xcom_push(context=self._execute_context, key="dataflow_job_id", value=new_value)
+        self._dataflow_job_id = new_value
 
     def _cast_dataflow_config(self):
         if isinstance(self.dataflow_config, dict):
@@ -346,6 +359,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute(self, context: Context):
         """Execute the Apache Beam Python Pipeline."""
+        self._execute_context = context
         self._cast_dataflow_config()
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
@@ -540,6 +554,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def execute(self, context: Context):
         """Execute the Apache Beam Python Pipeline."""
+        self._execute_context = context
         self._cast_dataflow_config()
         (
             self.is_dataflow,
@@ -738,7 +753,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         """Execute the Apache Beam Pipeline."""
         if not exactly_one(self.go_file, self.launcher_binary):
             raise ValueError("Exactly one of `go_file` and `launcher_binary` must be set")
-
+        self._execute_context = context
         self._cast_dataflow_config()
         if self.dataflow_config.impersonation_chain:
             self.log.warning(

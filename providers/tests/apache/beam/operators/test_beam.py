@@ -110,6 +110,27 @@ class TestBeamBasePipelineOperator:
         )
         assert f"{TASK_ID} completed with response Pipeline has finished SUCCESSFULLY" in caplog.text
 
+    def test_early_dataflow_id_xcom_push(self, default_options, pipeline_options):
+        with mock.patch.object(BeamBasePipelineOperator, "xcom_push") as mock_xcom_push:
+            op = BeamBasePipelineOperator(
+                **self.default_op_kwargs,
+                default_pipeline_options=copy.deepcopy(default_options),
+                pipeline_options=copy.deepcopy(pipeline_options),
+                dataflow_config={},
+            )
+            sample_df_job_id = "sample_df_job_id_value"
+            op._execute_context = MagicMock()
+
+            assert op.dataflow_job_id is None
+
+            op.dataflow_job_id = sample_df_job_id
+            mock_xcom_push.assert_called_once_with(
+                context=op._execute_context, key="dataflow_job_id", value=sample_df_job_id
+            )
+            mock_xcom_push.reset_mock()
+            op.dataflow_job_id = "sample_df_job_same_value_id"
+            mock_xcom_push.assert_not_called()
+
 
 class TestBeamRunPythonPipelineOperator:
     @pytest.fixture(autouse=True)
