@@ -22,7 +22,7 @@ import re
 import shlex
 from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 from docker import types
 
@@ -102,16 +102,6 @@ class DockerSwarmOperator(DockerOperator):
         The resources are Resources as per the docker api
         [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
         This parameter has precedence on the mem_limit parameter.
-    :param logging_driver: The logging driver to use for container logs. Docker by default uses 'json-file'.
-        For more information on Docker logging drivers: https://docs.docker.com/engine/logging/configure/
-        NOTE: Only drivers 'json-file' and 'gelf' are currently supported. If left empty, 'json-file' will be used.
-    :param logging_driver_opts: Dictionary of logging options to use with the associated logging driver chosen.
-        Depending on the logging driver, some options are required.
-        Failure to include them, will result in the operator failing.
-        All option values must be strings and wrapped in double quotes.
-        For information on 'json-file' options: https://docs.docker.com/engine/logging/drivers/json-file/
-        For information on 'gelf' options: https://docs.docker.com/engine/logging/drivers/gelf/
-        NOTE: 'gelf' driver requires the 'gelf-address' option to be set.
     """
 
     def __init__(
@@ -126,8 +116,6 @@ class DockerSwarmOperator(DockerOperator):
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
         container_resources: types.Resources | None = None,
-        logging_driver: Literal["json-path", "gelf"] | None = None,
-        logging_driver_opts: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -140,18 +128,6 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
         self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
-        self.logging_driver = logging_driver
-        self.logging_driver_opts = logging_driver_opts
-
-        if self.logging_driver:
-            supported_logging_drivers = ("json-file", "gelf")
-            if self.logging_driver not in supported_logging_drivers:
-                raise AirflowException(
-                    f"Invalid logging driver provided: {self.logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
-                )
-            self.log_driver_config = types.DriverConfig(self.logging_driver, self.logging_driver_opts)
-        else:
-            self.log_driver_config = None
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -176,7 +152,6 @@ class DockerSwarmOperator(DockerOperator):
                 resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
-                log_driver=self.log_driver_config,
             ),
             name=f"airflow-{get_random_string()}",
             labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
@@ -197,7 +172,15 @@ class DockerSwarmOperator(DockerOperator):
             if self._has_service_terminated():
                 self.log.info("Service status before exiting: %s", self._service_status())
                 break
-
+        logs = None
+        if self.do_xcom_push:
+            all_logs = self.get_logs()
+            if self.xcom_all:
+                # Get all logs
+                logs = "\n".join(all_logs)
+            else:
+                # get last log
+                logs = all_logs[-1] 
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
@@ -207,6 +190,7 @@ class DockerSwarmOperator(DockerOperator):
             if not self.service:
                 raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
+        return logs
 
     def _service_status(self) -> str | None:
         if not self.service:
@@ -216,6 +200,14 @@ class DockerSwarmOperator(DockerOperator):
     def _has_service_terminated(self) -> bool:
         status = self._service_status()
         return status in ["complete", "failed", "shutdown", "rejected", "orphaned", "remove"]
+
+    def get_logs(self) -> list[str]:
+        logs =  self.cli.service_logs(
+            self.service["ID"],
+            stdout=True,
+            stderr=True,
+        )
+        return list(map(lambda line: line.decode("utf-8"), logs))
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
