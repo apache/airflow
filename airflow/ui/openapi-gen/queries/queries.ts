@@ -14,7 +14,7 @@ import {
   DashboardService,
   VariableService,
 } from "../requests/services.gen";
-import { DAGPatchBody, DagRunState } from "../requests/types.gen";
+import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -425,6 +425,53 @@ export const useDagServicePatchDag = <
         dagId,
         requestBody,
         updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Variable
+ * Update a variable by key.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePatchVariable = <
+  TData = Common.VariableServicePatchVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+        updateMask?: string[];
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+      updateMask?: string[];
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody, updateMask, variableKey }) =>
+      VariableService.patchVariable({
+        requestBody,
+        updateMask,
+        variableKey,
       }) as unknown as Promise<TData>,
     ...options,
   });
