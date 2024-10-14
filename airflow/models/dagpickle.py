@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 class DagPickle(Base):
     """
-    Represents a version of a DAG and becomes a source of truth for a BackfillJob execution.
+    Represents a version of a DAG and becomes a source of truth for an execution.
 
     Dags can originate from different places (user repos, main repo, ...) and also get executed
     in different places (different executors).  A pickle is a native python serialized object,
