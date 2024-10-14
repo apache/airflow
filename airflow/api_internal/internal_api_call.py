@@ -21,6 +21,7 @@ import inspect
 import json
 import logging
 from functools import wraps
+from http import HTTPStatus
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
@@ -42,7 +43,7 @@ logger = logging.getLogger(__name__)
 class AirflowHttpException(AirflowException):
     """Raise when there is a problem during an http request."""
 
-    def __init__(self, message: str, status_code: int):
+    def __init__(self, message: str, status_code: int | HTTPStatus):
         super().__init__(message)
         self.status_code = status_code
 
@@ -109,14 +110,16 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     See [AIP-44](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-44+Airflow+Internal+API)
     for more information .
     """
-    from requests.exceptions import ConnectionError
-    from http import HTTPStatus
 
-    def is_retryable_exception(exception: Exception) -> bool:
-        retryable_status_codes = [HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT]
-        return (isinstance(exception, AirflowHttpException) 
-                and exception.status_code in retryable_status_codes
-                or isinstance(exception, (ConnectionError, NewConnectionError)))
+    from requests.exceptions import ConnectionError
+
+    def is_retryable_exception(exception: BaseException) -> bool:
+        retryable_status_codes = (HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT)
+        return (
+            isinstance(exception, AirflowHttpException) 
+            and exception.status_code in retryable_status_codes
+            or isinstance(exception, (ConnectionError, NewConnectionError))
+        )
     
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(10),
@@ -142,7 +145,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
             raise AirflowHttpException(
                 f"Got {response.status_code}:{response.reason} when sending "
                 f"the internal api request: {response.text}",
-                response.status_code
+                response.status_code,
             )
         return response.content
 
