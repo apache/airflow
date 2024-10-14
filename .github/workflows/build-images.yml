@@ -71,6 +71,7 @@ jobs:
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
       constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
@@ -210,6 +211,8 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+
 
   generate-constraints:
     name: Generate constraints
@@ -256,3 +259,4 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}

@@ -919,7 +919,7 @@ export interface components {
       /** @description To date of the backfill (exclusive). */
       to_date?: string | null;
       /** @description Dag run conf to be forwarded to the dag runs. */
-      dag_run_conf?: string | null;
+      dag_run_conf?: { [key: string]: unknown } | null;
       /** @description is_paused */
       is_paused?: boolean | null;
       /** @description max_active_runs */
@@ -2728,22 +2728,6 @@ export interface operations {
     };
   };
   create_backfill: {
-    parameters: {
-      query: {
-        /** Create dag runs for this dag. */
-        dag_id: string;
-        /** Create dag runs with logical dates from this date onward, including this date. */
-        from_date: string;
-        /** Create dag runs for logical dates up to but not including this date. */
-        to_date: string;
-        /** Maximum number of active DAG runs for the the backfill. */
-        max_active_runs?: number;
-        /** If true, run the dag runs in descending order of logical date. */
-        reverse?: boolean;
-        /** If true, run the dag runs in descending order of logical date. */
-        config?: string;
-      };
-    };
     responses: {
       /** Success. */
       200: {
@@ -2754,6 +2738,11 @@ export interface operations {
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Backfill"];
+      };
     };
   };
   get_backfill: {
@@ -4973,8 +4962,12 @@ export interface operations {
   get_dag_stats: {
     parameters: {
       query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
         /** One or more DAG IDs separated by commas to filter relevant Dags. */
-        dag_ids: string;
+        dag_ids?: string;
       };
     };
     responses: {
@@ -5531,7 +5524,7 @@ export type ListBackfillsVariables = CamelCasedPropertiesDeep<
   operations["list_backfills"]["parameters"]["query"]
 >;
 export type CreateBackfillVariables = CamelCasedPropertiesDeep<
-  operations["create_backfill"]["parameters"]["query"]
+  operations["create_backfill"]["requestBody"]["content"]["application/json"]
 >;
 export type GetBackfillVariables = CamelCasedPropertiesDeep<
   operations["get_backfill"]["parameters"]["path"]

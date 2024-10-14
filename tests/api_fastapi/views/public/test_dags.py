@@ -35,7 +35,6 @@ pytestmark = pytest.mark.db_test
 DAG1_ID = "test_dag1"
 DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG2_DISPLAY_NAME = "display2"
 DAG2_START_DATE = datetime(2021, 6, 15, tzinfo=timezone.utc)
 DAG3_ID = "test_dag3"
 TASK_ID = "op1"
@@ -99,7 +98,6 @@ def setup(dag_maker, session=None) -> None:
 
     with dag_maker(
         DAG2_ID,
-        dag_display_name=DAG2_DISPLAY_NAME,
         schedule=None,
         start_date=DAG2_START_DATE,
         doc_md="details",
@@ -150,7 +148,7 @@ def setup(dag_maker, session=None) -> None:
         ),
         # Search
         ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
-        ({"dag_display_name_pattern": "display2"}, 1, [DAG2_ID]),
+        ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
@@ -239,7 +237,7 @@ def test_patch_dags(test_client, query_params, body, expected_status_code, expec
     "query_params, dag_id, expected_status_code, dag_display_name, start_date",
     [
         ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
-        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME, DAG2_START_DATE),
+        ({}, DAG2_ID, 200, DAG2_ID, DAG2_START_DATE),
     ],
 )
 def test_dag_details(test_client, query_params, dag_id, expected_status_code, dag_display_name, start_date):
@@ -309,7 +307,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
     "query_params, dag_id, expected_status_code, dag_display_name",
     [
         ({}, "fake_dag_id", 404, "fake_dag"),
-        ({}, DAG2_ID, 200, DAG2_DISPLAY_NAME),
+        ({}, DAG2_ID, 200, DAG2_ID),
     ],
 )
 def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_display_name):

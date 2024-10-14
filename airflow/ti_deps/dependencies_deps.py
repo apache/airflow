@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from airflow.ti_deps.dependencies_states import (
-    BACKFILL_QUEUEABLE_STATES,
     QUEUEABLE_STATES,
     RUNNABLE_STATES,
 )
@@ -45,13 +44,6 @@ RUNNING_DEPS = {
     DagTISlotsAvailableDep(),
     TaskConcurrencyDep(),
     PoolSlotsAvailableDep(),
-    TaskNotRunningDep(),
-}
-
-BACKFILL_QUEUED_DEPS = {
-    RunnableExecDateDep(),
-    ValidStateDep(BACKFILL_QUEUEABLE_STATES),
-    DagrunRunningDep(),
     TaskNotRunningDep(),
 }
 
