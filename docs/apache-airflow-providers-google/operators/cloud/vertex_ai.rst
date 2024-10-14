@@ -662,8 +662,8 @@ The operator returns the cached content response in :ref:`XCom <concepts:xcom>` 
 .. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
     :language: python
     :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_cached_content_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_cached_content_operator]
+    :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    :end-before: [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
 
 Reference
 ^^^^^^^^^
