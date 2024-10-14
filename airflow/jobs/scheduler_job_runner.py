@@ -30,7 +30,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, exists, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -51,6 +51,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -1064,6 +1065,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
+            30,
+            self._mark_backfills_complete,
+        )
+
+        timers.call_regular_interval(
             conf.getfloat("scheduler", "pool_metrics_interval", fallback=5.0),
             self._emit_pool_metrics,
         )
@@ -1287,6 +1293,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
         # END: create dagruns
+
+    @provide_session
+    def _mark_backfills_complete(self, session: Session = NEW_SESSION) -> None:
+        """Mark completed backfills as completed."""
+        self.log.debug("checking for completed backfills.")
+        unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
+        now = timezone.utcnow()
+        # todo: AIP-78 simplify this function to an update statement
+        query = select(Backfill).where(
+            Backfill.completed_at.is_(None),
+            ~exists(
+                select(DagRun.id).where(
+                    and_(DagRun.backfill_id == Backfill.id, DagRun.state.in_(unfinished_states))
+                )
+            ),
+        )
+        backfills = session.scalars(query).all()
+        if not backfills:
+            return
+        self.log.info("marking %s backfills as complete", len(backfills))
+        for b in backfills:
+            b.completed_at = now
 
     @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
