@@ -70,7 +70,7 @@ class TestDbApiHook:
 
             @property
             def dialect(self):
-                return Dialect("default", self)
+                return Dialect(self)
 
             def get_db_log_messages(self, conn) -> None:
                 return conn.get_messages()
