@@ -226,6 +226,7 @@ class MockMySQLConnectorConnection:
         self._autocommit = autocommit
 
 
+@pytest.mark.db_test
 class TestMySqlHook:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)
