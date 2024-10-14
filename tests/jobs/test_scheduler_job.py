@@ -6399,3 +6399,32 @@ class TestSchedulerJobQueriesCount:
                 prefix = "Collected database query count mismatches:"
                 joined = "\n\n".join(failures)
                 raise AssertionError(f"{prefix}\n\n{joined}")
+
+
+def test_mark_backfills_completed(dag_maker, session):
+    clear_db_backfills()
+    with dag_maker(serialized=True, dag_id="test_mark_backfills_completed", schedule="@daily") as dag:
+        BashOperator(task_id="hi", bash_command="echo hi")
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-03"),
+        max_active_runs=10,
+        reverse=False,
+        dag_run_conf={},
+    )
+    session.expunge_all()
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, b.id)
+    assert b.completed_at is None
+    session.expunge_all()
+    drs = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+    for dr in drs:
+        dr.state = DagRunState.SUCCESS
+    session.commit()
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, b.id)
+    assert b.completed_at.timestamp() > 0
