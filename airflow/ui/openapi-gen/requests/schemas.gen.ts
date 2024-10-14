@@ -1002,13 +1002,13 @@ export const $DAGRunTypes = {
       type: "integer",
       title: "Manual",
     },
-    dataset_triggered: {
+    asset_triggered: {
       type: "integer",
-      title: "Dataset Triggered",
+      title: "Asset Triggered",
     },
   },
   type: "object",
-  required: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  required: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DAGRunTypes",
   description: "DAG Run Types for responses.",
 } as const;
