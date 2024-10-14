@@ -28,7 +28,7 @@ from airflow.providers.postgres.dialects.postgres import PostgresDialect
 class TestPostgresDialect:
     def setup_method(self):
         inspector = MagicMock(spc=Inspector)
-        inspector.get_columns.side_effect = lambda *args: [
+        inspector.get_columns.side_effect = lambda table_name, schema: [
             {"name": "id"},
             {"name": "name"},
             {"name": "firstname"},
@@ -37,15 +37,16 @@ class TestPostgresDialect:
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.get_records.side_effect = lambda sql, parameters: [("id",)]
         self.test_db_hook._insert_statement_format = "INSERT INTO {} {} VALUES ({})"
+        self.test_db_hook._escape_column_name_format = '"{}"'
 
     def test_placeholder(self):
-        assert PostgresDialect("postgres", self.test_db_hook).placeholder == "?"
+        assert PostgresDialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
         assert PostgresDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
-        assert PostgresDialect("postgres", self.test_db_hook).get_column_names("hollywood.actors") == [
+        assert PostgresDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
             "name",
             "firstname",
@@ -53,7 +54,7 @@ class TestPostgresDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert PostgresDialect("postgres", self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
+        assert PostgresDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
     def test_generate_replace_sql(self):
         values = [
@@ -64,7 +65,7 @@ class TestPostgresDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = PostgresDialect("postgres", self.test_db_hook).generate_replace_sql(
+        sql = PostgresDialect(self.test_db_hook).generate_replace_sql(
             "hollywood.actors", values, target_fields
         )
         assert (
