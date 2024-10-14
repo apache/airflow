@@ -22,7 +22,7 @@ import re
 import shlex
 from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from docker import types
 
@@ -116,6 +116,7 @@ class DockerSwarmOperator(DockerOperator):
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
         container_resources: types.Resources | None = None,
+        hosts: Optional[dict[str, str]],
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -128,6 +129,7 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
         self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
+        self.hosts = hosts or {}
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -145,6 +147,7 @@ class DockerSwarmOperator(DockerOperator):
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
+                    hosts=self.hosts,
                     configs=self.configs,
                     secrets=self.secrets,
                 ),
