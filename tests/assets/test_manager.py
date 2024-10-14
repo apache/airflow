@@ -178,7 +178,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
         assert session.query(DagPriorityParsingRequest).count() == 2
 

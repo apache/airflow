@@ -174,7 +174,7 @@ export type DAGRunTypes = {
   backfill: number;
   scheduled: number;
   manual: number;
-  dataset_triggered: number;
+  asset_triggered: number;
 };
 
 /**
