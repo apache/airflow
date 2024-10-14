@@ -28,9 +28,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 from airflow.utils.process_utils import patch_environ
-
-from dev.tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from dev.tests_common.test_utils.system_tests_class import SystemTest
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.system_tests_class import SystemTest
 
 AZURE_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "microsoft", "azure", "example_dags"
@@ -44,7 +43,7 @@ DATA_LAKE_CONNECTION_TYPE = os.environ.get("AZURE_DATA_LAKE_CONNECTION_TYPE", "a
 @contextmanager
 def provide_wasb_default_connection(key_file_path: str):
     """
-    Context manager to provide a temporary value for wasb_default connection
+    Context manager to provide a temporary value for wasb_default connection.
 
     :param key_file_path: Path to file with wasb_default credentials .json file.
     """
@@ -67,7 +66,8 @@ def provide_wasb_default_connection(key_file_path: str):
 @contextmanager
 def provide_azure_data_lake_default_connection(key_file_path: str):
     """
-    Context manager to provide a temporary value for azure_data_lake_default connection
+    Provide a temporary value for azure_data_lake_default connection.
+
     :param key_file_path: Path to file with azure_data_lake_default credentials .json file.
     """
     required_fields = {"login", "password", "extra"}
@@ -106,6 +106,8 @@ def provide_azure_fileshare(share_name: str, azure_fileshare_conn_id: str, file_
 
 @pytest.mark.system("azure")
 class AzureSystemTest(SystemTest):
+    """Base class for Azure system tests."""
+
     @classmethod
     def create_share(cls, share_name: str, azure_fileshare_conn_id: str):
         hook = AzureFileShareHook(azure_fileshare_conn_id=azure_fileshare_conn_id)
@@ -138,9 +140,7 @@ class AzureSystemTest(SystemTest):
 
     @classmethod
     def prepare_share(cls, share_name: str, azure_fileshare_conn_id: str, file_name: str, directory: str):
-        """
-        Create share with a file in given directory. If directory is None, file is in root dir.
-        """
+        """Create share with a file in given directory. If directory is None, file is in root dir."""
         hook = AzureFileShareHook(
             azure_fileshare_conn_id=azure_fileshare_conn_id,
             share_name=share_name,

@@ -19,6 +19,8 @@ from __future__ import annotations
 
 
 class FakeWebHDFSHook:
+    """Fake WebHDFSHook for testing purposes."""
+
     def __init__(self, conn_id):
         self.conn_id = conn_id
 

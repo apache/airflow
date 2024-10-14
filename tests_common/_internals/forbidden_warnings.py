@@ -81,7 +81,7 @@ class ForbiddenWarningsPlugin:
 
     @pytest.hookimpl(hookwrapper=True, trylast=True)
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int):
-        """Save set of test node ids in the session finish on xdist worker node"""
+        """Save set of test node ids in the session finish on xdist worker node."""
         yield
         if self.is_worker_node and self.detected_cases and hasattr(self.config, "workeroutput"):
             self.config.workeroutput[self.node_key] = frozenset(self.detected_cases)

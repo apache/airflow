@@ -15,12 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-
-Perf-kit
-========
+Perf-kit.
 
 Useful decorators and context managers used when testing the performance of various Airflow components.
-
 
 Content
 ========

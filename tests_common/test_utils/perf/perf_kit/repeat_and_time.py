@@ -36,7 +36,7 @@ class TimingResult:
 @contextlib.contextmanager
 def timing(repeat_count: int = 1):
     """
-    Measures code execution time.
+    Measure code execution time.
 
     :param repeat_count: If passed, the result will be divided by the value.
     """
@@ -60,7 +60,7 @@ def timing(repeat_count: int = 1):
 
 def repeat(repeat_count=5):
     """
-    Function decorators that repeat function many times.
+    Decorate functions that repeats many times.
 
     :param repeat_count: The repeat count
     """
@@ -79,13 +79,13 @@ def repeat(repeat_count=5):
 
 
 class TimeoutException(Exception):
-    """Exception when the test timeo uts"""
+    """The exception raised when the test timeouts."""
 
 
 @contextlib.contextmanager
 def timeout(seconds=1):
     """
-    Executes code only  limited seconds. If the code does not end during this time, it will be interrupted.
+    Execute code only  limited seconds. If the code does not end during this time, it will be interrupted.
 
     :param seconds: Number of seconds
     """
@@ -114,7 +114,7 @@ def timeout(seconds=1):
 if __name__ == "__main__":
 
     def monte_carlo(total=10000):
-        """Monte Carlo"""
+        """Monte Carlo."""
         inside = 0
 
         for _ in range(total):
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     @repeat(REPEAT_COUNT)
     @timing()
     def get_pi():
-        """Returns PI value:"""
+        """Return PI value."""
         return monte_carlo()
 
     res = get_pi()

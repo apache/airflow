@@ -46,6 +46,8 @@ def assert_equal_ignore_multiple_spaces(first, second, msg=None):
 
 
 class QueriesTraceRecord(NamedTuple):
+    """QueriesTraceRecord holds information about the query executed in the context."""
+
     module: str
     name: str
     lineno: int | None
@@ -63,6 +65,8 @@ class QueriesTraceRecord(NamedTuple):
 
 
 class QueriesTraceInfo(NamedTuple):
+    """QueriesTraceInfo holds information about the queries executed in the context."""
+
     traces: tuple[QueriesTraceRecord, ...]
 
     @classmethod
@@ -144,14 +148,15 @@ def assert_queries_count(
     session: Session | None = None,
 ):
     """
-    Asserts that the number of queries is as expected with the margin applied
+    Assert that the number of queries is as expected with the margin applied.
+
     The margin is helpful in case of complex cases where we do not want to change it every time we
     changed queries, but we want to catch cases where we spin out of control
     :param expected_count: expected number of queries
     :param message_fmt: message printed optionally if the number is exceeded
     :param margin: margin to add to expected number of calls
     :param stacklevel: limits the output stack trace to that numbers of frame
-    :param stacklevel_from_module: Filter stack trace from specific module
+    :param stacklevel_from_module: Filter stack trace from specific module.
     """
     with count_queries(
         stacklevel=stacklevel, stacklevel_from_module=stacklevel_from_module, session=session

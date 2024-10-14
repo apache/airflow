@@ -28,9 +28,8 @@ import pytest
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
-
-from dev.tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from dev.tests_common.test_utils.logging_command_executor import get_executor
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.logging_command_executor import get_executor
 
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
@@ -42,9 +41,7 @@ def get_default_logs_if_none(logs: str | None) -> str:
 
 
 def resolve_logs_folder() -> str:
-    """
-    Returns LOGS folder specified in current Airflow config.
-    """
+    """Return LOGS folder specified in current Airflow config."""
     config_file = get_airflow_config(AIRFLOW_HOME)
     conf = AirflowConfigParser()
     conf.read(config_file)
@@ -59,6 +56,8 @@ def resolve_logs_folder() -> str:
 
 
 class SystemTest:
+    """Base class for system tests."""
+
     log: logging.Logger
 
     @staticmethod
@@ -70,6 +69,8 @@ class SystemTest:
     @pytest.fixture(autouse=True)
     def setup_system(self):
         """
+        Set up system tests.
+
         We want to avoid random errors while database got reset - those
         Are apparently triggered by parser trying to parse DAGs while
         The tables are dropped. We move the dags temporarily out of the dags folder

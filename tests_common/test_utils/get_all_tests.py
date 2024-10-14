@@ -16,9 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Gets all tests cases from xunit file.
-"""
+"""Gets all tests cases from xunit file."""
 
 from __future__ import annotations
 
@@ -28,7 +26,7 @@ from xml.etree import ElementTree
 
 def last_replace(s, old, new, number_of_occurrences):
     """
-    Replaces last n occurrences of the old string with the new one within the string provided
+    Replace last n occurrences of the old string with the new one within the string provided.
 
     :param s: string to replace occurrences with
     :param old: old string
@@ -42,7 +40,7 @@ def last_replace(s, old, new, number_of_occurrences):
 
 def print_all_cases(xunit_test_file_path):
     """
-    Prints all test cases read from the xunit test file
+    Print all test cases read from the xunit test file.
 
     :param xunit_test_file_path: path of the xunit file
     :return: None

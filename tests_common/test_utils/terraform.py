@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from dev.tests_common.test_utils.system_tests_class import SystemTest
+from tests_common.test_utils.system_tests_class import SystemTest
 
 
 class Terraform(SystemTest):
+    """Base class for Terraform tests."""
+
     TERRAFORM_DIR: str
 
     def setup_method(self) -> None:

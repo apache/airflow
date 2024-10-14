@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0", __file__):
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class MockSecurityManager(FabAirflowSecurityManagerOverride):
+    """Mock Security Manager for testing purposes."""
+
     VIEWER_VMS = {
         "Airflow",
     }

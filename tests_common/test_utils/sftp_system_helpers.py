@@ -30,7 +30,7 @@ SFTP_CONNECTION_ID = os.environ.get("SFTP_CONNECTION_ID", "sftp_default")
 @contextmanager
 def provide_sftp_default_connection(key_file_path: str):
     """
-    Context manager to provide a temporary value for sftp_default connection
+    Context manager to provide a temporary value for sftp_default connection.
 
     :param key_file_path: Path to file with sftp_default credentials .json file.
     """

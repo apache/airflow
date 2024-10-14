@@ -30,8 +30,9 @@ PYSPY_OUTPUT = os.environ.get("PYSPY_OUTPUT", "/files/pyspy/")
 @contextlib.contextmanager
 def pyspy():
     """
-    This decorator provide deterministic profiling. It generate and save flame graph to file. It uses``pyspy``
-    internally.
+    Decorate methods for deterministic profiling.
+
+    It generates and saves flame graph to file. It uses``pyspy` internally.
 
     Running py-spy inside of a docker container will also usually bring up a permissions denied error
     even when running as root.
@@ -65,8 +66,9 @@ def pyspy():
 @contextlib.contextmanager
 def profiled(print_callers=False):
     """
-    This decorator provide deterministic profiling. It uses ``cProfile`` internally.  It generates statistic
-    and print on the screen.
+    Decorate function with deterministic profiling.
+
+    It uses ``cProfile`` internally.  It generates statistics and prints on the screen.
     """
     profile = cProfile.Profile()
     profile.enable()
@@ -86,10 +88,7 @@ def profiled(print_callers=False):
 if __name__ == "__main__":
 
     def case():
-        """
-        Load modules.
-        :return:
-        """
+        """Load modules."""
         import logging
 
         import airflow

@@ -34,7 +34,9 @@ from typing import Match
 # https://stackoverflow.com/questions/19428761/python-showing-once-warnings-again-resetting-all-warning-registries
 class reset_warning_registry:
     """
-    context manager which archives & clears warning registry for duration of
+    Reset warning registry context manager.
+
+    The context manager archives & clears warning registry for duration of
     context.
 
     :param pattern:

@@ -21,6 +21,8 @@ from airflow.security import permissions
 
 def _resource_name(dag_id: str, resource_name: str) -> str:
     """
+    Return resource name for given dag_id and resource_name in backwards compatible way.
+
     This method is to keep compatibility with new FAB versions
     running with old airflow versions.
     """

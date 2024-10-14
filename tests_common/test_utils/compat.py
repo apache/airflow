@@ -116,7 +116,7 @@ def connection_to_dict(
     connection: Connection, *, prune_empty: bool = False, validate: bool = True
 ) -> dict[str, Any]:
     """
-    Convert Connection to json-serializable dictionary (compatibility code for Airflow 2.7 tests)
+    Convert Connection to json-serializable dictionary (compatibility code for Airflow 2.7 tests).
 
     :param connection: connection to convert to dict
     :param prune_empty: Whether or not remove empty values.

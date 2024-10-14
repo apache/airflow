@@ -30,6 +30,8 @@ def delta_timetable(delta) -> DeltaDataIntervalTimetable:
 
 
 class CustomSerializationTimetable(Timetable):
+    """Custom timetable for testing serialization."""
+
     def __init__(self, value: str):
         self.value = value
 

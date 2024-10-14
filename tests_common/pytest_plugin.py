@@ -34,8 +34,8 @@ import time_machine
 if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
 
-    from dev.tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
-    from dev.tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
+    from tests_common._internals.capture_warnings import CaptureWarningsPlugin  # noqa: F401
+    from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin  # noqa: F401
 
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
@@ -133,8 +133,7 @@ if platform.system() == "Darwin":
 
 @pytest.fixture
 def reset_db():
-    """Resets Airflow db."""
-
+    """Reset Airflow db."""
     from airflow.utils import db
 
     db.resetdb()
@@ -145,7 +144,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 
 @pytest.fixture(autouse=True)
 def trace_sql(request):
-    from dev.tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
+    from tests_common.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
         count_queries,
         trace_queries,
     )
@@ -325,10 +324,10 @@ def pytest_addoption(parser: pytest.Parser):
 
 @pytest.fixture(autouse=True, scope="session")
 def initialize_airflow_tests(request):
-    """Helper that setups Airflow testing environment."""
+    """Set up Airflow testing environment."""
     print(" AIRFLOW ".center(60, "="))
 
-    from dev.tests_common.test_utils.db import initial_db_init
+    from tests_common.test_utils.db import initial_db_init
 
     # Setup test environment for breeze
     home = os.path.expanduser("~")
@@ -340,7 +339,7 @@ def initialize_airflow_tests(request):
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
     if not skip_db_tests:
         if request.config.option.db_init:
-            from dev.tests_common.test_utils.db import initial_db_init
+            from tests_common.test_utils.db import initial_db_init
 
             print("Initializing the DB - forced with --with-db-init switch.")
             initial_db_init()
@@ -431,7 +430,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     forbidden_warnings: list[str] | None = config.getini("forbidden_warnings")
     if not config.option.disable_forbidden_warnings and forbidden_warnings:
-        from dev.tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin
+        from tests_common._internals.forbidden_warnings import ForbiddenWarningsPlugin
 
         forbidden_warnings_plugin = ForbiddenWarningsPlugin(
             config=config,
@@ -441,7 +440,7 @@ def pytest_configure(config: pytest.Config) -> None:
         config.stash[forbidden_warnings_key] = forbidden_warnings_plugin
 
     if not config.option.disable_capture_warnings:
-        from dev.tests_common._internals.capture_warnings import CaptureWarningsPlugin
+        from tests_common._internals.capture_warnings import CaptureWarningsPlugin
 
         capture_warnings_plugin = CaptureWarningsPlugin(
             config=config, output_path=config.getoption("warning_output_path", default=None)
@@ -678,7 +677,8 @@ def pytest_runtest_setup(item):
 
 @pytest.fixture
 def frozen_sleep(monkeypatch):
-    """Use time-machine to "stub" sleep.
+    """
+    Use time-machine to "stub" sleep.
 
     This means the ``sleep()`` takes no time, but ``datetime.now()`` appears to move forwards.
 
@@ -717,7 +717,8 @@ def frozen_sleep(monkeypatch):
 
 @pytest.fixture
 def dag_maker(request):
-    """Fixture to help create DAG, DagModel, and SerializedDAG automatically.
+    """
+    Fixture to help create DAG, DagModel, and SerializedDAG automatically.
 
     You have to use the dag_maker as a context manager and it takes
     the same argument as DAG::
@@ -824,8 +825,7 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
-
-            from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -922,8 +922,7 @@ def dag_maker(request):
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
-
-            from dev.tests_common.test_utils.compat import AssetEvent
+            from tests_common.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):
                 with attempt:
@@ -970,7 +969,8 @@ def dag_maker(request):
 
 @pytest.fixture
 def create_dummy_dag(dag_maker):
-    """Create a `DAG` with a single `EmptyOperator` task.
+    """
+    Create a `DAG` with a single `EmptyOperator` task.
 
     DagRun and DagModel is also created.
 
@@ -1006,7 +1006,7 @@ def create_dummy_dag(dag_maker):
         **kwargs,
     ):
         op_kwargs = {}
-        from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+        from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
         if AIRFLOW_V_2_9_PLUS:
             op_kwargs["task_display_name"] = task_display_name
@@ -1038,7 +1038,8 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def create_task_instance(dag_maker, create_dummy_dag):
-    """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
+    """
+    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
@@ -1068,7 +1069,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
-        from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+        from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
@@ -1079,7 +1080,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
             execution_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
-            from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+            from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
             if AIRFLOW_V_2_9_PLUS:
                 op_kwargs["task_display_name"] = task_display_name
@@ -1243,7 +1244,7 @@ def reset_logging_config():
 def suppress_info_logs_for_dag_and_fab():
     import logging
 
-    from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+    from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
     dag_logger = logging.getLogger("airflow.models.dag")
     dag_logger.setLevel(logging.WARNING)
@@ -1259,7 +1260,7 @@ def suppress_info_logs_for_dag_and_fab():
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
     """Clear DB before each test module run."""
-    from dev.tests_common.test_utils.db import clear_all, initial_db_init
+    from tests_common.test_utils.db import clear_all, initial_db_init
 
     if not request.config.option.db_cleanup:
         return
@@ -1396,7 +1397,7 @@ def hook_lineage_collector():
 @pytest.fixture
 def clean_dags_and_dagruns():
     """Fixture that cleans the database before and after every test."""
-    from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
+    from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
     clear_db_runs()
     clear_db_dags()
@@ -1407,7 +1408,7 @@ def clean_dags_and_dagruns():
 
 @pytest.fixture(scope="session")
 def app():
-    from dev.tests_common.test_utils.config import conf_vars
+    from tests_common.test_utils.config import conf_vars
 
     with conf_vars({("fab", "auth_rate_limited"): "False"}):
         from airflow.www import app

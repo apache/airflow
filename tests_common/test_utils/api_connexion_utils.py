@@ -20,8 +20,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
@@ -32,9 +31,7 @@ if TYPE_CHECKING:
 
 @contextmanager
 def create_test_client(app, user_name, role_name, permissions):
-    """
-    Helper function to create a client with a temporary user which will be deleted once done
-    """
+    """Create a client with a temporary user which will be deleted once done."""
     client = app.test_client()
     with create_user_scope(app, username=user_name, role_name=role_name, permissions=permissions) as _:
         resp = client.post("/login/", data={"username": user_name, "password": user_name})
@@ -45,9 +42,10 @@ def create_test_client(app, user_name, role_name, permissions):
 @contextmanager
 def create_user_scope(app, username, **kwargs):
     """
-    Helper function designed to be used with pytest fixture mainly.
+    Create user scope for use pytest fixture mainly.
+
     It will create a user and provide it for the fixture via YIELD (generator)
-    then will tidy up once test is complete
+    then will tidy up once test is complete.
     """
     test_user = create_user(app, username, **kwargs)
 

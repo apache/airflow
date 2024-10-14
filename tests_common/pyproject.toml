@@ -35,4 +35,4 @@ disable = true
 include = ["**/*.py"]
 
 [tool.hatch.build.targets.wheel.sources]
-"" = "dev/tests_common"
+"" = "tests_common"

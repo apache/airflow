@@ -21,7 +21,7 @@ import semver
 
 
 def object_exists(path: str):
-    """Returns true if importable python object is there."""
+    """Return true if importable python object is there."""
     from airflow.utils.module_loading import import_string
 
     try:
@@ -33,7 +33,7 @@ def object_exists(path: str):
 
 def get_provider_version(provider_name):
     """
-    Returns provider version given provider package name.
+    Return provider version given provider package name.
 
     Example::
         if provider_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):

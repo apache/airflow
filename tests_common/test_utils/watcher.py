@@ -23,6 +23,10 @@ from airflow.utils.trigger_rule import TriggerRule
 
 @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
 def watcher():
-    """Watcher task raises an AirflowException and is used to 'watch' tasks for failures
-    and propagates fail status to the whole DAG Run"""
+    """
+    Watcher task.
+
+    Watcher task raises an AirflowException and is used to 'watch' tasks for failures
+    and propagates fail status to the whole DAG Run.
+    """
     raise AirflowException("Failing task because one or more upstream tasks failed.")

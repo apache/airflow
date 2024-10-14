@@ -23,8 +23,7 @@ import attr
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.xcom import XCom
-
-from dev.tests_common.test_utils.compat import BaseOperatorLink
+from tests_common.test_utils.compat import BaseOperatorLink
 
 if TYPE_CHECKING:
     import jinja2
@@ -47,12 +46,16 @@ class MockOperator(BaseOperator):
 
 
 class NestedFields:
+    """Nested fields for testing purposes."""
+
     def __init__(self, field_1, field_2):
         self.field_1 = field_1
         self.field_2 = field_2
 
 
 class MockOperatorWithNestedFields(BaseOperator):
+    """Operator with nested fields for testing purposes."""
+
     template_fields: Sequence[str] = ("arg1", "arg2")
 
     def __init__(self, arg1: str = "", arg2: NestedFields | None = None, **kwargs):
@@ -85,9 +88,7 @@ class MockOperatorWithNestedFields(BaseOperator):
 
 
 class AirflowLink(BaseOperatorLink):
-    """
-    Operator Link for Apache Airflow Website
-    """
+    """Operator Link for Apache Airflow Website."""
 
     name = "airflow"
 
@@ -95,19 +96,23 @@ class AirflowLink(BaseOperatorLink):
         return "https://airflow.apache.org"
 
 
-class Dummy2TestOperator(BaseOperator):
+class EmptyExtraLinkTestOperator(BaseOperator):
     """
+    Empty test operator with extra link.
+
     Example of an Operator that has an extra operator link
-    and will be overridden by the one defined in tests/plugins/test_plugin.py
+    and will be overridden by the one defined in tests/plugins/test_plugin.py.
     """
 
     operator_extra_links = (AirflowLink(),)
 
 
-class Dummy3TestOperator(BaseOperator):
+class EmptyNoExtraLinkTestOperator(BaseOperator):
     """
+    Empty test operator without extra operator link.
+
     Example of an operator that has no extra Operator link.
-    An operator link would be added to this operator via Airflow plugin
+    An operator link would be added to this operator via Airflow plugin.
     """
 
     operator_extra_links = ()
@@ -115,6 +120,8 @@ class Dummy3TestOperator(BaseOperator):
 
 @attr.s(auto_attribs=True)
 class CustomBaseIndexOpLink(BaseOperatorLink):
+    """Custom Operator Link for Google BigQuery Console."""
+
     index: int = attr.ib()
 
     @property
@@ -134,6 +141,8 @@ class CustomBaseIndexOpLink(BaseOperatorLink):
 
 
 class CustomOpLink(BaseOperatorLink):
+    """Custom Operator with Link for Google Custom Search."""
+
     name = "Google Custom"
 
     def get_link(self, operator, *, ti_key):
@@ -146,14 +155,14 @@ class CustomOpLink(BaseOperatorLink):
 
 
 class CustomOperator(BaseOperator):
+    """Custom Operator for testing purposes."""
+
     template_fields = ["bash_command"]
     custom_operator_name = "@custom"
 
     @property
     def operator_extra_links(self):
-        """
-        Return operator extra links
-        """
+        """Return operator extra links."""
         if isinstance(self.bash_command, str) or self.bash_command is None:
             return (CustomOpLink(),)
         return (CustomBaseIndexOpLink(i) for i, _ in enumerate(self.bash_command))
@@ -168,33 +177,27 @@ class CustomOperator(BaseOperator):
 
 
 class GoogleLink(BaseOperatorLink):
-    """
-    Operator Link for Apache Airflow Website for Google
-    """
+    """Operator Link for Apache Airflow Website for Google."""
 
     name = "google"
-    operators = [Dummy3TestOperator, CustomOperator]
+    operators = [EmptyNoExtraLinkTestOperator, CustomOperator]
 
     def get_link(self, operator, *, ti_key):
         return "https://www.google.com"
 
 
 class AirflowLink2(BaseOperatorLink):
-    """
-    Operator Link for Apache Airflow Website for 1.10.5
-    """
+    """Operator Link for Apache Airflow Website for 1.10.5."""
 
     name = "airflow"
-    operators = [Dummy2TestOperator, Dummy3TestOperator]
+    operators = [EmptyExtraLinkTestOperator, EmptyNoExtraLinkTestOperator]
 
     def get_link(self, operator, *, ti_key):
         return "https://airflow.apache.org/1.10.5/"
 
 
 class GithubLink(BaseOperatorLink):
-    """
-    Operator Link for Apache Airflow GitHub
-    """
+    """Operator Link for Apache Airflow GitHub."""
 
     name = "github"
 
@@ -203,6 +206,8 @@ class GithubLink(BaseOperatorLink):
 
 
 class DeprecatedOperator(BaseOperator):
+    """Deprecated Operator for testing purposes."""
+
     def __init__(self, **kwargs):
         warnings.warn("This operator is deprecated.", DeprecationWarning, stacklevel=2)
         super().__init__(**kwargs)

@@ -25,10 +25,12 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class CommandExecutionError(Exception):
-    """Raise in case of error during command execution"""
+    """Raise in case of error during command execution."""
 
 
 class LoggingCommandExecutor(LoggingMixin):
+    """Logging command executor."""
+
     def execute_cmd(self, cmd, silent=False, cwd=None, env=None):
         if silent:
             self.log.info("Executing in silent mode: '%s'", " ".join(shlex.quote(c) for c in cmd))
@@ -70,6 +72,8 @@ class LoggingCommandExecutor(LoggingMixin):
 
 class CommandExecutor(LoggingCommandExecutor):
     """
+    Command executor.
+
     Due to 'LoggingCommandExecutor' class just returns the status code of command execution
     ('execute_cmd' method) and continues to perform code with possible errors, separate
     inherited 'CommandExecutor' class was created to use it if you need to break code performing

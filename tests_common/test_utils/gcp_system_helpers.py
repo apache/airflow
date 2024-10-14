@@ -30,10 +30,10 @@ from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 
 import airflow.providers.google
 from airflow.providers.google.cloud.utils.credentials_provider import provide_gcp_conn_and_credentials
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.logging_command_executor import CommandExecutor
+from tests_common.test_utils.system_tests_class import SystemTest
 
-from dev.tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from dev.tests_common.test_utils.logging_command_executor import CommandExecutor
-from dev.tests_common.test_utils.system_tests_class import SystemTest
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY, GCP_SECRET_MANAGER_KEY
 
 GCP_DIR = Path(airflow.providers.google.__file__).parent
@@ -49,7 +49,7 @@ POSTGRES_LOCAL_EXECUTOR = os.path.join(
 
 def resolve_full_gcp_key_path(key: str) -> str:
     """
-    Returns path full path to provided GCP key.
+    Return path full path to provided GCP key.
 
     :param key: Name of the GCP key, for example ``my_service.json``
     :returns: Full path to the key
@@ -66,7 +66,7 @@ def provide_gcp_context(
     project_id: str | None = None,
 ):
     """
-    Context manager that provides:
+    Provide context manager for GCP.
 
     - GCP credentials for application supporting `Application Default Credentials (ADC)
     strategy <https://cloud.google.com/docs/authentication/production>`__.
@@ -115,6 +115,8 @@ def provide_gcs_bucket(bucket_name: str):
 
 @pytest.mark.system("google")
 class GoogleSystemTest(SystemTest):
+    """Base class for Google system tests."""
+
     @staticmethod
     def execute_cmd(*args, **kwargs):
         executor = CommandExecutor()
@@ -132,10 +134,7 @@ class GoogleSystemTest(SystemTest):
     def execute_with_ctx(
         cls, cmd: list[str], key: str = GCP_GCS_KEY, project_id=None, scopes=None, silent: bool = False
     ):
-        """
-        Executes command with context created by provide_gcp_context and activated
-        service key.
-        """
+        """Execute command with context created by provide_gcp_context and activated service key."""
         current_project_id = project_id or cls._project_id()
         with provide_gcp_context(key, project_id=current_project_id, scopes=scopes):
             cls.execute_cmd(cmd=cmd, silent=silent)

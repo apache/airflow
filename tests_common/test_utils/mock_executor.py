@@ -28,9 +28,7 @@ from airflow.utils.state import State
 
 
 class MockExecutor(BaseExecutor):
-    """
-    TestExecutor is used for unit testing purposes.
-    """
+    """TestExecutor is used for unit testing purposes."""
 
     supports_pickling = False
     mock_module_path = "mock.executor.path"
@@ -98,6 +96,8 @@ class MockExecutor(BaseExecutor):
 
     def mock_task_fail(self, dag_id, task_id, run_id: str, try_number=1):
         """
+        Mock for test failures.
+
         Set the mock outcome of running this particular task instances to
         FAILED.
 

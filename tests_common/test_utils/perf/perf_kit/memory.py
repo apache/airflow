@@ -37,7 +37,7 @@ def _human_readable_size(size, decimal_places=3):
 
 
 class TraceMemoryResult:
-    """Trace results of memory,"""
+    """Trace results of memory,."""
 
     def __init__(self):
         self.before = 0
@@ -48,7 +48,7 @@ class TraceMemoryResult:
 @contextmanager
 def trace_memory(human_readable=True, gc_collect=False):
     """
-    Calculates the amount of difference in free memory before and after script execution.
+    Decorate function and calculate the amount of difference in free memory before and after script execution.
 
     In other words, how much data the code snippet has used up memory.
 

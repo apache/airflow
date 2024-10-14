@@ -46,7 +46,7 @@ def _lookup_user(username: str):
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication"""
+    """Decorate functions that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):

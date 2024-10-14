@@ -35,7 +35,7 @@ def _pretty_format_sql(text: str):
 
 class TraceQueries:
     """
-    Tracking SQL queries in a code block.
+    Track SQL queries in a code block.
 
     :param display_num: If True, displays the query number.
     :param display_time: If True, displays the query execution time.
@@ -73,7 +73,7 @@ class TraceQueries:
         executemany,
     ):
         """
-        Executed before cursor.
+        Execute before cursor.
 
         :param conn:  connection
         :param cursor:  cursor
@@ -83,7 +83,6 @@ class TraceQueries:
         :param executemany: whether many statements executed
         :return:
         """
-
         conn.info.setdefault("query_start_time", []).append(time.monotonic())
         self.query_count += 1
 
@@ -97,7 +96,7 @@ class TraceQueries:
         executemany,
     ):
         """
-        Executed after cursor.
+        Execute after cursor.
 
         :param conn:  connection
         :param cursor:  cursor
@@ -154,9 +153,7 @@ trace_queries = TraceQueries
 
 
 class CountQueriesResult:
-    """
-    Counter for number of queries.
-    """
+    """Counter for number of queries."""
 
     def __init__(self):
         self.count = 0
@@ -198,7 +195,7 @@ class CountQueries:
         executemany,
     ):
         """
-        Executed after cursor.
+        Execute after cursor.
 
         :param conn:  connection
         :param cursor:  cursor
@@ -215,7 +212,7 @@ count_queries = CountQueries
 if __name__ == "__main__":
     # Example:
     def case():
-        """Case of logging om/"""
+        """Case of logging om/."""
         import logging
         from unittest import mock
 

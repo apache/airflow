@@ -179,7 +179,7 @@ class CaptureWarningsPlugin:
 
     @pytest.hookimpl(hookwrapper=True, trylast=True)
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int):
-        """Save warning captures in the session finish on xdist worker node"""
+        """Save warning captures in the session finish on xdist worker node."""
         with CapturedWarning.capture_warnings("config", self.root_path, None) as records:
             yield
         self.add_captured_warnings(records)
@@ -206,7 +206,7 @@ class CaptureWarningsPlugin:
 
     @staticmethod
     def sorted_groupby(it, grouping_key: Callable):
-        """Helper for sort and group by."""
+        """Sort and group by items by the grouping_key."""
         for group, grouped_data in itertools.groupby(sorted(it, key=grouping_key), key=grouping_key):
             yield group, list(grouped_data)
 
