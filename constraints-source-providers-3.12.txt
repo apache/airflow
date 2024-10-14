@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-13T21:25:23.494700
+# This constraints file was automatically generated on 2024-10-14T05:56:49.824154
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -71,7 +71,7 @@ amqp==5.2.0
 analytics-python==1.2.9
 annotated-types==0.7.0
 anyascii==0.3.2
-anyio==4.6.1
+anyio==4.6.2
 apispec==6.6.1
 apprise==1.9.0
 argcomplete==3.5.1
@@ -147,7 +147,7 @@ colorama==0.4.6
 colorlog==6.8.2
 confluent-kafka==2.6.0
 connexion==2.14.2
-coverage==7.6.2
+coverage==7.6.3
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==3.0.3
@@ -257,7 +257,7 @@ gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.12.0
+hatch==1.13.0
 hatchling==1.25.0
 hdfs==2.7.3
 hmsclient==0.1.1
@@ -574,7 +574,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20240914
-types-setuptools==75.1.0.20240917
+types-setuptools==75.1.0.20241014
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
