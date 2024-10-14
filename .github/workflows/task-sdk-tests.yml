@@ -1,0 +1,91 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Task SDK tests
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
+        required: true
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
+        required: true
+        type: string
+      canary-run:
+        description: "Whether this is a canary run"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to build images from"
+        required: true
+        type: string
+jobs:
+  task-sdk-tests:
+    timeout-minutes: 80
+    name: Task SDK:P${{ matrix.python-version }} tests
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: "${{fromJSON(inputs.python-versions)}}"
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
+    if: inputs.run-task-sdk-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare Task SDK packages: wheel"
+        run: >
+          breeze release-management prepare-task-sdk-package --package-format wheel
+      - name: "Verify wheel packages with twine"
+        run: |
+          pipx uninstall twine || true
+          pipx install twine && twine check dist/*.whl
+      - name: >
+          Run provider unit tests on
+          Airflow Task SDK:Python ${{ matrix.python-version }}
+        if: matrix.run-tests == 'true'
+        run: >
+          breeze testing tests --run-in-parallel
+          --parallel-test-types TaskSDK
+          --use-packages-from-dist
+          --package-format wheel

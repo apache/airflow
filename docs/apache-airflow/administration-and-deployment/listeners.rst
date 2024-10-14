@@ -34,7 +34,7 @@ Lifecycle Events
 - ``on_starting``
 - ``before_stopping``
 
-Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob`` or ``BackfillJob``.
+Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob``.
 
 DagRun State Change Events
 --------------------------

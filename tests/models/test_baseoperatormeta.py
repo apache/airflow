@@ -40,6 +40,11 @@ class HelloWorldOperator(BaseOperator):
         return f"Hello {self.owner}!"
 
 
+class ExtendedHelloWorldOperator(HelloWorldOperator):
+    def execute(self, context: Context) -> Any:
+        return super().execute(context)
+
+
 class TestExecutorSafeguard:
     def setup_method(self):
         ExecutorSafeguard.test_mode = False
@@ -49,12 +54,29 @@ class TestExecutorSafeguard:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
-    def test_executor_when_classic_operator_called_from_dag(self, dag_maker):
+    @patch.object(HelloWorldOperator, "log")
+    def test_executor_when_classic_operator_called_from_dag(self, mock_log, dag_maker):
         with dag_maker() as dag:
             HelloWorldOperator(task_id="hello_operator")
 
         dag_run = dag.test()
         assert dag_run.state == DagRunState.SUCCESS
+        mock_log.warning.assert_not_called()
+
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    @pytest.mark.db_test
+    @patch.object(HelloWorldOperator, "log")
+    def test_executor_when_extended_classic_operator_called_from_dag(
+        self,
+        mock_log,
+        dag_maker,
+    ):
+        with dag_maker() as dag:
+            ExtendedHelloWorldOperator(task_id="hello_operator")
+
+        dag_run = dag.test()
+        assert dag_run.state == DagRunState.SUCCESS
+        mock_log.warning.assert_not_called()
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
