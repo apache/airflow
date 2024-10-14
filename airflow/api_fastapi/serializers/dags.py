@@ -95,7 +95,7 @@ class DAGResponse(BaseModel):
 
 
 class DAGPatchBody(BaseModel):
-    """Dag Serializer for updatable body."""
+    """Dag Serializer for updatable bodies."""
 
     is_paused: bool
 

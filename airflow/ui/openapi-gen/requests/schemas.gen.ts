@@ -526,7 +526,7 @@ export const $DAGPatchBody = {
   type: "object",
   required: ["is_paused"],
   title: "DAGPatchBody",
-  description: "Dag Serializer for updatable body.",
+  description: "Dag Serializer for updatable bodies.",
 } as const;
 
 export const $DAGResponse = {
@@ -1182,22 +1182,11 @@ export const $ValidationError = {
   title: "ValidationError",
 } as const;
 
-export const $VariableResponse = {
+export const $VariableBody = {
   properties: {
     key: {
       type: "string",
       title: "Key",
-    },
-    value: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Value",
     },
     description: {
       anyOf: [
@@ -1210,9 +1199,55 @@ export const $VariableResponse = {
       ],
       title: "Description",
     },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
   },
   type: "object",
-  required: ["key", "value", "description"],
+  required: ["key", "description", "value"],
+  title: "VariableBody",
+  description: "Variable serializer for bodies.",
+} as const;
+
+export const $VariableResponse = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: ["key", "description", "value"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;

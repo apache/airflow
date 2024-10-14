@@ -25,14 +25,19 @@ from typing_extensions import Self
 from airflow.utils.log.secrets_masker import redact
 
 
-class VariableResponse(BaseModel):
-    """Variable serializer for responses."""
+class VariableBase(BaseModel):
+    """Base Variable serializer."""
 
     model_config = ConfigDict(populate_by_name=True)
 
     key: str
-    val: str | None = Field(alias="value")
     description: str | None
+
+
+class VariableResponse(VariableBase):
+    """Variable serializer for responses."""
+
+    val: str | None = Field(alias="value")
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
@@ -47,3 +52,9 @@ class VariableResponse(BaseModel):
             # value is not a serialized string representation of a dict.
             self.val = redact(self.val, self.key)
             return self
+
+
+class VariableBody(VariableBase):
+    """Variable serializer for bodies."""
+
+    value: str | None
