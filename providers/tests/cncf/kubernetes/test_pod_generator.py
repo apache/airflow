@@ -795,17 +795,17 @@ class TestPodGenerator:
             pytest.param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
             pytest.param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
             pytest.param(
-                dict(execution_date=now),
-                {"execution_date": datetime_to_label_safe_datestring(now)},
+                dict(logical_date=now),
+                {LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now)},
                 id="date",
             ),
             pytest.param(
-                dict(airflow_worker=2, map_index=2, run_id="2", execution_date=now),
+                dict(airflow_worker=2, map_index=2, run_id="2", logical_date=now),
                 {
                     "airflow-worker": "2",
                     "map_index": "2",
                     "run_id": "2",
-                    "execution_date": datetime_to_label_safe_datestring(now),
+                    LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now),
                 },
                 id="all",
             ),
