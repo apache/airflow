@@ -25,7 +25,8 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -135,3 +136,15 @@ def test_get_dag_run_not_found(test_client):
     assert response.status_code == 404
     body = response.json()
     assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestDeleteDagRun:
+    def test_delete_dag_run(self, test_client):
+        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        assert response.status_code == 204
+
+    def test_delete_dag_run_not_found(self, test_client):
+        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
