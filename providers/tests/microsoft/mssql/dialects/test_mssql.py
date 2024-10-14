@@ -28,7 +28,7 @@ from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 class TestMsSqlDialect:
     def setup_method(self):
         inspector = MagicMock(spc=Inspector)
-        inspector.get_columns.side_effect = lambda *args: [
+        inspector.get_columns.side_effect = lambda table_name, schema: [
             {"name": "id"},
             {"name": "name"},
             {"name": "firstname"},
@@ -36,15 +36,16 @@ class TestMsSqlDialect:
         ]
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
         self.test_db_hook.run.side_effect = lambda *args: [("id",)]
+        self.test_db_hook._escape_column_name_format = '"{}"'
 
     def test_placeholder(self):
-        assert MsSqlDialect("mssql", self.test_db_hook).placeholder == "?"
+        assert MsSqlDialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
         assert MsSqlDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
 
     def test_get_column_names(self):
-        assert MsSqlDialect("mssql", self.test_db_hook).get_column_names("hollywood.actors") == [
+        assert MsSqlDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
             "name",
             "firstname",
@@ -52,7 +53,7 @@ class TestMsSqlDialect:
         ]
 
     def test_get_primary_keys(self):
-        assert MsSqlDialect("mssql", self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
+        assert MsSqlDialect(self.test_db_hook).get_primary_keys("hollywood.actors") == ["id"]
 
     def test_generate_replace_sql(self):
         values = [
@@ -63,7 +64,7 @@ class TestMsSqlDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = MsSqlDialect("mssql", self.test_db_hook).generate_replace_sql(
+        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql(
             "hollywood.actors", values, target_fields
         )
         assert (
