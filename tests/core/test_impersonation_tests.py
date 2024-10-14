@@ -28,13 +28,10 @@ from pathlib import Path
 import pytest
 
 from airflow.configuration import conf
-from airflow.jobs.backfill_job_runner import BackfillJobRunner
-from airflow.jobs.job import Job, run_job
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagBag, TaskInstance
 from airflow.utils.db import add_default_pool_if_not_exists
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.utils.types import DagRunType
 
 from dev.tests_common.test_utils import db
 
@@ -175,17 +172,14 @@ class BaseImpersonationTest:
         logger.info(dagbag.dagbag_report())
         return dagbag
 
-    def run_backfill(self, dag_id, task_id):
+    def run_dag(self, dag_id, task_id):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        job = Job()
-        job_runner = BackfillJobRunner(job=job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        run_job(job=job, execute_callable=job_runner._execute)
-        run_id = DagRun.generate_run_id(DagRunType.BACKFILL_JOB, execution_date=DEFAULT_DATE)
-        ti = TaskInstance(task=dag.get_task(task_id), run_id=run_id)
-        ti.refresh_from_db()
+        dr = dag.test(use_executor=True)
 
+        ti = TaskInstance(task=dag.get_task(task_id), run_id=dr.run_id)
+        ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
 
@@ -198,14 +192,14 @@ class TestImpersonation(BaseImpersonationTest):
         """
         Tests that impersonating a unix user works
         """
-        self.run_backfill("test_impersonation", "test_impersonated_user")
+        self.run_dag("test_impersonation", "test_impersonated_user")
 
     def test_no_impersonation(self):
         """
         If default_impersonation=None, tests that the job is run
         as the current user (which will be a sudoer)
         """
-        self.run_backfill(
+        self.run_dag(
             "test_no_impersonation",
             "test_superuser",
         )
@@ -216,7 +210,7 @@ class TestImpersonation(BaseImpersonationTest):
         to running as TEST_USER for a test without 'run_as_user' set.
         """
         monkeypatch.setenv("AIRFLOW__CORE__DEFAULT_IMPERSONATION", TEST_USER)
-        self.run_backfill("test_default_impersonation", "test_deelevated_user")
+        self.run_dag("test_default_impersonation", "test_deelevated_user")
 
 
 class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
@@ -233,4 +227,4 @@ class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
         """
         monkeypatch.setenv("PYTHONPATH", TEST_UTILS_FOLDER)
         assert TEST_UTILS_FOLDER not in sys.path
-        self.run_backfill("impersonation_with_custom_pkg", "exec_python_fn")
+        self.run_dag("impersonation_with_custom_pkg", "exec_python_fn")

@@ -37,7 +37,7 @@ def simple_app():
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE, "w") as file:
+        with open(SimpleAuthManager.get_generated_password_file(), "w") as file:
             user = {"test": "test"}
             file.write(json.dumps(user))
 

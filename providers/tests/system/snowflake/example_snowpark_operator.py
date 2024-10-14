@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 from airflow import DAG
 from airflow.providers.snowflake.operators.snowpark import SnowparkOperator
 
-SNOWFLAKE_CONN_ID = "snowflake_default"
-DAG_ID = "example_snowpark"
+SNOWFLAKE_CONN_ID = "my_snowflake_conn"
+DAG_ID = "example_snowpark_operator"
 
 with DAG(
     DAG_ID,
