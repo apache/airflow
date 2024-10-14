@@ -64,9 +64,7 @@ class TestMsSqlDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql(
-            "hollywood.actors", values, target_fields
-        )
+        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
         assert (
             sql
             == """
