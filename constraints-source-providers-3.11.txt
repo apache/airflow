@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-13T13:44:02.318945
+# This constraints file was automatically generated on 2024-10-14T02:11:33.027315
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -74,7 +74,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.6.0
+anyio==4.6.2
 apache-beam==2.59.0
 apispec==6.6.1
 apprise==1.9.0
@@ -152,7 +152,7 @@ colorlog==6.8.2
 comm==0.2.2
 confluent-kafka==2.6.0
 connexion==2.14.2
-coverage==7.6.2
+coverage==7.6.3
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==3.0.3
@@ -256,7 +256,7 @@ google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.65.0
-graphql-core==3.2.4
+graphql-core==3.2.5
 graphviz==0.20.3
 greenlet==3.1.1
 grpc-google-iam-v1==0.13.1
@@ -270,7 +270,7 @@ gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.12.0
+hatch==1.13.0
 hatchling==1.25.0
 hdfs==2.7.3
 hmsclient==0.1.1
@@ -352,7 +352,7 @@ microsoft-kiota-http==1.3.3
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
-moto==5.0.16
+moto==5.0.17
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
@@ -643,7 +643,7 @@ xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.320.0
-yarl==1.15.1
+yarl==1.15.2
 ydb==3.18.2
 zeep==4.3.0
 zenpy==2.0.53
