@@ -329,7 +329,7 @@ class TestPostgresHookConn:
         )
 
 
-#@pytest.mark.backend("postgres")
+@pytest.mark.backend("postgres")
 class TestPostgresHook:
     table = "test_postgres_hook_table"
 
