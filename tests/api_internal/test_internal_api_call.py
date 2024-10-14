@@ -27,7 +27,7 @@ import pytest
 import requests
 
 from airflow.__main__ import configure_internal_api
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.api_internal.internal_api_call import AirflowHttpException, InternalApiConfig, internal_api_call
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -266,6 +266,28 @@ class TestInternalApiCall:
         assert call_kwargs["data"] == expected_data
         assert call_kwargs["headers"]["Content-Type"] == "application/json"
         assert "Authorization" in call_kwargs["headers"]
+
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+            ("database", "sql_alchemy_conn"): "none://",
+        }
+    )
+    @mock.patch("airflow.api_internal.internal_api_call.requests")
+    @mock.patch("tenacity.wait_exponential")
+    def test_retry_on_bad_gateway(self, mock_requests, mock_wait):
+        configure_internal_api(Namespace(subcommand="dag-processor"), conf)
+        response = requests.Response()
+        response.status_code = 502
+        response.reason = "Bad Gateway"
+        mock_wait = lambda *_, **__: None
+        response._content = b"Bad Gateway"
+
+        mock_requests.post.return_value = response
+        with pytest.raises(AirflowHttpException):
+            result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
+            assert mock_requests.post.call_count == 10
 
     @conf_vars(
         {
