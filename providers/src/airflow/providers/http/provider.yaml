@@ -67,7 +67,7 @@ dependencies:
   - requests>=2.27.0,<3
   - requests_toolbelt
   - aiohttp>=3.9.2
-  - asgiref
+  - asgiref>=2.3.0
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
