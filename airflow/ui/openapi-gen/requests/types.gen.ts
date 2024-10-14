@@ -222,7 +222,7 @@ export type DagRunType =
   | "backfill"
   | "scheduled"
   | "manual"
-  | "dataset_triggered";
+  | "asset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.

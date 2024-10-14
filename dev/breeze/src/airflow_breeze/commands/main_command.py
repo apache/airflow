@@ -169,8 +169,8 @@ def check_for_python_emulation():
                 get_console().print("\nNo answer, exiting...")
                 sys.exit(1)
     except FileNotFoundError:
-    #     pass
-    # except subprocess.CalledProcessError:
+        pass
+    except subprocess.CalledProcessError:
         pass
     except PermissionError:
         pass
