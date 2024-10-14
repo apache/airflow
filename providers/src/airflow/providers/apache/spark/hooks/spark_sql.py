@@ -145,8 +145,8 @@ class SparkSqlHook(BaseHook):
         if self._conf:
             conf = self._conf
             if isinstance(conf, dict):
-                for key in conf:
-                    connection_cmd += ["--conf", f"{key}={conf[key]}"]
+                for key, value in conf.items():
+                    connection_cmd += ["--conf", f"{key}={value}"]
             elif isinstance(conf, str):
                 for conf_el in conf.split(","):
                     connection_cmd += ["--conf", conf_el]
