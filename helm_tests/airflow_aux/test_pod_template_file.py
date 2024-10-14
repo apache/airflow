@@ -73,15 +73,12 @@ class TestPodTemplateFile:
                     "gitSync": {
                         "enabled": True,
                         "containerName": "git-sync-test",
-                        "wait": None,
                         "period": "66s",
                         "maxFailures": 70,
                         "subPath": "path1/path2",
-                        "rev": "HEAD",
                         "ref": "test-branch",
                         "depth": 1,
                         "repo": "https://github.com/apache/airflow.git",
-                        "branch": "test-branch",
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
@@ -101,23 +98,14 @@ class TestPodTemplateFile:
             "imagePullPolicy": "Always",
             "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
-                {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
-                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
-                {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
-                {"name": "GIT_SYNC_DEPTH", "value": "1"},
                 {"name": "GITSYNC_DEPTH", "value": "1"},
-                {"name": "GIT_SYNC_ROOT", "value": "/git"},
                 {"name": "GITSYNC_ROOT", "value": "/git"},
-                {"name": "GIT_SYNC_DEST", "value": "repo"},
                 {"name": "GITSYNC_LINK", "value": "repo"},
-                {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GITSYNC_ADD_USER", "value": "true"},
                 {"name": "GITSYNC_PERIOD", "value": "66s"},
-                {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
                 {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
-                {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
                 {"name": "GITSYNC_ONE_TIME", "value": "true"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
@@ -189,7 +177,7 @@ class TestPodTemplateFile:
                         "containerName": "git-sync-test",
                         "sshKeySecret": "ssh-secret",
                         "knownHosts": None,
-                        "branch": "test-branch",
+                        "ref": "test-branch",
                     }
                 }
             },
@@ -197,19 +185,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
         assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
-        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
         assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
@@ -235,18 +211,15 @@ class TestPodTemplateFile:
                         "containerName": "git-sync-test",
                         "sshKeySecret": "ssh-secret",
                         "knownHosts": "github.com ssh-rsa AAAABdummy",
-                        "branch": "test-branch",
+                        "ref": "test-branch",
                     }
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        assert {"name": "GIT_KNOWN_HOSTS", "value": "true"} in jmespath.search(
-            "spec.initContainers[0].env", docs[0]
-        )
         assert {
-            "name": "GIT_SSH_KNOWN_HOSTS_FILE",
+            "name": "GITSYNC_SSH_KNOWN_HOSTS_FILE",
             "value": "/etc/git-secret/known_hosts",
         } in jmespath.search("spec.initContainers[0].env", docs[0])
         assert {
@@ -271,16 +244,6 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-
-        # Testing git-sync v4
         assert {
             "name": "GITSYNC_USERNAME",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},

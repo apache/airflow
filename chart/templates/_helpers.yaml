@@ -209,90 +209,46 @@ If release name contains chart name it will be used as a full name.
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
-    - name: GIT_SSH_KEY_FILE
-      value: "/etc/git-secret/ssh"
     - name: GITSYNC_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
-    - name: GIT_SYNC_SSH
-      value: "true"
-    - name: GITSYNC_SSH
-      value: "true"
     {{- if .Values.dags.gitSync.knownHosts }}
-    - name: GIT_KNOWN_HOSTS
-      value: "true"
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "true"
-    - name: GIT_SSH_KNOWN_HOSTS_FILE
-      value: "/etc/git-secret/known_hosts"
     - name: GITSYNC_SSH_KNOWN_HOSTS_FILE
       value: "/etc/git-secret/known_hosts"
     {{- else }}
-    - name: GIT_KNOWN_HOSTS
-      value: "false"
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
-    - name: GIT_SYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_USERNAME
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
-    - name: GIT_SYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_PASSWORD
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
     {{- end }}
-    - name: GIT_SYNC_REV
-      value: {{ .Values.dags.gitSync.rev | quote }}
     - name: GITSYNC_REF
       value: {{ .Values.dags.gitSync.ref | quote }}
-    - name: GIT_SYNC_BRANCH
-      value: {{ .Values.dags.gitSync.branch | quote }}
-    - name: GIT_SYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
     - name: GITSYNC_REPO
       value: {{ .Values.dags.gitSync.repo | quote }}
-    - name: GIT_SYNC_DEPTH
-      value: {{ .Values.dags.gitSync.depth | quote }}
     - name: GITSYNC_DEPTH
       value: {{ .Values.dags.gitSync.depth | quote }}
-    - name: GIT_SYNC_ROOT
-      value: "/git"
     - name: GITSYNC_ROOT
       value: "/git"
-    - name: GIT_SYNC_DEST
-      value: "repo"
     - name: GITSYNC_LINK
       value: "repo"
-    - name: GIT_SYNC_ADD_USER
-      value: "true"
     - name: GITSYNC_ADD_USER
       value: "true"
-    {{- if .Values.dags.gitSync.wait }}
-    - name: GIT_SYNC_WAIT
-      value: {{ .Values.dags.gitSync.wait | quote }}
-    {{- end }}
     - name: GITSYNC_PERIOD
       value: {{ .Values.dags.gitSync.period | quote }}
-    - name: GIT_SYNC_MAX_SYNC_FAILURES
-      value: {{ .Values.dags.gitSync.maxFailures | quote }}
     - name: GITSYNC_MAX_FAILURES
       value: {{ .Values.dags.gitSync.maxFailures | quote }}
     {{- if .is_init }}
-    - name: GIT_SYNC_ONE_TIME
-      value: "true"
     - name: GITSYNC_ONE_TIME
       value: "true"
     {{- end }}

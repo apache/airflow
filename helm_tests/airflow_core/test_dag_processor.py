@@ -722,19 +722,7 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
         assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
-            "spec.template.spec.containers[1].env", docs[0]
-        )
-        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.template.spec.containers[1].env", docs[0]
         )
         assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(

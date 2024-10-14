@@ -8658,16 +8658,6 @@
                             "type": "string",
                             "default": "https://github.com/apache/airflow.git"
                         },
-                        "branch": {
-                            "description": "Git branch",
-                            "type": "string",
-                            "default": "v2-2-stable"
-                        },
-                        "rev": {
-                            "description": "Git revision.",
-                            "type": "string",
-                            "default": "HEAD"
-                        },
                         "ref": {
                             "description": "Git revision branch, tag, or hash.",
                             "type": "string",
@@ -8687,14 +8677,6 @@
                             "description": "Subpath within the repo where dags are located.",
                             "type": "string",
                             "default": "tests/dags"
-                        },
-                        "wait": {
-                            "description": "Interval between git sync attempts in seconds. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",
-                            "type": [
-                                "integer",
-                                "null"
-                            ],
-                            "default": null
                         },
                         "period": {
                             "description": "Interval between git sync attempts in Go-style duration string. High values are more likely to cause DAGs to become out of sync between different components. Low values cause more traffic to the remote git repository.",

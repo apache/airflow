@@ -2714,8 +2714,6 @@ dags:
     # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git
     repo: https://github.com/apache/airflow.git
-    branch: v2-2-stable
-    rev: HEAD
     # The git revision (branch, tag, or hash) to check out, v4 only
     ref: v2-2-stable
     depth: 1
@@ -2732,10 +2730,6 @@ dags:
     #   metadata:
     #     name: git-credentials
     #   data:
-    #     # For git-sync v3
-    #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
-    #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
-    #     # For git-sync v4
     #     GITSYNC_USERNAME: <base64_encoded_git_username>
     #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
@@ -2775,7 +2769,6 @@ dags:
     # Go-style duration string (e.g. "100ms" or "0.1s" = 100ms).
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
-    wait: ~
     # add variables from secret into gitSync containers, such proxy-config
     envFrom: ~
     # envFrom: |
