@@ -967,7 +967,7 @@ repos:
         entry: ./scripts/ci/pre_commit/json_schema.py
         args:
           - --spec-url
-          - https://json-schema.org/draft-07/schema
+          - https://raw.githubusercontent.com/json-schema-org/json-schema-spec/refs/heads/draft-07/schema.json
         language: python
         pass_filenames: true
         files: .*\.schema\.json$
