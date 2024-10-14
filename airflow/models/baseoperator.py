@@ -275,6 +275,7 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
+    call_on_kill_on_dagrun_timeout: bool | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -344,6 +345,7 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
+        "call_on_kill_on_dagrun_timeout": call_on_kill_on_dagrun_timeout,
     }
 
     # Inject DAG-level default args into args provided to this function.
