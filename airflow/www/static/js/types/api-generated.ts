@@ -1194,7 +1194,7 @@ export interface components {
       /** Format: date-time */
       last_scheduling_decision?: string | null;
       /** @enum {string} */
-      run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
+      run_type?: "backfill" | "manual" | "scheduled" | "asset_triggered";
       state?: components["schemas"]["DagState"];
       external_trigger?: boolean;
       /**

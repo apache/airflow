@@ -17,8 +17,27 @@
  under the License.
 #}
 
+Airflow.next_run_assets_summary{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
 {% extends base_template %}
-{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
+{% from 'airflow/asset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
 {% block page_title %}{{ dag.dag_display_name }} - {{ appbuilder.app_name }}{% endblock %}
@@ -58,10 +77,10 @@
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="graph_data_url" content="{{ url_for('Airflow.graph_data') }}">
   <meta name="calendar_data_url" content="{{ url_for('Airflow.calendar_data') }}">
-  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_assets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="task_tries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance_tries', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
-  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.assets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">

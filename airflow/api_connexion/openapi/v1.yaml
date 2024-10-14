@@ -3299,7 +3299,7 @@ components:
             - backfill
             - manual
             - scheduled
-            - dataset_triggered
+            - asset_triggered
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:
