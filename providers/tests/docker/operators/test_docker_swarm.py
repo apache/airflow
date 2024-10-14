@@ -76,8 +76,6 @@ class TestDockerSwarmOperator:
             mode=types.ServiceMode(mode="replicated", replicas=3),
             networks=["dummy_network"],
             placement=types.Placement(constraints=["node.labels.region==east"]),
-            logging_driver=None,
-            logging_driver_opts=None,
         )
         caplog.clear()
         operator.execute(None)
@@ -88,7 +86,6 @@ class TestDockerSwarmOperator:
             resources=mock_obj,
             networks=["dummy_network"],
             placement=types.Placement(constraints=["node.labels.region==east"]),
-            log_driver=None,
         )
         types_mock.ContainerSpec.assert_called_once_with(
             image="ubuntu:latest",
@@ -262,8 +259,6 @@ class TestDockerSwarmOperator:
                 cpu_reservation=100000000,
                 mem_reservation=67108864,
             ),
-            logging_driver=None,
-            logging_driver_opts=None,
         )
         operator.execute(None)
 
@@ -278,7 +273,6 @@ class TestDockerSwarmOperator:
             ),
             networks=None,
             placement=None,
-            log_driver=None,
         )
         types_mock.Resources.assert_not_called()
 
@@ -361,47 +355,3 @@ class TestDockerSwarmOperator:
             configs=None,
             secrets=None,
         )
-
-    @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_logging_driver(self, types_mock, docker_api_client_patcher):
-        mock_obj = mock.Mock()
-
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {"ID": "some_id"}
-        client_mock.images.return_value = []
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
-        types_mock.TaskTemplate.return_value = mock_obj
-        types_mock.ContainerSpec.return_value = mock_obj
-        types_mock.RestartPolicy.return_value = mock_obj
-        types_mock.Resources.return_value = mock_obj
-
-        docker_api_client_patcher.return_value = client_mock
-
-        operator = DockerSwarmOperator(
-            image="", logging_driver="json-file", task_id="unittest", enable_logging=False
-        )
-
-        assert operator.logging_driver == "json-file"
-
-    @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_invalid_logging_driver(self, types_mock, docker_api_client_patcher):
-        mock_obj = mock.Mock()
-
-        client_mock = mock.Mock(spec=APIClient)
-        client_mock.create_service.return_value = {"ID": "some_id"}
-        client_mock.images.return_value = []
-        client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
-        types_mock.TaskTemplate.return_value = mock_obj
-        types_mock.ContainerSpec.return_value = mock_obj
-        types_mock.RestartPolicy.return_value = mock_obj
-        types_mock.Resources.return_value = mock_obj
-
-        docker_api_client_patcher.return_value = client_mock
-
-        msg = "Invalid logging driver provided: json. Must be one of: [json-file, gelf]"
-        with pytest.raises(AirflowException) as e:
-            # Exception is raised in __init__()
-            DockerSwarmOperator(image="", logging_driver="json", task_id="unittest", enable_logging=False)
-        assert str(e.value) == msg

@@ -25,7 +25,6 @@ from time import sleep
 from typing import TYPE_CHECKING, Literal
 
 from docker import types
-from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -88,10 +87,6 @@ class DockerSwarmOperator(DockerOperator):
     :param enable_logging: Show the application's logs in operator's logs.
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
-    :param retrieve_output: Should this docker image consistently attempt to pull from and output
-        file before manually shutting down the image. Useful for cases where users want a pickle serialized
-        output that is not posted to logs
-    :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
     :param configs: List of docker configs to be exposed to the containers of the swarm service.
         The configs are ConfigReference objects as per the docker api
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
@@ -139,8 +134,6 @@ class DockerSwarmOperator(DockerOperator):
         self.args = args
         self.enable_logging = enable_logging
         self.service = None
-        self.tasks: list[dict] = []
-        self.containers: list[dict] = []
         self.configs = configs
         self.secrets = secrets
         self.mode = mode
@@ -205,18 +198,6 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info("Service status before exiting: %s", self._service_status())
                 break
 
-        if self.service and self._service_status() == "complete":
-            self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
-            for task in self.tasks:
-                container_id = task["Status"]["ContainerStatus"]["ContainerID"]
-                container = self.cli.inspect_container(container_id)
-                self.containers.append(container)
-        else:
-            raise AirflowException(f"Service did not complete: {self.service!r}")
-
-        if self.retrieve_output:
-            return self._attempt_to_retrieve_results()
-
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
@@ -273,25 +254,6 @@ class DockerSwarmOperator(DockerOperator):
         while not self._has_service_terminated():
             sleep(2)
             last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
-
-    def _attempt_to_retrieve_results(self):
-        """
-        Attempt to pull the result from the expected file for each containers.
-
-        This uses Docker's ``get_archive`` function. If the file is not yet
-        ready, *None* is returned.
-        """
-        try:
-            file_contents = []
-            for container in self.containers:
-                file_content = self._copy_from_docker(container["Id"], self.retrieve_output_path)
-                file_contents.append(file_content)
-            if len(file_contents) == 1:
-                return file_contents[0]
-            else:
-                return file_contents
-        except APIError:
-            return None
 
     @staticmethod
     def format_args(args: list[str] | str | None) -> list[str] | None:
