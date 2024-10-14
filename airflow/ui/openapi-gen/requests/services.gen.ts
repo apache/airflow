@@ -25,6 +25,8 @@ import type {
   DeleteVariableResponse,
   GetVariableData,
   GetVariableResponse,
+  PatchVariableData,
+  PatchVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -357,6 +359,40 @@ export class VariableService {
         variable_key: data.variableKey,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Variable
+   * Update a variable by key.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchVariable(
+    data: PatchVariableData,
+  ): CancelablePromise<PatchVariableResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

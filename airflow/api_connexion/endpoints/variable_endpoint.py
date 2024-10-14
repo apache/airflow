@@ -95,6 +95,7 @@ def get_variables(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("PUT")
 @provide_session
 @action_logging(
