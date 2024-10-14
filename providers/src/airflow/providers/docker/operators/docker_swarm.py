@@ -182,8 +182,9 @@ class DockerSwarmOperator(DockerOperator):
                 # Get all logs
                 logs = "\n".join(all_logs)
             else:
-                # get last log
-                logs = all_logs[-1] 
+                if len(all_logs):
+                    # get last log
+                    logs = all_logs[-1] 
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
