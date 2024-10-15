@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, Union
 
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+    from hdfs.ext.kerberos import KerberosClient
+    from hdfs import InsecureClient
 
 
 class WebHdfsSensor(BaseSensorOperator):
@@ -41,3 +43,31 @@ class WebHdfsSensor(BaseSensorOperator):
         hook = WebHDFSHook(self.webhdfs_conn_id)
         self.log.info("Poking for file %s", self.filepath)
         return hook.check_for_path(hdfs_path=self.filepath)
+
+
+class MultipleFilesWebHdfsSensor(BaseSensorOperator):
+    """Waits for multiple files in a folder to land in HDFS."""
+
+    template_fields: Sequence[str] = ("directory_path", "expected_filenames")
+
+    def __init__(self, *, directory_path: str, expected_filenames: Sequence[str],
+                 webhdfs_conn_id: str = "webhdfs_default", **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.directory_path = directory_path
+        self.expected_filenames = set(expected_filenames)
+        self.webhdfs_conn_id = webhdfs_conn_id
+
+    def poke(self, context: Context) -> bool:
+        from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
+
+        hook = WebHDFSHook(self.webhdfs_conn_id)
+        conn: 'Union[KerberosClient|InsecureClient]' = hook.get_conn()
+
+        actual_files = set(conn.list(self.directory_path))
+        self.log.debug(f"Files Found in directory: {actual_files}")
+
+        missing_files = self.expected_filenames - actual_files
+        if missing_files:
+            self.log.info(f"There are missing files: {missing_files}")
+            return False
+        return True
