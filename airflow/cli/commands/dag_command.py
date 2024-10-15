@@ -227,7 +227,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "last_parsed_time": None,
         "last_pickled": None,
         "last_expired": None,
-        "scheduler_lock": None,
         "pickle_id": dag.pickle_id,
         "default_view": dag.default_view,
         "fileloc": dag.fileloc,

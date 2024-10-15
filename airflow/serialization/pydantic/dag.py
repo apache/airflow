@@ -82,7 +82,6 @@ class DagModelPydantic(BaseModelPydantic):
     last_parsed_time: Optional[datetime]
     last_pickled: Optional[datetime]
     last_expired: Optional[datetime]
-    scheduler_lock: Optional[bool]
     pickle_id: Optional[int]
     fileloc: str
     processor_subdir: Optional[str]
