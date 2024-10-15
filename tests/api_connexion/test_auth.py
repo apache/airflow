@@ -21,6 +21,7 @@ from base64 import b64encode
 import pytest
 from flask_login import current_user
 
+from airflow.exceptions import RemovedInAirflow3Warning
 from tests.test_utils.api_connexion_utils import assert_401
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
@@ -137,7 +138,8 @@ class TestSessionAuth(BaseTestAuth):
 
         try:
             with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
-                init_api_experimental_auth(minimal_app_for_api)
+                with pytest.warns(RemovedInAirflow3Warning):
+                    init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:
             setattr(minimal_app_for_api, "api_auth", old_auth)
@@ -174,6 +176,7 @@ class TestSessionAuth(BaseTestAuth):
             assert_401(response)
 
 
+@pytest.mark.filterwarnings("default::airflow.exceptions.RemovedInAirflow3Warning")
 class TestSessionWithBasicAuthFallback(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_api):
