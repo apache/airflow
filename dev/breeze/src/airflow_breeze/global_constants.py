@@ -67,6 +67,9 @@ TESTABLE_INTEGRATIONS = [
     "trino",
     "ydb",
 ]
+DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "mssql",
+]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
