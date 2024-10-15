@@ -283,7 +283,7 @@ class TestInternalApiCall:
         response.status_code = 502
         response.reason = "Bad Gateway"
         response._content = b"Bad Gateway"
-        
+
         mock_sleep = lambda *_, **__: None
         mock_requests.post.return_value = response
         with pytest.raises(RetryError):
