@@ -21,14 +21,14 @@ from __future__ import annotations
 import json
 from argparse import Namespace
 from typing import TYPE_CHECKING
-from tenacity import RetryError
 from unittest import mock
 
 import pytest
 import requests
+from tenacity import RetryError
 
 from airflow.__main__ import configure_internal_api
-from airflow.api_internal.internal_api_call import AirflowHttpException, InternalApiConfig, internal_api_call
+from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator

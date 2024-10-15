@@ -115,7 +115,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
 
     def _is_retryable_exception(exception: BaseException) -> bool:
         """
-        Evaluates which exception types should be retried.
+        Evaluate which exception types to retry.
         
         This is especially demanded for cases where an application gateway or Kubernetes ingress can
         not find a running instance of a webserver hosting the API (HTTP 502+504) or when the
