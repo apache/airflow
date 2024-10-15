@@ -493,6 +493,34 @@ class WasbHook(BaseHook):
         self._get_container_client(container_name).delete_blobs(*blobs, **kwargs)
         self.log.info("Deleted blobs: %s", blobs)
 
+    def copy_blobs(
+        self,
+        source_container_name: str,
+        source_blob_name: str,
+        destination_container_name: str,
+        destination_blob_name: str,
+    ) -> None:
+        """
+        Copy the specified blobs from one blob prefix to another, within the same container
+        or across different source and destination containers
+
+        :param source_container_name: The name of the source container containing the blobs
+        :param source_blob_name: The full source blob path without the container name
+        :param destination_container_name: The name of the destination container where the blobs
+            will be copied to
+        :param destination_blob_name: The full destination blob path without the container name
+        """
+        source_blob_client = self._get_blob_client(
+            container_name=source_container_name, blob_name=source_blob_name
+        )
+        source_blob_url = source_blob_client.url
+
+        destination_blob_client = self._get_blob_client(
+            container_name=destination_container_name, blob_name=destination_blob_name
+        )
+
+        destination_blob_client.start_copy_from_url(source_blob_url)
+
     def delete_file(
         self,
         container_name: str,
