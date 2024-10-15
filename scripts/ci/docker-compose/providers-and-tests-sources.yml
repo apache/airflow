@@ -31,7 +31,7 @@ services:
       # but keep tests
       - ../../../tests/:/opt/airflow/tests:cached
       # and providers
-      - ../../../airflow/providers:/opt/airflow/airflow/providers:cached
+      - ../../../providers/src/airflow/providers:/opt/airflow/airflow/providers:cached
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
       - ../../../scripts/in_container/:/opt/airflow/scripts/in_container
