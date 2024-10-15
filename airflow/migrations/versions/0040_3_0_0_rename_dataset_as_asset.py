@@ -128,26 +128,6 @@ def upgrade():
             unique=False,
         )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name=op.f("dataset_alias_dataset_alias_id_fkey"),
-            new_name=op.f("asset_alias_asset_alias_id_fkey"),
-            reference_table="asset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name=op.f("dataset_alias_dataset_dataset_id_fkey"),
-            new_name=op.f("asset_alias_asset_asset_id_fk_key"),
-            reference_table="asset",
-            local_cols=["asset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
     with op.batch_alter_table("asset_alias_asset_event", schema=None) as batch_op:
         batch_op.create_foreign_key(
             constraint_name="asset_alias_asset_event_asset_id_fk_key",
