@@ -28,11 +28,13 @@ from airflow.exceptions import (
 pytest.importorskip("google.cloud.aiplatform_v1")
 pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     CountTokensOperator,
+    CreateCachedContentOperator,
+    GenerateFromCachedContentOperator,
     GenerateTextEmbeddingsOperator,
     GenerativeModelGenerateContentOperator,
     PromptLanguageModelOperator,
@@ -539,4 +541,84 @@ class TestVertexAIRunEvaluationOperator:
             generation_config=generation_config,
             safety_settings=safety_settings,
             tools=tools,
+        )
+
+
+class TestVertexAICreateCachedContentOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        model_name = "gemini-1.5-pro-002"
+        system_instruction = """
+        You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
+        Now look at these research papers, and answer the following questions.
+        """
+
+        contents = [
+            Part.from_uri(
+                "gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+                mime_type="application/pdf",
+            ),
+            Part.from_uri(
+                "gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+                mime_type="application/pdf",
+            ),
+        ]
+        ttl_hours = 1
+        display_name = "test-example-cache"
+
+        op = CreateCachedContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model_name=model_name,
+            system_instruction=system_instruction,
+            contents=contents,
+            ttl_hours=ttl_hours,
+            display_name=display_name,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.create_cached_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model_name=model_name,
+            system_instruction=system_instruction,
+            contents=contents,
+            ttl_hours=ttl_hours,
+            display_name=display_name,
+        )
+
+
+class TestVertexAIGenerateFromCachedContentOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        cached_content_name = "test"
+        contents = ["what are in these papers"]
+
+        op = GenerateFromCachedContentOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cached_content_name=cached_content_name,
+            contents=contents,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.generate_from_cached_content.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cached_content_name=cached_content_name,
+            contents=contents,
+            generation_config=None,
+            safety_settings=None,
         )
