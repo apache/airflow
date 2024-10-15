@@ -45,7 +45,7 @@ async def get_dag_run(
 
 
 @dag_run_router.delete(
-    "/{dag_run_id}", status_code=204, responses=create_openapi_http_exception_doc([401, 403, 404])
+    "/{dag_run_id}", status_code=204, responses=create_openapi_http_exception_doc([400, 401, 403, 404])
 )
 async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
     """Delete a DAG Run entry."""
