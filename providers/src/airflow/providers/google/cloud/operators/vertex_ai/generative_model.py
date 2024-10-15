@@ -904,7 +904,7 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        response = self.hook.create_cached_content(
+        cached_content_name = self.hook.create_cached_content(
             project_id=self.project_id,
             location=self.location,
             model_name=self.model_name,
@@ -914,9 +914,9 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
             display_name=self.display_name,
         )
 
-        self.log.info("Cached Content Name: %s", response)
+        self.log.info("Cached Content Name: %s", cached_content_name)
 
-        return response
+        return cached_content_name
 
 
 class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
@@ -978,7 +978,7 @@ class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        response = self.hook.generate_from_cached_content(
+        cached_content_text = self.hook.generate_from_cached_content(
             project_id=self.project_id,
             location=self.location,
             cached_content_name=self.cached_content_name,
@@ -987,6 +987,6 @@ class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
             safety_settings=self.safety_settings,
         )
 
-        self.log.info("Cached Content Response: %s", response)
+        self.log.info("Cached Content Response: %s", cached_content_text)
 
-        return response
+        return cached_content_text
