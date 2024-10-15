@@ -12,6 +12,7 @@ import {
   DagRunService,
   DagService,
   DashboardService,
+  MonitorService,
   VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
@@ -329,6 +330,24 @@ export const useDagRunServiceGetDagRun = <
       queryKey,
     ),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    ...options,
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const useMonitorServiceGetHealth = <
+  TData = Common.MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
+    queryFn: () => MonitorService.getHealth() as TData,
     ...options,
   });
 /**
