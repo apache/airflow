@@ -48,7 +48,6 @@ export type DAGDetailsResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
@@ -111,7 +110,6 @@ export type DAGResponse = {
   last_parsed_time: string | null;
   last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
   pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
