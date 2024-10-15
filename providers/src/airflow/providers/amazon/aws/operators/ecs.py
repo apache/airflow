@@ -597,10 +597,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         if self.capacity_provider_strategy:
             run_opts["capacityProviderStrategy"] = self.capacity_provider_strategy
-            if self.volume_configurations is not None:
-                run_opts["volumeConfigurations"] = self.volume_configurations
         elif self.launch_type:
             run_opts["launchType"] = self.launch_type
+        if self.volume_configurations is not None:
+            run_opts["volumeConfigurations"] = self.volume_configurations
         if self.platform_version is not None:
             run_opts["platformVersion"] = self.platform_version
         if self.group is not None:
