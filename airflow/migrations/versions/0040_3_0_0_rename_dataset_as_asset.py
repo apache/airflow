@@ -76,7 +76,8 @@ def _rename_fk_constraint(
 def _rename_pk_constraint(
     *, batch_op: BatchOperations, original_name: str, new_name: str, columns: list[str]
 ) -> None:
-    batch_op.drop_constraint(original_name)
+    if batch_op.get_bind().dialect.name == "postgresql":
+        batch_op.drop_constraint(original_name)
     batch_op.create_primary_key(constraint_name=new_name, columns=columns)
 
 
@@ -170,6 +171,9 @@ def upgrade():
             unique=True,
         )
 
+    with op.batch_alter_table("asset_active", schema=None) as batch_op:
+        batch_op.drop_constraint("asset_active_asset_name_uri_fkey")
+
     with op.batch_alter_table("asset", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
@@ -177,6 +181,15 @@ def upgrade():
             new_name="idx_asset_name_uri_unique",
             columns=["name", "uri"],
             unique=True,
+        )
+
+    with op.batch_alter_table("asset_active", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            constraint_name="asset_active_asset_name_uri_fkey",
+            referent_table="asset",
+            local_cols=["name", "uri"],
+            remote_cols=["name", "uri"],
+            ondelete="CASCADE",
         )
 
     with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
@@ -286,8 +299,11 @@ def upgrade():
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer())
 
-        batch_op.create_primary_key(
-            constraint_name="assetdagrunqueue_pkey", columns=["asset_id", "target_dag_id"]
+        _rename_pk_constraint(
+            batch_op=batch_op,
+            original_name="datasetdagrunqueue_pkey",
+            new_name="assetdagrunqueue_pkey",
+            columns=["asset_id", "target_dag_id"],
         )
 
         batch_op.create_foreign_key(
@@ -317,8 +333,10 @@ def upgrade():
         )
 
     with op.batch_alter_table("dagrun_asset_event", schema=None) as batch_op:
+        if op.get_bind().dialect.name == "postgres":
+            batch_op.drop_constraint("dagrun_dataset_event_event_id_fkey")
         batch_op.create_foreign_key(
-            constraint_name="dagrun_asset_event_event_id_fk_key",
+            constraint_name="dagrun_asset_event_event_id_fkey",
             referent_table="asset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
@@ -463,15 +481,17 @@ def downgrade():
         )
 
     with op.batch_alter_table("asset_active", schema=None) as batch_op:
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="asset_active_asset_name_uri_fkey",
-            new_name="asset_active_asset_name_uri_fkey",
-            reference_table="dataset",
-            local_cols=["name", "uri"],
-            remote_cols=["name", "uri"],
-            ondelete="CASCADE",
-        )
+        batch_op.drop_constraint("asset_active_asset_name_uri_fkey")
+    # with op.batch_alter_table("asset_active", schema=None) as batch_op:
+    #     _rename_fk_constraint(
+    #         batch_op=batch_op,
+    #         original_name="asset_active_asset_name_uri_fkey",
+    #         new_name="asset_active_asset_name_uri_fkey",
+    #         reference_table="dataset",
+    #         local_cols=["name", "uri"],
+    #         remote_cols=["name", "uri"],
+    #         ondelete="CASCADE",
+    #     )
 
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         _rename_index(
@@ -480,6 +500,14 @@ def downgrade():
             new_name="idx_dataset_name_uri_unique",
             columns=["name", "uri"],
             unique=True,
+        )
+    with op.batch_alter_table("asset_active", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            constraint_name="asset_active_asset_name_uri_fkey",
+            referent_table="dataset",
+            local_cols=["name", "uri"],
+            remote_cols=["name", "uri"],
+            ondelete="CASCADE",
         )
 
     with op.batch_alter_table("dag_schedule_dataset_alias_reference", schema=None) as batch_op:
@@ -628,8 +656,10 @@ def downgrade():
         )
 
     with op.batch_alter_table("dagrun_dataset_event", schema=None) as batch_op:
+        if op.get_bind().dialect.name == "postgresql":
+            batch_op.drop_constraint("dagrun_asset_event_event_id_fkey")
         batch_op.create_foreign_key(
-            constraint_name="dagrun_asset_event_event_id_fk_key",
+            constraint_name="dagrun_dataset_event_event_id_fkey",
             referent_table="dataset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
