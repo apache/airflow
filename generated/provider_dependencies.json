@@ -640,7 +640,7 @@
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=2.29.0",
-      "google-cloud-aiplatform>=1.63.0",
+      "google-cloud-aiplatform>=1.70.0",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
