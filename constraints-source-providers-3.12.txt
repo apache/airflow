@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-14T17:59:05.954596
+# This constraints file was automatically generated on 2024-10-15T00:54:07.415065
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -177,7 +177,7 @@ et-xmlfile==1.1.0
 eventlet==0.37.0
 execnet==2.1.1
 executing==2.1.0
-facebook_business==20.0.3
+facebook_business==21.0.1
 fastavro==1.9.7
 filelock==3.16.1
 flower==2.0.1
