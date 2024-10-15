@@ -31,6 +31,7 @@ from airflow.api_connexion.parameters import apply_sorting, check_limit, format_
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
 from airflow.security import permissions
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "variable"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("DELETE")
 @action_logging(
     event=action_event_from_permission(
@@ -57,6 +59,7 @@ def delete_variable(*, variable_key: str) -> Response:
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("GET")
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
@@ -92,6 +95,7 @@ def get_variables(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("PUT")
 @provide_session
 @action_logging(
@@ -126,6 +130,7 @@ def patch_variable(
     return variable_schema.dump(variable)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_variable("POST")
 @action_logging(
     event=action_event_from_permission(

@@ -57,6 +57,7 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
+from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
@@ -207,7 +208,7 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
-    backfill = relationship("Backfill", uselist=False)
+    backfill = relationship(Backfill, uselist=False)
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
 
@@ -1110,7 +1111,7 @@ class DagRun(Base, LoggingMixin):
         elif self.state == DagRunState.FAILED:
             get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
         # deliberately not notifying on QUEUED
-        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(

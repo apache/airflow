@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Base
 from airflow.utils.db import downgrade, initdb
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test]
 

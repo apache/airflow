@@ -40,7 +40,7 @@ Using the operator
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/translate/example_translate.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_text]
@@ -49,7 +49,7 @@ Basic usage of the operator:
 The result of translation is available as dictionary or array of dictionaries accessible via the usual
 XCom mechanisms of Airflow:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/translate/example_translate.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_translate_access]
@@ -59,7 +59,7 @@ XCom mechanisms of Airflow:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/translate.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/translate.py
     :language: python
     :dedent: 4
     :start-after: [START translate_template_fields]

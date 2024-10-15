@@ -43,39 +43,36 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.decorators import task
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
-from airflow.models.backfill import _create_backfill
+from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
-from airflow.operators.bash import BashOperator
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.jobs.test_backfill_job import _mock_executor
-from tests.listeners import dag_listener
-from tests.listeners.test_listeners import get_listener_manager
-from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
@@ -87,8 +84,12 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
     set_default_pool_slots,
 )
-from tests.test_utils.mock_executor import MockExecutor
-from tests.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.mock_operators import CustomOperator
+
+from tests.listeners import dag_listener
+from tests.listeners.test_listeners import get_listener_manager
+from tests.models import TEST_DAGS_FOLDER
 from tests.utils.test_timezone import UTC
 
 if AIRFLOW_V_3_0_PLUS:
@@ -2827,163 +2828,33 @@ class TestSchedulerJob:
 
         assert [] == res
 
-    @provide_session
-    def evaluate_dagrun(
-        self,
-        dag_id,
-        expected_task_states,  # dict of task_id: state
-        dagrun_state,
-        run_kwargs=None,
-        advance_execution_date=False,
-        session=None,
-    ):
-        """
-        Helper for testing DagRun states with simple two-task DAGs.
-        This is hackish: a dag run is created but its tasks are
-        run by a backfill.
-        """
-
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-
-        if run_kwargs is None:
-            run_kwargs = {}
-
-        dag = self.dagbag.get_dag(dag_id)
-        dagrun_info = dag.next_dagrun_info(None)
-        assert dagrun_info is not None
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=dagrun_info.logical_date,
-            state=None,
-            session=session,
-            data_interval=data_interval,
-            **triggered_by_kwargs,
-        )
-
-        if advance_execution_date:
-            # run a second time to schedule a dagrun after the start_date
-            dr = dag.create_dagrun(
-                run_type=DagRunType.SCHEDULED,
-                execution_date=dr.data_interval_end,
-                state=None,
-                session=session,
-                data_interval=data_interval,
-                **triggered_by_kwargs,
-            )
-        ex_date = dr.execution_date
-
-        for tid, state in expected_task_states.items():
-            if state == State.FAILED:
-                self.null_exec.mock_task_fail(dag_id, tid, dr.run_id)
-
-        try:
-            dag = DagBag().get_dag(dag.dag_id)
-            # This needs a _REAL_ dag, not the serialized version
-            assert not isinstance(dag, SerializedDAG)
-            # TODO: Can this be replaced with `self.run_scheduler_until_dagrun_terminal. `dag.run` isn't
-            # great to use here as it uses BackfillJobRunner!
-            for _ in _mock_executor(self.null_exec):
-                dag.run(start_date=ex_date, end_date=ex_date, **run_kwargs)
-        except AirflowException:
-            pass
-
-        # load dagrun
-        dr = DagRun.find(dag_id=dag_id, execution_date=ex_date, session=session)
-        dr = dr[0]
-        dr.dag = dag
-
-        assert dr.state == dagrun_state
-
-        # test tasks
-        for task_id, expected_state in expected_task_states.items():
-            ti = dr.get_task_instance(task_id)
-            assert ti.state == expected_state
-
-    def test_dagrun_fail(self):
+    @pytest.mark.parametrize(
+        "ti_states, run_state",
+        [
+            (["failed", "success"], "failed"),
+            (["success", "success"], "success"),
+        ],
+    )
+    def test_dagrun_state_correct(self, ti_states, run_state, dag_maker, session):
         """
         DagRuns with one failed and one incomplete root task -> FAILED
         """
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            self.evaluate_dagrun(
-                dag_id="test_dagrun_states_fail",
-                expected_task_states={
-                    "test_dagrun_fail": State.FAILED,
-                    "test_dagrun_succeed": State.UPSTREAM_FAILED,
-                },
-                dagrun_state=State.FAILED,
-            )
+        with dag_maker():
 
-    def test_dagrun_success(self):
-        """
-        DagRuns with one failed and one successful root task -> SUCCESS
-        """
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            self.evaluate_dagrun(
-                dag_id="test_dagrun_states_success",
-                expected_task_states={
-                    "test_dagrun_fail": State.FAILED,
-                    "test_dagrun_succeed": State.SUCCESS,
-                },
-                dagrun_state=State.SUCCESS,
-            )
+            @task
+            def my_task(): ...
 
-    def test_dagrun_root_fail(self):
-        """
-        DagRuns with one successful and one failed root task -> FAILED
-        """
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            self.evaluate_dagrun(
-                dag_id="test_dagrun_states_root_fail",
-                expected_task_states={
-                    "test_dagrun_succeed": State.SUCCESS,
-                    "test_dagrun_fail": State.FAILED,
-                },
-                dagrun_state=State.FAILED,
-            )
-
-    def test_dagrun_root_fail_unfinished(self):
-        """
-        DagRuns with one unfinished and one failed root task -> RUNNING
-        """
-        # TODO: this should live in test_dagrun.py
-        # Run both the failed and successful tasks
-        dag_id = "test_dagrun_states_root_fail_unfinished"
-        dag = self.dagbag.get_dag(dag_id)
-        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dr = dag.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            state=None,
-            data_interval=data_interval,
-            **triggered_by_kwargs,
-        )
-        self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
-
-        # todo: AIP-78 remove this test along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            for _ in _mock_executor(self.null_exec):
-                with pytest.raises(AirflowException):
-                    dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
-
-        # Mark the successful task as never having run since we want to see if the
-        # dagrun will be in a running state despite having an unfinished task.
-        with create_session() as session:
-            ti = dr.get_task_instance("test_dagrun_unfinished", session=session)
-            ti.state = State.NONE
-            session.commit()
-        dr.update_state()
-        assert dr.state == State.RUNNING
+            for _ in ti_states:
+                my_task()
+        dr = dag_maker.create_dagrun(state="running", triggered_by=DagRunTriggeredByType.TIMETABLE)
+        for idx, state in enumerate(ti_states):
+            dr.task_instances[idx].state = state
+        session.commit()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner.processor_agent = mock.MagicMock()
+        self.job_runner._do_scheduling(session)
+        assert session.query(DagRun).one().state == run_state
 
     def test_dagrun_root_after_dagrun_unfinished(self, mock_executor):
         """
@@ -2997,56 +2868,14 @@ class TestSchedulerJob:
         dag.sync_to_db()
 
         scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, subdir=dag.fileloc)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=2, subdir=dag.fileloc)
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
-        first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
+        first_run = DagRun.find(dag_id=dag_id)[0]
         ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
 
         assert ti_ids == [("current", State.SUCCESS)]
         assert first_run.state in [State.SUCCESS, State.RUNNING]
-
-    def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
-        """
-        DagRun is marked a success if ignore_first_depends_on_past=True
-
-        Test that an otherwise-deadlocked dagrun is marked as a success
-        if ignore_first_depends_on_past=True and the dagrun execution_date
-        is after the start_date.
-        """
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            self.evaluate_dagrun(
-                dag_id="test_dagrun_states_deadlock",
-                expected_task_states={
-                    "test_depends_on_past": State.SUCCESS,
-                    "test_depends_on_past_2": State.SUCCESS,
-                },
-                dagrun_state=State.SUCCESS,
-                advance_execution_date=True,
-                run_kwargs=dict(ignore_first_depends_on_past=True),
-            )
-
-    def test_dagrun_deadlock_ignore_depends_on_past(self):
-        """
-        Test that ignore_first_depends_on_past doesn't affect results
-        (this is the same test as
-        test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date except
-        that start_date == execution_date so depends_on_past is irrelevant).
-        """
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            self.evaluate_dagrun(
-                dag_id="test_dagrun_states_deadlock",
-                expected_task_states={
-                    "test_depends_on_past": State.SUCCESS,
-                    "test_depends_on_past_2": State.SUCCESS,
-                },
-                dagrun_state=State.SUCCESS,
-                run_kwargs=dict(ignore_first_depends_on_past=True),
-            )
 
     @pytest.mark.parametrize(
         "configs",
@@ -3086,22 +2915,16 @@ class TestSchedulerJob:
                 # because it would take the most recent run and start from there
                 # That behavior still exists, but now it will only do so if after the
                 # start date
-                bf_exec = MockExecutor()
-                for _ in _mock_executor(bf_exec):
-                    backfill_job = Job()
-                    job_runner = BackfillJobRunner(
-                        job=backfill_job, dag=dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE
-                    )
-                    run_job(job=backfill_job, execute_callable=job_runner._execute)
-
-                # one task ran
+                dag.create_dagrun(
+                    state="success",
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    run_id="abc123",
+                    execution_date=DEFAULT_DATE,
+                    run_type=DagRunType.BACKFILL_JOB,
+                    data_interval=DataInterval(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)),
+                )
+                # one task "ran"
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
-                assert [
-                    (
-                        TaskInstanceKey(dag.dag_id, "dummy", f"backfill__{DEFAULT_DATE.isoformat()}", 1),
-                        (State.SUCCESS, None),
-                    ),
-                ] == bf_exec.sorted_tasks
                 session.commit()
 
                 scheduler_job = Job(
@@ -3170,9 +2993,14 @@ class TestSchedulerJob:
         Test that the scheduler can successfully queue multiple dags in parallel
         """
         with conf_vars(configs):
-            dag_ids = ["test_start_date_scheduling", "test_dagrun_states_success"]
+            dag_ids = [
+                "test_start_date_scheduling",
+                "test_task_start_date_scheduling",
+            ]
             for dag_id in dag_ids:
                 dag = self.dagbag.get_dag(dag_id)
+                if not dag:
+                    raise ValueError(f"could not find dag {dag_id}")
                 dag.clear()
 
             scheduler_job = Job(
@@ -5125,6 +4953,94 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
+    @pytest.mark.parametrize(
+        "pause_it, expected_running",
+        [
+            (True, 0),
+            (False, 3),
+        ],
+    )
+    def test_backfill_runs_not_started_when_backfill_paused(
+        self, pause_it, expected_running, dag_maker, session
+    ):
+        """
+        When backfill is paused, will not start.
+        """
+        dag1_dag_id = "test_dag1"
+        with dag_maker(
+            dag_id=dag1_dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        def _running_counts():
+            dag1_non_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type != DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            dag1_b_running = (
+                session.query(func.count(DagRun.id))
+                .filter(
+                    DagRun.dag_id == dag1_dag_id,
+                    DagRun.state == State.RUNNING,
+                    DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
+                .scalar()
+            )
+            total_running_count = (
+                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+            )
+            return dag1_non_b_running, dag1_b_running, total_running_count
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        scheduler_job.executor = MockExecutor(do_update=False)
+        self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-06")
+        b = _create_backfill(
+            dag_id=dag1_dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=3,
+            reverse=False,
+            dag_run_conf={},
+        )
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+
+        # initial state -- nothing is running
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == 0
+        assert total_running == 0
+        assert session.query(func.count(DagRun.id)).scalar() == 6
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
+
+        if pause_it:
+            b = session.get(Backfill, b.id)
+            b.is_paused = True
+
+        session.commit()
+
+        # now let's run scheduler once
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        assert DagRun.DEFAULT_DAGRUNS_TO_EXAMINE == 20
+        dag1_non_b_running, dag1_b_running, total_running = _running_counts()
+        assert dag1_non_b_running == 0
+        assert dag1_b_running == expected_running
+        assert total_running == expected_running
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 6
+        assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
+
     def test_start_queued_dagruns_do_follow_execution_date_order(self, dag_maker):
         session = settings.Session()
         with dag_maker("test_dag1", max_active_runs=1):
@@ -6170,9 +6086,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove 2 asset references
@@ -6189,14 +6105,13 @@ class TestSchedulerJob:
         non_orphaned_assets = [
             asset.uri
             for asset in session.query(AssetModel.uri)
-            .filter(~AssetModel.is_orphaned)
+            .filter(AssetModel.active.has())
             .order_by(AssetModel.uri)
         ]
         assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri).filter(AssetModel.is_orphaned).order_by(AssetModel.uri)
-        ]
+        orphaned_assets = session.scalars(
+            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
+        ).all()
         assert orphaned_assets == ["ds2", "ds4"]
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
@@ -6205,9 +6120,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove asset1 reference
@@ -6222,7 +6137,7 @@ class TestSchedulerJob:
 
         orphaned_assets_before_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
@@ -6235,7 +6150,7 @@ class TestSchedulerJob:
 
         orphaned_assets_after_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]
@@ -6483,3 +6398,32 @@ class TestSchedulerJobQueriesCount:
                 prefix = "Collected database query count mismatches:"
                 joined = "\n\n".join(failures)
                 raise AssertionError(f"{prefix}\n\n{joined}")
+
+
+def test_mark_backfills_completed(dag_maker, session):
+    clear_db_backfills()
+    with dag_maker(serialized=True, dag_id="test_mark_backfills_completed", schedule="@daily") as dag:
+        BashOperator(task_id="hi", bash_command="echo hi")
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-03"),
+        max_active_runs=10,
+        reverse=False,
+        dag_run_conf={},
+    )
+    session.expunge_all()
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, b.id)
+    assert b.completed_at is None
+    session.expunge_all()
+    drs = session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+    for dr in drs:
+        dr.state = DagRunState.SUCCESS
+    session.commit()
+    runner._mark_backfills_complete()
+    b = session.get(Backfill, b.id)
+    assert b.completed_at.timestamp() > 0

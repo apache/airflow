@@ -25,7 +25,7 @@ from sqlalchemy.exc import OperationalError
 
 from airflow.models import DagModel
 from airflow.models.dagwarning import DagWarning
-from tests.test_utils.db import clear_db_dags
+from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

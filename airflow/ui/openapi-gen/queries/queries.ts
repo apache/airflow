@@ -1,17 +1,20 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import {
-  useMutation,
   UseMutationOptions,
-  useQuery,
   UseQueryOptions,
+  useMutation,
+  useQuery,
 } from "@tanstack/react-query";
 
 import {
   AssetService,
   ConnectionService,
+  DagRunService,
   DagService,
+  DashboardService,
+  VariableService,
 } from "../requests/services.gen";
-import { DAGPatchBody, DagRunState } from "../requests/types.gen";
+import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -37,6 +40,39 @@ export const useAssetServiceNextRunAssets = <
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetrics = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
+      { endDate, startDate },
+      queryKey,
+    ),
+    queryFn: () =>
+      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
     ...options,
   });
 /**
@@ -119,6 +155,32 @@ export const useDagServiceGetDags = <
     ...options,
   });
 /**
+ * Get Dag
+ * Get basic information about a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDag = <
+  TData = Common.DagServiceGetDagDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagKeyFn({ dagId }, queryKey),
+    queryFn: () => DagService.getDag({ dagId }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Details
  * Get details of DAG.
  * @param data The data for the request.
@@ -171,6 +233,105 @@ export const useConnectionServiceGetConnection = <
       queryKey,
     ),
     queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
+    ...options,
+  });
+/**
+ * Get Variable
+ * Get a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceGetVariable = <
+  TData = Common.VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseVariableServiceGetVariableKeyFn(
+      { variableKey },
+      queryKey,
+    ),
+    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetDagRun = <
+  TData = Common.DagRunServiceGetDagRunDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
+      { dagId, dagRunId },
+      queryKey,
+    ),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    ...options,
+  });
+/**
+ * Post Variable
+ * Create a variable.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePostVariable = <
+  TData = Common.VariableServicePostVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.postVariable({
+        requestBody,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -307,6 +468,90 @@ export const useDagServicePatchDag = <
     ...options,
   });
 /**
+ * Patch Variable
+ * Update a variable by key.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePatchVariable = <
+  TData = Common.VariableServicePatchVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+        updateMask?: string[];
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+      updateMask?: string[];
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody, updateMask, variableKey }) =>
+      VariableService.patchVariable({
+        requestBody,
+        updateMask,
+        variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Dag
+ * Delete the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceDeleteDag = <
+  TData = Common.DagServiceDeleteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId }) =>
+      DagService.deleteDag({ dagId }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Connection
  * Delete a connection entry.
  * @param data The data for the request.
@@ -342,6 +587,88 @@ export const useConnectionServiceDeleteConnection = <
     mutationFn: ({ connectionId }) =>
       ConnectionService.deleteConnection({
         connectionId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Variable
+ * Delete a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceDeleteVariable = <
+  TData = Common.VariableServiceDeleteVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ variableKey }) =>
+      VariableService.deleteVariable({
+        variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Dag Run
+ * Delete a DAG Run entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceDeleteDagRun = <
+  TData = Common.DagRunServiceDeleteDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId }) =>
+      DagRunService.deleteDagRun({
+        dagId,
+        dagRunId,
       }) as unknown as Promise<TData>,
     ...options,
   });

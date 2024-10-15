@@ -22,7 +22,7 @@ import werkzeug.test
 import werkzeug.wrappers
 
 from airflow.www.app import create_app
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

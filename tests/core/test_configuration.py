@@ -42,8 +42,9 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from tests.test_utils.config import conf_vars
-from tests.test_utils.reset_warning_registry import reset_warning_registry
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.reset_warning_registry import reset_warning_registry
+
 from tests.utils.test_config import (
     remove_all_configurations,
     set_deprecated_options,

@@ -34,11 +34,12 @@ from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
+from tests_common.test_utils.compat import BashOperator
+
 from tests.models import DEFAULT_DATE
 
 
@@ -1414,7 +1415,7 @@ def test_task_group_edge_modifier_chain():
 
 
 def test_mapped_task_group_id_prefix_task_id():
-    from tests.test_utils.mock_operators import MockOperator
+    from tests_common.test_utils.mock_operators import MockOperator
 
     with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE) as dag:
         t1 = MockOperator.partial(task_id="t1").expand(arg1=[])

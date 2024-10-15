@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/databricks/index>
+    System Tests <_api/tests/system/databricks/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-databricks/|version|/tests/system/providers/databricks>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-databricks/|version|/providers/tests/system/databricks>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-databricks/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 6.10.0
+Release: 6.11.0
 
 Provider package
 ----------------
@@ -137,5 +137,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 6.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 6.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.10.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 6.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 6.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-6.11.0-py3-none-any.whl.sha512>`__)

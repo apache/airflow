@@ -34,7 +34,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags:
+  /ui/dashboard/historical_metrics_data:
+    get:
+      tags:
+      - Dashboard
+      summary: Historical Metrics
+      description: Return cluster activity historical metrics.
+      operationId: historical_metrics
+      parameters:
+      - name: start_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Start Date
+      - name: end_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: End Date
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricalMetricDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/:
     get:
       tags:
       - DAG
@@ -252,13 +291,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/details:
+  /public/dags/{dag_id}:
     get:
       tags:
       - DAG
-      summary: Get Dag Details
-      description: Get details of DAG.
-      operationId: get_dag_details
+      summary: Get Dag
+      description: Get basic information about a DAG.
+      operationId: get_dag
       parameters:
       - name: dag_id
         in: path
@@ -272,7 +311,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGDetailsResponse'
+                $ref: '#/components/schemas/DAGResponse'
         '400':
           content:
             application/json:
@@ -303,7 +342,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
-  /public/dags/{dag_id}:
     patch:
       tags:
       - DAG
@@ -370,6 +408,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - DAG
+      summary: Delete Dag
+      description: Delete the specific DAG.
+      operationId: delete_dag
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+  /public/dags/{dag_id}/details:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Details
+      description: Get details of DAG.
+      operationId: get_dag_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGDetailsResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -431,6 +569,297 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/variables/{variable_key}:
+    delete:
+      tags:
+      - Variable
+      summary: Delete Variable
+      description: Delete a variable entry.
+      operationId: delete_variable
+      parameters:
+      - name: variable_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Variable Key
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Variable
+      summary: Get Variable
+      description: Get a variable entry.
+      operationId: get_variable
+      parameters:
+      - name: variable_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Variable Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariableResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Variable
+      summary: Patch Variable
+      description: Update a variable by key.
+      operationId: patch_variable
+      parameters:
+      - name: variable_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Variable Key
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariableBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariableResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/variables/:
+    post:
+      tags:
+      - Variable
+      summary: Post Variable
+      description: Create a variable.
+      operationId: post_variable
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariableBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariableResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}:
+    get:
+      tags:
+      - DagRun
+      summary: Get Dag Run
+      operationId: get_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - DagRun
+      summary: Delete Dag Run
+      description: Delete a DAG Run entry.
+      operationId: delete_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '401':
           content:
             application/json:
@@ -769,7 +1198,7 @@ components:
       required:
       - is_paused
       title: DAGPatchBody
-      description: Dag Serializer for updatable body.
+      description: Dag Serializer for updatable bodies.
     DAGResponse:
       properties:
         dag_id:
@@ -923,6 +1352,131 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunResponse:
+      properties:
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        last_scheduling_decision:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Scheduling Decision
+        run_type:
+          $ref: '#/components/schemas/DagRunType'
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        external_trigger:
+          type: boolean
+          title: External Trigger
+        triggered_by:
+          $ref: '#/components/schemas/DagRunTriggeredByType'
+        conf:
+          type: object
+          title: Conf
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - logical_date
+      - start_date
+      - end_date
+      - data_interval_start
+      - data_interval_end
+      - last_scheduling_decision
+      - run_type
+      - state
+      - external_trigger
+      - triggered_by
+      - conf
+      - note
+      title: DAGRunResponse
+      description: DAG Run serializer for responses.
+    DAGRunStates:
+      properties:
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        failed:
+          type: integer
+          title: Failed
+      type: object
+      required:
+      - queued
+      - running
+      - success
+      - failed
+      title: DAGRunStates
+      description: DAG Run States for responses.
+    DAGRunTypes:
+      properties:
+        backfill:
+          type: integer
+          title: Backfill
+        scheduled:
+          type: integer
+          title: Scheduled
+        manual:
+          type: integer
+          title: Manual
+        dataset_triggered:
+          type: integer
+          title: Dataset Triggered
+      type: object
+      required:
+      - backfill
+      - scheduled
+      - manual
+      - dataset_triggered
+      title: DAGRunTypes
+      description: DAG Run Types for responses.
     DagRunState:
       type: string
       enum:
@@ -939,6 +1493,28 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
+    DagRunTriggeredByType:
+      type: string
+      enum:
+      - cli
+      - operator
+      - rest_api
+      - ui
+      - test
+      - timetable
+      - dataset
+      - backfill
+      title: DagRunTriggeredByType
+      description: Class with TriggeredBy types for DagRun.
+    DagRunType:
+      type: string
+      enum:
+      - backfill
+      - scheduled
+      - manual
+      - dataset_triggered
+      title: DagRunType
+      description: Class with DagRun types.
     DagTagPydantic:
       properties:
         name:
@@ -975,6 +1551,79 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HistoricalMetricDataResponse:
+      properties:
+        dag_run_types:
+          $ref: '#/components/schemas/DAGRunTypes'
+        dag_run_states:
+          $ref: '#/components/schemas/DAGRunStates'
+        task_instance_states:
+          $ref: '#/components/schemas/TaskInstantState'
+      type: object
+      required:
+      - dag_run_types
+      - dag_run_states
+      - task_instance_states
+      title: HistoricalMetricDataResponse
+      description: Historical Metric Data serializer for responses.
+    TaskInstantState:
+      properties:
+        no_status:
+          type: integer
+          title: No Status
+        removed:
+          type: integer
+          title: Removed
+        scheduled:
+          type: integer
+          title: Scheduled
+        queued:
+          type: integer
+          title: Queued
+        running:
+          type: integer
+          title: Running
+        success:
+          type: integer
+          title: Success
+        restarting:
+          type: integer
+          title: Restarting
+        failed:
+          type: integer
+          title: Failed
+        up_for_retry:
+          type: integer
+          title: Up For Retry
+        up_for_reschedule:
+          type: integer
+          title: Up For Reschedule
+        upstream_failed:
+          type: integer
+          title: Upstream Failed
+        skipped:
+          type: integer
+          title: Skipped
+        deferred:
+          type: integer
+          title: Deferred
+      type: object
+      required:
+      - no_status
+      - removed
+      - scheduled
+      - queued
+      - running
+      - success
+      - restarting
+      - failed
+      - up_for_retry
+      - up_for_reschedule
+      - upstream_failed
+      - skipped
+      - deferred
+      title: TaskInstantState
+      description: TaskInstance serializer for responses.
     ValidationError:
       properties:
         loc:
@@ -996,3 +1645,47 @@ components:
       - msg
       - type
       title: ValidationError
+    VariableBody:
+      properties:
+        key:
+          type: string
+          title: Key
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+      type: object
+      required:
+      - key
+      - description
+      - value
+      title: VariableBody
+      description: Variable serializer for bodies.
+    VariableResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+      type: object
+      required:
+      - key
+      - description
+      - value
+      title: VariableResponse
+      description: Variable serializer for responses.

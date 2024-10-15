@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
       include-success-outputs:
         description: "Whether to include success outputs (true/false)"
         required: true
@@ -148,6 +152,7 @@ jobs:
       use-uv: "true"
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
     if: inputs.canary-run == 'true'
 
   #  push-buildx-cache-to-github-registry-arm:

@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/asana/index>
+    System Tests <_api/tests/system/asana/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/|version|/tests/system/providers/asana/example_asana.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-asana/|version|/providers/tests/system/asana/example_asana.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-asana/>
     Installing from sources <installing-providers-from-sources>
 

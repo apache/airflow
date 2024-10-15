@@ -31,6 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -69,7 +70,6 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -1632,11 +1632,12 @@ def _get_previous_ti(
 
 @internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
+    session.flush()
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
@@ -2640,7 +2641,7 @@ class TaskInstance(Base, LoggingMixin):
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
         :param hostname: The hostname of the worker running the task instance.
-        :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
+        :param job_id: Job (LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
@@ -3404,53 +3405,6 @@ class TaskInstance(Base, LoggingMixin):
             self.task = context["ti"].task
 
         return original_task
-
-    def render_k8s_pod_yaml(self) -> dict | None:
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
-                "and call it with TaskInstance as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_k8s_pod_yaml_from_provider(self)
-
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-                "and call it with `TaskInstance` as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_rendered_k8s_spec_from_provider(self, session=session)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None

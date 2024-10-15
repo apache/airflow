@@ -27,7 +27,12 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, set_default_pool_slots
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_pools,
+    clear_db_runs,
+    set_default_pool_slots,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

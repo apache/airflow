@@ -21,7 +21,7 @@ import pytest
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
-from tests.test_utils.db import clear_db_pools
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

@@ -79,7 +79,7 @@ export type DAGDetailsResponse = {
 };
 
 /**
- * Dag Serializer for updatable body.
+ * Dag Serializer for updatable bodies.
  */
 export type DAGPatchBody = {
   is_paused: boolean;
@@ -121,6 +121,48 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run serializer for responses.
+ */
+export type DAGRunResponse = {
+  run_id: string | null;
+  dag_id: string;
+  logical_date: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  last_scheduling_decision: string | null;
+  run_type: DagRunType;
+  state: DagRunState;
+  external_trigger: boolean;
+  triggered_by: DagRunTriggeredByType;
+  conf: {
+    [key: string]: unknown;
+  };
+  note: string | null;
+};
+
+/**
+ * DAG Run States for responses.
+ */
+export type DAGRunStates = {
+  queued: number;
+  running: number;
+  success: number;
+  failed: number;
+};
+
+/**
+ * DAG Run Types for responses.
+ */
+export type DAGRunTypes = {
+  backfill: number;
+  scheduled: number;
+  manual: number;
+  dataset_triggered: number;
+};
+
+/**
  * All possible states that a DagRun can be in.
  *
  * These are "shared" with TaskInstanceState in some parts of the code,
@@ -128,6 +170,28 @@ export type DAGResponse = {
  * same name in TaskInstanceState.
  */
 export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
+ * Class with TriggeredBy types for DagRun.
+ */
+export type DagRunTriggeredByType =
+  | "cli"
+  | "operator"
+  | "rest_api"
+  | "ui"
+  | "test"
+  | "timetable"
+  | "dataset"
+  | "backfill";
+
+/**
+ * Class with DagRun types.
+ */
+export type DagRunType =
+  | "backfill"
+  | "scheduled"
+  | "manual"
+  | "dataset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
@@ -152,10 +216,56 @@ export type HTTPValidationError = {
   detail?: Array<ValidationError>;
 };
 
+/**
+ * Historical Metric Data serializer for responses.
+ */
+export type HistoricalMetricDataResponse = {
+  dag_run_types: DAGRunTypes;
+  dag_run_states: DAGRunStates;
+  task_instance_states: TaskInstantState;
+};
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type TaskInstantState = {
+  no_status: number;
+  removed: number;
+  scheduled: number;
+  queued: number;
+  running: number;
+  success: number;
+  restarting: number;
+  failed: number;
+  up_for_retry: number;
+  up_for_reschedule: number;
+  upstream_failed: number;
+  skipped: number;
+  deferred: number;
+};
+
 export type ValidationError = {
   loc: Array<string | number>;
   msg: string;
   type: string;
+};
+
+/**
+ * Variable serializer for bodies.
+ */
+export type VariableBody = {
+  key: string;
+  description: string | null;
+  value: string | null;
+};
+
+/**
+ * Variable serializer for responses.
+ */
+export type VariableResponse = {
+  key: string;
+  description: string | null;
+  value: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -165,6 +275,13 @@ export type NextRunAssetsData = {
 export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
+
+export type HistoricalMetricsData = {
+  endDate: string;
+  startDate: string;
+};
+
+export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
@@ -196,11 +313,11 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagDetailsData = {
+export type GetDagData = {
   dagId: string;
 };
 
-export type GetDagDetailsResponse = DAGDetailsResponse;
+export type GetDagResponse = DAGResponse;
 
 export type PatchDagData = {
   dagId: string;
@@ -209,6 +326,18 @@ export type PatchDagData = {
 };
 
 export type PatchDagResponse = DAGResponse;
+
+export type DeleteDagData = {
+  dagId: string;
+};
+
+export type DeleteDagResponse = unknown;
+
+export type GetDagDetailsData = {
+  dagId: string;
+};
+
+export type GetDagDetailsResponse = DAGDetailsResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -221,6 +350,46 @@ export type GetConnectionData = {
 };
 
 export type GetConnectionResponse = ConnectionResponse;
+
+export type DeleteVariableData = {
+  variableKey: string;
+};
+
+export type DeleteVariableResponse = void;
+
+export type GetVariableData = {
+  variableKey: string;
+};
+
+export type GetVariableResponse = VariableResponse;
+
+export type PatchVariableData = {
+  requestBody: VariableBody;
+  updateMask?: Array<string> | null;
+  variableKey: string;
+};
+
+export type PatchVariableResponse = VariableResponse;
+
+export type PostVariableData = {
+  requestBody: VariableBody;
+};
+
+export type PostVariableResponse = VariableResponse;
+
+export type GetDagRunData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetDagRunResponse = DAGRunResponse;
+
+export type DeleteDagRunData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type DeleteDagRunResponse = void;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -240,7 +409,26 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags": {
+  "/ui/dashboard/historical_metrics_data": {
+    get: {
+      req: HistoricalMetricsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: HistoricalMetricDataResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/": {
     get: {
       req: GetDagsData;
       res: {
@@ -284,6 +472,95 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}": {
+    get: {
+      req: GetDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
+      };
+    };
+    patch: {
+      req: PatchDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
+      };
+    };
+  };
   "/public/dags/{dag_id}/details": {
     get: {
       req: GetDagDetailsData;
@@ -312,37 +589,6 @@ export type $OpenApiTs = {
          * Unprocessable Entity
          */
         422: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/public/dags/{dag_id}": {
-    patch: {
-      req: PatchDagData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
       };
     };
   };
@@ -379,6 +625,166 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/{variable_key}": {
+    delete: {
+      req: DeleteVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/": {
+    post: {
+      req: PostVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}": {
+    get: {
+      req: GetDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

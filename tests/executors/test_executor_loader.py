@@ -29,7 +29,7 @@ from airflow.executors.executor_loader import ConnectorSource, ExecutorLoader, E
 from airflow.executors.local_executor import LocalExecutor
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 

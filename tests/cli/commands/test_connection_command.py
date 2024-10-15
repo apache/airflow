@@ -33,7 +33,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_db_connections
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

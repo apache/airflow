@@ -40,7 +40,7 @@
     :maxdepth: 1
     :caption: References
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/tests/system/providers/apache/pinot>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pinot/|version|/providers/tests/system/apache/pinot>
     Python API <_api/airflow/providers/apache/pinot/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pinot/>
     Installing from sources <installing-providers-from-sources>
@@ -50,7 +50,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/pinot/index>
+    System Tests <_api/tests/system/apache/pinot/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

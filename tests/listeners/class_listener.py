@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow.listeners import hookimpl
 from airflow.utils.state import DagRunState, TaskInstanceState
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 if AIRFLOW_V_2_10_PLUS:
 

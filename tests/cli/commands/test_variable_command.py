@@ -29,7 +29,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_variables
+from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

@@ -44,11 +44,12 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
+
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

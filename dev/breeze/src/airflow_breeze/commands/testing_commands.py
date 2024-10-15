@@ -499,8 +499,8 @@ option_force_sa_warnings = click.option(
 @group_for_testing.command(
     name="tests",
     help="Run the specified unit tests. This is a low level testing command that allows you to run "
-    "various kind of tests subset with a number of options. You can also use dedicated commands such"
-    "us db_tests, non_db_tests, integration_tests for more opinionated test suite execution.",
+    "various kind of tests subset with a number of options. You can also use dedicated commands such "
+    "as db_tests, non_db_tests, integration_tests for more opinionated test suite execution.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -624,7 +624,7 @@ def command_for_db_tests(**kwargs):
 
 @group_for_testing.command(
     name="non-db-tests",
-    help="Run all (default) or specified Non-DB unit tests. This is a dedicated command that only"
+    help="Run all (default) or specified Non-DB unit tests. This is a dedicated command that only "
     "runs Non-DB tests and it runs them in parallel via pytest-xdist in single container, "
     "with `none` backend set.",
     context_settings=dict(
@@ -791,7 +791,7 @@ def _run_test_command(
     perform_environment_checks()
     if skip_providers:
         ignored_path_list = [
-            f"--ignore=tests/providers/{provider_id.replace('.','/')}"
+            f"--ignore=providers/tests/{provider_id.replace('.','/')}"
             for provider_id in skip_providers.split(" ")
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)

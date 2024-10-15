@@ -29,7 +29,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.configuration import conf
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 SETTINGS_FILE_VALID = """
 LOGGING_CONFIG = {

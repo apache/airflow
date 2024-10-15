@@ -24,13 +24,18 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
-from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 
 if AIRFLOW_V_3_0_PLUS:
@@ -93,7 +98,7 @@ def client_dr_without_dag_run_create(app):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_dagrun():
+def _init_blank_dagrun():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -104,7 +109,7 @@ def init_blank_dagrun():
 
 
 @pytest.fixture(autouse=True)
-def reset_dagrun():
+def _reset_dagrun():
     yield
     with create_session() as session:
         session.query(DagRun).delete()

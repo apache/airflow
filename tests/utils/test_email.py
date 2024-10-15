@@ -29,7 +29,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.utils import email
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 EMAILS = ["test1@example.com", "test2@example.com"]
 
