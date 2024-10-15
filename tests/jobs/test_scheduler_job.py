@@ -6086,9 +6086,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove 2 asset references
@@ -6105,14 +6105,13 @@ class TestSchedulerJob:
         non_orphaned_assets = [
             asset.uri
             for asset in session.query(AssetModel.uri)
-            .filter(~AssetModel.is_orphaned)
+            .filter(AssetModel.active.has())
             .order_by(AssetModel.uri)
         ]
         assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri).filter(AssetModel.is_orphaned).order_by(AssetModel.uri)
-        ]
+        orphaned_assets = session.scalars(
+            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
+        ).all()
         assert orphaned_assets == ["ds2", "ds4"]
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
@@ -6121,9 +6120,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove asset1 reference
@@ -6138,7 +6137,7 @@ class TestSchedulerJob:
 
         orphaned_assets_before_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
@@ -6151,7 +6150,7 @@ class TestSchedulerJob:
 
         orphaned_assets_after_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]

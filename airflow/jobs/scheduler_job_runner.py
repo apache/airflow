@@ -45,6 +45,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
 from airflow.models.asset import (
+    AssetActive,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -2062,15 +2063,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
-    def _set_orphaned(self, asset: AssetModel) -> int:
-        self.log.info("Orphaning unreferenced asset '%s'", asset.uri)
-        asset.is_orphaned = expression.true()
-        return 1
+    def _get_orphaning_identifier(self, asset: AssetModel) -> tuple[str, str]:
+        self.log.info("Orphaning unreferenced %s", asset)
+        return asset.name, asset.uri
 
     @provide_session
     def _orphan_unreferenced_assets(self, session: Session = NEW_SESSION) -> None:
         """
-        Detect orphaned assets and set is_orphaned flag to True.
+        Detect orphaned assets and remove their active entry.
 
         An orphaned asset is no longer referenced in any DAG schedule parameters or task outlets.
         """
@@ -2085,7 +2085,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(AssetModel.id)
-            .where(~AssetModel.is_orphaned)
+            .where(AssetModel.active.has())
             .having(
                 and_(
                     func.count(DagScheduleAssetReference.dag_id) == 0,
@@ -2094,8 +2094,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        updated_count = sum(self._set_orphaned(asset) for asset in orphaned_asset_query)
-        Stats.gauge("asset.orphaned", updated_count)
+        orphaning_identifiers = [self._get_orphaning_identifier(asset) for asset in orphaned_asset_query]
+        session.execute(
+            delete(AssetActive).where(
+                tuple_in_condition((AssetActive.name, AssetActive.uri), orphaning_identifiers)
+            )
+        )
+        Stats.gauge("asset.orphaned", len(orphaning_identifiers))
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
