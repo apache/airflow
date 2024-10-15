@@ -82,9 +82,21 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
+    @classmethod
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
+        """
+        Return default hook for this connection id.
+
+        :param conn_id: connection id
+        :param hook_params: hook parameters
+        :return: default hook for this connection
+        """
+        connection = cls.get_connection(conn_id)
+        return connection.get_hook(hook_params=hook_params)
+
     def execute(self, context: Context):
-        source_hook = BaseHook.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
-        destination_hook = BaseHook.get_hook(
+        source_hook = self.get_hook(conn_id=self.source_conn_id, hook_params=self.source_hook_params)
+        destination_hook = self.get_hook(
             conn_id=self.destination_conn_id, hook_params=self.destination_hook_params
         )
 
