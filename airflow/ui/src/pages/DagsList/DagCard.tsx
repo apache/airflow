@@ -34,6 +34,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
+import { TriggerDag } from "src/components/TriggerDag";
 
 type Props = {
   readonly dag: DAGResponse;
@@ -91,6 +92,7 @@ export const DagCard = ({ dag }: Props) => (
         ) : undefined}
       </HStack>
       <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+      <TriggerDag dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
     </Flex>
     <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
       <div />
