@@ -593,6 +593,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/:
+    get:
+      tags:
+      - Connection
+      summary: Get Connections
+      description: Get all connection entries.
+      operationId: get_connections
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/variables/{variable_key}:
     delete:
       tags:
@@ -886,11 +946,27 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ConnectionCollectionResponse:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionResponse'
+          type: array
+          title: Connections
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - connections
+      - total_entries
+      title: ConnectionCollectionResponse
+      description: DAG Collection serializer for responses.
     ConnectionResponse:
       properties:
-        conn_id:
+        connection_id:
           type: string
-          title: Conn Id
+          title: Connection Id
         conn_type:
           type: string
           title: Conn Type
@@ -926,7 +1002,7 @@ components:
           title: Extra
       type: object
       required:
-      - conn_id
+      - connection_id
       - conn_type
       - description
       - host

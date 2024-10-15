@@ -27,7 +27,7 @@ from airflow.utils.log.secrets_masker import redact
 class ConnectionResponse(BaseModel):
     """Connection serializer for responses."""
 
-    connection_id: str = Field(alias="conn_id")
+    connection_id: str = Field(serialization_alias="connection_id", validation_alias="conn_id")
     conn_type: str
     description: str | None
     host: str | None
@@ -48,3 +48,10 @@ class ConnectionResponse(BaseModel):
         except json.JSONDecodeError:
             # we can't redact fields in an unstructured `extra`
             return v
+
+
+class ConnectionCollectionResponse(BaseModel):
+    """DAG Collection serializer for responses."""
+
+    connections: list[ConnectionResponse]
+    total_entries: int
