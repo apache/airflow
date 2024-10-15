@@ -48,8 +48,7 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
-
-from dev.tests_common.test_utils.db import (
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
     clear_db_runs,
@@ -330,6 +329,7 @@ class TestDBCleanup:
             "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
+            "asset_active",  # not good way to know if "stale"
             "dataset",  # not good way to know if "stale"
             "dataset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need

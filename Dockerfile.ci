@@ -676,13 +676,18 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
-        # We need _a _ file in there otherwise the editable install doesn't include anything in the .pth file
+        # We need _a_ file in there otherwise the editable install doesn't include anything in the .pth file
         mkdir -p ./providers/src/airflow/providers/
         touch ./providers/src/airflow/providers/__init__.py
-        trap 'rm -f ./providers/src/airflow/providers/__init__.py 2>/dev/null' EXIT
+
+        # Similarly we need _a_ file for task_sdk too
+        mkdir -p ./task_sdk/src/airflow/sdk/
+        touch ./task_sdk/src/airflow/__init__.py
+
+        trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
 
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers --editable ./task_sdk"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
@@ -908,6 +913,9 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
+
+    # Directory where simple auth manager store generated passwords
+    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -1175,7 +1183,10 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
-# By increasing this number we can do force build of all dependencies
+# By increasing this number we can do force build of all dependencies.
+# NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
+# some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
+# not built using the "main" version of those dependencies.
 ARG DEPENDENCIES_EPOCH_NUMBER="11"
 
 # Make sure noninteractive debian install is used and language variables set
@@ -1267,7 +1278,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.4.17
+ARG AIRFLOW_UV_VERSION=0.4.20
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1356,7 +1367,9 @@ RUN bash /scripts/docker/install_pipx_tools.sh
 # So in case pyproject.toml changes we can install latest dependencies required.
 COPY pyproject.toml ${AIRFLOW_SOURCES}/pyproject.toml
 COPY providers/pyproject.toml ${AIRFLOW_SOURCES}/providers/pyproject.toml
+COPY task_sdk/pyproject.toml ${AIRFLOW_SOURCES}/task_sdk/pyproject.toml
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY tests_common/ ${AIRFLOW_SOURCES}/tests_common/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE

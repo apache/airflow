@@ -27,13 +27,12 @@ import yandex.cloud.dataproc.v1.job_service_pb2 as job_service_pb
 import yandex.cloud.dataproc.v1.job_service_pb2_grpc as job_service_grpc_pb
 import yandex.cloud.dataproc.v1.subcluster_pb2 as subcluster_pb
 from google.protobuf.json_format import MessageToDict
+from tests_common.test_utils.system_tests import get_test_env_id
 from yandexcloud.operations import OperationError
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
-
-from dev.tests_common.test_utils.system_tests import get_test_env_id
 
 ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_hook"
@@ -197,14 +196,14 @@ with DAG(
 
     spark_job >> delete_task
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

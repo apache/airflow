@@ -24,8 +24,7 @@ import pytest
 
 from airflow.operators.email import EmailOperator
 from airflow.utils import timezone
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

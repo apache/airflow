@@ -2293,9 +2293,6 @@ class DAG(LoggingMixin):
 
         self.task_count = len(self.task_dict)
 
-    def run(self, *args, **kwargs):
-        """Leaving this here to be removed in other PR for simpler review."""
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
@@ -2384,8 +2381,7 @@ class DAG(LoggingMixin):
             tasks = self.task_dict
             self.log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
-            # for task readiness and dependency management. This is notably faster
-            # than creating a BackfillJob and allows us to surface logs to the user
+            # for task readiness and dependency management.
 
             # ``Dag.test()`` works in two different modes depending on ``use_executor``:
             # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
@@ -2597,6 +2593,7 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
+        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)

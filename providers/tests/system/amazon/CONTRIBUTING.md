@@ -212,7 +212,7 @@ chain(
     task2, # task2 has trigger rule "all done" defined
 )
 
-from dev.tests_common.test_utils.watcher import watcher
+from tests_common.test_utils.watcher import watcher
 
 # This test needs watcher in order to properly mark success/failure
 # when "tearDown" task with trigger rule is part of the DAG
