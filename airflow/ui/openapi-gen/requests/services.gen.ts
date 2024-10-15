@@ -15,6 +15,8 @@ import type {
   GetDagResponse,
   PatchDagData,
   PatchDagResponse,
+  DeleteDagData,
+  DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
   DeleteConnectionData,
@@ -230,6 +232,33 @@ export class DagService {
         403: "Forbidden",
         404: "Not Found",
         422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Dag
+   * Delete the specific DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static deleteDag(
+    data: DeleteDagData,
+  ): CancelablePromise<DeleteDagResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/dags/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Unprocessable Entity",
       },
     });
   }
