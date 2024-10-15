@@ -27,6 +27,7 @@ from rich.console import Console
 
 from airflow.cli.commands import fastapi_api_command
 from airflow.exceptions import AirflowConfigException
+
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")

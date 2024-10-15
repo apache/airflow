@@ -43,7 +43,7 @@ from airflow.serialization.serialized_objects import BaseSerialization, Serializ
 
 @pytest.fixture
 def clear_assets():
-    from dev.tests_common.test_utils.db import clear_db_assets
+    from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield

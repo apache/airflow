@@ -20,8 +20,7 @@ import pytest
 
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
-
-from dev.tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.db import clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
@@ -223,3 +222,53 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.status_code == 404
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+
+
+class TestPostVariable(TestVariableEndpoint):
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "body, expected_response",
+        [
+            (
+                {
+                    "key": "new variable key",
+                    "value": "new variable value",
+                    "description": "new variable description",
+                },
+                {
+                    "key": "new variable key",
+                    "value": "new variable value",
+                    "description": "new variable description",
+                },
+            ),
+            (
+                {
+                    "key": "another_password",
+                    "value": "password_value",
+                    "description": "another password",
+                },
+                {
+                    "key": "another_password",
+                    "value": "***",
+                    "description": "another password",
+                },
+            ),
+            (
+                {
+                    "key": "another value with sensitive information",
+                    "value": '{"password": "new_password"}',
+                    "description": "some description",
+                },
+                {
+                    "key": "another value with sensitive information",
+                    "value": '{"password": "***"}',
+                    "description": "some description",
+                },
+            ),
+        ],
+    )
+    def test_post_should_respond_201(self, test_client, session, body, expected_response):
+        self.create_variable()
+        response = test_client.post("/public/variables/", json=body)
+        assert response.status_code == 201
+        assert response.json() == expected_response

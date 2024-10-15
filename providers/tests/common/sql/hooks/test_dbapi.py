@@ -24,14 +24,13 @@ from unittest import mock
 
 import pytest
 from pyodbc import Cursor
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
