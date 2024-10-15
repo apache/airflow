@@ -113,18 +113,21 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
 
     from requests.exceptions import ConnectionError
 
-    def is_retryable_exception(exception: BaseException) -> bool:
-        retryable_status_codes = (HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT)
-        return (
-            isinstance(exception, AirflowHttpException)
-            and exception.status_code in retryable_status_codes
-            or isinstance(exception, (ConnectionError, NewConnectionError))
-        )
+    def _is_retryable_exception(exception: BaseException) -> bool:
+    """
+    Evaluates which exception types should be retried.
+    
+    This is especially demanded for cases where an application gateway or Kubernetes ingress can
+    not find a running instance of a webserver hostring the API (HTTP 502+504) or when the
+    HTTP request fails in general on network level.
+    
+    Note that we want to fail on other general errors on the webserver not to send bad requests in an endless loop.
+    """
     
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(10),
         wait=tenacity.wait_exponential(min=1),
-        retry=tenacity.retry_if_exception(is_retryable_exception),
+        retry=tenacity.retry_if_exception(_is_retryable_exception),
         before_sleep=tenacity.before_log(logger, logging.WARNING),
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
