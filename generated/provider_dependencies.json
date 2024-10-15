@@ -640,7 +640,7 @@
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=2.29.0",
-      "google-cloud-aiplatform>=1.63.0",
+      "google-cloud-aiplatform>=1.70.0",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
@@ -748,8 +748,8 @@
       "aiohttp>=3.9.2",
       "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
-      "requests>=2.27.0,<3",
-      "requests_toolbelt"
+      "requests-toolbelt>=0.4.0",
+      "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
     "plugins": [],
