@@ -146,13 +146,15 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql="""
+        sql=[
+            """
             CREATE TABLE IF NOT EXISTS fruit (
             fruit_id INTEGER,
             name VARCHAR NOT NULL,
             color VARCHAR NOT NULL
             );
-        """,
+        """
+        ],
         poll_interval=POLL_INTERVAL,
         wait_for_completion=True,
     )
@@ -163,14 +165,14 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql="""
-            INSERT INTO fruit VALUES ( 1, 'Banana', 'Yellow');
-            INSERT INTO fruit VALUES ( 2, 'Apple', 'Red');
-            INSERT INTO fruit VALUES ( 3, 'Lemon', 'Yellow');
-            INSERT INTO fruit VALUES ( 4, 'Grape', 'Purple');
-            INSERT INTO fruit VALUES ( 5, 'Pear', 'Green');
-            INSERT INTO fruit VALUES ( 6, 'Strawberry', 'Red');
-        """,
+        sql=[
+            "INSERT INTO fruit VALUES ( 1, 'Banana', 'Yellow');",
+            "INSERT INTO fruit VALUES ( 2, 'Apple', 'Red');",
+            "INSERT INTO fruit VALUES ( 3, 'Lemon', 'Yellow');",
+            "INSERT INTO fruit VALUES ( 4, 'Grape', 'Purple');",
+            "INSERT INTO fruit VALUES ( 5, 'Pear', 'Green');",
+            "INSERT INTO fruit VALUES ( 6, 'Strawberry', 'Red');",
+        ],
         poll_interval=POLL_INTERVAL,
         wait_for_completion=True,
     )
@@ -181,13 +183,15 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql="""
+        sql=[
+            """
             CREATE TEMPORARY TABLE tmp_people (
             id INTEGER,
             first_name VARCHAR(100),
             age INTEGER
             );
-        """,
+        """
+        ],
         poll_interval=POLL_INTERVAL,
         wait_for_completion=True,
         session_keep_alive_seconds=600,
@@ -195,11 +199,11 @@ with DAG(
 
     insert_data_reuse_session = RedshiftDataOperator(
         task_id="insert_data_reuse_session",
-        sql="""
-            INSERT INTO tmp_people VALUES ( 1, 'Bob', 30);
-            INSERT INTO tmp_people VALUES ( 2, 'Alice', 35);
-            INSERT INTO tmp_people VALUES ( 3, 'Charlie', 40);
-        """,
+        sql=[
+            "INSERT INTO tmp_people VALUES ( 1, 'Bob', 30);",
+            "INSERT INTO tmp_people VALUES ( 2, 'Alice', 35);",
+            "INSERT INTO tmp_people VALUES ( 3, 'Charlie', 40);",
+        ],
         poll_interval=POLL_INTERVAL,
         wait_for_completion=True,
         session_id="{{ task_instance.xcom_pull(task_ids='create_tmp_table_data_api', key='session_id') }}",
