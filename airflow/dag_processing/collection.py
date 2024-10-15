@@ -31,13 +31,13 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
-from sqlalchemy.sql import expression
 
 from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -298,8 +298,6 @@ class AssetModelOperation(NamedTuple):
         orm_assets: dict[str, AssetModel] = {
             am.uri: am for am in session.scalars(select(AssetModel).where(AssetModel.uri.in_(self.assets)))
         }
-        for model in orm_assets.values():
-            model.is_orphaned = expression.false()
         orm_assets.update(
             (model.uri, model)
             for model in asset_manager.create_assets(
@@ -327,6 +325,20 @@ class AssetModelOperation(NamedTuple):
             )
         )
         return orm_aliases
+
+    def add_asset_active_references(self, assets: Collection[AssetModel], *, session: Session) -> None:
+        existing_entries = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_(AssetActive.name, AssetActive.uri).in_((asset.name, asset.uri) for asset in assets)
+                )
+            )
+        )
+        session.add_all(
+            AssetActive.for_asset(asset)
+            for asset in assets
+            if (asset.name, asset.uri) not in existing_entries
+        )
 
     def add_dag_asset_references(
         self,

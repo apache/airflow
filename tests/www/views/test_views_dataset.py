@@ -22,7 +22,7 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.assets import Asset
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets
@@ -37,17 +37,22 @@ class TestDatasetEndpoint:
         yield
         clear_db_assets()
 
+    @pytest.fixture
+    def create_assets(self, session):
+        def create(indexes):
+            assets = [AssetModel(id=i, uri=f"s3://bucket/key/{i}") for i in indexes]
+            session.add_all(assets)
+            session.flush()
+            session.add_all(AssetActive.for_asset(a) for a in assets)
+            session.flush()
+            return assets
+
+        return create
+
 
 class TestGetDatasets(TestDatasetEndpoint):
-    def test_should_respond_200(self, admin_client, session):
-        assets = [
-            AssetModel(
-                id=i,
-                uri=f"s3://bucket/key/{i}",
-            )
-            for i in [1, 2]
-        ]
-        session.add_all(assets)
+    def test_should_respond_200(self, admin_client, create_assets, session):
+        create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
 
@@ -74,14 +79,8 @@ class TestGetDatasets(TestDatasetEndpoint):
             "total_entries": 2,
         }
 
-    def test_order_by_raises_400_for_invalid_attr(self, admin_client, session):
-        assets = [
-            AssetModel(
-                uri=f"s3://bucket/key/{i}",
-            )
-            for i in [1, 2]
-        ]
-        session.add_all(assets)
+    def test_order_by_raises_400_for_invalid_attr(self, admin_client, create_assets, session):
+        create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
 
@@ -91,9 +90,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json["detail"] == msg
 
-    def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, session):
-        assets = [AssetModel(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
-        session.add_all(assets)
+    def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, create_assets, session):
+        create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
 
@@ -107,24 +105,17 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 400
         assert "Invalid datetime:" in response.text
 
-    def test_filter_by_datetimes(self, admin_client, session):
+    def test_filter_by_datetimes(self, admin_client, create_assets, session):
         today = pendulum.today("UTC")
 
-        assets = [
-            AssetModel(
-                id=i,
-                uri=f"s3://bucket/key/{i}",
-            )
-            for i in range(1, 4)
-        ]
-        session.add_all(assets)
+        assets = create_assets(range(1, 4))
         # Update assets, one per day, starting with assets[0], ending with assets[2]
         asset_events = [
             AssetEvent(
-                dataset_id=assets[i].id,
+                dataset_id=a.id,
                 timestamp=today.add(days=-len(assets) + i + 1),
             )
-            for i in range(len(assets))
+            for i, a in enumerate(assets)
         ]
         session.add_all(asset_events)
         session.commit()
@@ -153,15 +144,8 @@ class TestGetDatasets(TestDatasetEndpoint):
             ("-last_dataset_update", [2, 3, 1, 4]),
         ],
     )
-    def test_order_by(self, admin_client, session, order_by, ordered_asset_ids):
-        assets = [
-            AssetModel(
-                id=i,
-                uri=f"s3://bucket/key/{i}",
-            )
-            for i in range(1, len(ordered_asset_ids) + 1)
-        ]
-        session.add_all(assets)
+    def test_order_by(self, admin_client, session, create_assets, order_by, ordered_asset_ids):
+        assets = create_assets(range(1, len(ordered_asset_ids) + 1))
         asset_events = [
             AssetEvent(
                 dataset_id=assets[2].id,
@@ -186,15 +170,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert ordered_asset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
         assert response.json["total_entries"] == len(ordered_asset_ids)
 
-    def test_search_uri_pattern(self, admin_client, session):
-        assets = [
-            AssetModel(
-                id=i,
-                uri=f"s3://bucket/key_{i}",
-            )
-            for i in [1, 2]
-        ]
-        session.add_all(assets)
+    def test_search_uri_pattern(self, admin_client, create_assets, session):
+        create_assets([1, 2])
         session.commit()
         assert session.query(AssetModel).count() == 2
 
@@ -207,7 +184,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             "datasets": [
                 {
                     "id": 2,
-                    "uri": "s3://bucket/key_2",
+                    "uri": "s3://bucket/key/2",
                     "last_dataset_update": None,
                     "total_updates": 0,
                 },
@@ -224,13 +201,13 @@ class TestGetDatasets(TestDatasetEndpoint):
             "datasets": [
                 {
                     "id": 1,
-                    "uri": "s3://bucket/key_1",
+                    "uri": "s3://bucket/key/1",
                     "last_dataset_update": None,
                     "total_updates": 0,
                 },
                 {
                     "id": 2,
-                    "uri": "s3://bucket/key_2",
+                    "uri": "s3://bucket/key/2",
                     "last_dataset_update": None,
                     "total_updates": 0,
                 },
@@ -389,15 +366,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             ("/object/datasets_summary?offset=3&limit=3", [f"s3://bucket/key/{i}" for i in [4, 5, 6]]),
         ],
     )
-    def test_limit_and_offset(self, admin_client, session, url, expected_dataset_uris):
-        assets = [
-            AssetModel(
-                uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
-            )
-            for i in range(1, 10)
-        ]
-        session.add_all(assets)
+    def test_limit_and_offset(self, admin_client, create_assets, session, url, expected_dataset_uris):
+        create_assets(range(1, 10))
         session.commit()
 
         response = admin_client.get(url)
@@ -406,15 +376,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
         assert dataset_uris == expected_dataset_uris
 
-    def test_should_respect_page_size_limit_default(self, admin_client, session):
-        assets = [
-            AssetModel(
-                uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
-            )
-            for i in range(1, 60)
-        ]
-        session.add_all(assets)
+    def test_should_respect_page_size_limit_default(self, admin_client, create_assets, session):
+        create_assets(range(1, 60))
         session.commit()
 
         response = admin_client.get("/object/datasets_summary")
@@ -422,15 +385,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         assert response.status_code == 200
         assert len(response.json["datasets"]) == 25
 
-    def test_should_return_max_if_req_above(self, admin_client, session):
-        assets = [
-            AssetModel(
-                uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
-            )
-            for i in range(1, 60)
-        ]
-        session.add_all(assets)
+    def test_should_return_max_if_req_above(self, admin_client, create_assets, session):
+        create_assets(range(1, 60))
         session.commit()
 
         response = admin_client.get("/object/datasets_summary?limit=180")

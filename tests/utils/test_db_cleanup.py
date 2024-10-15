@@ -329,6 +329,7 @@ class TestDBCleanup:
             "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
+            "asset_active",  # not good way to know if "stale"
             "dataset",  # not good way to know if "stale"
             "dataset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
