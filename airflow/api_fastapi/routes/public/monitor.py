@@ -14,13 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.views.router import AirflowRouter
-from airflow.api_fastapi.views.ui.assets import assets_router
-from airflow.api_fastapi.views.ui.dashboard import dashboard_router
+from airflow.api.common.airflow_health import get_airflow_health
+from airflow.api_fastapi.routes.router import AirflowRouter
+from airflow.api_fastapi.serializers.monitor import HealthInfoSchema
 
-ui_router = AirflowRouter(prefix="/ui")
+monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
-ui_router.include_router(assets_router)
-ui_router.include_router(dashboard_router)
+
+@monitor_router.get("/health")
+async def get_health() -> HealthInfoSchema:
+    airflow_health_status = get_airflow_health()
+    return HealthInfoSchema.model_validate(airflow_health_status)

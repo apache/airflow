@@ -33,7 +33,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 from airflow.api_fastapi.db.common import get_session
-from airflow.api_fastapi.views.router import AirflowRouter
+from airflow.api_fastapi.routes.router import AirflowRouter
 from airflow.utils import timezone
 
 dashboard_router = AirflowRouter(tags=["Dashboard"])
