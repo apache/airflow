@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-14T13:53:27.499406
+# This constraints file was automatically generated on 2024-10-15T19:48:32.840728
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -95,7 +95,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.6.2
+anyio==4.6.2.post1
 apache-airflow-providers-airbyte==4.0.0
 apache-airflow-providers-alibaba==2.9.1
 apache-airflow-providers-amazon==9.0.0
@@ -288,6 +288,7 @@ docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.2
+durationpy==0.9
 elastic-transport==8.15.1
 elasticsearch==8.15.1
 email_validator==2.2.0
@@ -298,7 +299,7 @@ eval_type_backport==0.2.0
 eventlet==0.37.0
 execnet==2.1.1
 executing==2.1.0
-facebook_business==20.0.3
+facebook_business==21.0.1
 fastapi-cli==0.0.5
 fastapi==0.115.2
 fastavro==1.9.7
@@ -389,7 +390,7 @@ hmsclient==0.1.1
 hpack==4.0.0
 httpcore==1.0.6
 httplib2==0.22.0
-httptools==0.6.1
+httptools==0.6.2
 httpx==0.27.0
 humanize==4.11.0
 hvac==2.3.0
@@ -461,6 +462,8 @@ methodtools==0.4.7
 microsoft-kiota-abstractions==1.3.3
 microsoft-kiota-authentication-azure==1.1.0
 microsoft-kiota-http==1.3.3
+microsoft-kiota-serialization-json==1.0.0
+microsoft-kiota-serialization-text==1.0.0
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
@@ -479,7 +482,7 @@ mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.32
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==9.0.0
+mysql-connector-python==9.1.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
@@ -514,7 +517,7 @@ ordered-set==4.1.0
 orjson==3.10.7
 oss2==2.19.0
 packaging==24.1
-pandas-gbq==0.23.2
+pandas-gbq==0.24.0
 pandas-stubs==2.2.3.241009
 pandas==2.1.4
 papermill==2.6.0
@@ -679,7 +682,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.39.2
+starlette==0.40.0
 statsd==4.0.1
 std-uritemplate==2.0.0
 strictyaml==1.7.3
@@ -735,9 +738,9 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
-uv==0.4.7
-uvicorn==0.31.1
-uvloop==0.20.0
+uv==0.4.21
+uvicorn==0.32.0
+uvloop==0.21.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
