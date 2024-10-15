@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-pytest_plugins = "dev.tests_common.pytest_plugin"
+pytest_plugins = "tests_common.pytest_plugin"
 
 
 @pytest.hookimpl(tryfirst=True)

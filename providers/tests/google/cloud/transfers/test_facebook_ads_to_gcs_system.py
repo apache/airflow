@@ -22,17 +22,17 @@ import os
 from contextlib import contextmanager
 
 import pytest
+from tests_common.test_utils.gcp_system_helpers import (
+    GoogleSystemTest,
+    provide_gcp_context,
+)
+from tests_common.test_utils.system_tests import get_test_run
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.example_dags import example_facebook_ads_to_gcs
 from airflow.utils.process_utils import patch_environ
 
-from dev.tests_common.test_utils.gcp_system_helpers import (
-    GoogleSystemTest,
-    provide_gcp_context,
-)
-from dev.tests_common.test_utils.system_tests import get_test_run
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
 CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")

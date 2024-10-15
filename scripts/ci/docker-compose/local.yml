@@ -101,6 +101,9 @@ services:
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
       - type: bind
+        source: ../../../tests_common
+        target: /opt/airflow/tests_common
+      - type: bind
         source: ../../../tests
         target: /opt/airflow/tests
       - type: bind

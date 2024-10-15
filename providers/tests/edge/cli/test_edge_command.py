@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
+from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import (
@@ -33,8 +34,6 @@ from airflow.providers.edge.cli.edge_command import (
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
 from airflow.utils.state import TaskInstanceState
-
-from dev.tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 

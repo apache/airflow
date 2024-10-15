@@ -25,8 +25,7 @@ import pytest
 
 from airflow.security import kerberos
 from airflow.security.kerberos import get_kerberos_principle, renew_from_kt
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
