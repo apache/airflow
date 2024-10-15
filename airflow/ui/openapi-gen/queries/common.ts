@@ -7,6 +7,7 @@ import {
   DagRunService,
   DagService,
   DashboardService,
+  MonitorService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -151,6 +152,30 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
 ];
+export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnections>
+>;
+export type ConnectionServiceGetConnectionsQueryResult<
+  TData = ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionsKey =
+  "ConnectionServiceGetConnections";
+export const UseConnectionServiceGetConnectionsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type VariableServiceGetVariableDefaultResponse = Awaited<
   ReturnType<typeof VariableService.getVariable>
 >;
@@ -185,6 +210,18 @@ export const UseDagRunServiceGetDagRunKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+export type MonitorServiceGetHealthDefaultResponse = Awaited<
+  ReturnType<typeof MonitorService.getHealth>
+>;
+export type MonitorServiceGetHealthQueryResult<
+  TData = MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
+export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
+  useMonitorServiceGetHealthKey,
+  ...(queryKey ?? []),
+];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;

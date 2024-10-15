@@ -289,7 +289,7 @@ Here is an example of what you might have in your webserver_config.py:
 
 
   class CustomSecurityManager(AirflowSecurityManager):
-      def oauth_user_info(self, provider, response):
+      def get_oauth_user_info(self, provider, response):
           if provider == "keycloak":
               token = response["access_token"]
               me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"])
