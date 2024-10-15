@@ -2094,7 +2094,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        orphaning_identifiers = list(self._get_orphaning_identifier(asset) for asset in orphaned_asset_query)
+        orphaning_identifiers = [self._get_orphaning_identifier(asset) for asset in orphaned_asset_query]
         session.execute(
             delete(AssetActive).where(
                 tuple_in_condition((AssetActive.name, AssetActive.uri), orphaning_identifiers)
