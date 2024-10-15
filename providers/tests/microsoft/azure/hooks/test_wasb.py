@@ -580,14 +580,14 @@ class TestWasbHook:
         # `ContainerClient.delete_blobs()` in this test.
         assert mock_delete_blobs.call_count == 2
 
-    @mock.patch.object('WasbHook._get_blob_client')
+    @mock.patch.object("WasbHook._get_blob_client")
     def test_copy_blobs(self, mock_get_blob_client):
         # Arrange
         hook = WasbHook()
-        source_container_name = 'source-container'
-        source_blob_name = 'source-blob'
-        destination_container_name = 'destination-container'
-        destination_blob_name = 'destination-blob'
+        source_container_name = "source-container"
+        source_blob_name = "source-blob"
+        destination_container_name = "destination-container"
+        destination_blob_name = "destination-blob"
 
         # Mock the blob clients
         mock_source_blob_client = mock.MagicMock()
@@ -595,20 +595,17 @@ class TestWasbHook:
         mock_get_blob_client.side_effect = [mock_source_blob_client, mock_destination_blob_client]
 
         # Mock the URL of the source blob
-        mock_source_blob_client.url = 'https://source-url'
+        mock_source_blob_client.url = "https://source-url"
 
-        # Act
         hook.copy_blobs(
-            source_container_name,
-            source_blob_name,
-            destination_container_name,
-            destination_blob_name
+            source_container_name, source_blob_name, destination_container_name, destination_blob_name
         )
 
-        # Assert
         mock_get_blob_client.assert_any_call(container_name=source_container_name, blob_name=source_blob_name)
-        mock_get_blob_client.assert_any_call(container_name=destination_container_name, blob_name=destination_blob_name)
-        mock_destination_blob_client.start_copy_from_url.assert_called_once_with('https://source-url')
+        mock_get_blob_client.assert_any_call(
+            container_name=destination_container_name, blob_name=destination_blob_name
+        )
+        mock_destination_blob_client.start_copy_from_url.assert_called_once_with("https://source-url")
 
     @mock.patch.object(WasbHook, "get_blobs_list")
     @mock.patch.object(WasbHook, "check_for_blob")
