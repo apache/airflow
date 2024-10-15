@@ -60,6 +60,12 @@ except ImportError:
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
 
+# Temporary imports here, once python operator moved to standard provider, this can be merged to above block
+try:
+    from airflow.providers.standard.operators.python import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
+
 
 if TYPE_CHECKING:
     from airflow.models.asset import (
