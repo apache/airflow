@@ -102,7 +102,7 @@ PIP package            Version required
 =====================  ==================
 ``apache-airflow``     ``>=2.8.0``
 ``requests``           ``>=2.27.0,<3``
-``requests_toolbelt``
+``requests-toolbelt``
 ``aiohttp``            ``>=3.9.2``
 ``asgiref``
 =====================  ==================
