@@ -106,8 +106,7 @@ class ConcurrencyMap:
     to # of task instances in the given state list in each DAG run.
     """
 
-    def __init__(self, states: Iterable[TaskInstanceState]):
-        self.states = states
+    def __init__(self):
         self.dag_run_active_tasks_map: dict[tuple[str, str], int] = Counter()
         self.task_concurrency_map: dict[tuple[str, str], int] = Counter()
         self.task_dagrun_concurrency_map: dict[tuple[str, str, str], int] = Counter()
@@ -117,11 +116,11 @@ class ConcurrencyMap:
         self.task_concurrency_map.clear()
         self.task_dagrun_concurrency_map.clear()
         query = session.execute(
-            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .where(TI.state.in_(self.states))
+            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
+            .where(TI.state.in_(EXECUTION_STATES))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
-        for dag_id, run_id, task_id, c in query:
+        for dag_id, task_id, run_id, c in query:
             self.dag_run_active_tasks_map[dag_id, run_id] += c
             self.task_concurrency_map[(dag_id, task_id)] += c
             self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
@@ -315,7 +314,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = ConcurrencyMap(states=EXECUTION_STATES)
+        concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
