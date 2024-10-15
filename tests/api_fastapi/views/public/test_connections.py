@@ -25,23 +25,42 @@ from tests_common.test_utils.db import clear_db_connections
 pytestmark = pytest.mark.db_test
 
 TEST_CONN_ID = "test_connection_id"
-TEST_CONN_ID_2 = "test_connection_id_2"
 TEST_CONN_TYPE = "test_type"
+TEST_CONN_DESCRIPTION = "some_description_a"
+TEST_CONN_HOST = "some_host_a"
+TEST_CONN_PORT = 8080
+
+
+TEST_CONN_ID_2 = "test_connection_id_2"
 TEST_CONN_TYPE_2 = "test_type_2"
+TEST_CONN_DESCRIPTION_2 = "some_description_b"
+TEST_CONN_HOST_2 = "some_host_b"
+TEST_CONN_PORT_2 = 8081
 
 
 @provide_session
 def _create_connection(session) -> None:
-    connection_model = Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE)
+    connection_model = Connection(
+        conn_id=TEST_CONN_ID,
+        conn_type=TEST_CONN_TYPE,
+        description=TEST_CONN_DESCRIPTION,
+        host=TEST_CONN_HOST,
+        port=TEST_CONN_PORT,
+    )
     session.add(connection_model)
 
 
 @provide_session
 def _create_connections(session) -> None:
-    connection_model_1 = Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE)
-    connection_model_2 = Connection(conn_id=TEST_CONN_ID_2, conn_type=TEST_CONN_TYPE_2)
-    connections = [connection_model_1, connection_model_2]
-    session.add_all(connections)
+    _create_connection(session)
+    connection_model_2 = Connection(
+        conn_id=TEST_CONN_ID_2,
+        conn_type=TEST_CONN_TYPE_2,
+        description=TEST_CONN_DESCRIPTION_2,
+        host=TEST_CONN_HOST_2,
+        port=TEST_CONN_PORT_2,
+    )
+    session.add(connection_model_2)
 
 
 class TestConnectionEndpoint:
@@ -118,67 +137,34 @@ class TestGetConnection(TestConnectionEndpoint):
 
 
 class TestGetConnections(TestConnectionEndpoint):
-    def test_should_respond_200(self, test_client, session):
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_ids",
+        [
+            # Filters
+            ({}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"limit": 1}, 2, [TEST_CONN_ID]),
+            ({"limit": 1, "offset": 1}, 2, [TEST_CONN_ID_2]),
+            # Sort
+            ({"order_by": "-connection_id"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+            ({"order_by": "conn_type"}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"order_by": "-conn_type"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+            ({"order_by": "description"}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"order_by": "-description"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+            ({"order_by": "host"}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"order_by": "-host"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+            ({"order_by": "port"}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"order_by": "-port"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+            ({"order_by": "id"}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
+            ({"order_by": "-id"}, 2, [TEST_CONN_ID_2, TEST_CONN_ID]),
+        ],
+    )
+    def test_should_respond_200(
+        self, test_client, session, query_params, expected_total_entries, expected_ids
+    ):
         self.create_connections()
-        result = session.query(Connection).all()
-        assert len(result) == 2
-        response = test_client.get("/public/connections/")
+        response = test_client.get("/public/connections/", params=query_params)
         assert response.status_code == 200
-        assert response.json() == {
-            "connections": [
-                {
-                    "connection_id": TEST_CONN_ID,
-                    "conn_type": TEST_CONN_TYPE,
-                    "description": None,
-                    "extra": None,
-                    "host": None,
-                    "login": None,
-                    "schema": None,
-                    "port": None,
-                },
-                {
-                    "connection_id": TEST_CONN_ID_2,
-                    "conn_type": TEST_CONN_TYPE_2,
-                    "description": None,
-                    "extra": None,
-                    "host": None,
-                    "login": None,
-                    "schema": None,
-                    "port": None,
-                },
-            ],
-            "total_entries": 2,
-        }
 
-    def test_should_respond_200_with_order_by(self, test_client, session):
-        self.create_connections()
-        result = session.query(Connection).all()
-        assert len(result) == 2
-        response = test_client.get("/public/connections/?order_by=-connection_id")
-        assert response.status_code == 200
-        # Using - means descending
-        assert response.json() == {
-            "connections": [
-                {
-                    "connection_id": TEST_CONN_ID_2,
-                    "conn_type": TEST_CONN_TYPE_2,
-                    "description": None,
-                    "extra": None,
-                    "host": None,
-                    "login": None,
-                    "schema": None,
-                    "port": None,
-                },
-                {
-                    "connection_id": TEST_CONN_ID,
-                    "conn_type": TEST_CONN_TYPE,
-                    "description": None,
-                    "extra": None,
-                    "host": None,
-                    "login": None,
-                    "schema": None,
-                    "port": None,
-                },
-            ],
-            "total_entries": 2,
-        }
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert [dag["connection_id"] for dag in body["connections"]] == expected_ids

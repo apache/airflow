@@ -28,7 +28,7 @@ OPENAPI_SPEC_FILE = "airflow/api_fastapi/openapi/v1-generated.yaml"
 
 # The persisted openapi spec will list all endpoints (public and ui), this
 # is used for code generation.
-for route in app.routes:  # Handle dynamic SortParam default value in openapi spec
+for route in app.routes:
     if getattr(route, "name") == "webapp":
         continue
     route.__setattr__("include_in_schema", True)
