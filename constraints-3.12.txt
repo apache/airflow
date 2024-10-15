@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-15T03:08:26.415813
+# This constraints file was automatically generated on 2024-10-15T15:03:15.131053
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -462,7 +462,7 @@ mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.32
 mypy-extensions==1.0.0
 mypy==1.9.0
-mysql-connector-python==9.0.0
+mysql-connector-python==9.1.0
 mysqlclient==2.2.4
 neo4j==5.25.0
 networkx==3.4.1
