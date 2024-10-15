@@ -496,6 +496,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         "parent_model",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -949,6 +951,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         "region",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
@@ -1405,6 +1409,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         "requirements",
         "dataset_id",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -1732,6 +1738,7 @@ class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
+        "display_name",
     ]
     operator_extra_links = [
         VertexAITrainingPipelinesLink(),

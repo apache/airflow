@@ -106,6 +106,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         "dataset_id",
         "region",
         "impersonation_chain",
+        "display_name",
+        "model_display_name",
     )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
