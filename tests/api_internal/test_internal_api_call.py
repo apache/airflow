@@ -284,10 +284,10 @@ class TestInternalApiCall:
         response.reason = "Bad Gateway"
         response._content = b"Bad Gateway"
 
-        mock_sleep = lambda *_, **__: None
+        mock_sleep = lambda *_, **__: None  # noqa: F841
         mock_requests.post.return_value = response
         with pytest.raises(RetryError):
-            result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
+            TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
         assert mock_requests.post.call_count == 10
 
     @conf_vars(
