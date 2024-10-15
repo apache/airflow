@@ -37,7 +37,10 @@ import {
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { linter, lintGutter } from "@codemirror/lint";
 import { indentationMarkers } from "@replit/codemirror-indentation-markers";
-import CodeMirror, { lineNumbers, type ViewUpdate } from "@uiw/react-codemirror";
+import CodeMirror, {
+  lineNumbers,
+  type ViewUpdate,
+} from "@uiw/react-codemirror";
 import { useForm, SubmitHandler, Controller } from "react-hook-form";
 import { FiPlay } from "react-icons/fi";
 
