@@ -227,7 +227,6 @@ cgi
 Cgroups
 cgroups
 cgroupspy
-Chainable
 chakra
 Changelog
 changelog
