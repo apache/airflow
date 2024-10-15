@@ -43,7 +43,7 @@ pipx install -e ./dev/breeze --force
 
 NOTE! If you see below warning - it means that you hit [known issue](https://github.com/pypa/pipx/issues/1092)
 with `packaging` version 23.2
-⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+(!) Ignoring --editable install option. pipx disallows it for anything but a local path,
 to avoid having to create a new src/ directory.
 
 The workaround is to downgrade packaging to 23.1 and re-running the `pipx install` command, for example
