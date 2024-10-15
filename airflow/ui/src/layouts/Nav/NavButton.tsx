@@ -18,7 +18,7 @@
  */
 import { Box, Button, type ButtonProps } from "@chakra-ui/react";
 import type { ReactElement } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 import { navButtonProps } from "./navButtonProps";
 
@@ -31,8 +31,12 @@ type NavButtonProps = {
 } & ButtonProps;
 
 export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
-  <Button as={RouterLink} to={to} {...navButtonProps} {...rest}>
-    <Box alignSelf="center">{icon}</Box>
-    <Box fontSize="xs">{title}</Box>
-  </Button>
+  <Box as={NavLink} to={to ?? ""}>
+    {({ isActive }: { readonly isActive: boolean }) => (
+      <Button isActive={isActive} {...navButtonProps} {...rest}>
+        <Box alignSelf="center">{icon}</Box>
+        <Box fontSize="xs">{title}</Box>
+      </Button>
+    )}
+  </Box>
 );
