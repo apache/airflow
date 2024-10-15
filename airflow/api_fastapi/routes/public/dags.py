@@ -42,13 +42,13 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
+from airflow.api_fastapi.routes.router import AirflowRouter
 from airflow.api_fastapi.serializers.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
 )
-from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 

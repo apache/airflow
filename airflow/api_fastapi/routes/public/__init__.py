@@ -17,14 +17,18 @@
 
 from __future__ import annotations
 
-from airflow.api.common.airflow_health import get_airflow_health
-from airflow.api_fastapi.serializers.monitor import HealthInfoSchema
-from airflow.api_fastapi.views.router import AirflowRouter
+from airflow.api_fastapi.routes.public.connections import connections_router
+from airflow.api_fastapi.routes.public.dag_run import dag_run_router
+from airflow.api_fastapi.routes.public.dags import dags_router
+from airflow.api_fastapi.routes.public.monitor import monitor_router
+from airflow.api_fastapi.routes.public.variables import variables_router
+from airflow.api_fastapi.routes.router import AirflowRouter
 
-monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
+public_router = AirflowRouter(prefix="/public")
 
 
-@monitor_router.get("/health")
-async def get_health() -> HealthInfoSchema:
-    airflow_health_status = get_airflow_health()
-    return HealthInfoSchema.model_validate(airflow_health_status)
+public_router.include_router(dags_router)
+public_router.include_router(connections_router)
+public_router.include_router(variables_router)
+public_router.include_router(dag_run_router)
+public_router.include_router(monitor_router)
