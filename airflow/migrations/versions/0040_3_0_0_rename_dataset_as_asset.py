@@ -181,26 +181,6 @@ def upgrade():
             unique=False,
         )
 
-        # _rename_fk_constraint(
-        #     batch_op=batch_op,
-        #     original_name=op.f("dataset_alias_dataset_event_asset_id_fk_key"),
-        #     new_name=op.f("asset_alias_asset_event_asset_id_fk_key"),
-        #     reference_table="asset_alias",
-        #     local_cols=["alias_id"],
-        #     remote_cols=["id"],
-        #     ondelete="CASCADE",
-        # )
-
-        # _rename_fk_constraint(
-        #     batch_op=batch_op,
-        #     original_name=op.f("dataset_alias_dataset_event_event_id_fk_key"),
-        #     new_name=op.f("asset_alias_asset_event_event_id_fk_key"),
-        #     reference_table="asset_event",
-        #     local_cols=["event_id"],
-        #     remote_cols=["id"],
-        #     ondelete="CASCADE",
-        # )
-
     with op.batch_alter_table("asset_alias", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
@@ -412,6 +392,17 @@ def upgrade():
             type_=sqlalchemy_jsonfield.JSONField(json=json),
         )
 
+    with op.batch_alter_table("asset_active", schema=None) as batch_op:
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="asset_active_asset_name_uri_fkey",
+            new_name="asset_active_asset_name_uri_fkey",
+            reference_table="asset",
+            local_cols=["name", "uri"],
+            remote_cols=["name", "uri"],
+            ondelete="CASCADE",
+        )
+
 
 def downgrade():
     """Unapply Rename dataset as asset."""
@@ -428,7 +419,7 @@ def downgrade():
 
     with op.batch_alter_table("dataset_alias_dataset", schema=None) as batch_op:
         batch_op.create_foreign_key(
-            constraint_name="dataset_alias_dataset_alias_id_fk_key",
+            constraint_name="dataset_alias_dataset_alias_id_fkey",
             referent_table="dataset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
@@ -437,7 +428,7 @@ def downgrade():
 
         batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer())
         batch_op.create_foreign_key(
-            constraint_name=op.f("dataset_alias_dataset_dataset_id_fkkey"),
+            constraint_name=op.f("dataset_alias_dataset_dataset_id_fkey"),
             referent_table="dataset",
             local_cols=["dataset_id"],
             remote_cols=["id"],
@@ -541,6 +532,16 @@ def downgrade():
             new_name="idx_dataset_alias_name_unique",
             columns=["name"],
             unique=True,
+        )
+    with op.batch_alter_table("asset_active", schema=None) as batch_op:
+        _rename_fk_constraint(
+            batch_op=batch_op,
+            original_name="asset_active_asset_name_uri_fkey",
+            new_name="asset_active_asset_name_uri_fkey",
+            reference_table="dataset",
+            local_cols=["name", "uri"],
+            remote_cols=["name", "uri"],
+            ondelete="CASCADE",
         )
 
     with op.batch_alter_table("dataset", schema=None) as batch_op:
