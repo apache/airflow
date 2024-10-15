@@ -23,15 +23,13 @@ import { NavLink } from "react-router-dom";
 import { navButtonProps } from "./navButtonProps";
 
 type NavButtonProps = {
-  readonly href?: string;
   readonly icon: ReactElement;
-  readonly target?: string;
   readonly title?: string;
-  readonly to?: string;
+  readonly to: string;
 } & ButtonProps;
 
 export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
-  <Box as={NavLink} to={to ?? ""}>
+  <Box as={NavLink} to={to}>
     {({ isActive }: { readonly isActive: boolean }) => (
       <Button isActive={isActive} {...navButtonProps} {...rest}>
         <Box alignSelf="center">{icon}</Box>
