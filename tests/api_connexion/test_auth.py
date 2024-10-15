@@ -43,7 +43,9 @@ class TestSessionAuth(BaseTestAuth):
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
+            with conf_vars(
+                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.session"}
+            ):
                 init_api_auth(minimal_app_for_api)
                 yield
         finally:
