@@ -580,7 +580,7 @@ class TestWasbHook:
         # `ContainerClient.delete_blobs()` in this test.
         assert mock_delete_blobs.call_count == 2
 
-    @mock.patch.object("WasbHook._get_blob_client")
+    @mock.patch("WasbHook._get_blob_client")
     def test_copy_blobs(self, mock_get_blob_client):
         # Arrange
         hook = WasbHook()
