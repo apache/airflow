@@ -58,7 +58,7 @@ dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-http
   - aiohttp>=3.9.2
-  - asgiref
+  - asgiref>=2.3.0
 
 integrations:
   - integration-name: Apache Livy
