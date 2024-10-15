@@ -39,7 +39,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
     .. code-block:: python
 
         from airflow.operators.empty import EmptyOperator
-
+        from airflow.operators.weekday import BranchDayOfWeekOperator
         monday = EmptyOperator(task_id="monday")
         other_day = EmptyOperator(task_id="other_day")
 
@@ -59,6 +59,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         # import WeekDay Enum
         from airflow.utils.weekday import WeekDay
         from airflow.operators.empty import EmptyOperator
+        from airflow.operators.weekday import BranchDayOfWeekOperator
 
         workday = EmptyOperator(task_id="workday")
         weekend = EmptyOperator(task_id="weekend")
