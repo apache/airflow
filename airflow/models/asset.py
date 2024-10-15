@@ -46,18 +46,6 @@ alias_association_table = Table(
     Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_asset_id", "asset_id"),
-    ForeignKeyConstraint(
-        ("alias_id",),
-        ["asset_alias.id"],
-        name="a_aa_alias_id",
-        ondelete="CASCADE",
-    ),
-    ForeignKeyConstraint(
-        ("asset_id",),
-        ["asset.id"],
-        name="a_aa_asset_id",
-        ondelete="CASCADE",
-    ),
 )
 
 asset_alias_asset_event_assocation_table = Table(
