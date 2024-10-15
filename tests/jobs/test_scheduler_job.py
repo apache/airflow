@@ -81,7 +81,6 @@ from tests_common.test_utils.db import (
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
-    clear_db_sla_miss,
     set_default_pool_slots,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
@@ -143,7 +142,6 @@ class TestSchedulerJob:
         clear_db_backfills()
         clear_db_pools()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_assets()
@@ -6236,7 +6234,6 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()

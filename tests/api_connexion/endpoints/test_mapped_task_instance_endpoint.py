@@ -33,7 +33,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -81,7 +81,6 @@ class TestMappedTaskInstanceEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
 
     def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
@@ -227,7 +226,6 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queued_when": None,
             "rendered_fields": {},
             "rendered_map_index": None,
-            "sla_miss": None,
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",
             "task_id": "task_2",
