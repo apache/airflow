@@ -51,7 +51,6 @@ class AssetPydantic(BaseModelPydantic):
     extra: Optional[dict]
     created_at: datetime
     updated_at: datetime
-    is_orphaned: bool
 
     consuming_dags: List[DagScheduleAssetReferencePydantic]
     producing_tasks: List[TaskOutletAssetReferencePydantic]
