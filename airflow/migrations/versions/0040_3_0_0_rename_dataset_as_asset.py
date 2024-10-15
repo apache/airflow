@@ -452,26 +452,6 @@ def downgrade():
             unique=False,
         )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="a_aa_alias_id",
-            new_name="ds_dsa_alias_id",
-            reference_table="dataset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="a_aa_asset_id",
-            new_name="ds_dsa_dataset_id",
-            reference_table="dataset",
-            local_cols=["dataset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
     with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
         batch_op.create_foreign_key(
             constraint_name="dataset_alias_dataset_event_alias_id_fk_key",
@@ -505,26 +485,6 @@ def downgrade():
             unique=False,
         )
 
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="aa_ae_alias_id",
-            new_name="dss_de_alias_id",
-            reference_table="dataset_alias",
-            local_cols=["alias_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
-        _rename_fk_constraint(
-            batch_op=batch_op,
-            original_name="aa_ae_event_id",
-            new_name="dss_de_event_id",
-            reference_table="dataset_event",
-            local_cols=["event_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-
     with op.batch_alter_table("dataset_alias", schema=None) as batch_op:
         _rename_index(
             batch_op=batch_op,
@@ -533,6 +493,7 @@ def downgrade():
             columns=["name"],
             unique=True,
         )
+
     with op.batch_alter_table("asset_active", schema=None) as batch_op:
         _rename_fk_constraint(
             batch_op=batch_op,
