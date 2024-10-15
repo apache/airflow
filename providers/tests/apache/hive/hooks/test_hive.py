@@ -25,6 +25,7 @@ from unittest import mock
 import pandas as pd
 import pytest
 from hmsclient import HMSClient
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -34,7 +35,6 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 from providers.tests.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
