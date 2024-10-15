@@ -41,14 +41,14 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.models import DEFAULT_DATE
-
-from dev.tests_common.test_utils.mapping import expand_mapped_task
-from dev.tests_common.test_utils.mock_operators import (
+from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mock_operators import (
     MockOperator,
     MockOperatorWithNestedFields,
     NestedFields,
 )
+
+from tests.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
 

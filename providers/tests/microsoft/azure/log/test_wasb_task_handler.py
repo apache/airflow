@@ -24,14 +24,13 @@ from unittest import mock
 
 import pytest
 from azure.common import AzureHttpError
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 

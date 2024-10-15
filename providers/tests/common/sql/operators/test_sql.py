@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
