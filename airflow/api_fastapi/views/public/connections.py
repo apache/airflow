@@ -76,7 +76,9 @@ async def get_connections(
     order_by: Annotated[
         SortParam,
         Depends(
-            SortParam(["connection_id", "conn_type", "description", "host", "port", "id"], Connection).depends
+            SortParam(
+                ["connection_id", "conn_type", "description", "host", "port", "id"], Connection
+            ).dynamic_depends()
         ),
     ],
     session: Annotated[Session, Depends(get_session)],

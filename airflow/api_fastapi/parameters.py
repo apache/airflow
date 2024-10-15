@@ -20,7 +20,7 @@ from __future__ import annotations
 import importlib
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
@@ -151,7 +151,6 @@ class _DagDisplayNamePatternSearch(_SearchParam):
         return self.set_value(dag_display_name_pattern)
 
 
-# SortParam Implementations
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
@@ -216,8 +215,14 @@ class SortParam(BaseParam[str]):
         dynamic_return_model = getattr(importlib.import_module("airflow.models"), model_string)
         return inspect(dynamic_return_model).primary_key[0].name
 
-    def depends(self, order_by: str = "") -> SortParam:
-        return self.set_value(self.get_primary_key() if order_by == "" else order_by)
+    def depends(self, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use dynamic_depends, depends not implemented.")
+
+    def dynamic_depends(self) -> Callable:
+        def inner(order_by: str = self.get_primary_key()) -> SortParam:
+            return self.set_value(self.get_primary_key() if order_by == "" else order_by)
+
+        return inner
 
 
 class _TagsFilter(BaseParam[List[str]]):

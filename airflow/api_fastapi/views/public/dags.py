@@ -72,7 +72,7 @@ async def get_dags(
             SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
                 DagModel,
-            ).depends
+            ).dynamic_depends()
         ),
     ],
     session: Annotated[Session, Depends(get_session)],
