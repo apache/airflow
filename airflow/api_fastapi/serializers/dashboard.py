@@ -37,7 +37,7 @@ class DAGRunStates(BaseModel):
     failed: int
 
 
-class TaskInstantState(BaseModel):
+class TaskInstanceState(BaseModel):
     """TaskInstance serializer for responses."""
 
     no_status: int
@@ -60,4 +60,4 @@ class HistoricalMetricDataResponse(BaseModel):
 
     dag_run_types: DAGRunTypes
     dag_run_states: DAGRunStates
-    task_instance_states: TaskInstantState
+    task_instance_states: TaskInstanceState

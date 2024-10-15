@@ -944,8 +944,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/monitor/health:
+    get:
+      tags:
+      - Monitor
+      summary: Get Health
+      operationId: get_health
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthInfoSchema'
 components:
   schemas:
+    BaseInfoSchema:
+      properties:
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      type: object
+      required:
+      - status
+      title: BaseInfoSchema
+      description: Base status field for metadatabase and scheduler.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -1553,6 +1578,24 @@ components:
       - dataset_triggered
       title: DAGRunTypes
       description: DAG Run Types for responses.
+    DagProcessorInfoSchema:
+      properties:
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        latest_dag_processor_heartbeat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Dag Processor Heartbeat
+      type: object
+      required:
+      - status
+      - latest_dag_processor_heartbeat
+      title: DagProcessorInfoSchema
+      description: Schema for DagProcessor info.
     DagRunState:
       type: string
       enum:
@@ -1627,6 +1670,24 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HealthInfoSchema:
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/BaseInfoSchema'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerInfoSchema'
+        triggerer:
+          $ref: '#/components/schemas/TriggererInfoSchema'
+        dag_processor:
+          $ref: '#/components/schemas/DagProcessorInfoSchema'
+      type: object
+      required:
+      - metadatabase
+      - scheduler
+      - triggerer
+      - dag_processor
+      title: HealthInfoSchema
+      description: Schema for the Health endpoint.
     HistoricalMetricDataResponse:
       properties:
         dag_run_types:
@@ -1634,7 +1695,7 @@ components:
         dag_run_states:
           $ref: '#/components/schemas/DAGRunStates'
         task_instance_states:
-          $ref: '#/components/schemas/TaskInstantState'
+          $ref: '#/components/schemas/TaskInstanceState'
       type: object
       required:
       - dag_run_types
@@ -1642,7 +1703,25 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
-    TaskInstantState:
+    SchedulerInfoSchema:
+      properties:
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        latest_scheduler_heartbeat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Scheduler Heartbeat
+      type: object
+      required:
+      - status
+      - latest_scheduler_heartbeat
+      title: SchedulerInfoSchema
+      description: Schema for Scheduler info.
+    TaskInstanceState:
       properties:
         no_status:
           type: integer
@@ -1698,8 +1777,26 @@ components:
       - upstream_failed
       - skipped
       - deferred
-      title: TaskInstantState
+      title: TaskInstanceState
       description: TaskInstance serializer for responses.
+    TriggererInfoSchema:
+      properties:
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+        latest_triggerer_heartbeat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Triggerer Heartbeat
+      type: object
+      required:
+      - status
+      - latest_triggerer_heartbeat
+      title: TriggererInfoSchema
+      description: Schema for Triggerer info.
     ValidationError:
       properties:
         loc:
