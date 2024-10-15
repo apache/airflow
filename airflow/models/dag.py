@@ -2593,6 +2593,7 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
+        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
