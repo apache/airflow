@@ -327,6 +327,12 @@ export type PatchDagData = {
 
 export type PatchDagResponse = DAGResponse;
 
+export type DeleteDagData = {
+  dagId: string;
+};
+
+export type DeleteDagResponse = unknown;
+
 export type GetDagDetailsData = {
   dagId: string;
 };
@@ -523,6 +529,35 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Unprocessable Entity
+         */
+        422: HTTPExceptionResponse;
       };
     };
   };
