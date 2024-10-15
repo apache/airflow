@@ -36,8 +36,8 @@ Committers will exercise their judgement on what endpoints should exist in the p
 Airflow UI
 ----------
 
-``airflow/ui`` is our React frontend powered. Dependencies are managed by pnpm and dev/build processes by `Vite <https://vitejs.dev/guide/>`__
-Make sure you are using recent versions of ``pnpm\>=9`` and ``node/>=20``. ``breeze start-airflow`` will build the UI automatically.
+``airflow/ui`` is our React frontend powered. Dependencies are managed by pnpm and dev/build processes by `Vite <https://vitejs.dev/guide/>`__.
+Make sure you are using recent versions of ``pnpm>=9`` and ``node>=20``. ``breeze start-airflow`` will build the UI automatically.
 Adding the ``--dev-mode`` flag will automatically run the vite dev server for hot reloading the UI during local development.
 
 pnpm commands

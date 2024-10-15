@@ -23,13 +23,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 
 @pytest.mark.db_test

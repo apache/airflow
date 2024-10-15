@@ -21,10 +21,10 @@ import os
 from tempfile import TemporaryDirectory
 
 import pytest
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
 
-from dev.tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_KMS_KEY
 
 # To prevent resource name collisions, key ring and key resources CANNOT be deleted, so

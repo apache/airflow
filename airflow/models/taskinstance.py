@@ -1632,11 +1632,12 @@ def _get_previous_ti(
 
 @internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
+    session.flush()
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
@@ -2640,7 +2641,7 @@ class TaskInstance(Base, LoggingMixin):
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
         :param hostname: The hostname of the worker running the task instance.
-        :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
+        :param job_id: Job (LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session

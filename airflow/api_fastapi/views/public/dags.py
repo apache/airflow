@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query, Request
+from fastapi import Depends, HTTPException, Query, Request, Response
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
+from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.db.common import (
     get_session,
     paginated_select,
@@ -48,6 +49,7 @@ from airflow.api_fastapi.serializers.dags import (
     DAGResponse,
 )
 from airflow.api_fastapi.views.router import AirflowRouter
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
@@ -68,8 +70,9 @@ async def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"]
-            ).depends
+                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                DagModel,
+            ).dynamic_depends()
         ),
     ],
     session: Annotated[Session, Depends(get_session)],
@@ -204,3 +207,18 @@ async def patch_dags(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
         total_entries=total_entries,
     )
+
+
+@dags_router.delete("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+async def delete_dag(
+    dag_id: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> Response:
+    """Delete the specific DAG."""
+    try:
+        delete_dag_module.delete_dag(dag_id, session=session)
+    except DagNotFound:
+        raise HTTPException(404, f"Dag with id: {dag_id} was not found")
+    except AirflowException:
+        raise HTTPException(409, f"Task instances of dag with id: '{dag_id}' are still running")
+    return Response(status_code=204)

@@ -27,6 +27,7 @@ import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, BashOperator
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
@@ -43,8 +44,6 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, BashOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

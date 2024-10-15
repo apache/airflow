@@ -34,7 +34,7 @@ with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1,
     # [END howto_operator_cohere_embedding]
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run
+from tests_common.test_utils.system_tests import get_test_run
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

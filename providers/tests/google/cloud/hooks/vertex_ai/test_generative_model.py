@@ -27,7 +27,9 @@ from airflow.exceptions import (
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
-from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
+from datetime import timedelta
+
+from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Part, Tool, grounding
 from vertexai.preview.evaluation import MetricPromptTemplateExamples
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
@@ -105,6 +107,27 @@ TEST_METRICS = [
 TEST_EXPERIMENT_NAME = "eval-experiment-airflow-operator"
 TEST_EXPERIMENT_RUN_NAME = "eval-experiment-airflow-operator-run"
 TEST_PROMPT_TEMPLATE = "{instruction}. Article: {context}. Summary:"
+
+TEST_CACHED_CONTENT_NAME = "test-example-cache"
+TEST_CACHED_CONTENT_PROMPT = ["What are these papers about?"]
+TEST_CACHED_MODEL = "gemini-1.5-pro-002"
+TEST_CACHED_SYSTEM_INSTRUCTION = """
+You are an expert researcher. You always stick to the facts in the sources provided, and never make up new facts.
+Now look at these research papers, and answer the following questions.
+"""
+
+TEST_CACHED_CONTENTS = [
+    Part.from_uri(
+        "gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+        mime_type="application/pdf",
+    ),
+    Part.from_uri(
+        "gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+        mime_type="application/pdf",
+    ),
+]
+TEST_CACHED_TTL = 1
+TEST_CACHED_DISPLAY_NAME = "test-example-cache"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
@@ -298,4 +321,39 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             model=mock_model.return_value,
             prompt_template=TEST_PROMPT_TEMPLATE,
             experiment_run_name=TEST_EXPERIMENT_RUN_NAME,
+        )
+
+    @mock.patch("vertexai.preview.caching.CachedContent.create")
+    def test_create_cached_content(self, mock_cached_content_create) -> None:
+        self.hook.create_cached_content(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model_name=TEST_CACHED_MODEL,
+            system_instruction=TEST_CACHED_SYSTEM_INSTRUCTION,
+            contents=TEST_CACHED_CONTENTS,
+            ttl_hours=TEST_CACHED_TTL,
+            display_name=TEST_CACHED_DISPLAY_NAME,
+        )
+
+        mock_cached_content_create.assert_called_once_with(
+            model_name=TEST_CACHED_MODEL,
+            system_instruction=TEST_CACHED_SYSTEM_INSTRUCTION,
+            contents=TEST_CACHED_CONTENTS,
+            ttl=timedelta(hours=TEST_CACHED_TTL),
+            display_name=TEST_CACHED_DISPLAY_NAME,
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_cached_context_model"))
+    def test_generate_from_cached_content(self, mock_cached_context_model) -> None:
+        self.hook.generate_from_cached_content(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            cached_content_name=TEST_CACHED_CONTENT_NAME,
+            contents=TEST_CACHED_CONTENT_PROMPT,
+        )
+
+        mock_cached_context_model.return_value.generate_content.assert_called_once_with(
+            contents=TEST_CACHED_CONTENT_PROMPT,
+            generation_config=None,
+            safety_settings=None,
         )
