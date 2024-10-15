@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 from argparse import Namespace
 from typing import TYPE_CHECKING
+from tenacity import RetryError
 from unittest import mock
 
 import pytest
@@ -275,19 +276,19 @@ class TestInternalApiCall:
         }
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
-    @mock.patch("tenacity.wait_exponential")
-    def test_retry_on_bad_gateway(self, mock_requests, mock_wait):
+    @mock.patch("tenacity.time.sleep")
+    def test_retry_on_bad_gateway(self, mock_sleep, mock_requests):
         configure_internal_api(Namespace(subcommand="dag-processor"), conf)
         response = requests.Response()
         response.status_code = 502
         response.reason = "Bad Gateway"
-        mock_wait = lambda *_, **__: None
         response._content = b"Bad Gateway"
-
+        
+        mock_sleep = lambda *_, **__: None
         mock_requests.post.return_value = response
-        with pytest.raises(AirflowHttpException):
+        with pytest.raises(RetryError):
             result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
-            assert mock_requests.post.call_count == 10
+        assert mock_requests.post.call_count == 10
 
     @conf_vars(
         {
