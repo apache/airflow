@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
 import multiprocessing
 import os
@@ -2023,7 +2024,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if (executor := self._try_to_load_executor(ti.executor)) is None:
                 self.log.warning("Cannot clean up zombie %r with non-existent executor %s", ti, ti.executor)
                 continue
-            executor.running.remove(ti.key)
+            with contextlib.suppress(KeyError):
+                executor.running.remove(ti.key)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     # [END find_and_purge_zombies]
