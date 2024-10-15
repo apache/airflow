@@ -5597,7 +5597,7 @@ class TestSchedulerJob:
             session.flush()
             executor.running.add(ti.key)  # The executor normally does this during heartbeat.
             self.job_runner._find_and_purge_zombies()
-            assert ti.key not in executor.running, (ti.key, executor.running)
+            assert ti.key not in executor.running
 
         executor.callback_sink.send.assert_called_once()
         callback_requests = executor.callback_sink.send.call_args.args
