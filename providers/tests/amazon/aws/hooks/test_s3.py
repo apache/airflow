@@ -30,6 +30,7 @@ import boto3
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -42,8 +43,6 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     unify_bucket_name_and_key,
 )
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 @pytest.fixture

@@ -69,15 +69,10 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.listeners import dag_listener
-from tests.listeners.test_listeners import get_listener_manager
-from tests.models import TEST_DAGS_FOLDER
-from tests.utils.test_timezone import UTC
-
-from dev.tests_common.test_utils.asserts import assert_queries_count
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars, env_vars
-from dev.tests_common.test_utils.db import (
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
@@ -89,8 +84,13 @@ from dev.tests_common.test_utils.db import (
     clear_db_sla_miss,
     set_default_pool_slots,
 )
-from dev.tests_common.test_utils.mock_executor import MockExecutor
-from dev.tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.mock_operators import CustomOperator
+
+from tests.listeners import dag_listener
+from tests.listeners.test_listeners import get_listener_manager
+from tests.models import TEST_DAGS_FOLDER
+from tests.utils.test_timezone import UTC
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -6086,9 +6086,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove 2 asset references
@@ -6105,14 +6105,13 @@ class TestSchedulerJob:
         non_orphaned_assets = [
             asset.uri
             for asset in session.query(AssetModel.uri)
-            .filter(~AssetModel.is_orphaned)
+            .filter(AssetModel.active.has())
             .order_by(AssetModel.uri)
         ]
         assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri).filter(AssetModel.is_orphaned).order_by(AssetModel.uri)
-        ]
+        orphaned_assets = session.scalars(
+            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
+        ).all()
         assert orphaned_assets == ["ds2", "ds4"]
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
@@ -6121,9 +6120,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove asset1 reference
@@ -6138,7 +6137,7 @@ class TestSchedulerJob:
 
         orphaned_assets_before_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
@@ -6151,7 +6150,7 @@ class TestSchedulerJob:
 
         orphaned_assets_after_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]

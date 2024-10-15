@@ -79,7 +79,7 @@ export type DAGDetailsResponse = {
 };
 
 /**
- * Dag Serializer for updatable body.
+ * Dag Serializer for updatable bodies.
  */
 export type DAGPatchBody = {
   is_paused: boolean;
@@ -251,12 +251,21 @@ export type ValidationError = {
 };
 
 /**
+ * Variable serializer for bodies.
+ */
+export type VariableBody = {
+  key: string;
+  description: string | null;
+  value: string | null;
+};
+
+/**
  * Variable serializer for responses.
  */
 export type VariableResponse = {
   key: string;
-  value: string | null;
   description: string | null;
+  value: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -347,6 +356,20 @@ export type GetVariableData = {
 };
 
 export type GetVariableResponse = VariableResponse;
+
+export type PatchVariableData = {
+  requestBody: VariableBody;
+  updateMask?: Array<string> | null;
+  variableKey: string;
+};
+
+export type PatchVariableResponse = VariableResponse;
+
+export type PostVariableData = {
+  requestBody: VariableBody;
+};
+
+export type PostVariableResponse = VariableResponse;
 
 export type GetDagRunData = {
   dagId: string;
@@ -631,6 +654,58 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/": {
+    post: {
+      req: PostVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

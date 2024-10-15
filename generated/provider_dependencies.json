@@ -243,7 +243,7 @@
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
-      "asgiref"
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -472,7 +472,7 @@
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
-      "asgiref"
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -746,7 +746,7 @@
     "deps": [
       "aiohttp>=3.9.2",
       "apache-airflow>=2.8.0",
-      "asgiref",
+      "asgiref>=2.3.0",
       "requests>=2.27.0,<3",
       "requests_toolbelt"
     ],
@@ -828,6 +828,8 @@
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
       "microsoft-kiota-http>=1.3.0,!=1.3.4",
+      "microsoft-kiota-serialization-json==1.0.0",
+      "microsoft-kiota-serialization-text==1.0.0",
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [

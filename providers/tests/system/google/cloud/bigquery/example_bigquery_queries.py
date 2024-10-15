@@ -247,7 +247,7 @@ for index, location in enumerate(locations, 1):
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
         execute_insert_query >> [column_check, table_check] >> delete_dataset
 
-        from dev.tests_common.test_utils.watcher import watcher
+        from tests_common.test_utils.watcher import watcher
 
         # This test needs watcher in order to properly mark success/failure
         # when "tearDown" task with trigger rule is part of the DAG
@@ -257,7 +257,7 @@ for index, location in enumerate(locations, 1):
     globals()[DAG_ID] = dag
 
 for dag in DAGS_LIST:
-    from dev.tests_common.test_utils.system_tests import get_test_run
+    from tests_common.test_utils.system_tests import get_test_run
 
     # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
     test_run = get_test_run(dag)

@@ -23,8 +23,7 @@ from flask import session, url_for
 
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.www import app as application
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
