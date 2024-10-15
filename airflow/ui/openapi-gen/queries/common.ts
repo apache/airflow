@@ -151,6 +151,30 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
 ];
+export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnections>
+>;
+export type ConnectionServiceGetConnectionsQueryResult<
+  TData = ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionsKey =
+  "ConnectionServiceGetConnections";
+export const UseConnectionServiceGetConnectionsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type VariableServiceGetVariableDefaultResponse = Awaited<
   ReturnType<typeof VariableService.getVariable>
 >;
@@ -196,6 +220,9 @@ export type DagServicePatchDagMutationResult = Awaited<
 >;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
+>;
+export type DagServiceDeleteDagMutationResult = Awaited<
+  ReturnType<typeof DagService.deleteDag>
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
