@@ -21,11 +21,11 @@ from unittest.mock import Mock, patch
 
 import boto3
 import pytest
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response
 
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.www import check_content_in_response
 from providers.tests.system.amazon.aws.utils import set_env_id
 
 SAML_METADATA_URL = "/saml/metadata"

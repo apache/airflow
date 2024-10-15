@@ -40,11 +40,11 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs
+
 from tests.listeners import xcom_listener
 from tests.listeners.file_write_listener import FileWriteListener
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

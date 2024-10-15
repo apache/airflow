@@ -21,6 +21,9 @@ import datetime
 import pathlib
 from unittest.mock import MagicMock, patch
 
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
+from tests_common.test_utils.mock_operators import MockOperator
+
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
@@ -43,9 +46,6 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
-from dev.tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 if not AIRFLOW_V_2_10_PLUS:
@@ -191,7 +191,7 @@ def test_get_fully_qualified_class_name_mapped_operator():
     mapped = MockOperator.partial(task_id="task_2").expand(arg2=["a", "b", "c"])
     assert isinstance(mapped, MappedOperator)
     mapped_op_path = get_fully_qualified_class_name(mapped)
-    assert mapped_op_path == "dev.tests_common.test_utils.mock_operators.MockOperator"
+    assert mapped_op_path == "tests_common.test_utils.mock_operators.MockOperator"
 
 
 def test_get_fully_qualified_class_name_bash_operator():

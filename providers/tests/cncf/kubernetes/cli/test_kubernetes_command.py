@@ -24,12 +24,11 @@ from unittest.mock import MagicMock, call
 import kubernetes
 import pytest
 from dateutil.parser import parse
+from tests_common.test_utils.config import conf_vars
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
 from airflow.providers.cncf.kubernetes.cli import kubernetes_command
-
-from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

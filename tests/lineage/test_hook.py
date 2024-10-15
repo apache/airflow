@@ -33,8 +33,7 @@ from airflow.lineage.hook import (
     NoOpCollector,
     get_hook_lineage_collector,
 )
-
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestHookLineageCollector:
