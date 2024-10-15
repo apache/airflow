@@ -3070,14 +3070,6 @@ components:
             (e.g. the DAG's "refresh" button was clicked in the web UI)
 
             *New in version 2.3.0*
-        scheduler_lock:
-          type: boolean
-          readOnly: true
-          nullable: true
-          description: |
-            Whether (one of) the scheduler is scheduling this DAG at the moment
-
-            *New in version 2.3.0*
         pickle_id:
           type: string
           readOnly: true
