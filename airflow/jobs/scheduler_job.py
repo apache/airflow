@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
-from sqlalchemy import func, not_, or_, text
+from sqlalchemy import func, not_, or_, text, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
@@ -241,6 +241,36 @@ class SchedulerJob(BaseJob):
             dag_map[dag_id] += count
             task_map[(dag_id, task_id)] = count
         return dag_map, task_map
+    
+    @provide_session
+    def _get_starved_dags(self, session: Session = None) -> Set[str]:
+        """
+        Find DAGs that have already reached their max_active_tasks limit
+        and no more tasks can be queued for them.
+        """
+        dag_task_counts = (
+            select(
+                TI.dag_id,
+                func.count().label('current_active_tasks')
+            )
+            .where(TI.state.in_(['running', 'queued']))
+            .group_by(TI.dag_id)
+            .subquery()
+        )
+
+        starved_dags_query = (
+            select(dag_task_counts.c.dag_id)
+            .join(DM, dag_task_counts.c.dag_id == DM.dag_id)
+            .where(dag_task_counts.c.current_active_tasks >= DM.max_active_tasks)
+        )
+
+        result = session.execute(starved_dags_query)
+        
+        # Convert the result to a set of dag_ids
+        starved_dags: Set[str] = set(row[0] for row in result)
+
+        return starved_dags
+
 
     @provide_session
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
@@ -298,7 +328,7 @@ class SchedulerJob(BaseJob):
         num_starving_tasks_total = 0
 
         # dag and task ids that can't be queued because of concurrency limits
-        starved_dags: Set[str] = set()
+        starved_dags: Set[str] = self._get_starved_dags(session=session)
         starved_tasks: Set[Tuple[str, str]] = set()
 
         pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
