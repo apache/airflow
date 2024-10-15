@@ -5543,9 +5543,9 @@ class TestSchedulerJob:
 
     def test_find_and_purge_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.return_value = executor
-            scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(scheduler_job)
             self.job_runner.processor_agent = mock.MagicMock()
             self.job_runner._find_and_purge_zombies()
@@ -5568,9 +5568,9 @@ class TestSchedulerJob:
         )
 
         executor = MockExecutor()
+        scheduler_job = Job(executor=executor)
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.return_value = executor
-            scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
             self.job_runner.processor_agent = mock.MagicMock()
 
