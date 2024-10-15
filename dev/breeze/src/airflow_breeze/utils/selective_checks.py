@@ -42,6 +42,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -244,7 +245,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^dev/tests_common/.*\.py$",
+            r"^tests_common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -1318,7 +1319,11 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return TESTABLE_INTEGRATIONS
+        return [
+            integration
+            for integration in TESTABLE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):

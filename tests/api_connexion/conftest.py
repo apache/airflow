@@ -19,9 +19,8 @@ from __future__ import annotations
 import pytest
 
 from airflow.www import app
-
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
@@ -39,7 +38,7 @@ def minimal_app_for_api():
     def factory():
         with conf_vars(
             {
-                ("api", "auth_backends"): "dev.tests_common.test_utils.remote_user_api_auth_backend",
+                ("api", "auth_backends"): "tests_common.test_utils.remote_user_api_auth_backend",
                 (
                     "core",
                     "auth_manager",

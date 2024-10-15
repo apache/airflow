@@ -16,14 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.serializers.variables import VariableResponse
+from airflow.api_fastapi.serializers.variables import VariableBody, VariableResponse
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models.variable import Variable
 
@@ -54,5 +54,42 @@ async def get_variable(
 
     if variable is None:
         raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+
+    return VariableResponse.model_validate(variable, from_attributes=True)
+
+
+@variables_router.patch("/{variable_key}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+async def patch_variable(
+    variable_key: str,
+    patch_body: VariableBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> VariableResponse:
+    """Update a variable by key."""
+    if patch_body.key != variable_key:
+        raise HTTPException(400, "Invalid body, key from request body doesn't match uri parameter")
+    non_update_fields = {"key"}
+    variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not variable:
+        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+    if update_mask:
+        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+    else:
+        data = patch_body.model_dump(exclude=non_update_fields)
+    for key, val in data.items():
+        setattr(variable, key, val)
+    session.add(variable)
+    return variable
+
+
+@variables_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
+async def post_variable(
+    post_body: VariableBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> VariableResponse:
+    """Create a variable."""
+    Variable.set(**post_body.model_dump(), session=session)
+
+    variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
     return VariableResponse.model_validate(variable, from_attributes=True)

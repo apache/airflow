@@ -12,12 +12,14 @@ import {
   DagRunService,
   DagService,
   DashboardService,
+  MonitorService,
   VariableService,
 } from "../requests/services.gen";
 import {
   DAGPatchBody,
   DAGRunPatchBody,
   DagRunState,
+  VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -240,6 +242,42 @@ export const useConnectionServiceGetConnection = <
     ...options,
   });
 /**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceGetConnections = <
+  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Variable
  * Get a variable entry.
  * @param data The data for the request.
@@ -297,6 +335,63 @@ export const useDagRunServiceGetDagRun = <
       queryKey,
     ),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
+    ...options,
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const useMonitorServiceGetHealth = <
+  TData = Common.MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
+    queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Post Variable
+ * Create a variable.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePostVariable = <
+  TData = Common.VariableServicePostVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      VariableService.postVariable({
+        requestBody,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -433,6 +528,53 @@ export const useDagServicePatchDag = <
     ...options,
   });
 /**
+ * Patch Variable
+ * Update a variable by key.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePatchVariable = <
+  TData = Common.VariableServicePatchVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+        updateMask?: string[];
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+      updateMask?: string[];
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody, updateMask, variableKey }) =>
+      VariableService.patchVariable({
+        requestBody,
+        updateMask,
+        variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Modify Dag Run
  * Modify a DAG Run.
  * @param data The data for the request.
@@ -477,6 +619,43 @@ export const useDagRunServiceModifyDagRun = <
         dagRunId,
         requestBody,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Dag
+ * Delete the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceDeleteDag = <
+  TData = Common.DagServiceDeleteDagMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId }) =>
+      DagService.deleteDag({ dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -554,6 +733,49 @@ export const useVariableServiceDeleteVariable = <
     mutationFn: ({ variableKey }) =>
       VariableService.deleteVariable({
         variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Dag Run
+ * Delete a DAG Run entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceDeleteDagRun = <
+  TData = Common.DagRunServiceDeleteDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, dagRunId }) =>
+      DagRunService.deleteDagRun({
+        dagId,
+        dagRunId,
       }) as unknown as Promise<TData>,
     ...options,
   });

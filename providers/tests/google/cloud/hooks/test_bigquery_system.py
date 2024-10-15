@@ -20,10 +20,10 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 
 from airflow.providers.google.cloud.hooks import bigquery as hook
 
-from dev.tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
 
