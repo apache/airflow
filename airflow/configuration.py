@@ -775,6 +775,13 @@ class AirflowConfigParser(ConfigParser):
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
 
+    def get_section_and_key_for_env(self, env: str):
+        if env in os.environ:
+            _, section, key = env.split("__", 2)
+            return section, key
+        else:
+            return None, None
+
     def _get_env_var_option(self, section: str, key: str):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
         env_var = self._env_var_name(section, key)

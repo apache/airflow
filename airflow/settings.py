@@ -118,6 +118,27 @@ STATE_COLORS = {
     "upstream_failed": "orange",
 }
 
+# list of the environment variables that need to be masked from the logs
+# some of these could be sensitive and there's no reason to log those
+ENV_VARIABLES_TO_MASK = [
+    "AIRFLOW__CORE__FERNET_KEY",
+    "AIRFLOW__SMTP__SMTP_PORT",
+    "AIRFLOW__SMTP__SMTP_PASSWORD",
+    "AIRFLOW__SMTP__SMTP_PASSWORD_SECRET",
+    "AIRFLOW__SMTP__SMTP_USER",
+    "AIRFLOW__SMTP__SMTP_SSL",
+    "AIRFLOW__SMTP__SMTP_HOST",
+    "AIRFLOW__WEBSERVER__SECRET_KEY",
+    "AIRFLOW__WEBSERVER__SECRET_KEY_SECRET",
+    "AIRFLOW__SENTRY__SENTRY_DSN_SECRET",
+    "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET",
+    "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS_SECRET",
+    "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY",
+    "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY_SECRET",
+    "AIRFLOW__CORE__DATASET_MANAGER_KWARGS_SECRET",
+    "AIRFLOW__LOGGING__REMOTE_TASK_HANDLER_KWARGS_SECRET",
+]
+
 
 @functools.lru_cache(maxsize=None)
 def _get_rich_console(file):
@@ -722,6 +743,16 @@ def import_local_settings():
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
 
 
+def mask_conf_values():
+    from airflow.utils.log.secrets_masker import mask_secret
+
+    for env in ENV_VARIABLES_TO_MASK:
+        section, key = conf.get_section_and_key_for_env(env)
+        if section is None and key is None:
+            continue
+        mask_secret(conf.get(section, key))
+
+
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
@@ -740,6 +771,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+
+    # mask the configuration irrelevant to DAG author
+    mask_conf_values()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
