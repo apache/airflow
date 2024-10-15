@@ -16,25 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, type ButtonProps } from "@chakra-ui/react";
-import type { ReactElement } from "react";
-import { NavLink } from "react-router-dom";
+export enum SearchParamsKeys {
+  LAST_DAG_RUN_STATE = "last_dag_run_state",
+  LIMIT = "limit",
+  NAME_PATTERN = "name_pattern",
+  OFFSET = "offset",
+  PAUSED = "paused",
+  SORT = "sort",
+}
 
-import { navButtonProps } from "./navButtonProps";
-
-type NavButtonProps = {
-  readonly icon: ReactElement;
-  readonly title?: string;
-  readonly to: string;
-} & ButtonProps;
-
-export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
-  <Box as={NavLink} to={to}>
-    {({ isActive }: { readonly isActive: boolean }) => (
-      <Button isActive={isActive} {...navButtonProps} {...rest}>
-        <Box alignSelf="center">{icon}</Box>
-        <Box fontSize="xs">{title}</Box>
-      </Button>
-    )}
-  </Box>
-);
+export type SearchParamsKeysType = Record<
+  keyof typeof SearchParamsKeys,
+  string
+>;

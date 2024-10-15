@@ -16,18 +16,37 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from airflow.api.common.airflow_health import get_airflow_health
-from airflow.api_connexion.schemas.health_schema import health_schema
-from airflow.utils.api_migration import mark_fastapi_migration_done
-
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+from pydantic import BaseModel
 
 
-@mark_fastapi_migration_done
-def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler, metadatabase and triggerer."""
-    airflow_health_status = get_airflow_health()
-    return health_schema.dump(airflow_health_status)
+class BaseInfoSchema(BaseModel):
+    """Base status field for metadatabase and scheduler."""
+
+    status: str | None
+
+
+class SchedulerInfoSchema(BaseInfoSchema):
+    """Schema for Scheduler info."""
+
+    latest_scheduler_heartbeat: str | None
+
+
+class TriggererInfoSchema(BaseInfoSchema):
+    """Schema for Triggerer info."""
+
+    latest_triggerer_heartbeat: str | None
+
+
+class DagProcessorInfoSchema(BaseInfoSchema):
+    """Schema for DagProcessor info."""
+
+    latest_dag_processor_heartbeat: str | None
+
+
+class HealthInfoSchema(BaseModel):
+    """Schema for the Health endpoint."""
+
+    metadatabase: BaseInfoSchema
+    scheduler: SchedulerInfoSchema
+    triggerer: TriggererInfoSchema
+    dag_processor: DagProcessorInfoSchema
