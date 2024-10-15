@@ -45,102 +45,91 @@ UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UT
 API_PREFIX = "/public/dags"
 
 
-def _create_deactivated_paused_dag(session=None):
-    dag_model = DagModel(
-        dag_id=DAG3_ID,
-        fileloc="/tmp/dag_del_1.py",
-        timetable_summary="2 2 * * *",
-        is_active=False,
-        is_paused=True,
-        owners="test_owner,another_test_owner",
-        next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-    )
+class TestDagEndpoint:
+    """Common class for /public/dags related unit tests."""
 
-    dagrun_failed = DagRun(
-        dag_id=DAG3_ID,
-        run_id="run1",
-        execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        run_type=DagRunType.SCHEDULED,
-        state=DagRunState.FAILED,
-    )
+    @staticmethod
+    def _clear_db():
+        clear_db_runs()
+        clear_db_dags()
+        clear_db_serialized_dags()
 
-    dagrun_success = DagRun(
-        dag_id=DAG3_ID,
-        run_id="run2",
-        execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        run_type=DagRunType.MANUAL,
-        state=DagRunState.SUCCESS,
-    )
+    def _create_deactivated_paused_dag(self, session=None):
+        dag_model = DagModel(
+            dag_id=DAG3_ID,
+            fileloc="/tmp/dag_del_1.py",
+            timetable_summary="2 2 * * *",
+            is_active=False,
+            is_paused=True,
+            owners="test_owner,another_test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
 
-    session.add(dag_model)
-    session.add(dagrun_failed)
-    session.add(dagrun_success)
+        dagrun_failed = DagRun(
+            dag_id=DAG3_ID,
+            run_id="run1",
+            execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            run_type=DagRunType.SCHEDULED,
+            state=DagRunState.FAILED,
+        )
 
+        dagrun_success = DagRun(
+            dag_id=DAG3_ID,
+            run_id="run2",
+            execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+        )
 
-def _create_dag_for_deletion(
-    session,
-    dag_maker,
-    dag_id=None,
-    dag_display_name=None,
-    has_running_dagruns=False,
-):
-    with dag_maker(
-        dag_id,
-        dag_display_name=dag_display_name,
-        start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
-    ):
-        EmptyOperator(task_id="dummy")
+        session.add(dag_model)
+        session.add(dagrun_failed)
+        session.add(dagrun_success)
 
-    if has_running_dagruns:
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.set_state(TaskInstanceState.RUNNING)
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup(self, dag_maker, session=None) -> None:
+        self._clear_db()
 
-    dag_maker.dagbag.sync_to_db()
+        with dag_maker(
+            DAG1_ID,
+            dag_display_name=DAG1_DISPLAY_NAME,
+            schedule=None,
+            start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
+            doc_md="details",
+            params={"foo": 1},
+            tags=["example"],
+        ):
+            EmptyOperator(task_id=TASK_ID)
 
+        dag_maker.create_dagrun(state=DagRunState.FAILED)
 
-@pytest.fixture(autouse=True)
-@provide_session
-def setup(dag_maker, session=None) -> None:
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_serialized_dags()
+        with dag_maker(
+            DAG2_ID,
+            schedule=None,
+            start_date=DAG2_START_DATE,
+            doc_md="details",
+            params={"foo": 1},
+            max_active_tasks=16,
+            max_active_runs=16,
+        ):
+            EmptyOperator(task_id=TASK_ID)
 
-    with dag_maker(
-        DAG1_ID,
-        dag_display_name=DAG1_DISPLAY_NAME,
-        schedule=None,
-        start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
-        doc_md="details",
-        params={"foo": 1},
-        tags=["example"],
-    ):
-        EmptyOperator(task_id=TASK_ID)
+        self._create_deactivated_paused_dag(session)
 
-    dag_maker.create_dagrun(state=DagRunState.FAILED)
+        dag_maker.dagbag.sync_to_db()
+        dag_maker.dag_model.has_task_concurrency_limits = True
+        session.merge(dag_maker.dag_model)
+        session.commit()
 
-    with dag_maker(
-        DAG2_ID,
-        schedule=None,
-        start_date=DAG2_START_DATE,
-        doc_md="details",
-        params={"foo": 1},
-        max_active_tasks=16,
-        max_active_runs=16,
-    ):
-        EmptyOperator(task_id=TASK_ID)
-
-    _create_deactivated_paused_dag(session)
-
-    dag_maker.dagbag.sync_to_db()
-    dag_maker.dag_model.has_task_concurrency_limits = True
-    session.merge(dag_maker.dag_model)
-    session.commit()
+    def teardown_method(self) -> None:
+        self._clear_db()
 
 
-class TestGetDags:
+class TestGetDags(TestDagEndpoint):
+    """Unit tests for Get DAGs."""
+
     @pytest.mark.parametrize(
         "query_params, expected_total_entries, expected_ids",
         [
@@ -188,7 +177,9 @@ class TestGetDags:
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
 
-class TestPatchDag:
+class TestPatchDag(TestDagEndpoint):
+    """Unit tests for Patch DAG."""
+
     @pytest.mark.parametrize(
         "query_params, dag_id, body, expected_status_code, expected_is_paused",
         [
@@ -211,7 +202,9 @@ class TestPatchDag:
             assert body["is_paused"] == expected_is_paused
 
 
-class TestPatchDags:
+class TestPatchDags(TestDagEndpoint):
+    """Unit tests for Patch DAGs."""
+
     @pytest.mark.parametrize(
         "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
         [
@@ -266,7 +259,9 @@ class TestPatchDags:
             assert paused_dag_ids == expected_paused_ids
 
 
-class TestDagDetails:
+class TestDagDetails(TestDagEndpoint):
+    """Unit tests for DAG Details."""
+
     @pytest.mark.parametrize(
         "query_params, dag_id, expected_status_code, dag_display_name, start_date",
         [
@@ -339,7 +334,9 @@ class TestDagDetails:
         assert res_json == expected
 
 
-class TestGetDag:
+class TestGetDag(TestDagEndpoint):
+    """Unit tests for Get DAG."""
+
     @pytest.mark.parametrize(
         "query_params, dag_id, expected_status_code, dag_display_name",
         [
@@ -388,7 +385,30 @@ class TestGetDag:
         assert res_json == expected
 
 
-class TestDeleteDAG:
+class TestDeleteDAG(TestDagEndpoint):
+    """Unit tests for Delete DAG."""
+
+    def _create_dag_for_deletion(
+        self,
+        dag_maker,
+        dag_id=None,
+        dag_display_name=None,
+        has_running_dagruns=False,
+    ):
+        with dag_maker(
+            dag_id,
+            dag_display_name=dag_display_name,
+            start_date=datetime(2024, 10, 10, tzinfo=timezone.utc),
+        ):
+            EmptyOperator(task_id="dummy")
+
+        if has_running_dagruns:
+            dr = dag_maker.create_dagrun()
+            ti = dr.get_task_instances()[0]
+            ti.set_state(TaskInstanceState.RUNNING)
+
+        dag_maker.dagbag.sync_to_db()
+
     @pytest.mark.parametrize(
         "dag_id, dag_display_name, status_code_delete, status_code_details, has_running_dagruns, is_create_dag",
         [
@@ -397,9 +417,8 @@ class TestDeleteDAG:
             (DAG5_ID, DAG5_DISPLAY_NAME, 409, 200, True, True),
         ],
     )
-    @provide_session
     def test_delete_dag(
-        session,
+        self,
         dag_maker,
         test_client,
         dag_id,
@@ -410,9 +429,8 @@ class TestDeleteDAG:
         is_create_dag,
     ):
         if is_create_dag:
-            _create_dag_for_deletion(
-                session,
-                dag_maker,
+            self._create_dag_for_deletion(
+                dag_maker=dag_maker,
                 dag_id=dag_id,
                 dag_display_name=dag_display_name,
                 has_running_dagruns=has_running_dagruns,
