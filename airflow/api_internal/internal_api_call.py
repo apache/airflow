@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 class AirflowHttpException(AirflowException):
     """Raise when there is a problem during an http request."""
 
-    def __init__(self, message: str, status_code: int | HTTPStatus):
+    def __init__(self, message: str, status_code: HTTPStatus):
         super().__init__(message)
         self.status_code = status_code
 
@@ -116,7 +116,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     def is_retryable_exception(exception: BaseException) -> bool:
         retryable_status_codes = (HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT)
         return (
-            isinstance(exception, AirflowHttpException) 
+            isinstance(exception, AirflowHttpException)
             and exception.status_code in retryable_status_codes
             or isinstance(exception, (ConnectionError, NewConnectionError))
         )
@@ -145,7 +145,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
             raise AirflowHttpException(
                 f"Got {response.status_code}:{response.reason} when sending "
                 f"the internal api request: {response.text}",
-                response.status_code,
+                HTTPStatus(response.status_code),
             )
         return response.content
 
