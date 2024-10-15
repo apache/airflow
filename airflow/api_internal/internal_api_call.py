@@ -41,7 +41,7 @@ RT = TypeVar("RT")
 logger = logging.getLogger(__name__)
 
 class AirflowHttpException(AirflowException):
-    """Raise when there is a problem during an http request."""
+    """Raise when there is a problem during an http request on the internal API decorator."""
 
     def __init__(self, message: str, status_code: HTTPStatus):
         super().__init__(message)
