@@ -21,8 +21,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -742,8 +740,6 @@ class CountTokensOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="total_tokens", value=response.total_tokens)
         self.xcom_push(context, key="total_billable_characters", value=response.total_billable_characters)
 
-        return types_v1beta1.CountTokensResponse.to_dict(response)
-
 
 class RunEvaluationOperator(GoogleCloudBaseOperator):
     """
@@ -842,3 +838,155 @@ class RunEvaluationOperator(GoogleCloudBaseOperator):
         )
 
         return response.summary_metrics
+
+
+class CreateCachedContentOperator(GoogleCloudBaseOperator):
+    """
+    Create CachedContent to reduce the cost of requests that contain repeat content with high input token counts.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param model_name: Required. The name of the publisher model to use for cached content.
+    :param system_instruction: Developer set system instruction.
+    :param contents: The content to cache.
+    :param ttl_hours: The TTL for this resource in hours. The expiration time is computed: now + TTL.
+        Defaults to one hour.
+    :param display_name: The user-generated meaningful display name of the cached content
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "model_name",
+        "contents",
+        "system_instruction",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        model_name: str,
+        system_instruction: str | None = None,
+        contents: list | None = None,
+        ttl_hours: float = 1,
+        display_name: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.location = location
+        self.model_name = model_name
+        self.system_instruction = system_instruction
+        self.contents = contents
+        self.ttl_hours = ttl_hours
+        self.display_name = display_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        self.hook = GenerativeModelHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        response = self.hook.create_cached_content(
+            project_id=self.project_id,
+            location=self.location,
+            model_name=self.model_name,
+            system_instruction=self.system_instruction,
+            contents=self.contents,
+            ttl_hours=self.ttl_hours,
+            display_name=self.display_name,
+        )
+
+        self.log.info("Cached Content Name: %s", response)
+
+        return response
+
+
+class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
+    """
+    Generate a response from CachedContent.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param cached_content_name: Required. The name of the cached content resource.
+    :param contents: Required. The multi-part content of a message that a user or a program
+        gives to the generative model, in order to elicit a specific response.
+    :param generation_config: Optional. Generation configuration settings.
+    :param safety_settings: Optional. Per request settings for blocking unsafe content.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "cached_content_name",
+        "contents",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        cached_content_name: str,
+        contents: list,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.location = location
+        self.cached_content_name = cached_content_name
+        self.contents = contents
+        self.generation_config = generation_config
+        self.safety_settings = safety_settings
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        self.hook = GenerativeModelHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = self.hook.generate_from_cached_content(
+            project_id=self.project_id,
+            location=self.location,
+            cached_content_name=self.cached_content_name,
+            contents=self.contents,
+            generation_config=self.generation_config,
+            safety_settings=self.safety_settings,
+        )
+
+        self.log.info("Cached Content Response: %s", response)
+
+        return response
