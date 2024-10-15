@@ -42,6 +42,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -87,12 +88,12 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization WWW"
+    "PythonVenv Serialization TaskSDK WWW"
 )
 
 ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW"
 )
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
@@ -112,6 +113,7 @@ class FileGroupForCi(Enum):
     LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
+    TASK_SDK_FILES = "task_sdk_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -227,6 +229,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/src/",
             r"^providers/tests/",
+            r"^task_sdk/src/",
+            r"^task_sdk/tests/",
             r"^tests",
             r"^kubernetes_tests",
         ],
@@ -241,7 +245,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^dev/tests_common/.*\.py$",
+            r"^tests_common/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_FILES: [
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ],
     }
 )
@@ -258,6 +266,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^providers/tests/.*",
             r"^providers/tests/system/.*",
             r"^tests/dags/test_imports.py",
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ]
     }
 )
@@ -295,6 +305,10 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
+        ],
+        SelectiveUnitTestTypes.TASK_SDK: [
+            r"^task_sdk/src/airflow/sdk/",
+            r"^task_sdk/tests/",
         ],
         SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
@@ -699,6 +713,10 @@ class SelectiveChecks:
             "amazon" in self.parallel_test_types_list_as_string
             or "Providers" in self.parallel_test_types_list_as_string.split(" ")
         )
+
+    @cached_property
+    def run_task_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -1116,6 +1134,10 @@ class SelectiveChecks:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
 
     @cached_property
+    def disable_airflow_repo_cache(self) -> bool:
+        return self.docker_cache == "disabled"
+
+    @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
 
@@ -1297,7 +1319,11 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return TESTABLE_INTEGRATIONS
+        return [
+            integration
+            for integration in TESTABLE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):

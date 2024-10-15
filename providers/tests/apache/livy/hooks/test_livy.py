@@ -25,13 +25,12 @@ import pytest
 import requests
 from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
+from tests_common.test_utils.db import clear_db_connections
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 from airflow.utils import db
-
-from dev.tests_common.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 
