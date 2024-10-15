@@ -747,8 +747,8 @@
       "aiohttp>=3.9.2",
       "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
-      "requests>=2.27.0,<3",
-      "requests_toolbelt"
+      "requests-toolbelt>=0.4.0",
+      "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
     "plugins": [],
