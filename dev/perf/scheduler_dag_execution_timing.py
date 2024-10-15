@@ -107,7 +107,7 @@ def get_executor_under_test(dotted_path):
     from airflow.executors.executor_loader import ExecutorLoader
 
     if dotted_path == "MockExecutor":
-        from dev.tests_common.test_utils.mock_executor import MockExecutor as executor
+        from tests_common.test_utils.mock_executor import MockExecutor as executor
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)

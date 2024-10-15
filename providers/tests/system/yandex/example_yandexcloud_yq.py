@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from tests_common.test_utils.system_tests import get_test_env_id
+
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
-
-from dev.tests_common.test_utils.system_tests import get_test_env_id
 
 ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_yq"
@@ -40,13 +40,13 @@ with DAG(
     yq_operator = YQExecuteQueryOperator(task_id="sample_query", sql="select 33 as d, 44 as t")
     yq_operator >> run_this_last
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

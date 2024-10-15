@@ -39,9 +39,9 @@ from airflow.utils.task_instance_session import set_current_task_instance_sessio
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.operators.test_python import BasePythonTest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

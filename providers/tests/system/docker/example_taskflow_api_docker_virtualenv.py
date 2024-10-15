@@ -116,9 +116,15 @@ with models.DAG(
         tutorial_dag = tutorial_taskflow_api_docker_virtualenv()
         # [END dag_invocation]
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
 
 # [END tutorial]
+
+
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

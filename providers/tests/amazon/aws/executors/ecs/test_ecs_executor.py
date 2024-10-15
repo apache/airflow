@@ -32,6 +32,9 @@ import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
 from semver import VersionInfo
+from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -56,10 +59,6 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version_str
-
-from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

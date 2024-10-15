@@ -25,6 +25,7 @@ from unittest import mock
 
 import paramiko
 import pytest
+from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG, Connection
@@ -35,8 +36,6 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

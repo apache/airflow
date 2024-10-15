@@ -20,13 +20,12 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 OPERATOR_PATH = "airflow.providers.google.cloud.operators.looker.{}"
 

@@ -20,12 +20,11 @@ from base64 import b64encode
 
 import pytest
 from flask_login import current_user
-
-from dev.tests_common.test_utils.api_connexion_utils import assert_401
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_pools
-from dev.tests_common.test_utils.www import client_with_login
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.www import client_with_login
 
 pytestmark = [
     pytest.mark.db_test,

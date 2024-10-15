@@ -28,11 +28,10 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
-
-from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from dev.tests_common.test_utils.compat import BaseOperatorLink
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.compat import BaseOperatorLink
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

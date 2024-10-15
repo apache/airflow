@@ -17,6 +17,12 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.gcp_system_helpers import (
+    MARKETING_DAG_FOLDER,
+    GoogleSystemTest,
+    provide_gcp_context,
+)
+from tests_common.test_utils.system_tests import get_test_run
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.marketing_platform.example_dags.example_display_video import (
@@ -25,12 +31,6 @@ from airflow.providers.google.marketing_platform.example_dags.example_display_vi
     dag_example_display_video_sdf,
 )
 
-from dev.tests_common.test_utils.gcp_system_helpers import (
-    MARKETING_DAG_FOLDER,
-    GoogleSystemTest,
-    provide_gcp_context,
-)
-from dev.tests_common.test_utils.system_tests import get_test_run
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY, GMP_KEY
 
 # Requires the following scope:

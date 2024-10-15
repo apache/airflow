@@ -26,8 +26,7 @@ from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
 

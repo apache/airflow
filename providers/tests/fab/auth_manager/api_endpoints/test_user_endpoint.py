@@ -20,15 +20,15 @@ import unittest.mock
 
 import pytest
 from sqlalchemy.sql.functions import count
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.config import conf_vars
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
-from dev.tests_common.test_utils.config import conf_vars
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_role,

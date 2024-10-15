@@ -21,9 +21,8 @@ import html
 import pytest
 
 from airflow.configuration import conf
-
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 

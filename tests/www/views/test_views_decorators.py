@@ -23,10 +23,9 @@ from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_variables
-from dev.tests_common.test_utils.www import (
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs, clear_db_variables
+from tests_common.test_utils.www import (
     _check_last_log,
     _check_last_log_masked_variable,
     check_content_in_response,

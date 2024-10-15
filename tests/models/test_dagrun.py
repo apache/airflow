@@ -46,12 +46,12 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
-from tests.models import DEFAULT_DATE as _DEFAULT_DATE
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_operators import MockOperator
 
-from dev.tests_common.test_utils import db
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.mock_operators import MockOperator
+from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

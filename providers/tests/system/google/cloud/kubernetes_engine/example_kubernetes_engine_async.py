@@ -116,14 +116,14 @@ with DAG(
     create_cluster >> [pod_task, pod_task_xcom_async] >> delete_cluster
     pod_task_xcom_async >> pod_task_xcom_result
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

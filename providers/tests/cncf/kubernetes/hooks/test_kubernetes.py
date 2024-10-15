@@ -29,6 +29,8 @@ import pytest
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
+from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -36,9 +38,6 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.utils import db
 from airflow.utils.db import merge_conn
-
-from dev.tests_common.test_utils.db import clear_db_connections
-from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
 

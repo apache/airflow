@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from tests_common.test_utils.watcher import watcher
+
 from airflow import settings
 from airflow.decorators import task
 from airflow.models import Connection
@@ -40,7 +42,6 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from dev.tests_common.test_utils.watcher import watcher
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
 # Externally fetched variables:
@@ -254,7 +255,7 @@ with DAG(
 
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

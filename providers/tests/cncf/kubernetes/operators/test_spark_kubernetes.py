@@ -27,14 +27,13 @@ import pendulum
 import pytest
 import yaml
 from kubernetes.client import models as k8s
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")

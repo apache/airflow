@@ -31,9 +31,9 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import internal_api_command
 from airflow.cli.commands.internal_api_command import GunicornMonitor
 from airflow.settings import _ENABLE_AIP_44
-from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
+from tests_common.test_utils.config import conf_vars
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")
 

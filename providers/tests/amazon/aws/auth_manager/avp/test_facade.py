@@ -21,14 +21,13 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
+from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.utils.helpers import prune_dict
-
-from dev.tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

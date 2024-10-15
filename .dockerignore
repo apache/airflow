@@ -42,6 +42,7 @@
 
 # Add tests and kubernetes_tests to context.
 !tests
+!tests_common
 !kubernetes_tests
 !helm_tests
 !docker_tests

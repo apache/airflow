@@ -23,9 +23,8 @@ import pytest
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import create_session
-
-from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from dev.tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

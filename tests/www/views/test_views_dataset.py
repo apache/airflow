@@ -24,9 +24,8 @@ from dateutil.tz import UTC
 from airflow.assets import Asset
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
-
-from dev.tests_common.test_utils.asserts import assert_queries_count
-from dev.tests_common.test_utils.db import clear_db_assets
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = pytest.mark.db_test
 

@@ -778,7 +778,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("dev/tests_common/__init__.py",),
+                ("tests_common/__init__.py",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
@@ -799,7 +799,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
-                id="All tests should be run when dev/tests_common/ change",
+                id="All tests should be run when tests_common/ change",
             )
         ),
     ],

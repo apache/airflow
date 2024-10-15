@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_role,
     create_user,

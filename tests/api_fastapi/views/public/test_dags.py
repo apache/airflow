@@ -27,8 +27,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 

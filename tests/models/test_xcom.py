@@ -35,9 +35,8 @@ from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
-
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import is_db_isolation_mode
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import is_db_isolation_mode
 
 pytestmark = pytest.mark.db_test
 

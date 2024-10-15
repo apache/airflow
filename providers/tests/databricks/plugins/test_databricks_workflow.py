@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask import url_for
+from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -40,8 +41,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_task_instance,
 )
 from airflow.www.app import create_app
-
-from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"

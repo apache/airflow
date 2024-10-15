@@ -20,6 +20,7 @@ from __future__ import annotations
 import boto3
 import pytest
 from moto import mock_aws
+from tests_common.test_utils.config import conf_vars
 
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -27,8 +28,6 @@ from airflow.providers.amazon.aws.transfers.sftp_to_s3 import SFTPToS3Operator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
-
-from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

@@ -26,14 +26,14 @@ import pytest
 # unit test mode config is set as early as possible.
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
-pytest_plugins = "dev.tests_common.pytest_plugin"
+pytest_plugins = "tests_common.pytest_plugin"
 
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
     "tests/dags/test_invalid_dup_task.py",
     "tests/dags_corrupted/test_impersonation_custom.py",
-    "dev.tests_common.test_utils/perf/dags/elastic_dag.py",
+    "tests_common.test_utils/perf/dags/elastic_dag.py",
 ]
 
 

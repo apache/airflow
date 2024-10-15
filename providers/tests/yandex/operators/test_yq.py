@@ -21,8 +21,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 yandexcloud = pytest.importorskip("yandexcloud")
 

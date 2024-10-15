@@ -19,10 +19,10 @@ from __future__ import annotations
 import os
 
 import pytest
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 
 from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
 
-from dev.tests_common.test_utils.gcp_system_helpers import GoogleSystemTest, provide_gcp_context
 from providers.tests.google.cloud.utils.gcp_authenticator import GCP_SECRET_MANAGER_KEY
 
 TEST_SECRET_ID = os.environ.get("GCP_SECRET_MANAGER_SECRET_ID", "test-secret")

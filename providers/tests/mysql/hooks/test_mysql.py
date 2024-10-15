@@ -36,9 +36,9 @@ except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
 
-from airflow.utils import timezone
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from airflow.utils import timezone
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 

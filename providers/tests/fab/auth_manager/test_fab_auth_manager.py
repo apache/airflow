@@ -31,7 +31,7 @@ try:
 except ImportError:
     pass
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager

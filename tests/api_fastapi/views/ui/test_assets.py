@@ -20,8 +20,7 @@ import pytest
 
 from airflow.assets import Asset
 from airflow.operators.empty import EmptyOperator
-
-from dev.tests_common.test_utils.db import initial_db_init
+from tests_common.test_utils.db import initial_db_init
 
 pytestmark = pytest.mark.db_test
 

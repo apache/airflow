@@ -20,6 +20,7 @@ import os
 from unittest import mock
 
 import pytest
+from tests_common.test_utils.config import conf_vars, env_vars
 
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.openlineage.conf import (
@@ -38,8 +39,6 @@ from airflow.providers.openlineage.conf import (
     selective_enable,
     transport,
 )
-
-from dev.tests_common.test_utils.config import conf_vars, env_vars
 
 _CONFIG_SECTION = "openlineage"
 _VAR_CONFIG_PATH = "OPENLINEAGE_CONFIG"

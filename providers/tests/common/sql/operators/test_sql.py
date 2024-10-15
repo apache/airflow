@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
@@ -43,8 +44,6 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

@@ -28,7 +28,7 @@ AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parents[2]
 
 def get_devel_test_deps() -> list[str]:
     # Pre-install the tests_common pytest plugin/utils, in case sources aren't mounted
-    devel_deps: list[str] = ["./dev/tests_common"]
+    devel_deps: list[str] = ["./tests_common"]
     hatch_build_content = (AIRFLOW_SOURCES_DIR / "hatch_build.py").read_text().splitlines()
     store = False
     for line in hatch_build_content:

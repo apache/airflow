@@ -40,12 +40,11 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from airflow.www.app import create_app
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
-from dev.tests_common.test_utils.www import client_with_login
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.www import client_with_login
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

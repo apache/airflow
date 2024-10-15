@@ -24,15 +24,14 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverTaskHandler
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 
 def _create_list_log_entries_response_mock(messages, token):

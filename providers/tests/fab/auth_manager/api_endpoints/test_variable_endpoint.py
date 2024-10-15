@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_variables
 
 from airflow.models import Variable
 from airflow.security import permissions
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_variables
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 pytestmark = [
