@@ -42,6 +42,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
+import { TriggerDag } from "src/components/TriggerDag";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
@@ -96,6 +97,17 @@ const columns: Array<ColumnDef<DAGResponse>> = [
     ),
     enableSorting: false,
     header: () => "Tags",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => (
+      <TriggerDag
+        dagDisplayName={row.original.dag_display_name}
+        dagId={row.original.dag_id}
+      />
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 
