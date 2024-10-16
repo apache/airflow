@@ -71,28 +71,28 @@ const getUpstreamAssets = (
   let edges: WebserverEdge[] = [];
   let nodes: DepNode[] = [];
   let type: DepNode["value"]["class"] | undefined;
-  const datasetIds: string[] = [];
+  const assetIds: string[] = [];
   let nestedExpression: AssetExpression | undefined;
   if (assetExpression?.any) {
     type = "or-gate";
     assetExpression.any.forEach((de) => {
-      if (typeof de === "string") datasetIds.push(de);
+      if (typeof de === "string") assetIds.push(de);
       else nestedExpression = de;
     });
   } else if (assetExpression?.all) {
     type = "and-gate";
     assetExpression.all.forEach((de) => {
-      if (typeof de === "string") datasetIds.push(de);
+      if (typeof de === "string") assetIds.push(de);
       else nestedExpression = de;
     });
   }
 
-  if (type && datasetIds.length) {
+  if (type && assetIds.length) {
     edges.push({
       sourceId: `${type}-${level}`,
-      // Point upstream datasets to the first task
+      // Point upstream assets to the first task
       targetId: firstChildId,
-      isSourceDataset: level === 0,
+      isSourceAsset: level === 0,
     });
     nodes.push({
       id: `${type}-${level}`,
@@ -101,7 +101,7 @@ const getUpstreamAssets = (
         label: "",
       },
     });
-    datasetIds.forEach((d: string) => {
+    assetIds.forEach((d: string) => {
       nodes.push({
         id: d,
         value: {
@@ -138,7 +138,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
   const { selected } = useSelection();
-  const [showDatasets, setShowDatasets] = useState(true);
+  const [showAssets, setShowAssets] = useState(true);
 
   const {
     data: { dagRuns, groups },
@@ -150,12 +150,12 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
-  const { data: datasetsCollection } = useAssets({
+  const { data: assetsCollection } = useAssets({
     dagIds: [dagId],
   });
 
-  let datasetNodes: DepNode[] = [];
-  let datasetEdges: WebserverEdge[] = [];
+  let assetNodes: DepNode[] = [];
+  let assetEdges: WebserverEdge[] = [];
 
   const { nodes: upstreamAssetNodes, edges: upstreamAssetEdges } =
     getUpstreamAssets(
@@ -169,7 +169,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     dagId,
     dagRunId: selected.runId || "",
     options: {
-      enabled: !!upstreamAssetNodes.length && !!selected.runId && showDatasets,
+      enabled: !!upstreamAssetNodes.length && !!selected.runId && showAssets,
     },
   });
 
@@ -178,13 +178,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   } = useAssetEvents({
     sourceDagId: dagId,
     sourceRunId: selected.runId || undefined,
-    options: { enabled: !!selected.runId && showDatasets },
+    options: { enabled: !!selected.runId && showAssets },
   });
 
-  if (showDatasets) {
-    datasetNodes = [...upstreamAssetNodes];
-    datasetEdges = [...upstreamAssetEdges];
-    datasetsCollection?.assets?.forEach((asset) => {
+  if (showAssets) {
+    assetNodes = [...upstreamAssetNodes];
+    assetEdges = [...upstreamAssetEdges];
+    assetsCollection?.assets?.forEach((asset) => {
       const producingTask = asset?.producingTasks?.find(
         (t) => t.dagId === dagId
       );
@@ -194,11 +194,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           producingTask?.taskId &&
           getTask({ taskId: producingTask?.taskId, task: groups })
         ) {
-          datasetEdges.push({
+          assetEdges.push({
             sourceId: producingTask.taskId,
             targetId: asset.uri,
           });
-          datasetNodes.push({
+          assetNodes.push({
             id: asset.uri,
             value: {
               class: "asset",
@@ -209,15 +209,15 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       }
     });
 
-    // Check if there is a dataset event even though we did not find a dataset
+    // Check if there is a asset event even though we did not find a asset
     downstreamAssetEvents.forEach((de) => {
-      const hasNode = datasetNodes.find((node) => node.id === de.assetUri);
+      const hasNode = assetNodes.find((node) => node.id === de.assetUri);
       if (!hasNode && de.sourceTaskId && de.assetUri) {
-        datasetEdges.push({
+        assetEdges.push({
           sourceId: de.sourceTaskId,
           targetId: de.assetUri,
         });
-        datasetNodes.push({
+        assetNodes.push({
           id: de.assetUri,
           value: {
             class: "asset",
@@ -229,11 +229,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   }
 
   const { data: graphData } = useGraphLayout({
-    edges: [...(data?.edges || []), ...datasetEdges],
+    edges: [...(data?.edges || []), ...assetEdges],
     nodes: data?.nodes
       ? {
           ...data.nodes,
-          children: [...(data?.nodes.children || []), ...datasetNodes],
+          children: [...(data?.nodes.children || []), ...assetNodes],
         }
       : data?.nodes,
     openGroupIds,
@@ -334,15 +334,15 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         >
           <Panel position="top-right">
             <Box bg={colors.whiteAlpha[800]} p={1}>
-              {!!datasetsCollection?.assets?.length && (
+              {!!assetsCollection?.assets?.length && (
                 <Flex display="flex" alignItems="center">
                   <Text fontSize="sm" mr={1}>
-                    Show datasets:
+                    Show assets:
                   </Text>
                   <Switch
-                    id="show-datasets"
-                    isChecked={showDatasets}
-                    onChange={() => setShowDatasets(!showDatasets)}
+                    id="show-assets"
+                    isChecked={showAssets}
+                    onChange={() => setShowAssets(!showAssets)}
                   />
                 </Flex>
               )}

@@ -104,7 +104,7 @@ interface Task {
   extraLinks?: string[];
   isMapped?: boolean;
   operator?: string;
-  hasOutletDatasets?: boolean;
+  hasOutletAssets?: boolean;
   triggerRule?: API.TriggerRule;
   setupTeardownType?: "setup" | "teardown";
 }
@@ -174,7 +174,7 @@ export interface EdgeData {
     isSetupTeardown?: boolean;
     parentNode?: string;
     isZoomedOut?: boolean;
-    isSourceDataset?: boolean;
+    isSourceAsset?: boolean;
   };
 }
 
@@ -190,11 +190,11 @@ export interface WebserverEdge {
   targetId: string;
   isSetupTeardown?: boolean;
   parentNode?: string;
-  isSourceDataset?: boolean;
+  isSourceAsset?: boolean;
 }
 
 interface AssetListItem extends API.Asset {
-  lastDatasetUpdate: string | null;
+  lastAssetUpdate: string | null;
   totalUpdates: number;
 }
 

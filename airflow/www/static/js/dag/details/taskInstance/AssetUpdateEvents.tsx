@@ -54,7 +54,7 @@ const AssetUpdateEvents = ({ runId, taskId }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
+        Header: "Asset",
         accessor: "assetUri",
       },
       {
@@ -74,9 +74,9 @@ const AssetUpdateEvents = ({ runId, taskId }: Props) => {
   return (
     <Box my={3} flexGrow={1}>
       <Text as="strong" mb={3}>
-        Dataset Events
+        Asset Events
       </Text>
-      <Text>Dataset updates caused by this task instance</Text>
+      <Text>Asset updates caused by this task instance</Text>
       <CardList
         data={data}
         columns={columns}

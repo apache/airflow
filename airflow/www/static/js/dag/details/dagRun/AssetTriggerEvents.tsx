@@ -51,7 +51,7 @@ const AssetTriggerEvents = ({ runId }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
+        Header: "Asset",
         accessor: "assetUri",
       },
       {
@@ -71,9 +71,9 @@ const AssetTriggerEvents = ({ runId }: Props) => {
   return (
     <Box mt={3} flexGrow={1}>
       <Text as="strong" mb={3}>
-        Dataset Events
+        Asset Events
       </Text>
-      <Text>Dataset updates that triggered this DAG run.</Text>
+      <Text>Asset updates that triggered this DAG run.</Text>
       <CardList
         data={data}
         columns={columns}

@@ -71,7 +71,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
           ...e,
           isSelected:
             selectedNodeId &&
-            (e.id.includes(`dataset:${selectedNodeId}`) ||
+            (e.id.includes(`asset:${selectedNodeId}`) ||
               e.id.includes(`dag:${selectedNodeId}`)),
         },
       },
@@ -142,7 +142,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
         <ControlButton onClick={focusNode} disabled={!selectedNodeId}>
           <Tooltip
             portalProps={{ containerRef }}
-            label="Center selected dataset"
+            label="Center selected asset"
             placement="right"
           >
             <Box>
@@ -154,7 +154,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
                   maxHeight: "16px",
                   color: colors.gray[800],
                 }}
-                aria-label="Center selected dataset"
+                aria-label="Center selected asset"
               />
             </Box>
           </Tooltip>
