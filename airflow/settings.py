@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError, AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -117,6 +117,7 @@ STATE_COLORS = {
     "up_for_retry": "gold",
     "upstream_failed": "orange",
 }
+
 
 @functools.lru_cache(maxsize=None)
 def _get_rich_console(file):
@@ -723,13 +724,15 @@ def import_local_settings():
 
 def mask_conf_values():
     from airflow.utils.log.secrets_masker import mask_secret
+
     for section, key in conf.sensitive_config_values:
         try:
             value = conf.get(section, key)
             mask_secret(value)
         except AirflowConfigException:
-            log.warning(f"AirflowConfigException encountered for section: {section}, key: {key}. "
-                        f"Skipping...")
+            log.warning(
+                "AirflowConfigException encountered for section:", section, "key: ", key, "Skipping..."
+            )
             continue
 
 
