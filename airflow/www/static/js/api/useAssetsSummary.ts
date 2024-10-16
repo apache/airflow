@@ -21,11 +21,11 @@ import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 
 import { getMetaValue } from "src/utils";
-import type { DatasetListItem } from "src/types";
+import type { AssetListItem } from "src/types";
 import type { unitOfTime } from "moment";
 
 export interface DatasetsData {
-  datasets: DatasetListItem[];
+  datasets: AssetListItem[];
   totalEntries: number;
 }
 

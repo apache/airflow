@@ -26,7 +26,7 @@ import * as useAssetsModule from "src/api/useAssetsSummary";
 import { Wrapper } from "src/utils/testUtils";
 
 import type { UseQueryResult } from "react-query";
-import type { DatasetListItem } from "src/types";
+import type { AssetListItem } from "src/types";
 import AssetsList from "./AssetsList";
 
 const datasets = [
@@ -73,7 +73,7 @@ const returnValue = {
 
 const emptyReturnValue = {
   data: {
-    datasets: [] as DatasetListItem[],
+    datasets: [] as AssetListItem[],
     totalEntries: 0,
   },
   isSuccess: true,
