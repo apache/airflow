@@ -35,7 +35,8 @@ API_PREFIX = "/public/dagSources"
 
 
 class TestGetDAGSource:
-    def setup_method(self, url_safe_serializer) -> None:
+    @pytest.fixture(autouse=True)
+    def setup(self, url_safe_serializer) -> None:
         clear_db_dag_code()
         self.test_dag, self.dag_docstring = self.create_dag_source()
         fileloc = url_safe_serializer.dumps(self.test_dag.fileloc)
