@@ -74,6 +74,7 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.local_infile = kwargs.pop("local_infile", False)
         self.init_command = kwargs.pop("init_command", None)
+        self._escape_column_name_format: str = kwargs.get("escape_column_name_format", "`{}`")
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
