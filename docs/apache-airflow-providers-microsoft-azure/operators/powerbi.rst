@@ -34,7 +34,7 @@ PowerBIDatasetRefreshOperator
 To trigger a refresh for the specified dataset from the specified workspace, use the :class:`~airflow.providers.microsoft.azure.operators.powerbi.PowerBIDatasetRefreshOperator`.
 
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_powerbi_dataset_refresh.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_powerbi_dataset_refresh.py
     :language: python
     :dedent: 0
     :start-after: [START howto_operator_powerbi_refresh_async]
