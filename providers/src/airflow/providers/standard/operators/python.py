@@ -49,6 +49,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
+from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
@@ -56,7 +57,6 @@ from airflow.utils.context import context_copy_partial, context_get_outlet_event
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
-from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
@@ -75,38 +75,6 @@ def is_venv_installed() -> bool:
     if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
         return True
     return False
-
-
-def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Use :func:`airflow.decorators.task` instead, this is deprecated.
-
-    Calls ``@task.python`` and allows users to turn a Python function into
-    an Airflow task.
-
-    :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
-    """
-    # To maintain backwards compatibility, we import the task object into this file
-    # This prevents breakages in dags that use `from airflow.providers.standard.operators.python import task`
-    from airflow.decorators.python import python_task
-
-    warnings.warn(
-        """from airflow.providers.standard.operators.python.task is deprecated. Please use the following instead
-
-        from airflow.decorators import task
-        @task
-        def my_task()""",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
 
 
 @cache
@@ -210,13 +178,6 @@ class PythonOperator(BaseOperator):
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
-        if kwargs.get("provide_context"):
-            warnings.warn(
-                "provide_context is deprecated as of 2.0 and is no longer required",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            kwargs.pop("provide_context", None)
         super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException("`python_callable` param must be callable")
@@ -729,12 +690,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. Virtual environment version: {python_version}"
             )
         if python_version is not None and not isinstance(python_version, str):
-            warnings.warn(
-                "Passing non-string types (e.g. int or float) as python_version "
-                "is deprecated. Please use string value instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+            raise AirflowException(
+                "Passing non-string types (e.g. int or float) as python_version not supported"
             )
+
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if use_airflow_context and (not expect_airflow and not system_site_packages):

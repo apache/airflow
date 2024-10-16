@@ -82,7 +82,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "google"
+      "google",
+      "standard"
     ],
     "excluded-python-versions": [
       "3.12"

@@ -53,43 +53,31 @@ from airflow.operators.empty import EmptyOperator
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, DagRunType
+from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 
+from airflow.providers.standard.operators.python import (
+    BranchExternalPythonOperator,
+    BranchPythonOperator,
+    BranchPythonVirtualenvOperator,
+    ExternalPythonOperator,
+    PythonOperator,
+    PythonVirtualenvOperator,
+    ShortCircuitOperator,
+    _parse_version_info,
+    _PythonVersionInfo,
+    get_current_context,
+)
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.python import (
-        BranchExternalPythonOperator,
-        BranchPythonOperator,
-        BranchPythonVirtualenvOperator,
-        ExternalPythonOperator,
-        PythonOperator,
-        PythonVirtualenvOperator,
-        ShortCircuitOperator,
-        _parse_version_info,
-        _PythonVersionInfo,
-        get_current_context,
-    )
     from airflow.utils.types import DagRunTriggeredByType
-else:
-    from airflow.operators.python import (
-        BranchExternalPythonOperator,
-        BranchPythonOperator,
-        BranchPythonVirtualenvOperator,
-        ExternalPythonOperator,
-        PythonOperator,
-        PythonVirtualenvOperator,
-        ShortCircuitOperator,
-        _parse_version_info,
-        _PythonVersionInfo,
-        get_current_context,
-    )
+
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -311,7 +299,8 @@ class TestPythonOperator(BasePythonTest):
             assert 1 == custom, "custom should be 1"
             assert dag is not None, "dag should be set"
 
-        with pytest.warns(RemovedInAirflow3Warning):
+        error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
+        with pytest.raises(AirflowException, match=error_message):
             self.run_as_task(func, op_kwargs={"custom": 1}, provide_context=True)
 
     def test_context_with_conflicting_op_args(self):
@@ -1040,10 +1029,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context(self):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
@@ -1059,10 +1045,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1084,10 +1067,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
 
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1100,21 +1080,13 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
                 error_msg = f"Expected Context, got {type(context)}"
                 raise TypeError(error_msg)
-
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
 
             return []
 
@@ -1124,10 +1096,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
     def test_use_airflow_context_without_aip_44_error(self):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
             return []
@@ -1159,7 +1128,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS)
     @mock.patch("shutil.which")
     @mock.patch("airflow.providers.standard.operators.python.importlib")
     def test_virtualenv_not_installed(self, importlib_mock, which_mock):
@@ -1372,10 +1340,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise RuntimeError
 
-        with pytest.warns(
-            RemovedInAirflow3Warning, match="Passing non-string types.*python_version is deprecated"
-        ):
-            self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
+        self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
 
     def test_with_default(self):
         def f(a):
@@ -1561,10 +1526,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
@@ -1910,10 +1872,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
-            if AIRFLOW_V_3_0_PLUS:
-                from airflow.providers.standard.operators.python import get_current_context
-            else:
-                from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
             from airflow.utils.context import Context
 
             context = get_current_context()
