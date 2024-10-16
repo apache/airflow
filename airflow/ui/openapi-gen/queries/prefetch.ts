@@ -239,6 +239,36 @@ export const prefetchUseVariableServiceGetVariable = (
     queryFn: () => VariableService.getVariable({ variableKey }),
   });
 /**
+ * Get Variables
+ * Get all Variables entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns VariableCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVariableServiceGetVariables = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVariableServiceGetVariablesKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
+  });
+/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId
