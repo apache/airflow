@@ -23,13 +23,14 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import GenericTransfer
-from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
+
+from tests_common.test_utils.compat import GenericTransfer
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
 
