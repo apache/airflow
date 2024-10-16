@@ -47,7 +47,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
