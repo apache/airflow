@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError
+from airflow.exceptions import AirflowConfigException, AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -728,10 +728,14 @@ def mask_conf_values():
     for section, key in conf.sensitive_config_values:
         try:
             value = conf.get(section, key)
-            mask_secret(value)
-        except ValueError:
-            log.warning("ValueError encountered for section:", section, "key: ", key, ". Skipping...")
+        except AirflowConfigException:
+            log.warning(
+                "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                section,
+                key,
+            )
             continue
+        mask_secret(value)
 
 
 def initialize():
