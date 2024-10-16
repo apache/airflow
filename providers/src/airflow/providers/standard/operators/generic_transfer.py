@@ -91,7 +91,7 @@ class GenericTransfer(BaseOperator):
         :param hook_params: hook parameters
         :return: default hook for this connection
         """
-        connection = cls.get_connection(conn_id)
+        connection = BaseHook.get_connection(conn_id)
         return connection.get_hook(hook_params=hook_params)
 
     def execute(self, context: Context):
