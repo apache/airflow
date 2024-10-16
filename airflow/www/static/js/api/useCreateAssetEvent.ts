@@ -25,13 +25,13 @@ import type { API } from "src/types";
 import useErrorToast from "src/utils/useErrorToast";
 
 interface Props {
-  datasetId?: number;
+  assetId?: number;
   uri?: string;
 }
 
 const createAssetUrl = getMetaValue("create_asset_event_api");
 
-export default function useCreateAssetEvent({ datasetId, uri }: Props) {
+export default function useCreateAssetEvent({ assetId, uri }: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
 
@@ -44,7 +44,7 @@ export default function useCreateAssetEvent({ datasetId, uri }: Props) {
       }),
     {
       onSuccess: () => {
-        queryClient.invalidateQueries(["datasets-events", datasetId]);
+        queryClient.invalidateQueries(["assets-events", assetId]);
       },
       onError: (error: Error) => errorToast({ error }),
     }

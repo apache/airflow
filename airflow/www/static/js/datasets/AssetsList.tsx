@@ -38,7 +38,7 @@ interface Props {
 const DetailCell = ({ cell: { row } }: CellProps) => {
   const { totalUpdates, uri } = row.original;
   return (
-    <Box data-testid="dataset-list-item">
+    <Box data-testid="asset-list-item">
       <Text>{uri}</Text>
       <Text fontSize="sm" mt={2}>
         Total Updates: {totalUpdates}
@@ -65,13 +65,13 @@ const AssetsList = ({ onSelect }: Props) => {
   const dateFilter = searchParams.get(DATE_FILTER_PARAM) || undefined;
 
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
-    { id: "lastDatasetUpdate", desc: true },
+    { id: "lastAssetUpdate", desc: true },
   ]);
   const sort = sortBy[0];
   const order = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
-    data: { datasets, totalEntries },
+    data: { assets, totalEntries },
     isLoading,
   } = useAssetsSummary({
     limit,
@@ -89,35 +89,35 @@ const AssetsList = ({ onSelect }: Props) => {
       },
       {
         Header: "Last Update",
-        accessor: "lastDatasetUpdate",
+        accessor: "lastAssetUpdate",
         Cell: TimeCell,
       },
     ],
     []
   );
 
-  const data = useMemo(() => datasets, [datasets]);
+  const data = useMemo(() => assets, [assets]);
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
-  const onDatasetSelect = (row: Row<API.Asset>) => {
+  const onAssetSelect = (row: Row<API.Asset>) => {
     if (row.original.uri) onSelect({ uri: row.original.uri });
   };
 
-  const docsUrl = getMetaValue("datasets_docs");
+  const docsUrl = getMetaValue("assets_docs");
 
   return (
     <>
-      {!datasets.length && !isLoading && !dateFilter && (
-        <Text mb={4} data-testid="no-datasets-msg">
-          Looks like you do not have any datasets yet. Check out the{" "}
+      {!assets.length && !isLoading && !dateFilter && (
+        <Text mb={4} data-testid="no-assets-msg">
+          Looks like you do not have any assets yet. Check out the{" "}
           <Link color="blue" href={docsUrl} isExternal>
             docs
           </Link>{" "}
-          to learn how to create a dataset.
+          to learn how to create a asset.
         </Text>
       )}
       <Flex wrap="wrap" mb={2}>
-        <Text mr={2}>Filter datasets with updates in the past:</Text>
+        <Text mr={2}>Filter assets with updates in the past:</Text>
         <ButtonGroup size="sm" isAttached variant="outline">
           <Button
             onClick={() => {
@@ -168,7 +168,7 @@ const AssetsList = ({ onSelect }: Props) => {
             initialSortBy: memoSort,
           }}
           pageSize={limit}
-          onRowClicked={onDatasetSelect}
+          onRowClicked={onAssetSelect}
         />
       </Box>
     </>

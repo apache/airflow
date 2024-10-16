@@ -115,7 +115,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
             tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
           />
         )}
-      {group?.hasOutletDatasets && (
+      {group?.hasOutletAssets && (
         <AssetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
