@@ -178,19 +178,19 @@ export type DAGRunTypes = {
 };
 
 /**
- * Schema for DagProcessor info.
- */
-export type DagProcessorInfoSchema = {
-  status: string | null;
-  latest_dag_processor_heartbeat: string | null;
-};
-
-/**
  * DAG Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
   tags: Array<string>;
   total_entries: number;
+};
+
+/**
+ * Schema for DagProcessor info.
+ */
+export type DagProcessorInfoSchema = {
+  status: string | null;
+  latest_dag_processor_heartbeat: string | null;
 };
 
 /**

@@ -1740,6 +1740,22 @@ components:
       - dataset_triggered
       title: DAGRunTypes
       description: DAG Run Types for responses.
+    DAGTagCollectionResponse:
+      properties:
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - tags
+      - total_entries
+      title: DAGTagCollectionResponse
+      description: DAG Tags Collection serializer for responses.
     DagProcessorInfoSchema:
       properties:
         status:
@@ -1758,22 +1774,6 @@ components:
       - latest_dag_processor_heartbeat
       title: DagProcessorInfoSchema
       description: Schema for DagProcessor info.
-    DAGTagCollectionResponse:
-      properties:
-        tags:
-          items:
-            type: string
-          type: array
-          title: Tags
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - tags
-      - total_entries
-      title: DAGTagCollectionResponse
-      description: DAG Tags Collection serializer for responses.
     DagRunState:
       type: string
       enum:

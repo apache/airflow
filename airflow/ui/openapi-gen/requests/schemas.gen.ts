@@ -1013,6 +1013,26 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGTagCollectionResponse = {
+  properties: {
+    tags: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Tags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["tags", "total_entries"],
+  title: "DAGTagCollectionResponse",
+  description: "DAG Tags Collection serializer for responses.",
+} as const;
+
 export const $DagProcessorInfoSchema = {
   properties: {
     status: {
@@ -1042,26 +1062,6 @@ export const $DagProcessorInfoSchema = {
   required: ["status", "latest_dag_processor_heartbeat"],
   title: "DagProcessorInfoSchema",
   description: "Schema for DagProcessor info.",
-} as const;
-
-export const $DAGTagCollectionResponse = {
-  properties: {
-    tags: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Tags",
-    },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
-    },
-  },
-  type: "object",
-  required: ["tags", "total_entries"],
-  title: "DAGTagCollectionResponse",
-  description: "DAG Tags Collection serializer for responses.",
 } as const;
 
 export const $DagRunState = {
