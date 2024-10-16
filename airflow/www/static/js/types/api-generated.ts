@@ -1912,7 +1912,7 @@ export interface components {
       /** @description The asset id */
       asset_id?: number;
       /** @description The URI of the asset */
-      dataset_uri?: string;
+      asset_uri?: string;
       /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
       /** @description The DAG ID that updated the asset. */

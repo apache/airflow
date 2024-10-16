@@ -48,7 +48,7 @@ const Pools = (props: BoxProps) => {
   const { data, isError } = usePools();
 
   const option: ReactEChartsProps["option"] = {
-    dataset: {
+    asset: {
       source: [
         ["pool", "open", "queued", "running", "scheduled", "deferred"],
         ...formatData(data),

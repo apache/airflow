@@ -4574,7 +4574,7 @@ components:
         asset_id:
           type: integer
           description: The asset id
-        dataset_uri:
+        asset_uri:
           type: string
           description: The URI of the asset
           nullable: false
