@@ -26,7 +26,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 
-class DAGRunModifyFormStates(str, Enum):
+class DAGRunModifyStates(str, Enum):
     """Enum for DAG Run states when updating a DAG Run."""
 
     QUEUED = DagRunState.QUEUED
