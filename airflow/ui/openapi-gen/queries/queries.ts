@@ -575,7 +575,7 @@ export const useVariableServicePatchVariable = <
     ...options,
   });
 /**
- * Modify Dag Run
+ * Update Dag Run State
  * Modify a DAG Run.
  * @param data The data for the request.
  * @param data.dagId
@@ -584,8 +584,8 @@ export const useVariableServicePatchVariable = <
  * @returns DAGRunResponse Successful Response
  * @throws ApiError
  */
-export const useDagRunServiceModifyDagRun = <
-  TData = Common.DagRunServiceModifyDagRunMutationResult,
+export const useDagRunServiceUpdateDagRunState = <
+  TData = Common.DagRunServiceUpdateDagRunStateMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -614,7 +614,7 @@ export const useDagRunServiceModifyDagRun = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, requestBody }) =>
-      DagRunService.modifyDagRun({
+      DagRunService.updateDagRunState({
         dagId,
         dagRunId,
         requestBody,

@@ -138,13 +138,13 @@ export type DAGResponse = {
 /**
  * Enum for DAG Run states when updating a DAG Run.
  */
-export type DAGRunModifyFormStates = "queued" | "success" | "failed";
+export type DAGRunModifyStates = "queued" | "success" | "failed";
 
 /**
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-  state: DAGRunModifyFormStates;
+  state: DAGRunModifyStates;
 };
 
 /**
@@ -460,13 +460,13 @@ export type DeleteDagRunData = {
 
 export type DeleteDagRunResponse = void;
 
-export type ModifyDagRunData = {
+export type UpdateDagRunStateData = {
   dagId: string;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
 };
 
-export type ModifyDagRunResponse = DAGRunResponse;
+export type UpdateDagRunStateResponse = DAGRunResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -910,7 +910,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: ModifyDagRunData;
+      req: UpdateDagRunStateData;
       res: {
         /**
          * Successful Response

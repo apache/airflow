@@ -34,6 +34,7 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www import app
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 

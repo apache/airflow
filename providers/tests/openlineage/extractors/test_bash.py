@@ -23,11 +23,12 @@ from unittest.mock import patch
 
 import pytest
 from openlineage.client.facet_v2 import source_code_job
-from tests_common.test_utils.compat import BashOperator
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.openlineage.extractors.bash import BashExtractor
+
+from tests_common.test_utils.compat import BashOperator
 
 pytestmark = pytest.mark.db_test
 

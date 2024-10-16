@@ -20,10 +20,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 from flask import Response
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 from airflow.providers.fab.auth_manager.api.auth.backend.session import requires_authentication
 from airflow.www import app as application
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),

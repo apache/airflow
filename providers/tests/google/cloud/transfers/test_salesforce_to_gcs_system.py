@@ -19,16 +19,16 @@ from __future__ import annotations
 import os
 
 import pytest
+
+from airflow.providers.google.cloud.example_dags import example_salesforce_to_gcs
+
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
 )
 from tests_common.test_utils.salesforce_system_helpers import provide_salesforce_connection
 from tests_common.test_utils.system_tests import get_test_run
-
-from airflow.providers.google.cloud.example_dags import example_salesforce_to_gcs
-
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
 
 CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
 SALESFORCE_KEY = "salesforce.json"

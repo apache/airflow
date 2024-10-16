@@ -234,8 +234,8 @@ export type DagServicePatchDagMutationResult = Awaited<
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
-export type DagRunServiceModifyDagRunMutationResult = Awaited<
-  ReturnType<typeof DagRunService.modifyDagRun>
+export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
+  ReturnType<typeof DagRunService.updateDagRunState>
 >;
 export type DagServiceDeleteDagMutationResult = Awaited<
   ReturnType<typeof DagService.deleteDag>

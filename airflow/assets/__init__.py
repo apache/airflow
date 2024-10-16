@@ -227,6 +227,11 @@ class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
     name: str = attr.field(validator=_validate_non_empty_identifier)
+    group: str = attr.field(
+        kw_only=True,
+        default="",
+        validator=[attr.validators.max_len(1500), _validate_identifier],
+    )
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
@@ -272,10 +277,10 @@ def _set_extra_default(extra: dict | None) -> dict:
 class Asset(os.PathLike, BaseAsset):
     """A representation of data dependencies between workflows."""
 
-    name: str = attr.field()
-    uri: str = attr.field()
-    group: str = attr.field()
-    extra: dict[str, Any] = attr.field()
+    name: str
+    uri: str
+    group: str
+    extra: dict[str, Any]
 
     __version__: ClassVar[int] = 1
 

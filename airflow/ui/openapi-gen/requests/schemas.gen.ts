@@ -824,17 +824,17 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
-export const $DAGRunModifyFormStates = {
+export const $DAGRunModifyStates = {
   type: "string",
   enum: ["queued", "success", "failed"],
-  title: "DAGRunModifyFormStates",
+  title: "DAGRunModifyStates",
   description: "Enum for DAG Run states when updating a DAG Run.",
 } as const;
 
 export const $DAGRunPatchBody = {
   properties: {
     state: {
-      $ref: "#/components/schemas/DAGRunModifyFormStates",
+      $ref: "#/components/schemas/DAGRunModifyStates",
     },
   },
   type: "object",
