@@ -26,6 +26,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -34,7 +35,6 @@ from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, resolve_dialects
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.providers import get_provider_min_airflow_version
 from providers.tests.common.sql.test_utils import mock_hook
 
 pytestmark = [
