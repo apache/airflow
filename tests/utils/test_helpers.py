@@ -202,7 +202,7 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
-            (" " * 251, "The key has to be less than 250 characters", AirflowException),
+            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
         ],
     )
     def test_validate_key(self, key_id, message, exception):
