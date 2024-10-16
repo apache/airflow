@@ -292,7 +292,8 @@ class TestPythonOperator(BasePythonTest):
             assert 1 == custom, "custom should be 1"
             assert dag is not None, "dag should be set"
 
-        with pytest.warns(RemovedInAirflow3Warning):
+        error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
+        with pytest.raises(AirflowException, match=error_message):
             self.run_as_task(func, op_kwargs={"custom": 1}, provide_context=True)
 
     def test_context_with_conflicting_op_args(self):
@@ -1334,10 +1335,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise RuntimeError
 
-        with pytest.warns(
-            RemovedInAirflow3Warning, match="Passing non-string types.*python_version is deprecated"
-        ):
-            self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
+        self.run_as_task(f, python_version="3", serializer=serializer, requirements=extra_requirements)
 
     def test_with_default(self):
         def f(a):
