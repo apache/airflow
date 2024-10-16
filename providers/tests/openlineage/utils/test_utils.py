@@ -39,12 +39,11 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_user_provided_run_facets,
 )
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"

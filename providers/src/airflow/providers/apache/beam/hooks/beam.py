@@ -38,7 +38,11 @@ from packaging.version import Version
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
-from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
+try:
+    from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+except ImportError:
+    from airflow.utils.python_virtualenv import prepare_virtualenv  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     import logging

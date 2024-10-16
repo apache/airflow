@@ -28,14 +28,13 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.variable import Variable
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator, PythonOperator
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_runs,

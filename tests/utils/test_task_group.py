@@ -38,11 +38,7 @@ from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 
 from tests.models import DEFAULT_DATE
-from tests_common.test_utils.compat import BashOperator
-try:
-    from airflow.providers.standard.operators.python import PythonOperator
-except ImportError:
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
+from tests_common.test_utils.compat import BashOperator, PythonOperator
 
 
 def make_task(name, type_="classic"):

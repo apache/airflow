@@ -30,10 +30,7 @@ from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOp
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
 
-try:
-    from airflow.providers.standard.operators.python import PythonOperator
-except ImportError:
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
+from tests_common.test_utils.compat import PythonOperator
 
 TASK_PREFIX = "test-task-prefix"
 TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"

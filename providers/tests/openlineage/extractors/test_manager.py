@@ -36,10 +36,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
-from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, PythonOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -50,19 +50,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
-from airflow.settings import _ENABLE_AIP_44
-from airflow.utils import timezone
-from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
-
-
-from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_runs
-
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,
@@ -75,6 +62,19 @@ from airflow.providers.standard.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
+from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+from airflow.settings import _ENABLE_AIP_44
+from airflow.utils import timezone
+from airflow.utils.context import AirflowContextDeprecationWarning, Context
+from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, DagRunType
+
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
