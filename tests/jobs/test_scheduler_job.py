@@ -4477,14 +4477,14 @@ class TestSchedulerJob:
         model: DagModel = session.get(DagModel, dag.dag_id)
 
         # Pre-condition
-        assert DagRun.active_runs_of_dags(session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
 
         assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()
 
-        assert DagRun.active_runs_of_dags(session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
 
         for _ in range(5):
             self.job_runner._do_scheduling(session)
