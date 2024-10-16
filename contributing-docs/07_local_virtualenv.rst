@@ -19,7 +19,7 @@
 Local Virtual Environment (virtualenv)
 ======================================
 
-The easiest wey to run tests for Airflow is to use local virtualenv. While Breeze is the recommended
+The easiest way to run tests for Airflow is to use local virtualenv. While Breeze is the recommended
 way to run tests - because it provides a reproducible environment and is easy to set up, it is not
 always the best option as you need to run your tests inside a docker container. This might make it
 harder to debug the tests and to use your IDE to run them.
