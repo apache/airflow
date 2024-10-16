@@ -77,8 +77,8 @@ def create_app() -> FastAPI:
 
 def init_views(app: FastAPI) -> None:
     """Init views by registering the different routers."""
-    from airflow.api_fastapi.views.public import public_router
-    from airflow.api_fastapi.views.ui import ui_router
+    from airflow.api_fastapi.routes.public import public_router
+    from airflow.api_fastapi.routes.ui import ui_router
 
     app.include_router(ui_router)
     app.include_router(public_router)

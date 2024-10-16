@@ -16,23 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from airflow.api_fastapi.routes.router import AirflowRouter
+from airflow.api_fastapi.routes.ui.assets import assets_router
+from airflow.api_fastapi.routes.ui.dashboard import dashboard_router
 
-from airflow.models import SlaMiss
+ui_router = AirflowRouter(prefix="/ui")
 
-
-class SlaMissSchema(SQLAlchemySchema):
-    """Sla Miss Schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = SlaMiss
-
-    task_id = auto_field(dump_only=True)
-    dag_id = auto_field(dump_only=True)
-    execution_date = auto_field(dump_only=True)
-    email_sent = auto_field(dump_only=True)
-    timestamp = auto_field(dump_only=True)
-    description = auto_field(dump_only=True)
-    notification_sent = auto_field(dump_only=True)
+ui_router.include_router(assets_router)
+ui_router.include_router(dashboard_router)
