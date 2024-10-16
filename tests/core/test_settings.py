@@ -35,7 +35,6 @@ from airflow.settings import (
     _ENABLE_AIP_44,
     TracebackSession,
     is_usage_data_collection_enabled,
-    mask_conf_values,
 )
 from airflow.utils.session import create_session
 from tests_common.test_utils.config import conf_vars
@@ -390,21 +389,3 @@ def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear
     else:
         with conf_patch:
             assert is_usage_data_collection_enabled() == is_enabled
-
-
-@patch("airflow.utils.log.secret_masker.mask_secret")
-@patch("airflow.configuration.conf.get")
-@patch("airflow.configuration.get_section_and_key_for_env")
-@patch("airflow.settings.ENV_VARIABLES_TO_MASK", ["AIRFLOW__CORE__FERNET_KEY", "AIRFLOW__NONMASK_ENV"])
-def test_mask_conf_values(mock_mask_secret, mock_get_section_and_key, mock_get):
-    mock_get_section_and_key.side_effect = [
-        ("core", "fernet_key"),
-        (None, None),
-    ]
-
-    mock_get.side_effect = ["my_fernet_key"]
-    mask_conf_values()
-
-    mock_mask_secret.assert_called_once_with("my_fernet_key")
-    assert mock_get_section_and_key.call_count == 2
-    mock_get.assert_called_once_with("core", "fernet_key")
