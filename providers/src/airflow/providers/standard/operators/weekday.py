@@ -40,7 +40,6 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
 
         from airflow.operators.empty import EmptyOperator
         from airflow.operators.weekday import BranchDayOfWeekOperator
-        
         monday = EmptyOperator(task_id="monday")
         other_day = EmptyOperator(task_id="other_day")
 
