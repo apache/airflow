@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-16T04:21:58.654924
+# This constraints file was automatically generated on 2024-10-16T18:00:44.605942
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -263,7 +263,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.66.2
+grpcio==1.67.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -339,9 +339,9 @@ mdit-py-plugins==0.4.2
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.4.0
-microsoft-kiota-authentication-azure==1.1.0
-microsoft-kiota-http==1.3.3
+microsoft-kiota-abstractions==1.4.5
+microsoft-kiota-authentication-azure==1.4.5
+microsoft-kiota-http==1.4.5
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
@@ -430,7 +430,7 @@ propcache==0.2.0
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -580,7 +580,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2024.10.13
+trove-classifiers==2024.10.16
 twine==5.1.1
 typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
@@ -625,13 +625,13 @@ websocket-client==1.8.0
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-xmltodict==0.14.1
+xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
 yarl==1.15.3
-ydb==3.18.2
-zeep==4.3.0
+ydb==3.18.3
+zeep==4.3.1
 zenpy==2.0.53
 zipp==3.20.2
 zope.event==5.0

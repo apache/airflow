@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-16T04:22:10.543449
+# This constraints file was automatically generated on 2024-10-16T18:00:56.375270
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -86,7 +86,7 @@ google-re2==1.1.20240702
 googleapis-common-protos==1.65.0
 graphviz==0.20.3
 greenlet==3.1.1
-grpcio==1.66.2
+grpcio==1.67.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
