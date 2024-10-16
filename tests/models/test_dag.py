@@ -2715,10 +2715,10 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
                 AssetAll(
-                    Asset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Asset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
                 ),
                 AssetAlias(name="test_name"),
             ),
