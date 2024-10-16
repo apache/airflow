@@ -1878,7 +1878,7 @@ components:
       - ui
       - test
       - timetable
-      - dataset
+      - asset
       - backfill
       title: DagRunTriggeredByType
       description: Class with TriggeredBy types for DagRun.

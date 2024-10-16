@@ -32,7 +32,7 @@ from tests_common.test_utils.db import clear_db_assets
 pytestmark = pytest.mark.db_test
 
 
-class TestDatasetEndpoint:
+class TestAssetEndpoint:
     @pytest.fixture(autouse=True)
     def _cleanup(self):
         clear_db_assets()
@@ -52,7 +52,7 @@ class TestDatasetEndpoint:
         return create
 
 
-class TestGetDatasets(TestDatasetEndpoint):
+class TestGetAssets(TestAssetEndpoint):
     def test_should_respond_200(self, admin_client, create_assets, session):
         create_assets([1, 2])
         session.commit()
@@ -354,7 +354,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         }
 
 
-class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
+class TestGetAssetsEndpointPagination(TestAssetEndpoint):
     @pytest.mark.parametrize(
         "url, expected_asset_uris",
         [
@@ -397,7 +397,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         assert len(response.json["assets"]) == 50
 
 
-class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
+class TestGetAssetNextRunSummary(TestAssetEndpoint):
     def test_next_run_asset_summary(self, dag_maker, admin_client):
         with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
             EmptyOperator(task_id="task1")

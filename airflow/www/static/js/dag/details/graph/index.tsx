@@ -209,7 +209,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       }
     });
 
-    // Check if there is a asset event even though we did not find a asset
+    // Check if there is an asset event even though we did not find an asset
     downstreamAssetEvents.forEach((de) => {
       const hasNode = assetNodes.find((node) => node.id === de.assetUri);
       if (!hasNode && de.sourceTaskId && de.assetUri) {

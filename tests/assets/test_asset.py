@@ -420,7 +420,7 @@ def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
 
         # Compare each pair of objects
         for obj1, obj2 in zip(a1.objects, a2.objects):
-            # If obj1 or obj2 is a Asset, AssetAny, or AssetAll instance,
+            # If obj1 or obj2 is an Asset, AssetAny, or AssetAll instance,
             # recursively call assets_equal
             if not assets_equal(obj1, obj2):
                 return False
