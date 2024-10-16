@@ -60,7 +60,7 @@ async def get_dag_source(
         raise HTTPException(404, "DAG source not found")
 
     return_type = _get_matching_mime_type(request)
-    if return_type in supported_mime_types:
+    if return_type is not None:
         return DAGSourceModel.model_validate(dag_source)
 
     raise HTTPException(406, "Content not available for Accept header")
