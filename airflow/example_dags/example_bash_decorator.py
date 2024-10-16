@@ -27,12 +27,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weekday import WeekDay
 
 
-@dag(
-    schedule=None,
-    start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
-    catchup=False,
-    version_name="my_version",
-)
+@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
 def example_bash_decorator():
     @task.bash
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
