@@ -64,7 +64,7 @@ const Events = ({ assetId, showLabel }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
+        Header: "Asset",
         accessor: "assetUri",
       },
       {

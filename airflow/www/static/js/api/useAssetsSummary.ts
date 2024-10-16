@@ -25,7 +25,7 @@ import type { AssetListItem } from "src/types";
 import type { unitOfTime } from "moment";
 
 export interface AssetsData {
-  datasets: AssetListItem[];
+  assets: AssetListItem[];
   totalEntries: number;
 }
 
@@ -50,9 +50,9 @@ export default function useAssetsSummary({
   updatedAfter,
 }: Props) {
   const query = useQuery(
-    ["datasets_summary", limit, offset, order, uri, updatedAfter],
+    ["assets_summary", limit, offset, order, uri, updatedAfter],
     () => {
-      const datasetsUrl = getMetaValue("datasets_summary");
+      const assetsUrl = getMetaValue("assets_summary");
       const orderParam = order ? { order_by: order } : {};
       const uriParam = uri ? { uri_pattern: uri } : {};
       const updatedAfterParam =
@@ -64,7 +64,7 @@ export default function useAssetsSummary({
                 .toISOString(),
             }
           : {};
-      return axios.get<AxiosResponse, AssetsData>(datasetsUrl, {
+      return axios.get<AxiosResponse, AssetsData>(assetsUrl, {
         params: {
           offset,
           limit,
@@ -80,6 +80,6 @@ export default function useAssetsSummary({
   );
   return {
     ...query,
-    data: query.data ?? { datasets: [], totalEntries: 0 },
+    data: query.data ?? { assets: [], totalEntries: 0 },
   };
 }

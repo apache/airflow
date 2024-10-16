@@ -83,17 +83,17 @@ const formatDependencies = async ({ edges, nodes }: AssetDependencies) => {
 };
 
 export default function useAssetDependencies() {
-  return useQuery("datasetDependencies", async () => {
-    const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
-    return axios.get<AxiosResponse, AssetDependencies>(datasetDepsUrl);
+  return useQuery("assetDependencies", async () => {
+    const assetDepsUrl = getMetaValue("asset_dependencies_url");
+    return axios.get<AxiosResponse, AssetDependencies>(assetDepsUrl);
   });
 }
 
 export const useAssetGraphs = () => {
-  const { data: datasetDependencies } = useAssetDependencies();
-  return useQuery(["datasetGraphs", datasetDependencies], () => {
-    if (datasetDependencies) {
-      return formatDependencies(datasetDependencies);
+  const { data: assetDependencies } = useAssetDependencies();
+  return useQuery(["assetGraphs", assetDependencies], () => {
+    if (assetDependencies) {
+      return formatDependencies(assetDependencies);
     }
     return undefined;
   });
