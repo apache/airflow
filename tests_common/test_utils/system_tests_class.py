@@ -28,6 +28,7 @@ import pytest
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
 from airflow.exceptions import AirflowException
+
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.logging_command_executor import get_executor
 

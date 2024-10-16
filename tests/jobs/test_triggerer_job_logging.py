@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import RedirectStdHandler
 from airflow.utils.log.trigger_handler import DropTriggerLogsFilter, TriggererHandlerWrapper
+
 from tests_common.test_utils.config import conf_vars
 
 

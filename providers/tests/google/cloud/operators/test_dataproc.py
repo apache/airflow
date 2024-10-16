@@ -27,8 +27,6 @@ from google.api_core.retry import Retry
 from google.api_core.retry_async import AsyncRetry
 from google.cloud import dataproc
 from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
-from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 from airflow.exceptions import (
     AirflowException,
@@ -81,6 +79,9 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
 
