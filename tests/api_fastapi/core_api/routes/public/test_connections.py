@@ -30,6 +30,7 @@ TEST_CONN_TYPE = "test_type"
 TEST_CONN_DESCRIPTION = "some_description_a"
 TEST_CONN_HOST = "some_host_a"
 TEST_CONN_PORT = 8080
+TEST_CONN_LOGIN = "some_login"
 
 
 TEST_CONN_ID_2 = "test_connection_id_2"
@@ -37,6 +38,7 @@ TEST_CONN_TYPE_2 = "test_type_2"
 TEST_CONN_DESCRIPTION_2 = "some_description_b"
 TEST_CONN_HOST_2 = "some_host_b"
 TEST_CONN_PORT_2 = 8081
+TEST_CONN_LOGIN_2 = "some_login_b"
 
 
 @provide_session
@@ -47,6 +49,7 @@ def _create_connection(session) -> None:
         description=TEST_CONN_DESCRIPTION,
         host=TEST_CONN_HOST,
         port=TEST_CONN_PORT,
+        login=TEST_CONN_LOGIN,
     )
     session.add(connection_model)
 
@@ -60,6 +63,7 @@ def _create_connections(session) -> None:
         description=TEST_CONN_DESCRIPTION_2,
         host=TEST_CONN_HOST_2,
         port=TEST_CONN_PORT_2,
+        login=TEST_CONN_LOGIN_2,
     )
     session.add(connection_model_2)
 
@@ -288,3 +292,145 @@ class TestPostConnection(TestConnectionEndpoint):
         response = test_client.post("/public/connections/", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
+
+
+class TestPatchConnection(TestConnectionEndpoint):
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "test_host_patch"},
+            {
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "test_host_patch",
+                "port": 80,
+            },
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "login": "test_login_patch"},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": 80},
+            {
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "port": 80,
+                "login": "test_login_patch",
+            },
+        ],
+    )
+    @provide_session
+    def test_patch_should_respond_200(self, test_client, payload, session):
+        self.create_connection()
+
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        assert response.status_code == 200
+
+    def test_patch_should_respond_200_with_update_mask(self, test_client, session):
+        self.create_connection()
+        test_connection = TEST_CONN_ID
+        payload = {
+            "connection_id": test_connection,
+            "conn_type": TEST_CONN_TYPE_2,
+            "extra": "{'key': 'var'}",
+            "login": TEST_CONN_LOGIN,
+            "port": TEST_CONN_PORT,
+        }
+        response = test_client.patch(
+            f"/public/connections/{TEST_CONN_ID}?update_mask=port,login",
+            json=payload,
+        )
+        assert response.status_code == 200
+        connection = session.query(Connection).filter_by(conn_id=test_connection).first()
+        assert connection.password is None
+        assert response.json() == {
+            "connection_id": test_connection,  # not updated
+            "conn_type": TEST_CONN_TYPE,  # Not updated
+            "description": TEST_CONN_DESCRIPTION,  # Not updated
+            "extra": None,  # Not updated
+            "host": TEST_CONN_HOST,
+            "login": TEST_CONN_LOGIN,  # updated
+            "port": TEST_CONN_PORT,  # updated
+            "schema": None,
+        }
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "extra": '{"key": "var"}',
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "host": "test_host_patch",
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "host": "test_host_patch",
+                "port": 80,
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "login": "test_login_patch",
+            },
+            {"connection_id": "i_am_not_a_connection", "conn_type": TEST_CONN_TYPE, "port": 80},
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "port": 80,
+                "login": "test_login_patch",
+            },
+        ],
+    )
+    def test_patch_should_respond_400(self, test_client, payload):
+        self.create_connection()
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        assert response.status_code == 400
+        print(response.json())
+        assert {
+            "detail": "The connection_id in the request body does not match the URL parameter",
+        } == response.json()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "extra": '{"key": "var"}',
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "host": "test_host_patch",
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "host": "test_host_patch",
+                "port": 80,
+            },
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "login": "test_login_patch",
+            },
+            {"connection_id": "i_am_not_a_connection", "conn_type": TEST_CONN_TYPE, "port": 80},
+            {
+                "connection_id": "i_am_not_a_connection",
+                "conn_type": TEST_CONN_TYPE,
+                "port": 80,
+                "login": "test_login_patch",
+            },
+        ],
+    )
+    def test_patch_should_respond_404(self, test_client, payload):
+        payload = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": 90}
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        assert response.status_code == 404
+        print(response.json())
+        assert {
+            "detail": f"The Connection with connection_id: `{TEST_CONN_ID}` was not found",
+        } == response.json()
