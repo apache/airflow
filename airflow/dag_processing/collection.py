@@ -130,20 +130,20 @@ class _RunInfo(NamedTuple):
     num_active_runs: dict[str, int]
 
     @classmethod
-    def calculate(cls, dags: dict[str, DAG], *, count_backfill=False, session: Session) -> Self:
+    def calculate(cls, dags: dict[str, DAG], *, session: Session) -> Self:
         """
-        Calculate run info.
+        Query the the run counts from the db.
 
-        :param count_backfill: Whether we should include backfill in active run counts.
+        :param dags: dict of dags to query
         """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
             return cls({}, {})
 
-        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags))}
+        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))}
         active_run_counts = DagRun.active_runs_of_dags(
-            dag_ids=dags,
-            include_backfill=count_backfill,
+            dag_ids=dags.keys(),
+            exclude_backfill=True,
             session=session,
         )
 
@@ -201,7 +201,6 @@ class DagModelOperation(NamedTuple):
         # we exclude backfill from active run counts since their concurrency is separate
         run_info = _RunInfo.calculate(
             dags=self.dags,
-            count_backfill=False,
             session=session,
         )
 
