@@ -38,7 +38,7 @@ const cardDef: CardDef<AssetEvent> = {
   ),
 };
 
-const DatasetTriggerEvents = ({ runId }: Props) => {
+const AssetTriggerEvents = ({ runId }: Props) => {
   const {
     data: { assetEvents = [] },
     isLoading,
@@ -84,4 +84,4 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   );
 };
 
-export default DatasetTriggerEvents;
+export default AssetTriggerEvents;
