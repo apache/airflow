@@ -654,6 +654,7 @@ class AbstractOperator(Templater, DAGNode):
                     unmapped_ti.map_index = 0
                     self.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
+                    # execute hook for task instance map index 0
                     task_instance_mutation_hook(unmapped_ti)
                     session.flush()
                 else:
