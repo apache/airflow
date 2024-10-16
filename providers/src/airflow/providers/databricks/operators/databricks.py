@@ -698,8 +698,6 @@ class DatabricksRunNowOperator(BaseOperator):
 
         spark_submit_params = ["--class", "org.apache.spark.examples.SparkPi"]
 
-        sql_params = {"customer": "alice", "min_order_total": "100.0"}
-
         notebook_run = DatabricksRunNowOperator(
             job_id=job_id,
             dbt_commands=dbt_commands,
@@ -707,7 +705,6 @@ class DatabricksRunNowOperator(BaseOperator):
             python_params=python_params,
             jar_params=jar_params,
             spark_submit_params=spark_submit_params,
-            sql_params=sql_params
         )
 
     In the case where both the json parameter **AND** the named parameters
@@ -725,7 +722,6 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``python_named_parameters``
         - ``jar_params``
         - ``spark_submit_params``
-        - ``sql_params``
         - ``idempotency_token``
         - ``repair_run``
         - ``databricks_repair_reason_new_settings``
@@ -859,7 +855,6 @@ class DatabricksRunNowOperator(BaseOperator):
         python_params: list[str] | None = None,
         jar_params: list[str] | None = None,
         spark_submit_params: list[str] | None = None,
-        sql_params: dict[str, str] | None = None,
         python_named_params: dict[str, str] | None = None,
         idempotency_token: str | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -911,8 +906,6 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["job_parameters"] = job_parameters
         if dbt_commands is not None:
             self.json["dbt_commands"] = dbt_commands
-        if sql_params is not None:
-            self.json["sql_params"] = sql_params
         if self.json:
             self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
