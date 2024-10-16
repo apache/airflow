@@ -19,10 +19,20 @@
 
 from __future__ import annotations
 
+import warnings
 from functools import wraps
 from typing import Any, Callable, TypeVar, cast
 
+from airflow.exceptions import RemovedInAirflow3Warning
+
 CLIENT_AUTH: tuple[str, str] | Any | None = None
+
+
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.fab.auth_manager.api.auth.backend.session` instead.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
+)
 
 
 def init_app(_):
