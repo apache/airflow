@@ -20,11 +20,11 @@
 import React from "react";
 import { Select, SingleValue, useChakraSelectProps } from "chakra-react-select";
 
-import type { DatasetDependencies } from "src/api/useAssetDependencies";
+import type { AssetDependencies } from "src/api/useAssetDependencies";
 import type { OnSelectProps } from "./types";
 
 interface Props {
-  datasetDependencies?: DatasetDependencies;
+  datasetDependencies?: AssetDependencies;
   selectedDagId?: string;
   selectedUri?: string;
   onSelectNode: (props: OnSelectProps) => void;
