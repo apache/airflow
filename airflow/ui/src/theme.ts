@@ -64,6 +64,7 @@ const theme = extendTheme({
     },
   },
   config: {
+    initialColorMode: "system",
     useSystemColorMode: true,
   },
   semanticTokens: {

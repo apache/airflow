@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,20 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from airflow.api.common.airflow_health import get_airflow_health
-from airflow.api_connexion.schemas.health_schema import health_schema
-from airflow.utils.api_migration import mark_fastapi_migration_done
-
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
-
-
-@mark_fastapi_migration_done
-def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler, metadatabase and triggerer."""
-    airflow_health_status = get_airflow_health()
-    return health_schema.dump(airflow_health_status)
+# Make `airflow` a namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)  This is required by some IDEs to resolve the import paths.
+#
+# Note: this file is not installed or distributed in any distribution!
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore

@@ -42,13 +42,13 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
+from airflow.api_fastapi.routes.router import AirflowRouter
 from airflow.api_fastapi.serializers.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
 )
-from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel
 
@@ -70,8 +70,9 @@ async def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"]
-            ).depends
+                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                DagModel,
+            ).dynamic_depends()
         ),
     ],
     session: Annotated[Session, Depends(get_session)],

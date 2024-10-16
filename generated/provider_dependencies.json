@@ -640,7 +640,7 @@
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=2.29.0",
-      "google-cloud-aiplatform>=1.63.0",
+      "google-cloud-aiplatform>=1.70.0",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
@@ -748,8 +748,8 @@
       "aiohttp>=3.9.2",
       "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
-      "requests>=2.27.0,<3",
-      "requests_toolbelt"
+      "requests-toolbelt>=0.4.0",
+      "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -828,6 +828,7 @@
       "azure-storage-file-share>=12.7.0",
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
+      "microsoft-kiota-abstractions<1.4.0",
       "microsoft-kiota-http>=1.3.0,!=1.3.4",
       "microsoft-kiota-serialization-json==1.0.0",
       "microsoft-kiota-serialization-text==1.0.0",
@@ -965,7 +966,7 @@
   },
   "openlineage": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.2.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",
