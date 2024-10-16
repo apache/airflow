@@ -78,7 +78,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cgroupspy>=0.2.2",
     ],
     "cloudpickle": [
-        "cloudpickle",
+        "cloudpickle>=3.0.0",
     ],
     "github-enterprise": [
         "apache-airflow[fab]",
