@@ -14,25 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from airflow.api_fastapi.routes.public.connections import connections_router
+from airflow.api_fastapi.routes.public.dag_run import dag_run_router
+from airflow.api_fastapi.routes.public.dags import dags_router
+from airflow.api_fastapi.routes.public.monitor import monitor_router
+from airflow.api_fastapi.routes.public.variables import variables_router
+from airflow.api_fastapi.routes.router import AirflowRouter
 
-from airflow.models import SlaMiss
+public_router = AirflowRouter(prefix="/public")
 
 
-class SlaMissSchema(SQLAlchemySchema):
-    """Sla Miss Schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = SlaMiss
-
-    task_id = auto_field(dump_only=True)
-    dag_id = auto_field(dump_only=True)
-    execution_date = auto_field(dump_only=True)
-    email_sent = auto_field(dump_only=True)
-    timestamp = auto_field(dump_only=True)
-    description = auto_field(dump_only=True)
-    notification_sent = auto_field(dump_only=True)
+public_router.include_router(dags_router)
+public_router.include_router(connections_router)
+public_router.include_router(variables_router)
+public_router.include_router(dag_run_router)
+public_router.include_router(monitor_router)

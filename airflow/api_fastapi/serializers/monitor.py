@@ -14,19 +14,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.api_fastapi.views.public.connections import connections_router
-from airflow.api_fastapi.views.public.dag_run import dag_run_router
-from airflow.api_fastapi.views.public.dags import dags_router
-from airflow.api_fastapi.views.public.variables import variables_router
-from airflow.api_fastapi.views.router import AirflowRouter
-
-public_router = AirflowRouter(prefix="/public")
+from pydantic import BaseModel
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_run_router)
+class BaseInfoSchema(BaseModel):
+    """Base status field for metadatabase and scheduler."""
+
+    status: str | None
+
+
+class SchedulerInfoSchema(BaseInfoSchema):
+    """Schema for Scheduler info."""
+
+    latest_scheduler_heartbeat: str | None
+
+
+class TriggererInfoSchema(BaseInfoSchema):
+    """Schema for Triggerer info."""
+
+    latest_triggerer_heartbeat: str | None
+
+
+class DagProcessorInfoSchema(BaseInfoSchema):
+    """Schema for DagProcessor info."""
+
+    latest_dag_processor_heartbeat: str | None
+
+
+class HealthInfoSchema(BaseModel):
+    """Schema for the Health endpoint."""
+
+    metadatabase: BaseInfoSchema
+    scheduler: SchedulerInfoSchema
+    triggerer: TriggererInfoSchema
+    dag_processor: DagProcessorInfoSchema

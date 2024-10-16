@@ -14,20 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.api.common.airflow_health import get_airflow_health
-from airflow.api_connexion.schemas.health_schema import health_schema
-from airflow.utils.api_migration import mark_fastapi_migration_done
+from airflow.api_fastapi.routes.router import AirflowRouter
+from airflow.api_fastapi.serializers.monitor import HealthInfoSchema
 
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
-@mark_fastapi_migration_done
-def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler, metadatabase and triggerer."""
+@monitor_router.get("/health")
+async def get_health() -> HealthInfoSchema:
     airflow_health_status = get_airflow_health()
-    return health_schema.dump(airflow_health_status)
+    return HealthInfoSchema.model_validate(airflow_health_status)

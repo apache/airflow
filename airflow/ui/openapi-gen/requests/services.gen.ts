@@ -37,6 +37,7 @@ import type {
   GetDagRunResponse,
   DeleteDagRunData,
   DeleteDagRunResponse,
+  GetHealthResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -543,6 +544,20 @@ export class DagRunService {
         404: "Not Found",
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class MonitorService {
+  /**
+   * Get Health
+   * @returns HealthInfoSchema Successful Response
+   * @throws ApiError
+   */
+  public static getHealth(): CancelablePromise<GetHealthResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/monitor/health",
     });
   }
 }
