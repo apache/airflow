@@ -1337,9 +1337,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
-        active_runs_of_dags = Counter(
-            DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
-        )
+        dag_ids = (dm.dag_id for dm in dag_models)
+        active_runs_of_dags = Counter(DagRun.active_runs_of_dags(dag_ids=dag_ids, session=session))
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1512,11 +1511,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag.timetable.can_be_scheduled:
             return False
 
-        # get active dag runs from DB if not available
-        if not total_active_runs:
-            total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
+        if total_active_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(dag_ids=[dag.dag_id], session=session)
+            total_active_runs = runs_dict.get(dag.dag_id, 0)
 
-        if total_active_runs and total_active_runs >= dag.max_active_runs:
+        if total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
