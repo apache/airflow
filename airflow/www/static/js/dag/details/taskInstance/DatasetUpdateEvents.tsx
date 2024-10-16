@@ -24,7 +24,7 @@ import type { DagRun as DagRunType } from "src/types";
 import { getMetaValue } from "src/utils";
 import { CardDef, CardList } from "src/components/Table";
 import type { AssetEvent } from "src/types/api-generated";
-import DatasetEventCard from "src/components/DatasetEventCard";
+import AssetEventCard from "src/components/AssetEventCard";
 
 interface Props {
   runId: DagRunType["runId"];
@@ -32,7 +32,7 @@ interface Props {
 }
 
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => <DatasetEventCard assetEvent={row} showSource={false} />,
+  card: ({ row }) => <AssetEventCard assetEvent={row} showSource={false} />,
 };
 
 const dagId = getMetaValue("dag_id") || undefined;
