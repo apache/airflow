@@ -1077,7 +1077,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
-            self._find_zombies,
+            self._find_and_purge_zombies,
         )
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
@@ -1953,73 +1953,80 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-    # [START find_zombies]
-    def _find_zombies(self) -> None:
+    # [START find_and_purge_zombies]
+    def _find_and_purge_zombies(self) -> None:
         """
-        Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
+        Find and purge zombie task instances.
 
-        Zombie instances are tasks haven't heartbeated for too long or have a no-longer-running LocalTaskJob.
+        Zombie instances are tasks that failed to heartbeat for too long, or
+        have a no-longer-running LocalTaskJob.
+
+        A TaskCallbackRequest is also created for the killed zombie to be
+        handled by the DAG processor, and the executor is informed to no longer
+        count the zombie as running when it calculates parallelism.
         """
+        with create_session() as session:
+            if zombies := self._find_zombies(session=session):
+                self._purge_zombies(zombies, session=session)
+
+    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
         from airflow.jobs.job import Job
 
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-
-        with create_session() as session:
-            zombies: list[tuple[TI, str, str]] = (
-                session.execute(
-                    select(TI, DM.fileloc, DM.processor_subdir)
-                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                    .join(Job, TI.job_id == Job.id)
-                    .join(DM, TI.dag_id == DM.dag_id)
-                    .where(TI.state == TaskInstanceState.RUNNING)
-                    .where(
-                        or_(
-                            Job.state != JobState.RUNNING,
-                            Job.latest_heartbeat < limit_dttm,
-                        )
-                    )
-                    .where(Job.job_type == "LocalTaskJob")
-                    .where(TI.queued_by_job_id == self.job.id)
-                )
-                .unique()
-                .all()
+        zombies = (
+            session.execute(
+                select(TI, DM.fileloc, DM.processor_subdir)
+                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                .join(Job, TI.job_id == Job.id)
+                .join(DM, TI.dag_id == DM.dag_id)
+                .where(TI.state == TaskInstanceState.RUNNING)
+                .where(or_(Job.state != JobState.RUNNING, Job.latest_heartbeat < limit_dttm))
+                .where(Job.job_type == "LocalTaskJob")
+                .where(TI.queued_by_job_id == self.job.id)
             )
-
+            .unique()
+            .all()
+        )
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+        return zombies
 
-        with create_session() as session:
-            for ti, file_loc, processor_subdir in zombies:
-                zombie_message_details = self._generate_zombie_message_details(ti)
-                request = TaskCallbackRequest(
-                    full_filepath=file_loc,
-                    processor_subdir=processor_subdir,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    msg=str(zombie_message_details),
+    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
+        for ti, file_loc, processor_subdir in zombies:
+            zombie_message_details = self._generate_zombie_message_details(ti)
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                processor_subdir=processor_subdir,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg=str(zombie_message_details),
+            )
+            session.add(
+                Log(
+                    event="heartbeat timeout",
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                        "seconds) and will be terminated. "
+                        "See https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                    ),
                 )
-                session.add(
-                    Log(
-                        event="heartbeat timeout",
-                        task_instance=ti.key,
-                        extra=(
-                            f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
-                            "seconds) and will be terminated. "
-                            "See https://airflow.apache.org/docs/apache-airflow/"
-                            "stable/core-concepts/tasks.html#zombie-undead-tasks"
-                        ),
-                    )
-                )
-                self.log.error(
-                    "Detected zombie job: %s "
-                    "(See https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/core-concepts/tasks.html#zombie-undead-tasks)",
-                    request,
-                )
-                self.job.executor.send_callback(request)
-                Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            )
+            self.log.error(
+                "Detected zombie job: %s "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                request,
+            )
+            self.job.executor.send_callback(request)
+            if (executor := self._try_to_load_executor(ti.executor)) is None:
+                self.log.warning("Cannot clean up zombie %r with non-existent executor %s", ti, ti.executor)
+                continue
+            executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
+            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
-    # [END find_zombies]
+    # [END find_and_purge_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
