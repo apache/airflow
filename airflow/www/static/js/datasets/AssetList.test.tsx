@@ -59,8 +59,8 @@ const datasets = [
   },
 ];
 
-type UseAssetsReturn = UseQueryResult<useAssetsModule.DatasetsData> & {
-  data: useAssetsModule.DatasetsData;
+type UseAssetsReturn = UseQueryResult<useAssetsModule.AssetsData> & {
+  data: useAssetsModule.AssetsData;
 };
 
 const returnValue = {
