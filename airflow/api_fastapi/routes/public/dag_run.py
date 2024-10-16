@@ -60,7 +60,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
 
 
 @dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
-async def modify_dag_run(
+async def update_dag_run_state(
     dag_id: str, dag_run_id: str, state: DAGRunPatchBody, session: Annotated[Session, Depends(get_session)]
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
