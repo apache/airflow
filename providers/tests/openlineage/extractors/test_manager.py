@@ -24,7 +24,6 @@ from unittest.mock import MagicMock
 import pytest
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import documentation_dataset, ownership_dataset, schema_dataset
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
@@ -35,6 +34,8 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

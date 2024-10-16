@@ -33,6 +33,9 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.interval import CronDataIntervalTimetable
+
+from tests.listeners import empty_listener
+from tests.listeners.class_listener import ClassBasedListener
 from tests_common.test_utils.mock_operators import (
     AirflowLink,
     AirflowLink2,
@@ -41,9 +44,6 @@ from tests_common.test_utils.mock_operators import (
     GithubLink,
     GoogleLink,
 )
-
-from tests.listeners import empty_listener
-from tests.listeners.class_listener import ClassBasedListener
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook

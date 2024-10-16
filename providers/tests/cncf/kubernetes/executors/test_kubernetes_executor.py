@@ -26,8 +26,6 @@ import pytest
 import yaml
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
-from tests_common.test_utils.compat import BashOperator
-from tests_common.test_utils.config import conf_vars
 from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -56,6 +54,9 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
+
+from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 

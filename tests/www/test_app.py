@@ -29,6 +29,7 @@ from werkzeug.wrappers import Response
 
 from airflow.exceptions import AirflowConfigException
 from airflow.www import app as application
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 

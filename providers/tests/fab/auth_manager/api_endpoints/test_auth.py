@@ -20,6 +20,7 @@ from base64 import b64encode
 
 import pytest
 from flask_login import current_user
+
 from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
