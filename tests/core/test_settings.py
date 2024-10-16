@@ -35,6 +35,7 @@ from airflow.settings import (
     _ENABLE_AIP_44,
     TracebackSession,
     is_usage_data_collection_enabled,
+    mask_conf_values,
 )
 from airflow.utils.session import create_session
 from tests_common.test_utils.config import conf_vars
@@ -389,3 +390,21 @@ def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear
     else:
         with conf_patch:
             assert is_usage_data_collection_enabled() == is_enabled
+
+
+@patch.object(
+    conf, "sensitive_config_values", new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")]
+)
+@patch("airflow.utils.log.secrets_masker.mask_secret")
+@patch("airflow.configuration.conf.get")
+def test_mask_conf_values(mock_get, mock_mask_secret, mock_sensitive_config_values):
+    mock_get.side_effect = ["supersecret1", "supersecret2"]
+    mask_conf_values()
+
+    mock_get.assert_any_call("mysection1", "mykey1")
+    mock_get.assert_any_call("mysection2", "mykey2")
+    mock_mask_secret.assert_any_call("supersecret1")
+    mock_mask_secret.assert_any_call("supersecret2")
+
+    assert mock_get.call_count == 2
+    assert mock_mask_secret.call_count == 2
