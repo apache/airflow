@@ -358,7 +358,7 @@ export interface paths {
      */
     get: operations["get_asset_queued_events"];
     /**
-     * Delete queued Asset events for a Asset.
+     * Delete queued Asset events for an Asset.
      *
      * *New in version 2.9.0*
      */
@@ -3803,7 +3803,7 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Asset events for a Asset.
+   * Delete queued Asset events for an Asset.
    *
    * *New in version 2.9.0*
    */

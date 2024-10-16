@@ -2273,7 +2273,7 @@ class TestTaskInstance:
     def test_outlet_assets(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        completes successfully, a AssetDagRunQueue is logged.
+        completes successfully, an AssetDagRunQueue is logged.
         """
         from airflow.example_dags import example_assets
         from airflow.example_dags.example_assets import dag1
@@ -2332,7 +2332,7 @@ class TestTaskInstance:
     def test_outlet_assets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        failed, a AssetDagRunQueue is not logged, and an AssetEvent is
+        failed, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets
@@ -2388,7 +2388,7 @@ class TestTaskInstance:
     def test_outlet_assets_skipped(self):
         """
         Verify that when we have an outlet asset on a task, and the task
-        is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
+        is skipped, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets

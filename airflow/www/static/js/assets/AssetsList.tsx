@@ -113,7 +113,7 @@ const AssetsList = ({ onSelect }: Props) => {
           <Link color="blue" href={docsUrl} isExternal>
             docs
           </Link>{" "}
-          to learn how to create a asset.
+          to learn how to create an asset.
         </Text>
       )}
       <Flex wrap="wrap" mb={2}>
