@@ -157,7 +157,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   let datasetNodes: DepNode[] = [];
   let datasetEdges: WebserverEdge[] = [];
 
-  const { nodes: upstreamDatasetNodes, edges: upstreamDatasetEdges } =
+  const { nodes: upstreamAssetNodes, edges: upstreamDatasetEdges } =
     getUpstreamDatasets(
       dagDetails.assetExpression as AssetExpression,
       data?.nodes?.children?.[0]?.id ?? ""
@@ -169,8 +169,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     dagId,
     dagRunId: selected.runId || "",
     options: {
-      enabled:
-        !!upstreamDatasetNodes.length && !!selected.runId && showDatasets,
+      enabled: !!upstreamAssetNodes.length && !!selected.runId && showDatasets,
     },
   });
 
@@ -183,7 +182,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   });
 
   if (showDatasets) {
-    datasetNodes = [...upstreamDatasetNodes];
+    datasetNodes = [...upstreamAssetNodes];
     datasetEdges = [...upstreamDatasetEdges];
     datasetsCollection?.assets?.forEach((asset) => {
       const producingTask = asset?.producingTasks?.find(
