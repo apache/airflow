@@ -16,18 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Route, Routes } from "react-router-dom";
 
-import { DagsList } from "src/pages/DagsList";
-import { Dashboard } from "src/pages/Dashboard";
-
-import { BaseLayout } from "./layouts/BaseLayout";
-
-export const App = () => (
-  <Routes>
-    <Route element={<BaseLayout />} path="/">
-      <Route element={<Dashboard />} index />
-      <Route element={<DagsList />} path="dags" />
-    </Route>
-  </Routes>
-);
+// eslint-disable-next-line perfectionist/sort-union-types
+export const capitalize = (string: string | null | undefined) =>
+  // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+  string ? string.charAt(0).toUpperCase() + string.slice(1).toLowerCase() : "";
