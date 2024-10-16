@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-15T14:55:08.979499
+# This constraints file was automatically generated on 2024-10-16T04:22:02.341890
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -116,7 +116,7 @@ backoff==2.2.1
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.1
-bitarray==2.9.3
+bitarray==3.0.0
 black==24.10.0
 blinker==1.8.2
 boto3==1.35.36
@@ -219,12 +219,12 @@ google-cloud-dataproc==5.13.0
 google-cloud-dlp==3.23.0
 google-cloud-kms==3.0.0
 google-cloud-language==2.14.0
-google-cloud-logging==3.11.2
+google-cloud-logging==3.11.3
 google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.26.0
+google-cloud-pubsub==2.26.1
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.9
@@ -375,7 +375,7 @@ oracledb==2.4.1
 ordered-set==4.1.0
 oss2==2.19.0
 packaging==24.1
-pandas-gbq==0.23.2
+pandas-gbq==0.24.0
 pandas-stubs==2.2.3.241009
 pandas==2.1.4
 paramiko==3.5.0
@@ -433,7 +433,7 @@ pyiceberg==0.7.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.1
-pyodbc==5.1.0
+pyodbc==5.2.0
 pyparsing==3.2.0
 pypsrp==0.8.1
 pyspark==3.5.3
@@ -573,7 +573,7 @@ types-python-dateutil==2.9.0.20241003
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
-types-requests==2.32.0.20240914
+types-requests==2.32.0.20241016
 types-setuptools==75.1.0.20241014
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
@@ -604,7 +604,7 @@ xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
-yarl==1.15.2
+yarl==1.15.3
 ydb==3.18.2
 zeep==4.3.0
 zenpy==2.0.53
