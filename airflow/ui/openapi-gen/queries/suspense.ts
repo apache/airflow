@@ -154,8 +154,11 @@ export const useDagServiceGetDagsSuspense = <
  * Get Dag Tags
  * Get all DAG tags.
  * @param data The data for the request.
- * @param data.tags
- * @returns DAGTagResponse Successful Response
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useDagServiceGetDagTagsSuspense = <
@@ -164,16 +167,31 @@ export const useDagServiceGetDagTagsSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    tags,
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
   }: {
-    tags?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({ tags }, queryKey),
-    queryFn: () => DagService.getDagTags({ tags }) as TData,
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
+      { limit, offset, orderBy, tagNamePattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagTags({
+        limit,
+        offset,
+        orderBy,
+        tagNamePattern,
+      }) as TData,
     ...options,
   });
 /**

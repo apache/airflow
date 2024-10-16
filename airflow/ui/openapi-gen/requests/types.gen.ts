@@ -186,11 +186,11 @@ export type DagProcessorInfoSchema = {
 };
 
 /**
- * DAG Tags serializer for responses.
+ * DAG Tags Collection serializer for responses.
  */
-export type DAGTagResponse = {
-  name: string;
-  selected: boolean;
+export type DAGTagCollectionResponse = {
+  tags: Array<string>;
+  total_entries: number;
 };
 
 /**
@@ -371,10 +371,13 @@ export type PatchDagsData = {
 export type PatchDagsResponse = DAGCollectionResponse;
 
 export type GetDagTagsData = {
-  tags?: Array<string>;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
 };
 
-export type GetDagTagsResponse = Array<DAGTagResponse>;
+export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetDagData = {
   dagId: string;
@@ -552,11 +555,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: Array<DAGTagResponse>;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
+        200: DAGTagCollectionResponse;
         /**
          * Unauthorized
          */
