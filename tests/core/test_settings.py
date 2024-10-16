@@ -396,7 +396,7 @@ def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear
 @patch("airflow.configuration.conf.get")
 @patch("airflow.configuration.get_section_and_key_for_env")
 @patch("airflow.settings.ENV_VARIABLES_TO_MASK", ["AIRFLOW__CORE__FERNET_KEY", "AIRFLOW__NONMASK_ENV"])
-def test_mask_conf_values(self, mock_get_section_and_key, mock_get, mock_mask_secret):
+def test_mask_conf_values(mock_mask_secret, mock_get_section_and_key, mock_get):
     mock_get_section_and_key.side_effect = [
         ("core", "fernet_key"),
         (None, None),
