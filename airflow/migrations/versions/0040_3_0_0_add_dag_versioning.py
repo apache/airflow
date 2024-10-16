@@ -30,6 +30,9 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.db_types import StringID
+from airflow.models.base import naming_convention
+
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"
 down_revision = "d03e4a635aa3"
@@ -46,26 +49,28 @@ def upgrade():
     op.create_table(
         "dag_version",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("version_number", sa.Integer(), nullable=True),
-        sa.Column("version_name", sa.String(length=250), nullable=True),
-        sa.Column("dag_id", sa.String(length=250), nullable=True),
+        sa.Column("version_number", sa.Integer(), nullable=False),
+        sa.Column("version_name", StringID(), nullable=False),
+        sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("dag_code_id", sa.Integer(), nullable=True),
         sa.Column("serialized_dag_id", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey")),
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
     )
-    with op.batch_alter_table("dag_code", schema=None) as batch_op:
+    with op.batch_alter_table("dag_code", recreate="always", naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", sa.Integer(), nullable=False, primary_key=True))
+        batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True), insert_before="fileloc_hash")
         batch_op.create_primary_key("dag_code_pkey", ["id"])
         batch_op.add_column(sa.Column("dag_version_id", sa.Integer()))
         batch_op.create_foreign_key(
             batch_op.f("dag_code_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
         )
 
-    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
+    with op.batch_alter_table(
+        "serialized_dag", recreate="always", naming_convention=naming_convention
+    ) as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", sa.Integer(), nullable=False, primary_key=True))
+        batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")
@@ -104,23 +109,23 @@ def downgrade():
 
     with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
         batch_op.drop_column("id")
-        batch_op.add_column(
-            sa.Column("fileloc", sa.VARCHAR(length=2000), autoincrement=False, nullable=False)
-        )
+        batch_op.add_column(sa.Column("fileloc", sa.String(length=2000), autoincrement=False, nullable=False))
         batch_op.add_column(sa.Column("fileloc_hash", sa.BIGINT(), autoincrement=False, nullable=False))
         batch_op.create_index("idx_fileloc_hash", ["fileloc_hash"], unique=False)
         batch_op.create_primary_key("serialized_dag_pkey", ["dag_id"])
+        batch_op.drop_constraint(batch_op.f("serialized_dag_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_hash", sa.VARCHAR(length=32), autoincrement=False, nullable=True))
+        batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))
         batch_op.drop_constraint(batch_op.f("dag_run_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
 
     with op.batch_alter_table("dag_code", schema=None) as batch_op:
         batch_op.drop_column("id")
+        batch_op.drop_constraint(batch_op.f("dag_code_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
-        batch_op.create_primary_key("dag_code_pkey", ["fileloc"])
+        batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("version_name")
