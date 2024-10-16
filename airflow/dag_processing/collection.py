@@ -130,14 +130,24 @@ class _RunInfo(NamedTuple):
     num_active_runs: dict[str, int]
 
     @classmethod
-    def calculate(cls, dags: dict[str, DAG], *, session: Session) -> Self:
+    def calculate(cls, dags: dict[str, DAG], *, count_backfill=False, session: Session) -> Self:
+        """
+        Calculate run info.
+
+        :param count_backfill: Whether we should include backfill in active run counts.
+        """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
             return cls({}, {})
-        return cls(
-            {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags))},
-            DagRun.active_runs_of_dags(dag_ids=dags, session=session),
+
+        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags))}
+        active_run_counts = DagRun.active_runs_of_dags(
+            dag_ids=dags,
+            include_backfill=count_backfill,
+            session=session,
         )
+
+        return cls(latest_runs, active_run_counts)
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -188,7 +198,12 @@ class DagModelOperation(NamedTuple):
         processor_subdir: str | None = None,
         session: Session,
     ) -> None:
-        run_info = _RunInfo.calculate(self.dags, session=session)
+        # we exclude backfill from active run counts since their concurrency is separate
+        run_info = _RunInfo.calculate(
+            dags=self.dags,
+            count_backfill=False,
+            session=session,
+        )
 
         for dag_id, dm in sorted(orm_dags.items()):
             dag = self.dags[dag_id]

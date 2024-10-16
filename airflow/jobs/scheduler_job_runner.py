@@ -1337,8 +1337,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
+        # backfill runs are not created by scheduler and their concurrency is separate
+        # so we exclude them here
         dag_ids = (dm.dag_id for dm in dag_models)
-        active_runs_of_dags = Counter(DagRun.active_runs_of_dags(dag_ids=dag_ids, session=session))
+        active_runs_of_dags = Counter(
+            DagRun.active_runs_of_dags(
+                dag_ids=dag_ids,
+                include_backfill=False,
+                session=session,
+            )
+        )
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
