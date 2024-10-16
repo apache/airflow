@@ -46,7 +46,7 @@ import type { CustomNodeProps } from "./Node";
 
 const datasetsUrl = getMetaValue("datasets_url");
 
-const DatasetNode = ({
+const AssetNode = ({
   data: { label, height, width, latestDagRunId, isZoomedOut, assetEvent },
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
@@ -158,4 +158,4 @@ const DatasetNode = ({
   );
 };
 
-export default DatasetNode;
+export default AssetNode;
