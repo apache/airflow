@@ -24,19 +24,24 @@ from pydantic import BaseModel, Field, field_validator
 from airflow.utils.log.secrets_masker import redact
 
 
-class ConnectionResponse(BaseModel):
+class ConnectionBase(BaseModel):
+    """Connection serializer for responses."""
+
+    conn_type: str
+    description: str | None = Field(default=None)
+    host: str | None = Field(default=None)
+    login: str | None = Field(default=None)
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = Field(default=None)
+    extra: str | None = Field(default=None)
+
+
+class ConnectionResponse(ConnectionBase):
     """Connection serializer for responses."""
 
     connection_id: str = Field(serialization_alias="connection_id", validation_alias="conn_id")
-    conn_type: str
-    description: str | None
-    host: str | None
-    login: str | None
-    schema_: str | None = Field(alias="schema")
-    port: int | None
-    extra: str | None
 
-    @field_validator("extra", mode="before")
+    @field_validator("extra", mode="before", check_fields=False)
     @classmethod
     def redact_extra(cls, v: str | None) -> str | None:
         if v is None:
@@ -51,7 +56,13 @@ class ConnectionResponse(BaseModel):
 
 
 class ConnectionCollectionResponse(BaseModel):
-    """DAG Collection serializer for responses."""
+    """Connection Collection serializer for responses."""
 
     connections: list[ConnectionResponse]
     total_entries: int
+
+
+class ConnectionBody(ConnectionBase):
+    """Connection Serializer for requests body."""
+
+    connection_id: str
