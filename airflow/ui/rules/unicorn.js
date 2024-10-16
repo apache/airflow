@@ -825,7 +825,7 @@ export const unicornRules =
        * delete element.dataset.unicorn;
        * const hasUnicorn = Object.hasOwn(element.dataset, "unicorn");
        * ```
-       * @see [unicorn/prefer-dom-node-dataset](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-dom-node-asset.md)
+       * @see [unicorn/prefer-dom-node-dataset](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-dom-node-dataset.md)
        */
       [`${unicornNamespace}/prefer-dom-node-dataset`]: ERROR,
 

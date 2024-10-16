@@ -475,7 +475,7 @@ core:
       version_added: 3.0.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.AssetManager'
+      example: 'airflow.assets.manager.AssetManager'
     asset_manager_kwargs:
       description: Kwargs to supply to asset manager.
       version_added: 3.0.0
@@ -2266,7 +2266,7 @@ scheduler:
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated, as well as datasets that are no longer
+        the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned.
       version_added: 2.5.0
       type: integer

@@ -205,7 +205,7 @@ Name                                                                   Descripti
 ``asset.updates``                                                      Number of updated assets
 ``asset.orphaned``                                                     Number of assets marked as orphans because they are no longer referenced in DAG
                                                                        schedule parameters or task outlets
-``asset.triggered_dagruns``                                            Number of DAG runs triggered by a asset update
+``asset.triggered_dagruns``                                            Number of DAG runs triggered by an asset update
 ====================================================================== ================================================================
 
 Gauges

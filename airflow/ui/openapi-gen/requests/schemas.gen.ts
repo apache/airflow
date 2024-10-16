@@ -1084,7 +1084,7 @@ export const $DagRunTriggeredByType = {
     "ui",
     "test",
     "timetable",
-    "dataset",
+    "asset",
     "backfill",
   ],
   title: "DagRunTriggeredByType",

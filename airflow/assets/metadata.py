@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 @attrs.define(init=False)
 class Metadata:
-    """Metadata to attach to a AssetEvent."""
+    """Metadata to attach to an AssetEvent."""
 
     uri: str
     extra: dict[str, Any]
