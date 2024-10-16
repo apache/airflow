@@ -1283,28 +1283,6 @@ class DAG(LoggingMixin):
 
         return active_dates
 
-    @provide_session
-    def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
-        """
-        Return the number of active "running" dag runs.
-
-        :param external_trigger: True for externally triggered active dag runs
-        :param session:
-        :return: number greater than 0 for active dag runs
-        """
-        query = select(func.count()).where(DagRun.dag_id == self.dag_id)
-        if only_running:
-            query = query.where(DagRun.state == DagRunState.RUNNING)
-        else:
-            query = query.where(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
-
-        if external_trigger is not None:
-            query = query.where(
-                DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
-            )
-
-        return session.scalar(query)
-
     @staticmethod
     @internal_api_call
     @provide_session

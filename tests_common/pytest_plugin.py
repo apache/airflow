@@ -114,7 +114,7 @@ if run_db_tests_only:
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_SOURCES_ROOT_DIR = (
-    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[2]
+    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[1]
 ).resolve()
 AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
 
@@ -376,6 +376,8 @@ def pytest_configure(config: pytest.Config) -> None:
         if path == desired:
             break
     else:
+        # This "desired" path should be the Airflow source directory (repo root)
+        assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
         sys.path.append(desired)
 
     if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
@@ -825,6 +827,7 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+
             from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             if AIRFLOW_V_3_0_PLUS:
@@ -922,6 +925,7 @@ def dag_maker(request):
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
+
             from tests_common.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):

@@ -27,6 +27,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application
+
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response

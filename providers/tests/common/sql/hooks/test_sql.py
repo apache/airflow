@@ -24,7 +24,6 @@ import warnings
 from unittest.mock import MagicMock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -33,6 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 from airflow.utils.session import provide_session
 
 from providers.tests.common.sql.test_utils import mock_hook
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),

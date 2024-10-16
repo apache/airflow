@@ -26,8 +26,6 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.config import conf_vars
 
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
@@ -38,6 +36,9 @@ from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

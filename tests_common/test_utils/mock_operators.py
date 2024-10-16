@@ -23,6 +23,7 @@ import attr
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.xcom import XCom
+
 from tests_common.test_utils.compat import BaseOperatorLink
 
 if TYPE_CHECKING:
