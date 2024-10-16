@@ -50,7 +50,7 @@ type CardProps = {
 
 const datasetsUrl = getMetaValue("datasets_url");
 
-const DatasetEventCard = ({
+const AssetEventCard = ({
   assetEvent,
   showSource = true,
   showTriggeredDagRuns = true,
@@ -142,4 +142,4 @@ const DatasetEventCard = ({
   );
 };
 
-export default DatasetEventCard;
+export default AssetEventCard;
