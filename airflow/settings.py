@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError
+from airflow.exceptions import AirflowInternalRuntimeError, AirflowConfigException
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -117,28 +117,6 @@ STATE_COLORS = {
     "up_for_retry": "gold",
     "upstream_failed": "orange",
 }
-
-# list of the environment variables that need to be masked from the logs
-# some of these could be sensitive and there's no reason to log those
-ENV_VARIABLES_TO_MASK = [
-    "AIRFLOW__CORE__FERNET_KEY",
-    "AIRFLOW__SMTP__SMTP_PORT",
-    "AIRFLOW__SMTP__SMTP_PASSWORD",
-    "AIRFLOW__SMTP__SMTP_PASSWORD_SECRET",
-    "AIRFLOW__SMTP__SMTP_USER",
-    "AIRFLOW__SMTP__SMTP_SSL",
-    "AIRFLOW__SMTP__SMTP_HOST",
-    "AIRFLOW__WEBSERVER__SECRET_KEY",
-    "AIRFLOW__WEBSERVER__SECRET_KEY_SECRET",
-    "AIRFLOW__SENTRY__SENTRY_DSN_SECRET",
-    "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET",
-    "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS_SECRET",
-    "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY",
-    "AIRFLOW__CORE__INTERNAL_API_SECRET_KEY_SECRET",
-    "AIRFLOW__CORE__DATASET_MANAGER_KWARGS_SECRET",
-    "AIRFLOW__LOGGING__REMOTE_TASK_HANDLER_KWARGS_SECRET",
-]
-
 
 @functools.lru_cache(maxsize=None)
 def _get_rich_console(file):
@@ -745,12 +723,14 @@ def import_local_settings():
 
 def mask_conf_values():
     from airflow.utils.log.secrets_masker import mask_secret
-
-    for env in ENV_VARIABLES_TO_MASK:
-        section, key = conf.get_section_and_key_for_env(env)
-        if section is None and key is None:
+    for section, key in conf.sensitive_config_values:
+        try:
+            value = conf.get(section, key)
+            mask_secret(value)
+        except AirflowConfigException:
+            log.warning(f"AirflowConfigException encountered for section: {section}, key: {key}. "
+                        f"Skipping...")
             continue
-        mask_secret(conf.get(section, key))
 
 
 def initialize():
@@ -772,7 +752,7 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
-    # mask the configuration irrelevant to DAG author
+    # mask the sensitive_config_values
     mask_conf_values()
 
     # Run any custom runtime checks that needs to be executed for providers
