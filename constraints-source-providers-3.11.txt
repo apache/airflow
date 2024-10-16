@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-16T07:45:43.041141
+# This constraints file was automatically generated on 2024-10-16T19:42:01.114248
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -278,7 +278,7 @@ hmsclient==0.1.1
 hpack==4.0.0
 httpcore==1.0.6
 httplib2==0.22.0
-httptools==0.6.2
+httptools==0.6.3
 httpx==0.27.0
 humanize==4.11.0
 hvac==2.3.0
@@ -367,7 +367,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.31
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.32
+mypy-boto3-s3==1.35.42
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -440,7 +440,7 @@ propcache==0.2.0
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -592,7 +592,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.330.0
-trove-classifiers==2024.10.13
+trove-classifiers==2024.10.16
 twine==5.1.1
 typed-ast==1.5.5
 typer==0.12.5
@@ -647,7 +647,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
 yarl==1.15.3
-ydb==3.18.2
+ydb==3.18.3
 zeep==4.3.1
 zenpy==2.0.53
 zipp==3.20.2
