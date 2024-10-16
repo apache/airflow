@@ -23,6 +23,7 @@ import datetime
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
+
 from tests_common.test_utils.compat import BashOperator
 
 args = {

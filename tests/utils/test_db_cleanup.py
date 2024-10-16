@@ -48,6 +48,7 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,

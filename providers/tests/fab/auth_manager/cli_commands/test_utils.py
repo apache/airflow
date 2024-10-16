@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):

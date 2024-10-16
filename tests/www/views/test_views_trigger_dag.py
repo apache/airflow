@@ -32,10 +32,10 @@ from airflow.utils import timezone
 from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.www import check_content_in_response
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_test_client
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response
 
 pytestmark = pytest.mark.db_test
 

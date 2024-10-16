@@ -29,6 +29,7 @@ from packaging.version import Version
 
 from airflow.models import DagBag
 from airflow.utils import yaml
+
 from tests_common.test_utils.asserts import assert_queries_count
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
