@@ -51,11 +51,25 @@ def clear_assets():
 
 
 @pytest.mark.parametrize(
+    ["name"],
+    [
+        pytest.param("", id="empty"),
+        pytest.param("\n\t", id="whitespace"),
+        pytest.param("a" * 1501, id="too_long"),
+        pytest.param("😊", id="non-ascii"),
+    ],
+)
+def test_invalid_names(name):
+    with pytest.raises(ValueError):
+        Asset(name=name)
+
+
+@pytest.mark.parametrize(
     ["uri"],
     [
         pytest.param("", id="empty"),
         pytest.param("\n\t", id="whitespace"),
-        pytest.param("a" * 3001, id="too_long"),
+        pytest.param("a" * 1501, id="too_long"),
         pytest.param("airflow://xcom/dag/task", id="reserved_scheme"),
         pytest.param("😊", id="non-ascii"),
     ],
@@ -63,6 +77,31 @@ def clear_assets():
 def test_invalid_uris(uri):
     with pytest.raises(ValueError):
         Asset(uri=uri)
+
+
+def test_only_name():
+    asset = Asset(name="foobar")
+    assert asset.name == "foobar"
+    assert asset.uri == "foobar"
+
+
+def test_only_uri():
+    asset = Asset(uri="s3://bucket/key/path")
+    assert asset.name == "s3://bucket/key/path"
+    assert asset.uri == "s3://bucket/key/path"
+
+
+@pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
+def test_only_posarg(arg):
+    asset = Asset(arg)
+    assert asset.name == arg
+    assert asset.uri == arg
+
+
+def test_both_name_and_uri():
+    asset = Asset("foobar", "s3://bucket/key/path")
+    assert asset.name == "foobar"
+    assert asset.uri == "s3://bucket/key/path"
 
 
 @pytest.mark.parametrize(
