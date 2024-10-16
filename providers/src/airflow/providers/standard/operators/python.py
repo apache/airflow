@@ -37,8 +37,8 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, 
 
 import lazy_object_proxy
 from packaging.version import Version
-from airflow import __version__ as airflow_version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -63,12 +63,12 @@ from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
-
 AIRFLOW_VERSION = Version(airflow_version)
 AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -310,7 +310,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 dag_run=dag_run,
                 tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.execution_date),
+                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg]
                 map_index=context["ti"].map_index,
             )
 
