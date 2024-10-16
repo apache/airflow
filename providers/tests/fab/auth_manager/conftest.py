@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import pytest
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 from airflow.www import app
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")

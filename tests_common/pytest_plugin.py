@@ -827,6 +827,7 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+
             from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             if AIRFLOW_V_3_0_PLUS:
@@ -924,6 +925,7 @@ def dag_maker(request):
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
+
             from tests_common.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):

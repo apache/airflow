@@ -22,6 +22,7 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
+
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_variables

@@ -30,6 +30,7 @@ from airflow.api_connexion.schemas.xcom_schema import (
 from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]

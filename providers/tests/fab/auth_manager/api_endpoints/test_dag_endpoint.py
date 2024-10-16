@@ -21,9 +21,6 @@ from datetime import datetime
 
 import pendulum
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests_common.test_utils.www import _check_last_log
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
@@ -33,6 +30,9 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [
     pytest.mark.db_test,

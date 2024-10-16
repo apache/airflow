@@ -26,6 +26,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
+
 from tests_common.test_utils.db import clear_db_jobs
 
 HEALTHY = "healthy"

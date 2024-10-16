@@ -32,8 +32,6 @@ import pytest
 
 opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy.exceptions import NotFoundError
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 from airflow.configuration import conf
 from airflow.providers.opensearch.log.os_response import OpensearchResponse
@@ -47,6 +45,8 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from providers.tests.opensearch.conftest import MockClient
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 

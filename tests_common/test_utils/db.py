@@ -43,6 +43,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.compat import (
     AIRFLOW_V_2_10_PLUS,
     AssetDagRunQueue,
@@ -61,6 +62,7 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
+
     from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
     db.resetdb()

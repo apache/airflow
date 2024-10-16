@@ -22,12 +22,13 @@ from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
-from tests_common.test_utils.db import clear_db_connections
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
+
+from tests_common.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
 

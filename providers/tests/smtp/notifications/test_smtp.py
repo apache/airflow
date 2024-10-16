@@ -21,8 +21,6 @@ import tempfile
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from tests_common.test_utils.config import conf_vars
 
 from airflow.configuration import conf
 from airflow.operators.empty import EmptyOperator
@@ -32,6 +30,9 @@ from airflow.providers.smtp.notifications.smtp import (
     send_smtp_notification,
 )
 from airflow.utils import timezone
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

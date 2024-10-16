@@ -25,12 +25,13 @@ from email.mime.application import MIMEApplication
 from unittest.mock import Mock, patch
 
 import pytest
-from tests_common.test_utils.config import conf_vars
 
 from airflow.models import Connection
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.utils import db
 from airflow.utils.session import create_session
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

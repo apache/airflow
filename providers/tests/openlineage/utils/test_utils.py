@@ -21,9 +21,6 @@ import datetime
 import pathlib
 from unittest.mock import MagicMock, patch
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
-from tests_common.test_utils.mock_operators import MockOperator
-
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
@@ -46,6 +43,9 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
+from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 if not AIRFLOW_V_2_10_PLUS:

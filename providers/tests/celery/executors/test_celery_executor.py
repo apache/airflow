@@ -32,9 +32,6 @@ import time_machine
 from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
-from tests_common.test_utils import db
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from tests_common.test_utils.config import conf_vars
 
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
@@ -44,6 +41,10 @@ from airflow.providers.celery.executors import celery_executor, celery_executor_
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
+
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

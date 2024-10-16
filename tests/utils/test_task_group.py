@@ -38,9 +38,9 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
-from tests_common.test_utils.compat import BashOperator
 
 from tests.models import DEFAULT_DATE
+from tests_common.test_utils.compat import BashOperator
 
 
 def make_task(name, type_="classic"):

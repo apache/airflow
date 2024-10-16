@@ -19,8 +19,6 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -35,6 +33,8 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_roles,
     delete_user,
 )
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 try:
     from airflow.utils.types import DagRunTriggeredByType, DagRunType

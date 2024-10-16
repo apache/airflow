@@ -80,6 +80,7 @@ from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
+
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests_common.test_utils.timetables import (

@@ -472,6 +472,7 @@ def test_all_pydantic_models_round_trip():
 @pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
+
     from tests_common.test_utils.mock_operators import MockOperator
 
     with dag_maker(dag_id="dag") as dag:

@@ -20,11 +20,12 @@ import importlib
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
-from tests_common.test_utils.config import conf_vars
 
 from airflow.cli import cli_parser
 from airflow.providers.amazon.aws.auth_manager.cli.avp_commands import init_avp, update_schema
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
+from tests_common.test_utils.config import conf_vars
 
 mock_boto3 = Mock()
 

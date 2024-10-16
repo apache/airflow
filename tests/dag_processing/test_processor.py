@@ -39,6 +39,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
 from tests_common.test_utils.config import conf_vars, env_vars

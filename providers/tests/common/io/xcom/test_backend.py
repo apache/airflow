@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import pytest
+
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
 from tests_common.test_utils.db import is_db_isolation_mode
 
@@ -34,11 +35,11 @@ from airflow.operators.empty import EmptyOperator
 with ignore_provider_compatibility_error("2.8.0", __file__):
     from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
 
-from tests_common.test_utils import db
-from tests_common.test_utils.config import conf_vars
-
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
+
+from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)

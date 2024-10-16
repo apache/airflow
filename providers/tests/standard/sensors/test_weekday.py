@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from tests_common.test_utils import db
 
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag
@@ -28,6 +27,8 @@ from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
+
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 

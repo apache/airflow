@@ -43,6 +43,7 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+
 from tests_common.test_utils.config import conf_vars
 
 

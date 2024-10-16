@@ -20,11 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import connection_as_json
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+
+from tests_common.test_utils.compat import connection_as_json
 
 
 @pytest.fixture

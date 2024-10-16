@@ -51,11 +51,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+
+from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
-
-from tests.models import TEST_DAGS_FOLDER
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

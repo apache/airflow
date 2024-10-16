@@ -35,6 +35,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.www import _check_last_log

@@ -20,13 +20,13 @@ from __future__ import annotations
 import os
 
 import pytest
+
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_DATASTORE_KEY
 from tests_common.test_utils.gcp_system_helpers import (
     CLOUD_DAG_FOLDER,
     GoogleSystemTest,
     provide_gcp_context,
 )
-
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_DATASTORE_KEY
 
 BUCKET = os.environ.get("GCP_DATASTORE_BUCKET", "datastore-system-test")
 

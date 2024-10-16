@@ -20,11 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import connection_as_json
 
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import timezone
+
+from tests_common.test_utils.compat import connection_as_json
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MINIMAL_TEST_TICKET = {

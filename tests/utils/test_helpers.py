@@ -37,6 +37,7 @@ from airflow.utils.helpers import (
     validate_key,
 )
 from airflow.utils.types import NOTSET
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
