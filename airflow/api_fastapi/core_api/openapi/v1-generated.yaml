@@ -299,30 +299,42 @@ paths:
       description: Get all DAG tags.
       operationId: get_dag_tags
       parameters:
-      - name: tags
+      - name: limit
         in: query
         required: false
         schema:
-          type: array
-          items:
-            type: string
-          title: Tags
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: asc
+          title: Order By
+      - name: tag_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag Name Pattern
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DAGTagResponse'
-                title: Response Get Dag Tags
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
+                $ref: '#/components/schemas/DAGTagCollectionResponse'
         '401':
           content:
             application/json:
@@ -1746,20 +1758,22 @@ components:
       - latest_dag_processor_heartbeat
       title: DagProcessorInfoSchema
       description: Schema for DagProcessor info.
-    DAGTagResponse:
+    DAGTagCollectionResponse:
       properties:
-        name:
-          type: string
-          title: Name
-        selected:
-          type: boolean
-          title: Selected
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        total_entries:
+          type: integer
+          title: Total Entries
       type: object
       required:
-      - name
-      - selected
-      title: DAGTagResponse
-      description: DAG Tags serializer for responses.
+      - tags
+      - total_entries
+      title: DAGTagCollectionResponse
+      description: DAG Tags Collection serializer for responses.
     DagRunState:
       type: string
       enum:

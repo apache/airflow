@@ -158,8 +158,8 @@ class DAGDetailsResponse(DAGResponse):
         return self.max_active_tasks
 
 
-class DAGTagResponse(BaseModel):
-    """DAG Tags serializer for responses."""
+class DAGTagCollectionResponse(BaseModel):
+    """DAG Tags Collection serializer for responses."""
 
-    name: str
-    selected: bool
+    tags: list[str]
+    total_entries: int

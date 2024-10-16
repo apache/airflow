@@ -1044,21 +1044,24 @@ export const $DagProcessorInfoSchema = {
   description: "Schema for DagProcessor info.",
 } as const;
 
-export const $DAGTagResponse = {
+export const $DAGTagCollectionResponse = {
   properties: {
-    name: {
-      type: "string",
-      title: "Name",
+    tags: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Tags",
     },
-    selected: {
-      type: "boolean",
-      title: "Selected",
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
     },
   },
   type: "object",
-  required: ["name", "selected"],
-  title: "DAGTagResponse",
-  description: "DAG Tags serializer for responses.",
+  required: ["tags", "total_entries"],
+  title: "DAGTagCollectionResponse",
+  description: "DAG Tags Collection serializer for responses.",
 } as const;
 
 export const $DagRunState = {

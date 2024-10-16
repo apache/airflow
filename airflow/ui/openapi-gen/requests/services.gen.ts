@@ -190,8 +190,11 @@ export class DagService {
    * Get Dag Tags
    * Get all DAG tags.
    * @param data The data for the request.
-   * @param data.tags
-   * @returns DAGTagResponse Successful Response
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.tagNamePattern
+   * @returns DAGTagCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getDagTags(
@@ -201,10 +204,12 @@ export class DagService {
       method: "GET",
       url: "/public/dags/tags",
       query: {
-        tags: data.tags,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        tag_name_pattern: data.tagNamePattern,
       },
       errors: {
-        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",

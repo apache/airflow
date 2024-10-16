@@ -363,106 +363,98 @@ def test_get_dag(test_client, query_params, dag_id, expected_status_code, dag_di
 
 
 @pytest.mark.parametrize(
-    "query_params, expected_status_code, expected_dag_tags",
+    "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
     [
+        # test with offset, limit, and without any tag_name_pattern
         (
             {},
             200,
             [
-                {
-                    "name": "example",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_1",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_2",
-                    "selected": False,
-                },
+                "example",
+                "tag_1",
+                "tag_2",
             ],
+            3,
         ),
         (
-            {"tags": ["example"]},
+            {"offset": 1},
             200,
             [
-                {
-                    "name": "example",
-                    "selected": True,
-                },
-                {
-                    "name": "tag_1",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_2",
-                    "selected": False,
-                },
+                "tag_1",
+                "tag_2",
             ],
+            3,
         ),
         (
-            {"tags": ["example", "tag_1"]},
+            {"limit": 2},
             200,
             [
-                {
-                    "name": "example",
-                    "selected": True,
-                },
-                {
-                    "name": "tag_1",
-                    "selected": True,
-                },
-                {
-                    "name": "tag_2",
-                    "selected": False,
-                },
+                "example",
+                "tag_1",
             ],
+            3,
         ),
         (
-            {"tags": ["example", "not_exist_tag"]},
+            {"offset": 1, "limit": 2},
             200,
             [
-                {
-                    "name": "example",
-                    "selected": True,
-                },
-                {
-                    "name": "tag_1",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_2",
-                    "selected": False,
-                },
+                "tag_1",
+                "tag_2",
             ],
+            3,
+        ),
+        # test with tag_name_pattern
+        (
+            {"tag_name_pattern": "invalid"},
+            200,
+            [],
+            0,
         ),
         (
-            {"tags": ["not_exist_tag"]},
+            {"tag_name_pattern": "1"},
             200,
-            [
-                {
-                    "name": "example",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_1",
-                    "selected": False,
-                },
-                {
-                    "name": "tag_2",
-                    "selected": False,
-                },
-            ],
+            ["tag_1"],
+            1,
+        ),
+        (
+            {"tag_name_pattern": "tag%"},
+            200,
+            ["tag_1", "tag_2"],
+            2,
+        ),
+        # test order_by
+        (
+            {"order_by": "desc"},
+            200,
+            ["tag_2", "tag_1", "example"],
+            3,
+        ),
+        # test all query params
+        (
+            {"tag_name_pattern": "t%", "order_by": "desc", "offset": 1, "limit": 1},
+            200,
+            ["tag_1"],
+            2,
+        ),
+        (
+            {"tag_name_pattern": "~", "offset": 1, "limit": 2},
+            200,
+            ["tag_1", "tag_2"],
+            3,
         ),
     ],
 )
-def test_get_dag_tags(test_client, query_params, expected_status_code, expected_dag_tags):
+def test_get_dag_tags(
+    test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
+):
     response = test_client.get("/public/dags/tags", params=query_params)
     assert response.status_code == expected_status_code
     if expected_status_code != 200:
         return
 
     res_json = response.json()
-    assert res_json == expected_dag_tags
-
+    expected = {
+        "tags": expected_dag_tags,
+        "total_entries": expected_total_entries,
+    }
+    assert res_json == expected
