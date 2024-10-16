@@ -36,8 +36,6 @@ from openlineage.client.facet_v2 import (
     processing_engine_run,
     sql_job,
 )
-from tests_common.test_utils.compat import BashOperator
-from tests_common.test_utils.config import conf_vars
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
@@ -53,6 +51,9 @@ from airflow.providers.openlineage.plugins.facets import (
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
+
+from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

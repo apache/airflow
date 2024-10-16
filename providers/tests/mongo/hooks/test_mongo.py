@@ -23,11 +23,12 @@ from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
-from tests_common.test_utils.compat import connection_as_json
 
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
+
+from tests_common.test_utils.compat import connection_as_json
 
 pytestmark = pytest.mark.db_test
 

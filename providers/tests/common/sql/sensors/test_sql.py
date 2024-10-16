@@ -20,13 +20,14 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only"),

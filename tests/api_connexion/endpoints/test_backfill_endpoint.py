@@ -29,6 +29,7 @@ from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
+
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.db import (
     clear_db_backfills,
