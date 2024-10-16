@@ -287,9 +287,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.spark] Providers[docker] Providers[google] Providers[snowflake] Providers[standard]",
+                    "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google]",
+                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.beam] Providers[apache.spark] Providers[docker] Providers[google] Providers[snowflake] Providers[standard]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -362,7 +362,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/tests/apache/beam/file.py",),
                 {
-                    "affected-providers-list-as-string": "apache.beam google",
+                    "affected-providers-list-as-string": "apache.beam google standard",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -379,9 +379,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
-                    "providers-test-types-list-as-string": "Providers[apache.beam] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
+                    "parallel-test-types-list-as-string": "Always Providers[apache.beam,standard] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,standard] Providers[google]",
+                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[google] Providers[standard]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -749,7 +749,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.spark docker google snowflake standard",
+                "affected-providers-list-as-string": "amazon apache.beam apache.spark docker google snowflake standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -764,7 +764,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google] Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -788,7 +788,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.spark,docker,snowflake,standard] Providers[google] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google] Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },

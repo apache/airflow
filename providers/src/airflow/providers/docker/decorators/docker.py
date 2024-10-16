@@ -33,12 +33,15 @@ if TYPE_CHECKING:
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 
 try:
+    from airflow.providers.standard.utils.python_virtualenv import write_python_script
+except ImportError:
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
+
+try:
     try:
         from airflow.providers.standard.operators.python import _SERIALIZERS
-        from airflow.providers.standard.utils.python_virtualenv import write_python_script
     except ImportError:
         from airflow.operators.python import _SERIALIZERS  # type: ignore[no-redef,attr-defined]
-        from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
 except ImportError:
     import logging
 

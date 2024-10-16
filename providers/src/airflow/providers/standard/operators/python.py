@@ -33,9 +33,11 @@ from collections.abc import Container
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
 import lazy_object_proxy
+from packaging.version import Version
+from airflow import __version__ as airflow_version
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -61,7 +63,12 @@ from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -293,12 +300,20 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
+        if AIRFLOW_V_3_0_PLUS:
+            self.skip(
+                dag_run=dag_run,
+                tasks=to_skip,
+                map_index=context["ti"].map_index,
+            )
+        else:
+            self.skip(
+                dag_run=dag_run,
+                tasks=to_skip,
+                execution_date=cast("DateTime", dag_run.execution_date),
+                map_index=context["ti"].map_index,
+            )
 
-        self.skip(
-            dag_run=dag_run,
-            tasks=to_skip,
-            map_index=context["ti"].map_index,
-        )
         self.log.info("Done.")
         # returns the result of the super execute method as it is instead of returning None
         return condition
@@ -375,6 +390,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_start_date_success",
         "prev_end_date_success",
     }
+
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
         "conf",
@@ -382,7 +398,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events",
+        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
     }
 
     def __init__(

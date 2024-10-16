@@ -56,6 +56,7 @@ try:
     from airflow.providers.standard.operators.generic_transfer import GenericTransfer
     from airflow.providers.standard.sensors.bash import BashSensor
     from airflow.providers.standard.sensors.date_time import DateTimeSensor
+    from airflow.providers.standard.utils.python_virtualenv import write_python_script
 except ImportError:
     # Compatibility for Airflow < 2.10.*
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
@@ -63,6 +64,7 @@ except ImportError:
     from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:
