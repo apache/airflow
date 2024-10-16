@@ -50,8 +50,7 @@ async def get_dag_source(
     request: Request,
 ) -> DAGSourceModel:
     """Get source code using file token."""
-    secret_key = request.app.config["SECRET_KEY"]
-    auth_s = URLSafeSerializer(secret_key)
+    auth_s = URLSafeSerializer(request.app.state.secret_key)
 
     try:
         path = auth_s.loads(file_token)

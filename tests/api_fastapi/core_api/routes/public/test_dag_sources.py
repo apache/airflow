@@ -72,8 +72,8 @@ class TestGetDAGSource:
         assert self.dag_docstring == response.data.decode()
         assert "text/plain" == response.headers["Content-Type"]
 
-    def test_should_respond_200_json(self):
-        response = self.client.get(self.dag_sources_url, headers={"Accept": "application/json"})
+    def test_should_respond_200_json(self, test_client):
+        response = test_client.get(self.dag_sources_url, headers={"Accept": "application/json"})
         assert 200 == response.status_code
         assert len(self.dag_docstring) > 0
         assert isinstance(response.json, dict)
@@ -81,8 +81,8 @@ class TestGetDAGSource:
         assert self.dag_docstring == response.json["content"]
         assert "application/json" == response.headers["Content-Type"]
 
-    def test_should_respond_404(self):
+    def test_should_respond_404(self, test_client):
         wrong_fileloc = "abcd1234"
         url = f"{API_PREFIX}/{wrong_fileloc}"
-        response = self.client.get(url, headers={"Accept": "application/json"})
+        response = test_client.get(url, headers={"Accept": "application/json"})
         assert 404 == response.status_code
