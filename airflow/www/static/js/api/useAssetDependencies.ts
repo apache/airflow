@@ -36,7 +36,7 @@ interface GenerateProps {
   font: string;
 }
 
-export interface DatasetGraph extends ElkShape {
+export interface AssetGraph extends ElkShape {
   children: NodeType[];
   edges: ElkExtendedEdge[];
 }
@@ -79,7 +79,7 @@ const formatDependencies = async ({ edges, nodes }: AssetDependencies) => {
 
   const graph = await elk.layout(generateGraph({ nodes, edges, font }));
 
-  return graph as DatasetGraph;
+  return graph as AssetGraph;
 };
 
 export default function useAssetDependencies() {
