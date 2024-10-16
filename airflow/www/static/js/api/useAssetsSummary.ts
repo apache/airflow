@@ -24,7 +24,7 @@ import { getMetaValue } from "src/utils";
 import type { AssetListItem } from "src/types";
 import type { unitOfTime } from "moment";
 
-export interface DatasetsData {
+export interface AssetsData {
   datasets: AssetListItem[];
   totalEntries: number;
 }
@@ -64,7 +64,7 @@ export default function useAssetsSummary({
                 .toISOString(),
             }
           : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
+      return axios.get<AxiosResponse, AssetsData>(datasetsUrl, {
         params: {
           offset,
           limit,
