@@ -3118,8 +3118,8 @@ class TestSchedulerJob:
             ti2s = tiq.filter(TaskInstance.task_id == "dummy2").all()
             assert len(ti1s) == 0
             assert len(ti2s) >= 2
-            for task in ti2s:
-                assert task.state == State.SUCCESS
+            for ti in ti2s:
+                assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
         "configs",
@@ -5303,34 +5303,35 @@ class TestSchedulerJob:
         with pytest.raises(OperationalError):
             check_if_trigger_timeout(1)
 
-    def test_find_zombies_nothing(self):
+    def test_find_and_purge_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
-        self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.job_runner.processor_agent = mock.MagicMock()
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.return_value = executor
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner.processor_agent = mock.MagicMock()
+            self.job_runner._find_and_purge_zombies()
+        executor.callback_sink.send.assert_not_called()
 
-        self.job_runner._find_zombies()
-
-        scheduler_job.executor.callback_sink.send.assert_not_called()
-
-    def test_find_zombies(self, load_examples):
+    def test_find_and_purge_zombies(self, load_examples, session):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
-        with create_session() as session:
-            session.query(Job).delete()
-            dag = dagbag.get_dag("example_branch_operator")
-            dag.sync_to_db()
-            data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-            dag_run = dag.create_dagrun(
-                state=DagRunState.RUNNING,
-                execution_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                session=session,
-                data_interval=data_interval,
-            )
 
-            scheduler_job = Job()
+        dag = dagbag.get_dag("example_branch_operator")
+        dag.sync_to_db()
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        dag_run = dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+            data_interval=data_interval,
+        )
+
+        executor = MockExecutor()
+        scheduler_job = Job(executor=executor)
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.return_value = executor
             self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
             self.job_runner.processor_agent = mock.MagicMock()
 
             # We will provision 2 tasks so we can check we only find zombies from this scheduler
@@ -5356,24 +5357,22 @@ class TestSchedulerJob:
 
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
+            executor.running.add(ti.key)  # The executor normally does this during heartbeat.
+            self.job_runner._find_and_purge_zombies()
+            assert ti.key not in executor.running
 
-            self.job_runner._find_zombies()
-
-        scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args.args
-        assert 1 == len(requests)
-        assert requests[0].full_filepath == dag.fileloc
-        assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
-        assert requests[0].is_failure_callback is True
-        assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
-        assert ti.dag_id == requests[0].simple_task_instance.dag_id
-        assert ti.task_id == requests[0].simple_task_instance.task_id
-        assert ti.run_id == requests[0].simple_task_instance.run_id
-        assert ti.map_index == requests[0].simple_task_instance.map_index
-
-        with create_session() as session:
-            session.query(TaskInstance).delete()
-            session.query(Job).delete()
+        executor.callback_sink.send.assert_called_once()
+        callback_requests = executor.callback_sink.send.call_args.args
+        assert len(callback_requests) == 1
+        callback_request = callback_requests[0]
+        assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
+        assert callback_request.full_filepath == dag.fileloc
+        assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
+        assert callback_request.is_failure_callback is True
+        assert callback_request.simple_task_instance.dag_id == ti.dag_id
+        assert callback_request.simple_task_instance.task_id == ti.task_id
+        assert callback_request.simple_task_instance.run_id == ti.run_id
+        assert callback_request.simple_task_instance.map_index == ti.map_index
 
     def test_zombie_message(self, load_examples):
         """
@@ -5486,7 +5485,7 @@ class TestSchedulerJob:
         scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock()
 
-        self.job_runner._find_zombies()
+        self.job_runner._find_and_purge_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
 
