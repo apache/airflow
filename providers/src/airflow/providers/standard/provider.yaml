@@ -44,6 +44,7 @@ operators:
       - airflow.providers.standard.operators.datetime
       - airflow.providers.standard.operators.weekday
       - airflow.providers.standard.operators.bash
+      - airflow.providers.standard.operators.generic_transfer
 
 sensors:
   - integration-name: Standard
