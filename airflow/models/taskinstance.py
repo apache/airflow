@@ -4116,7 +4116,11 @@ class SimpleTaskInstance:
         self.queue = queue
         self.key = key
 
-    def __eq__(self, other):
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"SimpleTaskInstance({attrs})"
+
+    def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
