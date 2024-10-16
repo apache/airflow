@@ -1013,6 +1013,26 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGSourceModel = {
+  properties: {
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+  },
+  type: "object",
+  required: ["content"],
+  title: "DAGSourceModel",
+  description: "DAG Source Model class.",
+} as const;
+
 export const $DagProcessorInfoSchema = {
   properties: {
     status: {
