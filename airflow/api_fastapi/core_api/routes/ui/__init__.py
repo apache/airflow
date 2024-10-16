@@ -16,33 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import yaml
-from fastapi.openapi.utils import get_openapi
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
+from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 
-from airflow.api_fastapi.app import create_app
+ui_router = AirflowRouter(prefix="/ui")
 
-app = create_app()
-
-OPENAPI_SPEC_FILE = "airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
-
-
-# The persisted openapi spec will list all endpoints (public and ui), this
-# is used for code generation.
-for route in app.routes:
-    if getattr(route, "name") == "webapp":
-        continue
-    route.__setattr__("include_in_schema", True)
-
-with open(OPENAPI_SPEC_FILE, "w+") as f:
-    yaml.dump(
-        get_openapi(
-            title=app.title,
-            version=app.version,
-            openapi_version=app.openapi_version,
-            description=app.description,
-            routes=app.routes,
-        ),
-        f,
-        default_flow_style=False,
-        sort_keys=False,
-    )
+ui_router.include_router(assets_router)
+ui_router.include_router(dashboard_router)

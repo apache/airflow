@@ -23,13 +23,12 @@ from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api.common import delete_dag as delete_dag_module
-from airflow.api_fastapi.db.common import (
+from airflow.api_fastapi.common.db.common import (
     get_session,
     paginated_select,
 )
-from airflow.api_fastapi.db.dags import dags_select_with_latest_dag_run
-from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.parameters import (
+from airflow.api_fastapi.common.db.dags import dags_select_with_latest_dag_run
+from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
@@ -42,8 +41,9 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
-from airflow.api_fastapi.routes.router import AirflowRouter
-from airflow.api_fastapi.serializers.dags import (
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.serializers.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,

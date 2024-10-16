@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: FastAPI
+  title: Airflow API
   description: Airflow API. All endpoints located under ``/public`` can be used safely,
     are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
     to the UI and are subject to breaking change depending on the need of the frontend.

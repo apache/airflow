@@ -22,8 +22,8 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db.common import get_session
-from airflow.api_fastapi.routes.router import AirflowRouter
+from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.models import DagModel
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 

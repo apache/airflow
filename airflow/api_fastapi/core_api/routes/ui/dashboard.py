@@ -23,17 +23,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.parameters import DateTimeQuery
-from airflow.api_fastapi.serializers.dashboard import HistoricalMetricDataResponse
+from airflow.api_fastapi.common.parameters import DateTimeQuery
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.serializers.dashboard import HistoricalMetricDataResponse
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-from airflow.api_fastapi.db.common import get_session
-from airflow.api_fastapi.routes.router import AirflowRouter
+from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.utils import timezone
 
 dashboard_router = AirflowRouter(tags=["Dashboard"])

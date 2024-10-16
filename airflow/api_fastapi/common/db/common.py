@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.parameters import BaseParam
+    from airflow.api_fastapi.common.parameters import BaseParam
 
 
 async def get_session() -> Session:
