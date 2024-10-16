@@ -193,7 +193,7 @@ export interface WebserverEdge {
   isSourceDataset?: boolean;
 }
 
-interface DatasetListItem extends API.Asset {
+interface AssetListItem extends API.Asset {
   lastDatasetUpdate: string | null;
   totalUpdates: number;
 }
@@ -228,7 +228,7 @@ export type {
   API,
   Dag,
   DagRun,
-  DatasetListItem,
+  AssetListItem,
   DepEdge,
   DepNode,
   HistoricalMetricsData,
