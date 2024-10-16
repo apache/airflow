@@ -1358,7 +1358,7 @@ paths:
     delete:
       summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Asset events for a Asset.
+        Delete queued Asset events for an Asset.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint

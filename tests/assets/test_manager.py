@@ -121,7 +121,7 @@ class TestAssetManager:
             task_instance=mock_task_instance, asset=asset, session=mock_session
         )
 
-        # Ensure that we have ignored the asset and _not_ created a AssetEvent or
+        # Ensure that we have ignored the asset and _not_ created an AssetEvent or
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()

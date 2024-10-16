@@ -215,18 +215,18 @@
                     },
                     "factory": {
                         "type": ["string", "null"],
-                        "description": "Dataset factory for specified URI. Creates AIP-60 compliant Dataset."
+                        "description": "Asset factory for specified URI. Creates AIP-60 compliant Asset."
                     },
                     "to_openlineage_converter": {
                         "type": ["string", "null"],
-                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting a Dataset and LineageContext and returning OpenLineage dataset."
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting an Asset and LineageContext and returning OpenLineage dataset."
                     }
                 }
             }
         },
         "dataset-uris": {
             "type": "array",
-            "description": "Dataset URI formats (will be removed in Airflow 3.0)",
+            "description": "Asset URI formats (will be removed in Airflow 3.0)",
             "items": {
                 "type": "object",
                 "properties": {
@@ -243,11 +243,11 @@
                     },
                     "factory": {
                         "type": ["string", "null"],
-                        "description": "Dataset factory for specified URI. Creates AIP-60 compliant Dataset."
+                        "description": "Asset factory for specified URI. Creates AIP-60 compliant Asset."
                     },
                     "to_openlineage_converter": {
                         "type": ["string", "null"],
-                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting a Dataset and LineageContext and returning OpenLineage dataset."
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting an Asset and LineageContext and returning OpenLineage dataset."
                     }
                 }
             }
