@@ -757,6 +757,13 @@ class DatabricksRunNowOperator(BaseOperator):
         .. seealso::
             For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
+
+    :param dbt_commands: A list containing the dbt commands to run using dbt command line
+        interface(CLI). This field will be templated.
+        .. seealso::
+            For full details on the dbt CLI, see :ref:`concepts:dbt-commands`.
+            https://docs.databricks.com/en/jobs/dbt.html
+            
     :param notebook_params: A dict from keys to values for jobs with notebook task,
         e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
         The map is passed to the notebook and will be accessible through the
