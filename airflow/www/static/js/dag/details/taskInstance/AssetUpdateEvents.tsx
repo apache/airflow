@@ -37,7 +37,7 @@ const cardDef: CardDef<AssetEvent> = {
 
 const dagId = getMetaValue("dag_id") || undefined;
 
-const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
+const AssetUpdateEvents = ({ runId, taskId }: Props) => {
   const {
     data: { assetEvents = [] },
     isLoading,
@@ -87,4 +87,4 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   );
 };
 
-export default DatasetUpdateEvents;
+export default AssetUpdateEvents;
