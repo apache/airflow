@@ -58,7 +58,7 @@ def _rename_fk_constraint(
     batch_op: BatchOperations,
     original_name: str | conv,
     new_name: str | conv,
-    reference_table: str,
+    referent_table: str,
     local_cols: list[str],
     remote_cols: list[str],
     ondelete: str,
@@ -66,7 +66,7 @@ def _rename_fk_constraint(
     batch_op.drop_constraint(original_name, type_="foreignkey")
     batch_op.create_foreign_key(
         constraint_name=new_name,
-        referent_table=reference_table,
+        referent_table=referent_table,
         local_cols=local_cols,
         remote_cols=remote_cols,
         ondelete=ondelete,
@@ -399,7 +399,7 @@ def upgrade():
             batch_op=batch_op,
             original_name="asset_active_asset_name_uri_fkey",
             new_name="asset_active_asset_name_uri_fkey",
-            reference_table="asset",
+            referent_table="asset",
             local_cols=["name", "uri"],
             remote_cols=["name", "uri"],
             ondelete="CASCADE",
