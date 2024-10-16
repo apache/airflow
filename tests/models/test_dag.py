@@ -42,7 +42,6 @@ from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
-    DuplicateTaskIdFound,
     ParamValidationError,
     UnknownExecutorException,
 )
@@ -65,7 +64,7 @@ from airflow.models.dag import (
     get_asset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.param import DagParam, Param, ParamsDict
+from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance as TI
@@ -175,41 +174,6 @@ class TestDag:
                 b_index = i
         return 0 <= a_index < b_index
 
-    def test_params_not_passed_is_empty_dict(self):
-        """
-        Test that when 'params' is _not_ passed to a new Dag, that the params
-        attribute is set to an empty dictionary.
-        """
-        dag = DAG("test-dag", schedule=None)
-
-        assert isinstance(dag.params, ParamsDict)
-        assert 0 == len(dag.params)
-
-    def test_params_passed_and_params_in_default_args_no_override(self):
-        """
-        Test that when 'params' exists as a key passed to the default_args dict
-        in addition to params being passed explicitly as an argument to the
-        dag, that the 'params' key of the default_args dict is merged with the
-        dict of the params argument.
-        """
-        params1 = {"parameter1": 1}
-        params2 = {"parameter2": 2}
-
-        dag = DAG("test-dag", schedule=None, default_args={"params": params1}, params=params2)
-
-        assert params1["parameter1"] == dag.params["parameter1"]
-        assert params2["parameter2"] == dag.params["parameter2"]
-
-    def test_not_none_schedule_with_non_default_params(self):
-        """
-        Test if there is a DAG with not None schedule and have some params that
-        don't have a default value raise a error while DAG parsing
-        """
-        params = {"param1": Param(type="string")}
-
-        with pytest.raises(AirflowException):
-            DAG("dummy-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE, params=params)
-
     def test_dag_invalid_default_view(self):
         """
         Test invalid `default_view` of DAG initialization
@@ -237,57 +201,6 @@ class TestDag:
         """
         dag = DAG(dag_id="test-default_orientation", schedule=None)
         assert conf.get("webserver", "dag_orientation") == dag.orientation
-
-    def test_dag_as_context_manager(self):
-        """
-        Test DAG as a context manager.
-        When used as a context manager, Operators are automatically added to
-        the DAG (unless they specify a different DAG)
-        """
-        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-        dag2 = DAG("dag2", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner2"})
-
-        with dag:
-            op1 = EmptyOperator(task_id="op1")
-            op2 = EmptyOperator(task_id="op2", dag=dag2)
-
-        assert op1.dag is dag
-        assert op1.owner == "owner1"
-        assert op2.dag is dag2
-        assert op2.owner == "owner2"
-
-        with dag2:
-            op3 = EmptyOperator(task_id="op3")
-
-        assert op3.dag is dag2
-        assert op3.owner == "owner2"
-
-        with dag:
-            with dag2:
-                op4 = EmptyOperator(task_id="op4")
-            op5 = EmptyOperator(task_id="op5")
-
-        assert op4.dag is dag2
-        assert op5.dag is dag
-        assert op4.owner == "owner2"
-        assert op5.owner == "owner1"
-
-        with DAG("creating_dag_in_cm", schedule=None, start_date=DEFAULT_DATE) as dag:
-            EmptyOperator(task_id="op6")
-
-        assert dag.dag_id == "creating_dag_in_cm"
-        assert dag.tasks[0].task_id == "op6"
-
-        with dag:
-            with dag:
-                op7 = EmptyOperator(task_id="op7")
-            op8 = EmptyOperator(task_id="op8")
-        op9 = EmptyOperator(task_id="op8")
-        op9.dag = dag2
-
-        assert op7.dag == dag
-        assert op8.dag == dag
-        assert op9.dag == dag2
 
     def test_dag_topological_sort_dag_without_tasks(self):
         dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
@@ -1286,60 +1199,6 @@ class TestDag:
 
         dag = DAG("DAG", schedule=None, default_args=default_args)
         assert dag.timezone.name == local_tz.name
-
-    def test_roots(self):
-        """Verify if dag.roots returns the root tasks of a DAG."""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op4 = EmptyOperator(task_id="t4")
-            op5 = EmptyOperator(task_id="t5")
-            [op1, op2] >> op3 >> [op4, op5]
-
-            assert set(dag.roots) == {op1, op2}
-
-    def test_leaves(self):
-        """Verify if dag.leaves returns the leaf tasks of a DAG."""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op4 = EmptyOperator(task_id="t4")
-            op5 = EmptyOperator(task_id="t5")
-            [op1, op2] >> op3 >> [op4, op5]
-
-            assert set(dag.leaves) == {op4, op5}
-
-    def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
-        """Verify tasks with Duplicate task_id raises error"""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-                BashOperator(task_id="t1", bash_command="sleep 1")
-
-        assert dag.task_dict == {op1.task_id: op1}
-
-    def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
-        """Verify tasks with Duplicate task_id raises error"""
-        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
-        op1 = EmptyOperator(task_id="t1", dag=dag)
-        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            EmptyOperator(task_id="t1", dag=dag)
-
-        assert dag.task_dict == {op1.task_id: op1}
-
-    def test_duplicate_task_ids_for_same_task_is_allowed(self):
-        """Verify that same tasks with Duplicate task_id do not raise error"""
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = op2 = EmptyOperator(task_id="t1")
-            op3 = EmptyOperator(task_id="t3")
-            op1 >> op3
-            op2 >> op3
-
-        assert op1 == op2
-        assert dag.task_dict == {op1.task_id: op1, op3.task_id: op3}
-        assert dag.task_dict == {op2.task_id: op2, op3.task_id: op3}
 
     def test_partial_subset_updates_all_references_while_deepcopy(self):
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:

@@ -23,33 +23,29 @@ import copy
 import functools
 import operator
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+from collections.abc import Generator, Iterator, Sequence
+from typing import TYPE_CHECKING, Any
 
+import attrs
 import methodtools
 import re2
 
-import airflow.sdk.definitions.contextmanager
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.taskmixin import DAGNode
-from airflow.sdk.definitions.node import DAGNode as TaskSDKDagNode
+from airflow.sdk.definitions.node import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.helpers import validate_group_key, validate_instance_args
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.models.abstractoperator import AbstractOperator
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
-    from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DependencyMixin
-    from airflow.utils.edgemodifier import EdgeModifier
+    from airflow.sdk.definitions.abstractoperator import AbstractOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.edges import EdgeModifier
+    from airflow.sdk.definitions.mixins import DependencyMixin
 
 # TODO: The following mapping is used to validate that the arguments passed to the TaskGroup are of the
 #  correct type. This is a temporary solution until we find a more sophisticated method for argument
@@ -67,6 +63,7 @@ TASKGROUP_ARGS_EXPECTED_TYPES = {
 }
 
 
+@attrs.define()
 class TaskGroup(DAGNode):
     """
     A collection of tasks.
@@ -97,87 +94,30 @@ class TaskGroup(DAGNode):
         automatically add `__1` etc suffixes
     """
 
-    used_group_ids: set[str | None]
+    group_id: str
+    prefix_group_id: bool = True
+    parent_group: TaskGroup | None = None
+    dag: DAG | None = None
+    default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
+    children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
 
-    def __init__(
-        self,
-        group_id: str | None,
-        prefix_group_id: bool = True,
-        parent_group: TaskGroup | None = None,
-        dag: DAG | None = None,
-        default_args: dict[str, Any] | None = None,
-        tooltip: str = "",
-        ui_color: str = "CornflowerBlue",
-        ui_fgcolor: str = "#000",
-        add_suffix_on_collision: bool = False,
-    ):
-        from airflow.models.dag import DagContext
+    upstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)
+    downstream_group_ids: set[str | None] = attrs.field(factory=set, init=False)
+    upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
+    downstream_task_ids: str[str] = attrs.field(factory=set, init=False)
 
-        self.prefix_group_id = prefix_group_id
-        self.default_args = copy.deepcopy(default_args or {})
+    used_group_ids: set[str] = attrs.field(factory=set, init=False, on_setattr=attrs.setters.NO_OP)
 
-        dag = dag or DagContext.get_current_dag()
+    def __atrs_post_init__(self):
+        if self.parent_group:
+            self.parent_group.add(self)
+            if self.parent_group.default_args:
+                self.default_args = {**self.parent_group.default_args, **self.default_args}
 
-        if group_id is None:
-            # This creates a root TaskGroup.
-            if parent_group:
-                raise AirflowException("Root TaskGroup cannot have parent_group")
-            # used_group_ids is shared across all TaskGroups in the same DAG to keep track
-            # of used group_id to avoid duplication.
-            self.used_group_ids = set()
-            self.dag = dag
-        else:
-            if prefix_group_id:
-                # If group id is used as prefix, it should not contain spaces nor dots
-                # because it is used as prefix in the task_id
-                validate_group_key(group_id)
-            else:
-                if not isinstance(group_id, str):
-                    raise ValueError("group_id must be str")
-                if not group_id:
-                    raise ValueError("group_id must not be empty")
-
-            if not parent_group and not dag:
-                raise AirflowException("TaskGroup can only be used inside a dag")
-
-            parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
-            if not parent_group:
-                raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
-            if dag is not parent_group.dag:
-                raise RuntimeError(
-                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, parent_group.dag
-                )
-
-            self.used_group_ids = parent_group.used_group_ids
-
-        # if given group_id already used assign suffix by incrementing largest used suffix integer
-        # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
-        self._group_id = group_id
-        self._check_for_group_id_collisions(add_suffix_on_collision)
-
-        self.children: dict[str, DAGNode] = {}
-
-        if parent_group:
-            parent_group.add(self)
-            self._update_default_args(parent_group)
-
-        self.used_group_ids.add(self.group_id)
         if self.group_id:
+            self.used_group_ids.add(self.group_id)
             self.used_group_ids.add(self.downstream_join_id)
             self.used_group_ids.add(self.upstream_join_id)
-
-        self.tooltip = tooltip
-        self.ui_color = ui_color
-        self.ui_fgcolor = ui_fgcolor
-
-        # Keep track of TaskGroups or tasks that depend on this entire TaskGroup separately
-        # so that we can optimize the number of edges when entire TaskGroups depend on each other.
-        self.upstream_group_ids: set[str | None] = set()
-        self.downstream_group_ids: set[str | None] = set()
-        self.upstream_task_ids = set()
-        self.downstream_task_ids = set()
-
-        validate_instance_args(self, TASKGROUP_ARGS_EXPECTED_TYPES)
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -198,10 +138,6 @@ class TaskGroup(DAGNode):
             else:
                 self._group_id = f"{base}__{suffixes[-1] + 1}"
 
-    def _update_default_args(self, parent_group: TaskGroup):
-        if parent_group.default_args:
-            self.default_args = {**parent_group.default_args, **self.default_args}
-
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
         """Create a root TaskGroup with no group_id or parent."""
@@ -217,8 +153,12 @@ class TaskGroup(DAGNode):
         return not self.group_id
 
     @property
-    def parent_group(self) -> TaskGroup | None:
-        return self.task_group
+    def task_group(self) -> TaskGroup | None:
+        return self.parent_group
+
+    @task_group.setter
+    def _set_task_group(self, tg: TaskGroup):
+        self.parent_group = tg
 
     def __iter__(self):
         for child in self.children.values():
@@ -233,12 +173,13 @@ class TaskGroup(DAGNode):
 
         :meta private:
         """
-        from airflow.models.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions.abstractoperator import AbstractOperator
+        from airflow.sdk.definitions.contextmanager import TaskGroupContext
 
         if TaskGroupContext.active:
-            if task.task_group and task.task_group != self:
-                task.task_group.children.pop(task.node_id, None)
-                task.task_group = self
+            if task.parent_group and task.parent_group != self:
+                task.parent_group.children.pop(task.node_id, None)
+                task.parent_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
@@ -276,9 +217,9 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.task_group and self.task_group.prefix_group_id and self.task_group.node_id:
+        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group.group_id:
             # defer to parent whether it adds a prefix
-            return self.task_group.child_id(self._group_id)
+            return self.parent_group.child_id(self.group_id)
 
         return self._group_id
 
@@ -312,7 +253,7 @@ class TaskGroup(DAGNode):
         else:
             # Handles setting relationship between a TaskGroup and a task
             for task in other.roots:
-                if not isinstance(task, (DAGNode, TaskSDKDagNode)):
+                if not isinstance(task, DAGNode):
                     raise AirflowException(
                         "Relationships can only be set between TaskGroup "
                         f"or operators; received {task.__class__.__name__}"
@@ -356,11 +297,15 @@ class TaskGroup(DAGNode):
                 task.set_downstream(task_or_task_list)
 
     def __enter__(self) -> TaskGroup:
-        TaskGroupContext.push_context_managed_task_group(self)
+        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+
+        TaskGroupContext.push(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
-        TaskGroupContext.pop_context_managed_task_group()
+        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+
+        TaskGroupContext.pop()
 
     def has_task(self, task: BaseOperator) -> bool:
         """Return True if this TaskGroup or its children TaskGroups contains the given task."""
@@ -530,7 +475,7 @@ class TaskGroup(DAGNode):
                     while tg:
                         if tg.node_id in graph_unsorted:
                             break
-                        tg = tg.task_group
+                        tg = tg.parent_group
 
                     if tg:
                         # We are already going to visit that TG
@@ -558,7 +503,7 @@ class TaskGroup(DAGNode):
         while group is not None:
             if isinstance(group, MappedTaskGroup):
                 yield group
-            group = group.task_group
+            group = group.parent_group
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
         """Return an iterator of the child tasks."""
@@ -595,7 +540,7 @@ class MappedTaskGroup(TaskGroup):
         super().__init__(**kwargs)
         self._expand_input = expand_input
 
-    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+    def iter_mapped_dependencies(self) -> Iterator[DAGNode]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
         from airflow.models.xcom_arg import XComArg
 
@@ -623,52 +568,10 @@ class MappedTaskGroup(TaskGroup):
             (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
         )
 
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """
-        Return the number of instances a task in this group should be mapped to at run time.
-
-        This considers both literal and non-literal mapped arguments, and the
-        result is therefore available when all depended tasks have finished. The
-        return value should be identical to ``parse_time_mapped_ti_count`` if
-        all mapped arguments are literal.
-
-        If this group is inside mapped task groups, all the nested counts are
-        multiplied and accounted.
-
-        :meta private:
-
-        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
-        :return: Total number of mapped TIs this task should have.
-        """
-        groups = self.iter_mapped_task_groups()
-        return functools.reduce(
-            operator.mul,
-            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
-        )
-
     def __exit__(self, exc_type, exc_val, exc_tb):
         for op, _ in self._expand_input.iter_references():
             self.set_upstream(op)
         super().__exit__(exc_type, exc_val, exc_tb)
-
-
-class TaskGroupContext(airflow.sdk.definitions.contextmanager.TaskGroupContext, share_parent_context=True):
-    """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
-
-    @classmethod
-    def push_context_managed_task_group(cls, task_group: TaskGroup):
-        """Push a TaskGroup into the list of managed TaskGroups."""
-        return cls.push(task_group)
-
-    @classmethod
-    def pop_context_managed_task_group(cls) -> TaskGroup | None:
-        """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
-        return cls.pop()
-
-    @classmethod
-    def get_current_task_group(cls, dag: DAG | None) -> TaskGroup | None:
-        """Get the current TaskGroup."""
-        return cls.get_current(dag)
 
 
 def task_group_to_dict(task_item_or_group):

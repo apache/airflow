@@ -16,6 +16,32 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-def hello() -> str:
-    return "Hello from task-sdk!"
+__all__ = ["DAG", "BaseOperator", "TaskGroup"]
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.baseoperator import BaseOperator as BaseOperator
+    from airflow.sdk.definitions.dag import DAG as DAG
+    from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier
+    from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
+
+__lazy_imports: dict[str, str] = {
+    "DAG": ".definitions.dag",
+    "BaseOperator": ".definitions.baseoperator",
+    "TaskGroup": ".definitions.taskgroup",
+    "EdgeModifier": ".definitions.edges",
+}
+
+
+def __getattr__(name: str):
+    if module_path := __lazy_imports.get(name):
+        import importlib
+
+        mod = importlib.import_module(module_path, __name__)
+        val = getattr(mod, name)
+
+        # Store for next time
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

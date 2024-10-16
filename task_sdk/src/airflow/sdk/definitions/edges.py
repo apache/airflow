@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
-from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.sdk.definitions.node import DAGNode as TaskSDKDagNode
-from airflow.sdk.definitions.taskgroup import TaskGroup as TaskSDKTaskGroup
-from airflow.utils.task_group import TaskGroup
+from .mixins import DependencyMixin
+
+if TYPE_CHECKING:
+    from .dag import DAG
 
 
 class EdgeModifier(DependencyMixin):
@@ -57,7 +58,9 @@ class EdgeModifier(DependencyMixin):
         return self._upstream
 
     @staticmethod
-    def _make_list(item_or_list: DependencyMixin | Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+    def _make_list(
+        item_or_list: DependencyMixin | Sequence[DependencyMixin],
+    ) -> Sequence[DependencyMixin]:
         if not isinstance(item_or_list, Sequence):
             return [item_or_list]
         return item_or_list
@@ -67,15 +70,17 @@ class EdgeModifier(DependencyMixin):
         nodes: DependencyMixin | Sequence[DependencyMixin],
         stream: list[DependencyMixin],
     ):
-        from airflow.models.xcom_arg import XComArg
+        from .node import DAGNode
+        from .task_group import TaskGroup
+
+        class XComArg: ...
 
         for node in self._make_list(nodes):
-            if isinstance(node, (XComArg, DAGNode, TaskSDKDagNode)):
+            if isinstance(node, (TaskGroup, XComArg, DAGNode)):
                 stream.append(node)
             else:
                 raise TypeError(
-                    f"Cannot use edge labels with {type(node).__name__}, "
-                    f"only tasks, XComArg or TaskGroups"
+                    f"Cannot use edge labels with {type(node).__name__}, only tasks, XComArg or TaskGroups"
                 )
 
     def _convert_streams_to_task_groups(self):
@@ -88,7 +93,10 @@ class EdgeModifier(DependencyMixin):
         the nodes are from the same TaskGroup, we will leave them as DAGNodes and not
         convert them to TaskGroups
         """
-        from airflow.models.xcom_arg import XComArg
+        from .node import DAGNode
+        from .task_group import TaskGroup
+
+        class XComArg: ...
 
         group_ids = set()
         for node in [*self._upstream, *self._downstream]:
@@ -97,10 +105,10 @@ class EdgeModifier(DependencyMixin):
                     group_ids.add("root")
                 else:
                     group_ids.add(node.task_group.group_id)
-            elif isinstance(node, (TaskGroup, TaskSDKTaskGroup)):
+            elif isinstance(node, TaskGroup):
                 group_ids.add(node.group_id)
             elif isinstance(node, XComArg):
-                if isinstance(node.operator, (DAGNode, TaskSDKDagNode)) and node.operator.task_group:
+                if isinstance(node.operator, DAGNode) and node.operator.task_group:
                     if node.operator.task_group.is_root:
                         group_ids.add("root")
                     else:
@@ -112,9 +120,11 @@ class EdgeModifier(DependencyMixin):
             self._downstream = self._convert_stream_to_task_groups(self._downstream)
 
     def _convert_stream_to_task_groups(self, stream: Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
+        from .node import DAGNode
+
         return [
             node.task_group
-            if isinstance(node, (DAGNode, TaskSDKDagNode)) and node.task_group and not node.task_group.is_root
+            if isinstance(node, DAGNode) and node.task_group and not node.task_group.is_root
             else node
             for node in stream
         ]
@@ -154,7 +164,10 @@ class EdgeModifier(DependencyMixin):
             node.set_downstream(other, edge_modifier=self)
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """Update relative if we're not the "main" side of a relationship; still run the same logic."""
         if upstream:
@@ -162,7 +175,7 @@ class EdgeModifier(DependencyMixin):
         else:
             self.set_downstream(other)
 
-    def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
+    def add_edge_info(self, dag: DAG, upstream_id: str, downstream_id: str):
         """
         Add or update task info on the DAG for this specific pair of tasks.
 

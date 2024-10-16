@@ -14,10 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.sdk import hello
-
-
-def test_hello():
-    assert hello() == "Hello from task-sdk!"

@@ -468,6 +468,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
+    "--tb=short",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
@@ -590,6 +591,7 @@ explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/providers/src",
+  "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
 ]
 
 [[tool.mypy.overrides]]
