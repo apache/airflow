@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
@@ -126,6 +126,26 @@ class _SearchParam(BaseParam[str]):
         if value == "~":
             value = "%"
         return value
+
+
+class _OrderByParam(BaseParam[str]):
+    """Order result by specified attribute ascending or descending."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value: Literal["asc", "desc"] | None = None
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        asc_stmt = select.order_by(self.attribute.asc())
+        if self.value is None:
+            return asc_stmt
+        return asc_stmt if self.value == "asc" else select.order_by(self.attribute.desc())
+
+    def depends(self, order_by: str = "asc") -> _OrderByParam:
+        return self.set_value(order_by)
 
 
 class _DagIdPatternSearch(_SearchParam):
@@ -265,6 +285,17 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+class _DagTagNamePatternSearch(_SearchParam):
+    """Search on dag_tag.name."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagTag.name, skip_none)
+
+    def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
+        tag_name_pattern = super().transform_aliases(tag_name_pattern)
+        return self.set_value(tag_name_pattern)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -299,3 +330,6 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGTags
+QueryDagTagOrderBy = Annotated[_OrderByParam, Depends(_OrderByParam(DagTag.name).depends)]
+QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
