@@ -18,18 +18,18 @@
  #}
 
 {% extends base_template %}
-{% block page_title %}Datasets - {{ appbuilder.app_name }}{% endblock %}
+{% block page_title %}Assets - {{ appbuilder.app_name }}{% endblock %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="datasets_summary" content="{{ url_for('Airflow.datasets_summary') }}">
+  <meta name="assets_summary" content="{{ url_for('Airflow.assets_summary') }}">
   <meta name="asset_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_asset', uri='__URI__') }}">
   <meta name="asset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_asset_events') }}">
   <meta name="create_asset_event_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_create_asset_event') }}" >
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
-  <meta name="datasets_docs" content="{{ get_docs_url('concepts/datasets.html') }}">
-  <meta name="dataset_dependencies_url" content="{{ url_for('Airflow.dataset_dependencies') }}">
+  <meta name="assets_docs" content="{{ get_docs_url('concepts/assets.html') }}">
+  <meta name="asset_dependencies_url" content="{{ url_for('Airflow.asset_dependencies') }}">
   <meta name="task_instance_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
 {% endblock %}
 
@@ -47,5 +47,5 @@
     const stateColors = {{ state_color_mapping|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
-  <script src="{{ url_for_asset('datasets.js') }}"></script>
+  <script src="{{ url_for_asset('assets.js') }}"></script>
 {% endblock %}
