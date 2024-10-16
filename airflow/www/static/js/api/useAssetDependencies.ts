@@ -26,7 +26,7 @@ import { getTextWidth } from "src/utils/graph";
 
 import type { NodeType, DepEdge, DepNode } from "src/types";
 
-export interface DatasetDependencies {
+export interface AssetDependencies {
   edges: DepEdge[];
   nodes: DepNode[];
 }
@@ -69,7 +69,7 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
   })),
 });
 
-const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
+const formatDependencies = async ({ edges, nodes }: AssetDependencies) => {
   const elk = new ELK();
 
   // get computed style to calculate how large each node should be
@@ -85,7 +85,7 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
 export default function useAssetDependencies() {
   return useQuery("datasetDependencies", async () => {
     const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
-    return axios.get<AxiosResponse, DatasetDependencies>(datasetDepsUrl);
+    return axios.get<AxiosResponse, AssetDependencies>(datasetDepsUrl);
   });
 }
 
