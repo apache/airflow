@@ -62,6 +62,7 @@ class TestSerializedDagModel:
         ],
     )
     def setup_test_cases(self, request, monkeypatch):
+        db.clear_db_dags()
         db.clear_db_serialized_dags()
         with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
             yield
@@ -191,7 +192,9 @@ class TestSerializedDagModel:
             DAG("dag_3", schedule=None),
         ]
         DAG.bulk_write_to_db(dags)
-        with assert_queries_count(15):  # we also write to dag_version and dag_code tables
+        # we also write to dag_version and dag_code tables
+        # in dag_version, we search for unique version_name too
+        with assert_queries_count(21):
             SDM.bulk_sync_to_db(dags)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
