@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-15T19:48:32.447691
+# This constraints file was automatically generated on 2024-10-16T02:18:05.864054
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -234,7 +234,7 @@ backports.tarfile==1.2.0
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
 billiard==4.2.1
-bitarray==2.9.3
+bitarray==3.0.0
 black==24.10.0
 blinker==1.8.2
 boto3==1.35.36
@@ -347,12 +347,12 @@ google-cloud-dataproc==5.13.0
 google-cloud-dlp==3.23.0
 google-cloud-kms==3.0.0
 google-cloud-language==2.14.0
-google-cloud-logging==3.11.2
+google-cloud-logging==3.11.3
 google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.26.0
+google-cloud-pubsub==2.26.1
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.9
@@ -581,7 +581,7 @@ pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.1
-pyodbc==5.1.0
+pyodbc==5.2.0
 pyparsing==3.2.0
 pypsrp==0.8.1
 pyspark==3.5.3
@@ -741,7 +741,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
-uv==0.4.21
+uv==0.4.22
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.33.0
@@ -761,7 +761,7 @@ xmltodict==0.14.1
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
-yarl==1.15.2
+yarl==1.15.3
 ydb==3.18.2
 zeep==4.3.0
 zenpy==2.0.53
