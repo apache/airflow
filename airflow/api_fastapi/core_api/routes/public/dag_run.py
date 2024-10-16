@@ -22,10 +22,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db.common import get_session
-from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.routes.router import AirflowRouter
-from airflow.api_fastapi.serializers.dag_run import DAGRunResponse
+from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
 from airflow.models import DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
