@@ -342,7 +342,7 @@ section-order = [
 
 # Make sure we put the "dev" imports at the end, not as a third-party module
 [tool.ruff.lint.isort.sections]
-testing = ["dev", "providers.tests", "task_sdk.tests", "test_common", "tests"]
+testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
 "airflow/__init__.py" = ["F401", "TCH004"]
