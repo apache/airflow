@@ -32,6 +32,7 @@ from azure.core.credentials import AccessToken
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
+# from aiohttp.client_exceptions import ClientConnectorError
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
