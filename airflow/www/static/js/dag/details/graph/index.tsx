@@ -63,7 +63,7 @@ type AssetExpression = {
   any?: (string | AssetExpression)[];
 };
 
-const getUpstreamDatasets = (
+const getUpstreamAssets = (
   assetExpression: AssetExpression,
   firstChildId: string,
   level = 0
@@ -116,7 +116,7 @@ const getUpstreamDatasets = (
     });
 
     if (nestedExpression) {
-      const data = getUpstreamDatasets(
+      const data = getUpstreamAssets(
         nestedExpression,
         `${type}-${level}`,
         (level += 1)
@@ -158,7 +158,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   let datasetEdges: WebserverEdge[] = [];
 
   const { nodes: upstreamAssetNodes, edges: upstreamDatasetEdges } =
-    getUpstreamDatasets(
+    getUpstreamAssets(
       dagDetails.assetExpression as AssetExpression,
       data?.nodes?.children?.[0]?.id ?? ""
     );
