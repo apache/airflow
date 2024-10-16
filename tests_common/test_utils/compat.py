@@ -52,7 +52,6 @@ except ImportError:
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.providers.standard.operators.python import PythonOperator
     from airflow.providers.standard.sensors.bash import BashSensor
     from airflow.providers.standard.sensors.date_time import DateTimeSensor
 except ImportError:
@@ -62,6 +61,10 @@ except ImportError:
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
 
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.providers.standard.operators.python import PythonOperator
+else:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
 
 if TYPE_CHECKING:
     from airflow.models.asset import (

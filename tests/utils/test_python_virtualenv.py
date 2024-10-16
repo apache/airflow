@@ -23,8 +23,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
-from airflow.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
 
 
 class TestPrepareVirtualenv:
