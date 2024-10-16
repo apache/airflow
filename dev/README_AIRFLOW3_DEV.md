@@ -147,7 +147,7 @@ TBD
 
 Milestone will be added only to the original PR.
 
-1. PR targeting `v2-10-test` directly - mlinestone will be on that PR.
+1. PR targeting `v2-10-test` directly - milestone will be on that PR.
 2. PR targeting `main` with backport PR targeting `v2-10-test`. Milestone will be added only on the PR targeting `v2-10-main`.
 
 ## Set 2.11 milestone
