@@ -36,7 +36,6 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dag import DagOwnerAttributes
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
 from airflow.models.serialized_dag import SerializedDagModel
@@ -115,7 +114,6 @@ def clear_db_dags():
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(DagModel).delete()
-        session.query(DagVersion).delete()
         session.query(DagCode).delete()
 
 

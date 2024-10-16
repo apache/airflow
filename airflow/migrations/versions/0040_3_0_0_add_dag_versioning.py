@@ -120,6 +120,7 @@ def downgrade():
     with op.batch_alter_table("dag_code", schema=None) as batch_op:
         batch_op.drop_column("id")
         batch_op.drop_column("dag_version_id")
+        batch_op.create_primary_key("dag_code_pkey", ["fileloc"])
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.drop_column("version_name")
