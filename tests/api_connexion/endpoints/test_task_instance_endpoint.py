@@ -27,7 +27,7 @@ from sqlalchemy.orm import contains_eager
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
+from airflow.models import DagRun, TaskInstance, Trigger
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.platform import getuser
@@ -36,7 +36,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests_common.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -85,7 +85,6 @@ class TestTaskInstanceEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
         self.dagbag = dagbag
 
@@ -197,7 +196,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -256,7 +254,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "deferred",
             "task_id": "print_the_context",
@@ -304,7 +301,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "removed",
             "task_id": "print_the_context",
@@ -318,16 +314,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "triggerer_job": None,
         }
 
-    def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
+    def test_should_respond_200_task_instance_with_rendered(self, session):
         tis = self.create_task_instances(session)
         session.query()
-        sla_miss = SlaMiss(
-            task_id="print_the_context",
-            dag_id="example_python_operator",
-            execution_date=self.default_time,
-            timestamp=self.default_time,
-        )
-        session.add(sla_miss)
         rendered_fields = RTIF(tis[0], render_templates=False)
         session.add(rendered_fields)
         session.commit()
@@ -355,15 +344,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": {
-                "dag_id": "example_python_operator",
-                "description": None,
-                "email_sent": False,
-                "execution_date": "2020-01-01T00:00:00+00:00",
-                "notification_sent": False,
-                "task_id": "print_the_context",
-                "timestamp": "2020-01-01T00:00:00+00:00",
-            },
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -416,7 +396,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
-                "sla_miss": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
@@ -2320,7 +2299,6 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
-            "sla_miss": None,
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "print_the_context",
@@ -2380,7 +2358,6 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
-                "sla_miss": None,
                 "start_date": "2020-01-02T00:00:00+00:00",
                 "state": "running",
                 "task_id": "print_the_context",
