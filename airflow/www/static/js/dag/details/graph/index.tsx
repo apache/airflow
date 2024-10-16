@@ -157,7 +157,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   let datasetNodes: DepNode[] = [];
   let datasetEdges: WebserverEdge[] = [];
 
-  const { nodes: upstreamAssetNodes, edges: upstreamDatasetEdges } =
+  const { nodes: upstreamAssetNodes, edges: upstreamAssetEdges } =
     getUpstreamAssets(
       dagDetails.assetExpression as AssetExpression,
       data?.nodes?.children?.[0]?.id ?? ""
@@ -183,7 +183,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   if (showDatasets) {
     datasetNodes = [...upstreamAssetNodes];
-    datasetEdges = [...upstreamDatasetEdges];
+    datasetEdges = [...upstreamAssetEdges];
     datasetsCollection?.assets?.forEach((asset) => {
       const producingTask = asset?.producingTasks?.find(
         (t) => t.dagId === dagId
