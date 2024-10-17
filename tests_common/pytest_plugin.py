@@ -1414,12 +1414,7 @@ def clean_dags_and_dagruns():
 def app():
     from tests_common.test_utils.config import conf_vars
 
-    with conf_vars(
-        {
-            ("fab", "auth_rate_limited"): "False",
-            ("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.session",
-        }
-    ):
+    with conf_vars({("fab", "auth_rate_limited"): "False"}):
         from airflow.www import app
 
         yield app.create_app(testing=True)
