@@ -149,19 +149,6 @@ class EdgeExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
-        """
-        Handle remnants of tasks that were failed because they were stuck in queued.
-
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
-        """
-        raise NotImplementedError()
-
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.

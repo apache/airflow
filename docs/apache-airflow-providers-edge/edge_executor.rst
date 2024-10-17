@@ -129,7 +129,10 @@ before use. The following features have been initially tested and are working:
   - This also means that some direct Airflow API via Python is not possible (e.g. airflow.models.*)
   - Log upload will only work if you use a single web server instance or they need to share one log file volume.
   - Performance: No performance assessment and scaling tests have been made. The edge executor package is not
-    optimized for scalability. This will need to be considered in future releases.
+    optimized for scalability. This will need to be considered in future releases. A dedicated performance
+    assessment is to be completed ensuring that in a hybrid setup other executors are not impacted before
+    version 1.0.0 is to be released.
+  - Stuck tasks in queue are not explicitly handled as ``cleanup_stuck_queued_tasks()`` is not implemented.
 
 
 Architecture
