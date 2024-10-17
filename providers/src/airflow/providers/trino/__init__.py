@@ -34,6 +34,5 @@ __version__ = "5.8.1"
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
     "2.8.0"
 ):
-    raise RuntimeError(
-        f"The package `apache-airflow-providers-trino:{__version__}` needs Apache Airflow 2.8.0+"
-    )
+    msg = f"The package `apache-airflow-providers-trino:{__version__}` needs Apache Airflow 2.8.0+"
+    raise RuntimeError(msg)

@@ -61,7 +61,8 @@ def set_permissions(settings: dict[Path | str, int]):
             if isinstance(path, str):
                 path = Path(path)
             if len(path.parts) <= 1:
-                raise SystemError(f"Unable to change permission for the root directory: {path}.")
+                msg = f"Unable to change permission for the root directory: {path}."
+                raise SystemError(msg)
 
             st_mode = os.stat(path).st_mode
             new_st_mode = st_mode | mode
@@ -108,12 +109,13 @@ def create_user(check_original_docker_image):
     except subprocess.CalledProcessError as e:
         command = e.cmd[1]
         if e.returncode != 9:  # pass: username already exists
-            raise pytest.skip(
+            msg = (
                 f"{e} Skipping tests.\n"
                 f"Does command {command!r} exists and the current user have permission to run "
                 f"{command!r} without a password prompt (check sudoers file)?\n"
                 f"{e.stdout.decode() if e.stdout else ''}"
             )
+            raise pytest.skip(msg)
     yield TEST_USER
     subprocess.check_call(["sudo", "userdel", "-r", TEST_USER])
 

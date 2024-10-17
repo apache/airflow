@@ -52,7 +52,8 @@ class TestProducerHook:
 
         def acked(err, msg):
             if err is not None:
-                raise Exception(f"{err}")
+                msg = f"{err}"
+                raise Exception(msg)
             else:
                 assert msg.topic() == topic
                 assert msg.partition() == 0

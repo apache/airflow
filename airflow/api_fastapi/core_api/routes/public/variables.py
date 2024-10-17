@@ -41,7 +41,8 @@ async def delete_variable(
 ):
     """Delete a variable entry."""
     if Variable.delete(variable_key, session) == 0:
-        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+        detail = f"The Variable with key: `{variable_key}` was not found"
+        raise HTTPException(404, detail)
 
 
 @variables_router.get("/{variable_key}", responses=create_openapi_http_exception_doc([401, 403, 404]))
@@ -53,7 +54,8 @@ async def get_variable(
     variable = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
 
     if variable is None:
-        raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+        detail = f"The Variable with key: `{variable_key}` was not found"
+        raise HTTPException(404, detail)
 
     return VariableResponse.model_validate(variable, from_attributes=True)
 

@@ -103,7 +103,7 @@ def query_params(*es_query_params, **kwargs):
                     params_prose = "', '".join(sorted(body_only_params_in_use))
                     plural_params = len(body_only_params_in_use) > 1
 
-                    raise TypeError(
+                    msg = (
                         f"The '{params_prose}' parameter{'s' if plural_params else ''} "
                         f"{'are' if plural_params else 'is'} only serialized in the "
                         f"request body and can't be combined with the 'body' parameter. "
@@ -112,6 +112,7 @@ def query_params(*es_query_params, **kwargs):
                         f"See https://github.com/elastic/elasticsearch-py/issues/1698 "
                         f"for more information"
                     )
+                    raise TypeError(msg)
 
             elif set(body_params or ()).intersection(kwargs):
                 body = {}
@@ -127,13 +128,14 @@ def query_params(*es_query_params, **kwargs):
             if body_name:
                 if body_name in kwargs:
                     if using_body_kwarg:
-                        raise TypeError(
+                        msg = (
                             f"Can't use '{body_name}' and 'body' parameters together"
                             f" because '{body_name}' is an alias for 'body'. "
                             f"Instead you should only use the '{body_name}' "
                             f"parameter. See https://github.com/elastic/elasticsearch-py/issues/1698 "
                             f"for more information"
                         )
+                        raise TypeError(msg)
                     kwargs["body"] = kwargs.pop(body_name)
 
             if http_auth is not None and api_key is not None:

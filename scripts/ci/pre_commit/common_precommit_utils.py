@@ -107,10 +107,11 @@ def insert_documentation(
 
 def initialize_breeze_precommit(name: str, file: str):
     if name not in ("__main__", "__mp_main__"):
-        raise SystemExit(
+        msg = (
             "This file is intended to be executed as an executable program. You cannot use it as a module."
             f"To run this script, run the ./{file} command"
         )
+        raise SystemExit(msg)
 
     if os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
         console.print("[yellow]Skipping breeze pre-commit as SKIP_BREEZE_PRE_COMMIT is set")

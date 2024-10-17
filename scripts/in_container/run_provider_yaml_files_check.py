@@ -155,16 +155,20 @@ def assert_sets_equal(
     try:
         difference1 = set1.difference(set2)
     except TypeError as e:
-        raise AssertionError(f"invalid type when attempting set difference: {e}")
+        msg = f"invalid type when attempting set difference: {e}"
+        raise AssertionError(msg)
     except AttributeError as e:
-        raise AssertionError(f"first argument does not support set difference: {e}")
+        msg = f"first argument does not support set difference: {e}"
+        raise AssertionError(msg)
 
     try:
         difference2 = set2.difference(set1)
     except TypeError as e:
-        raise AssertionError(f"invalid type when attempting set difference: {e}")
+        msg = f"invalid type when attempting set difference: {e}"
+        raise AssertionError(msg)
     except AttributeError as e:
-        raise AssertionError(f"second argument does not support set difference: {e}")
+        msg = f"second argument does not support set difference: {e}"
+        raise AssertionError(msg)
 
     if difference1 or (difference2 and not allow_extra_in_set2):
         lines = []
@@ -232,7 +236,8 @@ def check_if_object_exist(
             if inspect.ismodule(module):
                 return num_errors
         else:
-            raise RuntimeError(f"Wrong enum {object_type}???")
+            msg = f"Wrong enum {object_type}???"
+            raise RuntimeError(msg)
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "

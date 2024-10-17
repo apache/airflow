@@ -169,7 +169,8 @@ class SSHOperator(BaseOperator):
         if exit_status in self.skip_on_exit_code:
             raise AirflowSkipException(f"SSH command returned exit code {exit_status}. Skipping.")
         if exit_status != 0:
-            raise AirflowException(f"SSH operator error: exit status = {exit_status}")
+            msg = f"SSH operator error: exit status = {exit_status}"
+            raise AirflowException(msg)
 
     def run_ssh_client_command(self, ssh_client: SSHClient, command: str, context=None) -> bytes:
         exit_status, agg_stdout, agg_stderr = self.hook.exec_ssh_client_command(

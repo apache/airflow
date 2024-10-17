@@ -29,10 +29,11 @@ import jinja2
 from rich.console import Console
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
+    raise SystemExit(msg)
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 

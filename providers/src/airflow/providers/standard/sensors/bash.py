@@ -106,7 +106,8 @@ class BashSensor(BaseSensorOperator):
                         self.log.info("Return code matches retry code, will retry later")
                         return False
                     else:
-                        raise AirflowFailException(f"Command exited with return code {resp.returncode}")
+                        msg = f"Command exited with return code {resp.returncode}"
+                        raise AirflowFailException(msg)
 
                 # backwards compatibility: sensor retries no matter the error code
                 else:

@@ -33,12 +33,12 @@ if TYPE_CHECKING:
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
     if task.owner and not isinstance(task.owner, str):
-        raise AirflowClusterPolicyViolation(f"""owner should be a string. Current value: {task.owner!r}""")
+        msg = f"owner should be a string. Current value: {task.owner!r}"
+        raise AirflowClusterPolicyViolation(msg)
 
     if not task.owner or task.owner.lower() == conf.get("operators", "default_owner"):
-        raise AirflowClusterPolicyViolation(
-            f"""Task must have non-None non-default owner. Current value: {task.owner}"""
-        )
+        msg = f"Task must have non-None non-default owner. Current value: {task.owner}"
+        raise AirflowClusterPolicyViolation(msg)
 
 
 # [END example_cluster_policy_rule]
@@ -60,11 +60,12 @@ def _check_task_rules(current_task: BaseOperator):
             notices.append(str(ex))
     if notices:
         notices_list = " * " + "\n * ".join(notices)
-        raise AirflowClusterPolicyViolation(
+        msg = (
             f"DAG policy violation (DAG ID: {current_task.dag_id}, Path: {current_task.dag.fileloc}):\n"
             f"Notices:\n"
             f"{notices_list}"
         )
+        raise AirflowClusterPolicyViolation(msg)
 
 
 def example_task_policy(task: BaseOperator):
@@ -79,14 +80,12 @@ def example_task_policy(task: BaseOperator):
 def dag_policy(dag: DAG):
     """Ensure that DAG has at least one tag and skip the DAG with `only_for_beta` tag."""
     if not dag.tags:
-        raise AirflowClusterPolicyViolation(
-            f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
-        )
+        msg = f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
+        raise AirflowClusterPolicyViolation(msg)
 
     if "only_for_beta" in dag.tags:
-        raise AirflowClusterPolicySkipDag(
-            f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
-        )
+        msg = f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
+        raise AirflowClusterPolicySkipDag(msg)
 
 
 # [END example_dag_cluster_policy]

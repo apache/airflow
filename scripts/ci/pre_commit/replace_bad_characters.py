@@ -25,10 +25,11 @@ from typing import NamedTuple
 from rich.console import Console
 
 if __name__ != "__main__":
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the {__file__} command"
     )
+    raise SystemExit(msg)
 
 console = Console(width=400, color_system="standard")
 

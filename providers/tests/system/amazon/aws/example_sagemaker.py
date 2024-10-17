@@ -170,11 +170,12 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         )
         _, stderr = docker_build.communicate()
         if docker_build.returncode != 0:
-            raise RuntimeError(
+            msg = (
                 "Failed to prepare docker image for the preprocessing job.\n"
                 "The following error happened while executing the sequence of bash commands:\n"
                 f"{stderr.decode()}"
             )
+            raise RuntimeError(msg)
 
 
 def generate_data() -> str:
@@ -210,11 +211,12 @@ def set_up(env_id, role_arn):
     try:
         knn_image_uri = KNN_IMAGES_BY_REGION[region]
     except KeyError:
-        raise KeyError(
+        msg = (
             f"Region name {region} does not have a known KNN "
             f"Image URI.  Please add the region and URI following "
             f"the directions at the top of the system testfile "
         )
+        raise KeyError(msg)
 
     resource_config = {
         "InstanceCount": 1,

@@ -39,7 +39,8 @@ async def next_run_assets(
     dag = request.app.state.dag_bag.get_dag(dag_id)
 
     if not dag:
-        raise HTTPException(404, f"can't find dag {dag_id}")
+        detail = f"can't find dag {dag_id}"
+        raise HTTPException(404, detail)
 
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
 

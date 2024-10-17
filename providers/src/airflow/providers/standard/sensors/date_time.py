@@ -69,9 +69,8 @@ class DateTimeSensor(BaseSensorOperator):
         elif isinstance(target_time, str):
             self.target_time = target_time
         else:
-            raise TypeError(
-                f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
-            )
+            msg = f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
+            raise TypeError(msg)
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
