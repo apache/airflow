@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-17T02:12:03.250496
+# This constraints file was automatically generated on 2024-10-17T13:45:43.104014
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -528,7 +528,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.16.0
+sentry-sdk==2.17.0
 setproctitle==1.3.3
 shapely==2.0.6
 shellingham==1.5.4
