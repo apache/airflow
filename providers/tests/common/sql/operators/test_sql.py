@@ -23,8 +23,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
-from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -46,6 +44,9 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
