@@ -30,8 +30,8 @@ from werkzeug.wrappers import Response
 from airflow.exceptions import AirflowConfigException
 from airflow.www import app as application
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

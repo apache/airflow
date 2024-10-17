@@ -55,8 +55,8 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-from dev.tests_common.test_utils.compat import BashOperator
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 

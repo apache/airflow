@@ -32,10 +32,10 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
 from tests.listeners import lifecycle_listener
 from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
-
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.serialization.pydantic.job import JobPydantic

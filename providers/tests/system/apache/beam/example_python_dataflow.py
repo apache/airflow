@@ -79,7 +79,7 @@ with models.DAG(
     # [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run
+from tests_common.test_utils.system_tests import get_test_run
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

@@ -69,15 +69,15 @@ from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
 from tests.utils.test_timezone import UTC
-
-from dev.tests_common.test_utils.asserts import assert_queries_count
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars, env_vars
-from dev.tests_common.test_utils.db import (
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_backfills,
     clear_db_dags,
@@ -86,11 +86,10 @@ from dev.tests_common.test_utils.db import (
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
-    clear_db_sla_miss,
     set_default_pool_slots,
 )
-from dev.tests_common.test_utils.mock_executor import MockExecutor
-from dev.tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.mock_operators import CustomOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -143,7 +142,6 @@ class TestSchedulerJob:
         clear_db_backfills()
         clear_db_pools()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_assets()
@@ -2978,8 +2976,8 @@ class TestSchedulerJob:
             ti2s = tiq.filter(TaskInstance.task_id == "dummy2").all()
             assert len(ti1s) == 0
             assert len(ti2s) >= 2
-            for task in ti2s:
-                assert task.state == State.SUCCESS
+            for ti in ti2s:
+                assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
         "configs",
@@ -4479,14 +4477,14 @@ class TestSchedulerJob:
         model: DagModel = session.get(DagModel, dag.dag_id)
 
         # Pre-condition
-        assert DagRun.active_runs_of_dags(session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
 
         assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()
 
-        assert DagRun.active_runs_of_dags(session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
 
         for _ in range(5):
             self.job_runner._do_scheduling(session)
@@ -5541,36 +5539,37 @@ class TestSchedulerJob:
         with pytest.raises(OperationalError):
             check_if_trigger_timeout(1)
 
-    def test_find_zombies_nothing(self):
+    def test_find_and_purge_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
-        self.job_runner = SchedulerJobRunner(scheduler_job)
-        self.job_runner.processor_agent = mock.MagicMock()
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.return_value = executor
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner.processor_agent = mock.MagicMock()
+            self.job_runner._find_and_purge_zombies()
+        executor.callback_sink.send.assert_not_called()
 
-        self.job_runner._find_zombies()
-
-        scheduler_job.executor.callback_sink.send.assert_not_called()
-
-    def test_find_zombies(self, load_examples):
+    def test_find_and_purge_zombies(self, load_examples, session):
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
-        with create_session() as session:
-            session.query(Job).delete()
-            dag = dagbag.get_dag("example_branch_operator")
-            dag.sync_to_db()
-            data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
-            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dag_run = dag.create_dagrun(
-                state=DagRunState.RUNNING,
-                execution_date=DEFAULT_DATE,
-                run_type=DagRunType.SCHEDULED,
-                session=session,
-                data_interval=data_interval,
-                **triggered_by_kwargs,
-            )
 
-            scheduler_job = Job()
+        dag = dagbag.get_dag("example_branch_operator")
+        dag.sync_to_db()
+        data_interval = dag.infer_automated_data_interval(DEFAULT_LOGICAL_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dag_run = dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+            data_interval=data_interval,
+            **triggered_by_kwargs,
+        )
+
+        executor = MockExecutor()
+        scheduler_job = Job(executor=executor)
+        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+            loader_mock.return_value = executor
             self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
             self.job_runner.processor_agent = mock.MagicMock()
 
             # We will provision 2 tasks so we can check we only find zombies from this scheduler
@@ -5596,11 +5595,12 @@ class TestSchedulerJob:
 
             ti.queued_by_job_id = scheduler_job.id
             session.flush()
+            executor.running.add(ti.key)  # The executor normally does this during heartbeat.
+            self.job_runner._find_and_purge_zombies()
+            assert ti.key not in executor.running
 
-            self.job_runner._find_zombies()
-
-        scheduler_job.executor.callback_sink.send.assert_called_once()
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
+        executor.callback_sink.send.assert_called_once()
+        callback_requests = executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         callback_request = callback_requests[0]
         assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
@@ -5611,10 +5611,6 @@ class TestSchedulerJob:
         assert callback_request.simple_task_instance.task_id == ti.task_id
         assert callback_request.simple_task_instance.run_id == ti.run_id
         assert callback_request.simple_task_instance.map_index == ti.map_index
-
-        with create_session() as session:
-            session.query(TaskInstance).delete()
-            session.query(Job).delete()
 
     def test_zombie_message(self, load_examples):
         """
@@ -5731,7 +5727,7 @@ class TestSchedulerJob:
         scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock()
 
-        self.job_runner._find_zombies()
+        self.job_runner._find_and_purge_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
 
@@ -6086,9 +6082,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove 2 asset references
@@ -6105,14 +6101,13 @@ class TestSchedulerJob:
         non_orphaned_assets = [
             asset.uri
             for asset in session.query(AssetModel.uri)
-            .filter(~AssetModel.is_orphaned)
+            .filter(AssetModel.active.has())
             .order_by(AssetModel.uri)
         ]
         assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri).filter(AssetModel.is_orphaned).order_by(AssetModel.uri)
-        ]
+        orphaned_assets = session.scalars(
+            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
+        ).all()
         assert orphaned_assets == ["ds2", "ds4"]
 
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
@@ -6121,9 +6116,9 @@ class TestSchedulerJob:
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
         assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
         assert orphaned_asset_count == 0
 
         # now remove asset1 reference
@@ -6138,7 +6133,7 @@ class TestSchedulerJob:
 
         orphaned_assets_before_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
@@ -6151,7 +6146,7 @@ class TestSchedulerJob:
 
         orphaned_assets_after_rerun = (
             session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(AssetModel.is_orphaned)
+            .filter(~AssetModel.active.has())
             .order_by(AssetModel.uri)
         )
         assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]
@@ -6237,7 +6232,6 @@ class TestSchedulerJobQueriesCount:
         clear_db_pools()
         clear_db_backfills()
         clear_db_dags()
-        clear_db_sla_miss()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_serialized_dags()

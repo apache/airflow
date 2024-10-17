@@ -29,9 +29,13 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
-from dev.tests_common.test_utils.db import clear_db_runs
-from dev.tests_common.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.mock_operators import (
+    AirflowLink,
+    EmptyExtraLinkTestOperator,
+    EmptyNoExtraLinkTestOperator,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -115,12 +119,12 @@ def task_1(dag):
 
 @pytest.fixture(scope="module", autouse=True)
 def task_2(dag):
-    return Dummy2TestOperator(task_id="some_dummy_task_2", dag=dag)
+    return EmptyExtraLinkTestOperator(task_id="some_dummy_task_2", dag=dag)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def task_3(dag):
-    return Dummy3TestOperator(task_id="some_dummy_task_3", dag=dag)
+    return EmptyNoExtraLinkTestOperator(task_id="some_dummy_task_3", dag=dag)
 
 
 @pytest.fixture(scope="module", autouse=True)

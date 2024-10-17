@@ -25,7 +25,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 
-from dev.tests_common.test_utils.compat import connection_as_json
+from tests_common.test_utils.compat import connection_as_json
 
 
 @pytest.fixture

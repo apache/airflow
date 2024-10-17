@@ -24,7 +24,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import kerberos_command
 from airflow.security.kerberos import KerberosMode
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

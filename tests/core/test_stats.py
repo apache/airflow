@@ -37,7 +37,7 @@ from airflow.metrics.validators import (
     PatternBlockListValidator,
 )
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class CustomStatsd(statsd.StatsClient):

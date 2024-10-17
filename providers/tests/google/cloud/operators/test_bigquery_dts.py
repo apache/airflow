@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDeleteDataTransferConfigOperator,
 )
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 PROJECT_ID = "id"
 

@@ -43,7 +43,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
 )
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 @pytest.fixture

@@ -27,6 +27,7 @@ from rich.console import Console
 
 from airflow.cli.commands import fastapi_api_command
 from airflow.exceptions import AirflowConfigException
+
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")
@@ -121,6 +122,49 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 close_fds=True,
             )
 
+    def test_cli_fastapi_api_env_var_set_unset(self, app):
+        """
+        Test that AIRFLOW_API_APPS is set and unset in the environment when
+        calling the airflow fastapi-api command
+        """
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
+            fastapi_api_command, "GunicornMonitor"
+        ), mock.patch("os.environ", autospec=True) as mock_environ:
+            apps_value = "core,execution"
+            port = "9092"
+            hostname = "somehost"
+
+            # Parse the command line arguments
+            args = self.parser.parse_args(
+                ["fastapi-api", "--port", port, "--hostname", hostname, "--apps", apps_value, "--debug"]
+            )
+
+            # Ensure AIRFLOW_API_APPS is not set initially
+            mock_environ.get.return_value = None
+
+            # Call the fastapi_api command
+            fastapi_api_command.fastapi_api(args)
+
+            # Assert that AIRFLOW_API_APPS was set in the environment before subprocess
+            mock_environ.__setitem__.assert_called_with("AIRFLOW_API_APPS", apps_value)
+
+            # Simulate subprocess execution
+            Popen.assert_called_with(
+                [
+                    "fastapi",
+                    "dev",
+                    "airflow/api_fastapi/main.py",
+                    "--port",
+                    port,
+                    "--host",
+                    hostname,
+                ],
+                close_fds=True,
+            )
+
+            # Assert that AIRFLOW_API_APPS was unset after subprocess
+            mock_environ.pop.assert_called_with("AIRFLOW_API_APPS")
+
     def test_cli_fastapi_api_args(self, ssl_cert_and_key):
         cert_path, key_path = ssl_cert_and_key
 
@@ -138,6 +182,8 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                     str(cert_path),
                     "--ssl-key",
                     str(key_path),
+                    "--apps",
+                    "core",
                 ]
             )
             fastapi_api_command.fastapi_api(args)
@@ -171,7 +217,7 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                     str(key_path),
                     "--access-logformat",
                     "custom_log_format",
-                    "airflow.api_fastapi.app:cached_app()",
+                    "airflow.api_fastapi.app:cached_app(apps='core')",
                     "--preload",
                 ],
                 close_fds=True,

@@ -21,7 +21,7 @@ from unittest import mock
 
 from airflow.providers.common.compat.openlineage.facet import Dataset
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.8.0", __file__):
     from airflow.providers.common.io.operators.file_transfer import FileTransferOperator

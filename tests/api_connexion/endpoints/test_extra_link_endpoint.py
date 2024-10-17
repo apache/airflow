@@ -31,11 +31,11 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_xcom
-from dev.tests_common.test_utils.mock_operators import CustomOperator
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

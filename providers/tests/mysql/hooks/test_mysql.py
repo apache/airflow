@@ -38,7 +38,7 @@ except ImportError:
 
 from airflow.utils import timezone
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 

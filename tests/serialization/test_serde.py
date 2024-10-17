@@ -44,7 +44,7 @@ from airflow.serialization.serde import (
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture

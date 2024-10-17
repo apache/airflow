@@ -1278,7 +1278,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.4.17
+ARG AIRFLOW_UV_VERSION=0.4.22
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1302,7 +1302,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.4.7
+ARG AIRFLOW_UV_VERSION=0.4.22
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
@@ -1369,6 +1369,7 @@ COPY pyproject.toml ${AIRFLOW_SOURCES}/pyproject.toml
 COPY providers/pyproject.toml ${AIRFLOW_SOURCES}/providers/pyproject.toml
 COPY task_sdk/pyproject.toml ${AIRFLOW_SOURCES}/task_sdk/pyproject.toml
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY tests_common/ ${AIRFLOW_SOURCES}/tests_common/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE

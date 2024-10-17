@@ -28,7 +28,7 @@ yandexcloud = pytest.importorskip("yandexcloud")
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestYandexHook:
