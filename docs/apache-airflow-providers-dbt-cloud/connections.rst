@@ -116,7 +116,6 @@ For example, to add a connection with the connection ID of "dbt_cloud_default":
         export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://:api_token@my-access-url'
 
     As an example, if my account is hosted in the Cell-based North America region and my access URL is ab123.us1.dbt.com, my conn string should be:
-   
     .. code-block:: bash
 
         export AIRFLOW_CONN_DBT_CLOUD_DEFAULT='dbt-cloud://:api_token@ab123.us1.dbt.com'
