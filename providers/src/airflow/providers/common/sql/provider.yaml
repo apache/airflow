@@ -90,9 +90,14 @@ operators:
     python-modules:
       - airflow.providers.common.sql.operators.sql
 
+dialects:
+  - dialect-type: default
+    dialect-class-name: airflow.providers.common.sql.dialects.dialect.Dialect
+
 hooks:
   - integration-name: Common SQL
     python-modules:
+      - airflow.providers.common.sql.hooks.handlers
       - airflow.providers.common.sql.hooks.sql
 
 sensors:

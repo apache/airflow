@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 from dataclasses import dataclass
 from unittest import mock
 from unittest.mock import patch
@@ -26,6 +27,7 @@ from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
 import pytest
+from sqlalchemy.exc import ArgumentError
 
 from airflow.providers.odbc.hooks.odbc import OdbcHook
 
@@ -75,6 +77,10 @@ def pyodbc_instancecheck():
         pass
 
     return PyodbcRow
+
+
+def raise_argument_error():
+    raise ArgumentError()
 
 
 class TestOdbcHook:
@@ -340,3 +346,31 @@ class TestOdbcHook:
         hook = mock_hook(OdbcHook)
         result = hook.run("SQL")
         assert result is None
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_uri(self):
+        hook = mock_hook(OdbcHook)
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect_name_when_resolved_from_conn_type(self):
+        hook = mock_hook(OdbcHook)
+        hook.get_conn().conn_type = "sqlite"
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "default"
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_scheme_in_extra(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"sqlalchemy_scheme": "mssql+pymssql"}})
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect_name_when_resolved_from_dialect_in_extra(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"dialect": "oracle"}})
+        hook.get_uri = raise_argument_error
+        assert hook.dialect_name == "oracle"
+
+    def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"sqlalchemy_scheme": "sqlite"}})
+
+        with sqlite3.connect(":memory:") as connection:
+            hook.get_conn = lambda: connection
+            engine = hook.get_sqlalchemy_engine()
+            assert engine.connect().connection.connection == connection
