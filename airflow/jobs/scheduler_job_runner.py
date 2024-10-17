@@ -111,7 +111,7 @@ class ConcurrencyMap:
         self.task_concurrency_map: dict[tuple[str, str], int] = Counter()
         self.task_dagrun_concurrency_map: dict[tuple[str, str, str], int] = Counter()
 
-    def load(self, session):
+    def load(self, session: Session) -> None:
         self.dag_run_active_tasks_map.clear()
         self.task_concurrency_map.clear()
         self.task_dagrun_concurrency_map.clear()
