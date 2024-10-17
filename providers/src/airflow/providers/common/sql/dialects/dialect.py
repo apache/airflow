@@ -67,14 +67,25 @@ class Dialect(LoggingMixin):
         return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
 
     @lru_cache(maxsize=None)
-    def get_column_names(self, table: str, schema: str | None = None) -> list[str] | None:
+    def get_column_names(
+        self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
+    ) -> list[str] | None:
         if schema is None:
             table, schema = self._extract_schema_from_table(table)
         column_names = list(
-            column["name"] for column in self.inspector.get_columns(table_name=table, schema=schema)
+            column["name"]
+            for column in filter(predicate, self.inspector.get_columns(table_name=table, schema=schema))
         )
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
+
+    @lru_cache(maxsize=None)
+    def get_target_fields(self, table: str, schema: str | None = None) -> list[str] | None:
+        return self.get_column_names(
+            table,
+            schema,
+            lambda column: not column.get("identity", False) and not column.get("autoincrement", False),
+        )
 
     @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:

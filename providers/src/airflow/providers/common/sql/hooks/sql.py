@@ -45,6 +45,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Inspector, make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
@@ -67,6 +68,7 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
+resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=True)
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -650,9 +652,9 @@ class DbApiHook(BaseHook):
         :param replace: Whether to replace/upsert instead of insert
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
-        if not target_fields:
+        if not target_fields and resolve_target_fields:
             with suppress(Exception):
-                target_fields = self.dialect.get_column_names(table)
+                target_fields = self.dialect.get_target_fields(table)
 
         if replace:
             return self.dialect.generate_replace_sql(table, values, target_fields, **kwargs)

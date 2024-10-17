@@ -29,7 +29,7 @@ class TestPostgresDialect:
     def setup_method(self):
         inspector = MagicMock(spc=Inspector)
         inspector.get_columns.side_effect = lambda table_name, schema: [
-            {"name": "id"},
+            {"name": "id", "identity": True},
             {"name": "name"},
             {"name": "firstname"},
             {"name": "age"},
@@ -48,6 +48,13 @@ class TestPostgresDialect:
     def test_get_column_names(self):
         assert PostgresDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
+            "name",
+            "firstname",
+            "age",
+        ]
+
+    def test_get_target_fields(self):
+        assert PostgresDialect(self.test_db_hook).get_target_fields("hollywood.actors") == [
             "name",
             "firstname",
             "age",
