@@ -42,7 +42,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
-from airflow.providers.databricks.exceptions import AirflowTaskExecutionError, AirflowTaskExecutionTimeout
+from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
@@ -276,11 +276,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     except Exception as e:
                         if t is None or t.is_alive():
-                            raise AirflowTaskExecutionError(
-                                f"Error running statement: {sql_statement}. {str(e)}"
+                            raise DatabricksSqlExecutionError(
+                                f"Error running SQL statement: {sql_statement}. {str(e)}"
                             )
-                        raise AirflowTaskExecutionTimeout(
-                            f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
+                        raise DatabricksSqlExecutionTimeout(
+                            f"Timeout threshold exceeded for SQL statement: {sql_statement} was cancelled."
                         )
                     finally:
                         if t is not None:
