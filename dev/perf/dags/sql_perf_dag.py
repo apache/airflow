@@ -36,9 +36,9 @@ DAG_ID = f"big_dag_{_FIRST_LEVEL_TASKS}-{_SECOND_LEVEL_TASKS}"
 
 def print_context(_, ti, **kwargs):
     """
-    Print the task_id and execution date.
+    Print the task_id and logical date.
     """
-    print(f"Running {ti.task_id} {ti.execution_date}")
+    print(f"Running {ti.task_id} {ti.logical_date}")
     return "Whatever you return gets printed in the logs"
 
 

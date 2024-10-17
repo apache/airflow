@@ -25,7 +25,6 @@ from azure.kusto.data._models import KustoResultTable
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
-from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = "unit_tests"
@@ -93,7 +92,6 @@ def test_azure_data_explorer_query_operator_xcom_push_and_pull(
     ti = create_task_instance_of_operator(
         AzureDataExplorerQueryOperator,
         dag_id="test_azure_data_explorer_query_operator_xcom_push_and_pull",
-        execution_date=timezone.utcnow(),
         **MOCK_DATA,
     )
     ti.run()

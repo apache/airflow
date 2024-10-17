@@ -109,7 +109,7 @@ class TestBranchDayOfWeekOperator:
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -128,7 +128,7 @@ class TestBranchDayOfWeekOperator:
         )
 
     @time_machine.travel("2021-01-25")  # Monday
-    def test_branch_follow_true_with_execution_date(self, dag_maker):
+    def test_branch_follow_true_with_logical_date(self, dag_maker):
         """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
         with dag_maker(
             "branch_day_of_week_operator_test", start_date=DEFAULT_DATE, schedule=INTERVAL, serialized=True
@@ -150,7 +150,7 @@ class TestBranchDayOfWeekOperator:
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -189,7 +189,7 @@ class TestBranchDayOfWeekOperator:
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -289,7 +289,7 @@ class TestBranchDayOfWeekOperator:
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,

@@ -73,7 +73,7 @@ class Log(Base):
         if task_instance:
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
-            if execution_date := getattr(task_instance, "execution_date", None):
+            if execution_date := getattr(task_instance, "logical_date", None):
                 self.execution_date = execution_date
             self.run_id = task_instance.run_id
             self.try_number = task_instance.try_number
