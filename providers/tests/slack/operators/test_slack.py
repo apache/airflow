@@ -253,6 +253,7 @@ class TestSlackAPIFileOperator:
                 channels="#test-channel",
                 content="test-content",
                 file=None,
+                filetype=None,
                 initial_comment=initial_comment,
                 title=title,
             )
@@ -282,6 +283,7 @@ class TestSlackAPIFileOperator:
                 channels="C1234567890",
                 content=None,
                 file="/dev/null",
+                filetype=None,
                 initial_comment=initial_comment,
                 title=title,
             )

@@ -265,6 +265,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
+            filetype=self.filetype,
             content=self.content,
             initial_comment=self.initial_comment,
             title=self.title,
