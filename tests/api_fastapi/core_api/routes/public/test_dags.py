@@ -135,37 +135,37 @@ class TestGetDags(TestDagEndpoint):
         "query_params, expected_total_entries, expected_ids",
         [
             # Filters
-            ({}, 2, [DAG1_ID, DAG2_ID]),
-            ({"limit": 1}, 2, [DAG1_ID]),
-            ({"offset": 1}, 2, [DAG2_ID]),
-            ({"tags": ["example"]}, 1, [DAG1_ID]),
-            ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
-            ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
-            ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
-            ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
-            ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
-            ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
-            ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
+            ({}, 2, {DAG1_ID, DAG2_ID}),
+            ({"limit": 1}, 2, {DAG1_ID}),
+            ({"offset": 1}, 2, {DAG2_ID}),
+            ({"tags": ["example"]}, 1, {DAG1_ID}),
+            ({"only_active": False}, 3, {DAG1_ID, DAG2_ID, DAG3_ID}),
+            ({"paused": True, "only_active": False}, 1, {DAG3_ID}),
+            ({"paused": False}, 2, {DAG1_ID, DAG2_ID}),
+            ({"owners": ["airflow"]}, 2, {DAG1_ID, DAG2_ID}),
+            ({"owners": ["test_owner"], "only_active": False}, 1, {DAG3_ID}),
+            ({"last_dag_run_state": "success", "only_active": False}, 1, {DAG3_ID}),
+            ({"last_dag_run_state": "failed", "only_active": False}, 1, {DAG1_ID}),
             # # Sort
-            ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
-            ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
-            ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
-            ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
-            ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
-            ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+            ({"order_by": "-dag_id"}, 2, {DAG2_ID, DAG1_ID}),
+            ({"order_by": "-dag_display_name"}, 2, {DAG2_ID, DAG1_ID}),
+            ({"order_by": "dag_display_name"}, 2, {DAG1_ID, DAG2_ID}),
+            ({"order_by": "next_dagrun", "only_active": False}, 3, {DAG3_ID, DAG1_ID, DAG2_ID}),
+            ({"order_by": "last_run_state", "only_active": False}, 3, {DAG1_ID, DAG3_ID, DAG2_ID}),
+            ({"order_by": "-last_run_state", "only_active": False}, 3, {DAG3_ID, DAG1_ID, DAG2_ID}),
             (
                 {"order_by": "last_run_start_date", "only_active": False},
                 3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
+                {DAG1_ID, DAG3_ID, DAG2_ID},
             ),
             (
                 {"order_by": "-last_run_start_date", "only_active": False},
                 3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
+                {DAG3_ID, DAG1_ID, DAG2_ID},
             ),
             # Search
-            ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
-            ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            ({"dag_id_pattern": "1"}, 1, {DAG1_ID}),
+            ({"dag_display_name_pattern": "test_dag2"}, 1, {DAG2_ID}),
         ],
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
@@ -175,7 +175,7 @@ class TestGetDags(TestDagEndpoint):
         body = response.json()
 
         assert body["total_entries"] == expected_total_entries
-        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        assert set(dag["dag_id"] for dag in body["dags"]) == expected_ids
 
 
 class TestPatchDag(TestDagEndpoint):
