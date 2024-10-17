@@ -81,11 +81,13 @@ class Dialect(LoggingMixin):
 
     @lru_cache(maxsize=None)
     def get_target_fields(self, table: str, schema: str | None = None) -> list[str] | None:
-        return self.get_column_names(
+        target_fields = self.get_column_names(
             table,
             schema,
             lambda column: not column.get("identity", False) and not column.get("autoincrement", False),
         )
+        self.log.debug("Target fields for table '%s': %s", table, target_fields)
+        return target_fields
 
     @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
