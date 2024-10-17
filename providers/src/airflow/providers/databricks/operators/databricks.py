@@ -759,8 +759,8 @@ class DatabricksRunNowOperator(BaseOperator):
             For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
-    :param dbt_commands: A list containing the dbt commands to run using dbt command line
-        interface(CLI). This field will be templated.
+    :param dbt_commands: A list containing the dbt commands to run using the dbt command line
+        interface (CLI). This field will be templated.
 
         .. seealso::
             For full details on the dbt CLI, see :ref:`concepts:dbt-commands`.
