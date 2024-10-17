@@ -27,8 +27,8 @@ export const HealthTag = ({
   title,
 }: {
   readonly isLoading: boolean;
-  readonly latestHeartbeat?: null | string;
-  readonly status?: null | string;
+  readonly latestHeartbeat?: string | null;
+  readonly status?: string | null;
   readonly title: string;
 }) => {
   if (isLoading) {

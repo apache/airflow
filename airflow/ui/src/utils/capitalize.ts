@@ -17,7 +17,6 @@
  * under the License.
  */
 
-// eslint-disable-next-line perfectionist/sort-union-types
 export const capitalize = (string: string | null | undefined) =>
   // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
   string ? string.charAt(0).toUpperCase() + string.slice(1).toLowerCase() : "";
