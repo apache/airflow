@@ -743,8 +743,9 @@ class DatabricksRunNowOperator(BaseOperator):
         python_named_parameters, jar_params, spark_submit_params, and they cannot be used in
         combination.
         This field will be templated.
+
         .. seealso::
-            For more information about job parameters see: :ref:`concepts:job-parameters`.
+            For more information about job parameters see :ref:`concepts:job-parameters`.
             https://docs.databricks.com/en/workflows/jobs/settings.html#add-parameters-for-all-job-tasks
 
     :param json: A JSON object containing API parameters which will be passed
@@ -760,10 +761,11 @@ class DatabricksRunNowOperator(BaseOperator):
 
     :param dbt_commands: A list containing the dbt commands to run using dbt command line
         interface(CLI). This field will be templated.
+
         .. seealso::
             For full details on the dbt CLI, see :ref:`concepts:dbt-commands`.
             https://docs.databricks.com/en/jobs/dbt.html
-            
+
     :param notebook_params: A dict from keys to values for jobs with notebook task,
         e.g. "notebook_params": {"name": "john doe", "age":  "35"}.
         The map is passed to the notebook and will be accessible through the
