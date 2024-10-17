@@ -82,11 +82,14 @@ METRIC_KEYS_EXPECTED = ",".join(METRIC_KEYS)
 
 def validate_err_and_count(summary):
     if summary["err"] > 0.2:
-        raise ValueError(f"Too high err>0.2; summary={summary}")
+        msg = f"Too high err>0.2; summary={summary}"
+        raise ValueError(msg)
     if summary["mse"] > 0.05:
-        raise ValueError(f"Too high mse>0.05; summary={summary}")
+        msg = f"Too high mse>0.05; summary={summary}"
+        raise ValueError(msg)
     if summary["count"] < 1000:
-        raise ValueError(f"Too few instances<1000; summary={summary}")
+        msg = f"Too few instances<1000; summary={summary}"
+        raise ValueError(msg)
     return summary
 
 

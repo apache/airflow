@@ -125,11 +125,13 @@ def set_state(
         raise ValueError("Exactly one of dag_run_id and execution_date must be set")
 
     if execution_date and not timezone.is_localized(execution_date):
-        raise ValueError(f"Received non-localized date {execution_date}")
+        msg = f"Received non-localized date {execution_date}"
+        raise ValueError(msg)
 
     task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
     if len(task_dags) > 1:
-        raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
+        msg = f"Received tasks from multiple DAGs: {task_dags}"
+        raise ValueError(msg)
     dag = next(iter(task_dags))
     if dag is None:
         raise ValueError("Received tasks with no DAG")
@@ -206,7 +208,8 @@ def get_execution_dates(
     """Return DAG execution dates."""
     latest_execution_date = dag.get_latest_execution_date(session=session)
     if latest_execution_date is None:
-        raise ValueError(f"Received non-localized date {execution_date}")
+        msg = f"Received non-localized date {execution_date}"
+        raise ValueError(msg)
     execution_date = timezone.coerce_datetime(execution_date)
     # determine date range of dag runs and tasks to consider
     end_date = latest_execution_date if future else execution_date
@@ -239,7 +242,8 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     )
 
     if last_dagrun is None:
-        raise ValueError(f"DagRun for {dag.dag_id} not found")
+        msg = f"DagRun for {dag.dag_id} not found"
+        raise ValueError(msg)
 
     # determine run_id range of dag runs and tasks to consider
     end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
@@ -306,13 +310,16 @@ def set_dag_run_state_to_success(
 
     if execution_date:
         if not timezone.is_localized(execution_date):
-            raise ValueError(f"Received non-localized date {execution_date}")
+            msg = f"Received non-localized date {execution_date}"
+            raise ValueError(msg)
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
+            msg = f"DagRun with execution_date: {execution_date} not found"
+            raise ValueError(msg)
         run_id = dag_run.run_id
     if not run_id:
-        raise ValueError(f"Invalid dag_run_id: {run_id}")
+        msg = f"Invalid dag_run_id: {run_id}"
+        raise ValueError(msg)
     # Mark the dag run to success.
     if commit:
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
@@ -359,14 +366,17 @@ def set_dag_run_state_to_failed(
 
     if execution_date:
         if not timezone.is_localized(execution_date):
-            raise ValueError(f"Received non-localized date {execution_date}")
+            msg = f"Received non-localized date {execution_date}"
+            raise ValueError(msg)
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
+            msg = f"DagRun with execution_date: {execution_date} not found"
+            raise ValueError(msg)
         run_id = dag_run.run_id
 
     if not run_id:
-        raise ValueError(f"Invalid dag_run_id: {run_id}")
+        msg = f"Invalid dag_run_id: {run_id}"
+        raise ValueError(msg)
 
     # Mark the dag run to failed.
     if commit:
@@ -450,13 +460,16 @@ def __set_dag_run_state_to_running_or_queued(
 
     if execution_date:
         if not timezone.is_localized(execution_date):
-            raise ValueError(f"Received non-localized date {execution_date}")
+            msg = f"Received non-localized date {execution_date}"
+            raise ValueError(msg)
         dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
-            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
+            msg = f"DagRun with execution_date: {execution_date} not found"
+            raise ValueError(msg)
         run_id = dag_run.run_id
     if not run_id:
-        raise ValueError(f"DagRun with run_id: {run_id} not found")
+        msg = f"DagRun with run_id: {run_id} not found"
+        raise ValueError(msg)
     # Mark the dag run to running.
     if commit:
         _set_dag_run_state(dag.dag_id, run_id, new_state, session)

@@ -2998,7 +2998,8 @@ class TestSchedulerJob:
             for dag_id in dag_ids:
                 dag = self.dagbag.get_dag(dag_id)
                 if not dag:
-                    raise ValueError(f"could not find dag {dag_id}")
+                    msg = f"could not find dag {dag_id}"
+                    raise ValueError(msg)
                 dag.clear()
 
             scheduler_job = Job(
@@ -6392,7 +6393,8 @@ class TestSchedulerJobQueriesCount:
             if failures:
                 prefix = "Collected database query count mismatches:"
                 joined = "\n\n".join(failures)
-                raise AssertionError(f"{prefix}\n\n{joined}")
+                msg = f"{prefix}\n\n{joined}"
+                raise AssertionError(msg)
 
 
 def test_mark_backfills_completed(dag_maker, session):

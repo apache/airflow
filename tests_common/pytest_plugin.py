@@ -872,7 +872,8 @@ def dag_maker(request):
         def create_dagrun_after(self, dagrun, **kwargs):
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
-                raise ValueError(f"cannot create run after {dagrun}")
+                msg = f"cannot create run after {dagrun}"
+                raise ValueError(msg)
             return self.create_dagrun(
                 execution_date=next_info.logical_date,
                 data_interval=next_info.data_interval,

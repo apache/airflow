@@ -78,9 +78,8 @@ def mock_plugin_manager(plugins=None, **kwargs):
     """
     illegal_arguments = set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES) - {"import_errors"}
     if illegal_arguments:
-        raise TypeError(
-            f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
-        )
+        msg = f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
+        raise TypeError(msg)
     # Handle plugins specially
     with ExitStack() as exit_stack:
 

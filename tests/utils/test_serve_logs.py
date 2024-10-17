@@ -74,7 +74,8 @@ def sample_log(request, tmp_path):
     elif client == request.getfixturevalue("client_with_config"):
         base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
     else:
-        raise ValueError(f"Unknown client fixture: {client}")
+        msg = f"Unknown client fixture: {client}"
+        raise ValueError(msg)
 
     f = base_log_dir.joinpath("sample.log")
     f.write_text(LOG_DATA)

@@ -562,7 +562,8 @@ class WeaviateHook(BaseHook):
 
         difference_columns = set(unique_columns).difference(set(df.columns.to_list()))
         if difference_columns:
-            raise ValueError(f"Columns {', '.join(difference_columns)} don't exist in dataframe")
+            msg = f"Columns {', '.join(difference_columns)} don't exist in dataframe"
+            raise ValueError(msg)
 
         if uuid_column is None:
             self.log.info("No uuid_column provided. Generating UUIDs as column name `id`.")
@@ -574,10 +575,11 @@ class WeaviateHook(BaseHook):
                 uuid_column = "id"
 
         if uuid_column in column_names:
-            raise ValueError(
+            msg = (
                 f"Property {uuid_column} already in dataset. Consider renaming or specify a different"
                 f" 'uuid_column'."
             )
+            raise ValueError(msg)
 
         df[uuid_column] = (
             df[unique_columns]
@@ -842,10 +844,11 @@ class WeaviateHook(BaseHook):
             self.log.info("Non-existing document: %s", ", ".join(new_documents))
 
         if existing == "error" and len(changed_documents):
-            raise ValueError(
+            msg = (
                 f"Documents {', '.join(changed_documents)} already exists. You can either skip or replace"
                 f" them by passing 'existing=skip' or 'existing=replace' respectively."
             )
+            raise ValueError(msg)
         elif existing == "skip":
             data = data[data[document_column].isin(new_documents)]
             if verbose:

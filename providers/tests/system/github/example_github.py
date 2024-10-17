@@ -62,9 +62,11 @@ with DAG(
                 result = tag_name in all_tags
 
         except GithubException as github_error:  # type: ignore[misc]
-            raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
+            msg = f"Failed to execute GithubSensor, error: {github_error}"
+            raise AirflowException(msg)
         except Exception as e:
-            raise AirflowException(f"GitHub operator error: {e}")
+            msg = f"GitHub operator error: {e}"
+            raise AirflowException(msg)
         return result
 
     github_sensor = GithubSensor(

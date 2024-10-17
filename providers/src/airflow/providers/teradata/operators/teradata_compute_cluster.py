@@ -56,7 +56,8 @@ def _single_result_row_handler(cursor):
         return records[0]
     if records is None:
         return records
-    raise TypeError(f"Unexpected results: {cursor.fetchone()!r}")
+    msg = f"Unexpected results: {cursor.fetchone()!r}"
+    raise TypeError(msg)
 
 
 # Providers given operation is setup or state operation

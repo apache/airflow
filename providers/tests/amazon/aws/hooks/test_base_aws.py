@@ -823,7 +823,8 @@ class TestAwsBaseHook:
             elif conn_type == "resource":
                 hook = AwsBaseHook(aws_conn_id="test_conn", region_name=region_name, resource_type="dynamodb")
             else:
-                raise ValueError(f"Unsupported conn_type={conn_type!r}")
+                msg = f"Unsupported conn_type={conn_type!r}"
+                raise ValueError(msg)
 
             assert hook.conn_region_name == expected_region_name
 
@@ -844,7 +845,8 @@ class TestAwsBaseHook:
             elif conn_type == "resource":
                 hook = AwsBaseHook(aws_conn_id="test_conn", resource_type="dynamodb")
             else:
-                raise ValueError(f"Unsupported conn_type={conn_type!r}")
+                msg = f"Unsupported conn_type={conn_type!r}"
+                raise ValueError(msg)
 
             assert hook.conn_partition == expected_partition
 

@@ -34,10 +34,11 @@ from airflow.sensors.base import BaseSensorOperator
 program = f"./{__file__}" if not __file__.startswith("./") else __file__
 
 if __name__ != "__main__":
-    raise SystemExit(
+    msg = (
         "This file is intended to be used as an executable program. You cannot use it as a module."
         f"To execute this script, run the '{program}' command"
     )
+    raise SystemExit(msg)
 
 AIRFLOW_ROOT = Path(airflow.__file__).resolve().parents[1]
 

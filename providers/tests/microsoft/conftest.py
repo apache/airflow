@@ -55,9 +55,8 @@ def create_mock_connection(monkeypatch):
             conn = Connection(uri=conn)
 
         if not isinstance(conn, Connection):
-            raise TypeError(
-                f"Fixture expected either JSON, URI or Connection type, but got {type(conn).__name__}"
-            )
+            msg = f"Fixture expected either JSON, URI or Connection type, but got {type(conn).__name__}"
+            raise TypeError(msg)
         if not conn.conn_id:
             conn.conn_id = conn_id
 

@@ -76,7 +76,8 @@ class TestBaseWaiter:
         elif boto_type == "resource":
             fake_client = boto3.resource("s3", region_name="eu-west-3")
         else:
-            raise ValueError(f"Unexpected value {boto_type!r} for `boto_type`.")
+            msg = f"Unexpected value {boto_type!r} for `boto_type`."
+            raise ValueError(msg)
         monkeypatch.setattr(AwsBaseHook, "conn", fake_client)
 
         hook = AwsBaseHook(**kw)

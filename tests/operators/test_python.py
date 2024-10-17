@@ -279,7 +279,8 @@ class TestPythonOperator(BasePythonTest):
         # dag is not allowed since it is a reserved keyword
         def func(dag):
             # An ValueError should be triggered since we're using dag as a reserved keyword
-            raise RuntimeError(f"Should not be triggered, dag: {dag}")
+            msg = f"Should not be triggered, dag: {dag}"
+            raise RuntimeError(msg)
 
         ti = self.create_ti(func, op_args=[1])
         error_message = re.escape("The key 'dag' in args is a part of kwargs and therefore reserved.")

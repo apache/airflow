@@ -176,11 +176,14 @@ class TestSecretsMasker:
         try:
             try:
                 try:
-                    raise RuntimeError(f"Cannot connect to user:{p}")
+                    msg = f"Cannot connect to user:{p}"
+                    raise RuntimeError(msg)
                 except RuntimeError as ex1:
-                    raise RuntimeError(f"Exception: {ex1}")
+                    msg = f"Exception: {ex1}"
+                    raise RuntimeError(msg)
             except RuntimeError as ex2:
-                raise RuntimeError(f"Exception: {ex2}")
+                msg = f"Exception: {ex2}"
+                raise RuntimeError(msg)
         except RuntimeError:
             logger.exception("Err")
 
@@ -193,11 +196,13 @@ class TestSecretsMasker:
         """
         exception = None
         try:
-            raise RuntimeError(f"Cannot connect to user:{p}")
+            msg = f"Cannot connect to user:{p}"
+            raise RuntimeError(msg)
         except RuntimeError as ex:
             exception = ex
         try:
-            raise RuntimeError(f"Exception: {exception}") from exception
+            msg = f"Exception: {exception}"
+            raise RuntimeError(msg) from exception
         except RuntimeError:
             logger.exception("Err")
 

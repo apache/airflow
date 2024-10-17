@@ -22,10 +22,11 @@ import sys
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
+    raise SystemExit(msg)
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parents[3]
 CHART_DIR = PROJECT_SOURCE_ROOT_DIR / "chart"

@@ -148,6 +148,7 @@ The object passed through the `TriggerEvent` can be captured in the `method_name
 ```python
 def execute_complete(self, context, event=None):
     if event["status"] != "success":
-        raise AirflowException(f"Error creating cluster: {event}")
+        msg = f"Error creating cluster: {event}"
+        raise AirflowException(msg)
     return
 ```

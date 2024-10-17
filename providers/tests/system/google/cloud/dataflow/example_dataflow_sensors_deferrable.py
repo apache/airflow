@@ -108,7 +108,8 @@ with DAG(
                 tentative = context.get("tentative", "")
                 if original_name == "Service-cpu_num_seconds" and not tentative:
                     return metric["scalar"] >= value
-            raise AirflowException(f"Metric '{metric_name}' not found in metrics")
+            msg = f"Metric '{metric_name}' not found in metrics"
+            raise AirflowException(msg)
 
         return callback
 

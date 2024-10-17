@@ -223,9 +223,11 @@ class BashOperator(BaseOperator):
         bash_path = shutil.which("bash") or "bash"
         if self.cwd is not None:
             if not os.path.exists(self.cwd):
-                raise AirflowException(f"Can not find the cwd: {self.cwd}")
+                msg = f"Can not find the cwd: {self.cwd}"
+                raise AirflowException(msg)
             if not os.path.isdir(self.cwd):
-                raise AirflowException(f"The cwd {self.cwd} must be a directory")
+                msg = f"The cwd {self.cwd} must be a directory"
+                raise AirflowException(msg)
         env = self.get_env(context)
 
         # Because the bash_command value is evaluated at runtime using the @task.bash decorator, the
@@ -244,11 +246,11 @@ class BashOperator(BaseOperator):
             cwd=self.cwd,
         )
         if result.exit_code in self.skip_on_exit_code:
-            raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
+            msg = f"Bash command returned exit code {result.exit_code}. Skipping."
+            raise AirflowSkipException(msg)
         elif result.exit_code != 0:
-            raise AirflowException(
-                f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
-            )
+            msg = f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
+            raise AirflowException(msg)
 
         return self.output_processor(result.output)
 

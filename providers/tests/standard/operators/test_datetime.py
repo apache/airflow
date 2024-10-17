@@ -101,7 +101,8 @@ class TestBranchDateTimeOperator:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+                msg = f"Invalid task id {ti.task_id} found!"
+                raise ValueError(msg)
             else:
                 assert (ti.state) == (
                     expected_state

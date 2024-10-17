@@ -153,9 +153,11 @@ class GcpAuthenticator(CommandExecutor):
         if self.full_key_path is None:
             raise AirflowException("The gcp_key is not set!")
         if not os.path.isfile(self.full_key_path):
-            raise AirflowException(
-                f"The key {self.gcp_key} could not be found. Please copy it to the {self.full_key_path} path."
+            msg = (
+                f"The key {self.gcp_key} could not be found. Please copy it to the {self.full_key_path} "
+                f"path."
             )
+            raise AirflowException(msg)
 
     def gcp_authenticate(self):
         """

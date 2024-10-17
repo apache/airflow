@@ -21,10 +21,11 @@ import hashlib
 from pathlib import Path
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
+    raise SystemExit(msg)
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"

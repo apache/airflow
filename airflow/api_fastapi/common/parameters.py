@@ -171,7 +171,8 @@ class SortParam(BaseParam[str]):
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+            msg = f"Cannot set 'skip_none' to False on a {type(self)}"
+            raise ValueError(msg)
 
         if self.value is None:
             return select
@@ -230,7 +231,8 @@ class _TagsFilter(BaseParam[List[str]]):
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+            msg = f"Cannot set 'skip_none' to False on a {type(self)}"
+            raise ValueError(msg)
 
         if not self.value:
             return select
@@ -247,7 +249,8 @@ class _OwnersFilter(BaseParam[List[str]]):
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+            msg = f"Cannot set 'skip_none' to False on a {type(self)}"
+            raise ValueError(msg)
 
         if not self.value:
             return select

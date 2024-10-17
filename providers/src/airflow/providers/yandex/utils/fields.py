@@ -30,10 +30,11 @@ def get_field_from_extras(extras: dict[str, Any], field_name: str, default: Any 
     """
     backcompat_prefix = "extra__yandexcloud__"
     if field_name.startswith("extra__"):
-        raise ValueError(
+        msg = (
             f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
             "when using this function."
         )
+        raise ValueError(msg)
     if field_name in extras:
         return extras[field_name]
     prefixed_name = f"{backcompat_prefix}{field_name}"

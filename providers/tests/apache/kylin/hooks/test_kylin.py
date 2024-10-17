@@ -61,7 +61,8 @@ class TestKylinHook:
                 if command in invoke_command_list:
                     return {"code": "000", "data": {}}
                 else:
-                    raise KylinCubeError(f"Unsupported invoke command for datasource: {command}")
+                    msg = f"Unsupported invoke command for datasource: {command}"
+                    raise KylinCubeError(msg)
 
         cube_source.return_value = MockCubeSource()
         response_data = {"code": "000", "data": {}}

@@ -64,9 +64,8 @@ class LoggingCommandExecutor(LoggingMixin):
                 self.log.error("Error when executing '%s'", " ".join(shlex.quote(c) for c in cmd))
                 self.log.info("Stdout: %s", output)
                 self.log.info("Stderr: %s", err)
-                raise AirflowException(
-                    f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
-                )
+                msg = f"Retcode {retcode} on {' '.join(cmd)} with stdout: {output}, stderr: {err}"
+                raise AirflowException(msg)
             return output
 
 
@@ -100,9 +99,8 @@ class CommandExecutor(LoggingCommandExecutor):
                 output, err = process.communicate()
                 retcode = process.poll()
                 if retcode:
-                    raise CommandExecutionError(
-                        f"Error when executing '{' '.join(cmd)}' with stdout: {output}, stderr: {err}"
-                    )
+                    msg = f"Error when executing '{' '.join(cmd)}' with stdout: {output}, stderr: {err}"
+                    raise CommandExecutionError(msg)
                 self.log.info("Stdout: %s", output)
                 self.log.info("Stderr: %s", err)
 

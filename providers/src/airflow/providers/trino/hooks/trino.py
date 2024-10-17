@@ -100,7 +100,8 @@ class TrinoHook(DbApiHook):
         auth = None
         user = db.login
         if db.password and extra.get("auth") in ("kerberos", "certs"):
-            raise AirflowException(f"The {extra.get('auth')!r} authorization type doesn't support password.")
+            msg = f"The {extra.get('auth')!r} authorization type doesn't support password."
+            raise AirflowException(msg)
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
@@ -176,7 +177,8 @@ class TrinoHook(DbApiHook):
         parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         if not isinstance(sql, str):
-            raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
+            msg = f"The sql in Trino Hook must be a string and is {sql}!"
+            raise ValueError(msg)
         try:
             return super().get_records(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:
@@ -186,7 +188,8 @@ class TrinoHook(DbApiHook):
         self, sql: str | list[str] = "", parameters: Iterable | Mapping[str, Any] | None = None
     ) -> Any:
         if not isinstance(sql, str):
-            raise ValueError(f"The sql in Trino Hook must be a string and is {sql}!")
+            msg = "The sql in Trino Hook must be a string and is {sql}!"
+            raise ValueError(msg)
         try:
             return super().get_first(self.strip_sql_string(sql), parameters)
         except DatabaseError as e:

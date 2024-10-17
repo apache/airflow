@@ -70,7 +70,8 @@ class Client:
     def get_pool(self, name):
         pool = Pool.get_pool(pool_name=name)
         if not pool:
-            raise PoolNotFound(f"Pool {name} not found")
+            msg = f"Pool {name} not found"
+            raise PoolNotFound(msg)
         return pool.pool, pool.slots, pool.description, pool.include_deferred
 
     def get_pools(self):
@@ -81,11 +82,13 @@ class Client:
             raise AirflowBadRequest("Pool name shouldn't be empty")
         pool_name_length = Pool.pool.property.columns[0].type.length
         if len(name) > pool_name_length:
-            raise AirflowBadRequest(f"pool name cannot be more than {pool_name_length} characters")
+            msg = f"pool name cannot be more than {pool_name_length} characters"
+            raise AirflowBadRequest(msg)
         try:
             slots = int(slots)
         except ValueError:
-            raise AirflowBadRequest(f"Bad value for `slots`: {slots}")
+            msg = f"Bad value for `slots`: {slots}"
+            raise AirflowBadRequest(msg)
         pool = Pool.create_or_update_pool(
             name=name, slots=slots, description=description, include_deferred=include_deferred
         )

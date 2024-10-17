@@ -122,13 +122,17 @@ def _sanitize_uri(uri: str) -> str:
 
 def _validate_identifier(instance, attribute, value):
     if not isinstance(value, str):
-        raise ValueError(f"{type(instance).__name__} {attribute.name} must be a string")
+        msg = f"{type(instance).__name__} {attribute.name} must be a string"
+        raise ValueError(msg)
     if len(value) > 1500:
-        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
+        msg = f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters"
+        raise ValueError(msg)
     if value.isspace():
-        raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
+        msg = f"{type(instance).__name__} {attribute.name} cannot be just whitespace"
+        raise ValueError(msg)
     if not value.isascii():
-        raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
+        msg = f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters"
+        raise ValueError(msg)
     return value
 
 

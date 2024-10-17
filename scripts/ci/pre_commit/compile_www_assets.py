@@ -47,10 +47,11 @@ def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> 
 
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
+    raise SystemExit(msg)
 
 if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"

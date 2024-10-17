@@ -86,7 +86,8 @@ class QueriesTraceInfo(NamedTuple):
             if record.module == module:
                 stacklevel = ix
         if stacklevel == 0:
-            raise LookupError(f"Unable to find module {stacklevel} in traceback")
+            msg = f"Unable to find module {stacklevel} in traceback"
+            raise LookupError(msg)
         return stacklevel
 
 

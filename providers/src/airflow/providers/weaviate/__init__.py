@@ -34,6 +34,5 @@ __version__ = "2.1.0"
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
     "2.8.0"
 ):
-    raise RuntimeError(
-        f"The package `apache-airflow-providers-weaviate:{__version__}` needs Apache Airflow 2.8.0+"
-    )
+    msg = f"The package `apache-airflow-providers-weaviate:{__version__}` needs Apache Airflow 2.8.0+"
+    raise RuntimeError(msg)
