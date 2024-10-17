@@ -569,7 +569,7 @@
   },
   "fab": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.2.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
       "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
