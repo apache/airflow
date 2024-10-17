@@ -32,6 +32,7 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
