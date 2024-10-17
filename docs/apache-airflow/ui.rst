@@ -63,10 +63,10 @@ Native Airflow dashboard page into the UI to collect several useful metrics for 
 
 .. _ui:assets-view:
 
-Datasets View
+Asset View
 .............
 
-A combined listing of the current datasets and a graph illustrating how they are produced and consumed by DAGs.
+A combined listing of the current assets and a graph illustrating how they are produced and consumed by DAGs.
 
 Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
 
@@ -105,7 +105,7 @@ Or selecting a Task across all runs by click on the task_id:
 .. image:: img/grid_task_details.png
 
 Manual runs are indicated by a play icon (just like the Trigger DAG button).
-Dataset triggered runs are indicated by a database icon:
+Asset triggered runs are indicated by a database icon:
 
 .. image:: img/run_types.png
 
