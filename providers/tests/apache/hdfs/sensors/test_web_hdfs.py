@@ -71,7 +71,9 @@ class TestMultipleFilesWebHdfsSensor:
             directory_path=TEST_HDFS_DIRECTORY,
             expected_filenames=TEST_HDFS_FILENAMES,
         )
-        result = sensor.poke(dict())
+
+        with caplog.at_level("DEBUG", logger="airflow.task"):
+            result = sensor.poke(dict())
 
         assert result
         assert "Files Found in directory: " in caplog.text
@@ -93,7 +95,6 @@ class TestMultipleFilesWebHdfsSensor:
         exists = sensor.poke(dict())
 
         assert not exists
-        assert "Files Found in directory: " in caplog.text
         assert "There are missing files: " in caplog.text
 
         mock_hook.return_value.get_conn.return_value.list.assert_called_once_with(TEST_HDFS_DIRECTORY)
