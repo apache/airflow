@@ -74,7 +74,7 @@ async def get_variables(
         SortParam,
         Depends(
             SortParam(
-                ["value", "key", "id"],
+                ["key", "id"],
                 Variable,
             ).dynamic_depends()
         ),
