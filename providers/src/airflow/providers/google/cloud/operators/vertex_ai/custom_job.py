@@ -509,6 +509,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         *,
         command: Sequence[str] = [],
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -517,6 +519,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,
@@ -962,6 +966,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         python_package_gcs_uri: str,
         python_module_name: str,
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -970,6 +976,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,
@@ -1423,6 +1431,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         script_path: str,
         requirements: Sequence[str] | None = None,
         region: str,
+        display_name: str,
+        model_display_name: str | None = None,
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
@@ -1431,6 +1441,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
+            display_name=display_name,
+            model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
             impersonation_chain=impersonation_chain,

@@ -123,6 +123,8 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         forecast_horizon: int,
         data_granularity_unit: str,
         data_granularity_count: int,
+        display_name: str,
+        model_display_name: str | None = None,
         optimization_objective: str | None = None,
         column_specs: dict[str, str] | None = None,
         column_transformations: list[dict[str, dict[str, str]]] | None = None,
@@ -145,7 +147,12 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(
-            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+            display_name=display_name,
+            model_display_name=model_display_name,
+            region=region,
+            impersonation_chain=impersonation_chain,
+            parent_model=parent_model,
+            **kwargs,
         )
         self.dataset_id = dataset_id
         self.target_column = target_column
