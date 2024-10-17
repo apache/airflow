@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor, MultipleFilesWebHdfsSensor
+from airflow.providers.apache.hdfs.sensors.web_hdfs import MultipleFilesWebHdfsSensor, WebHdfsSensor
 
 TEST_HDFS_CONN = "webhdfs_default"
 TEST_HDFS_DIRECTORY = "hdfs://user/hive/warehouse/airflow.db"
@@ -69,7 +69,7 @@ class TestMultipleFilesWebHdfsSensor:
             task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             directory_path=TEST_HDFS_DIRECTORY,
-            expected_filenames=TEST_HDFS_FILENAMES
+            expected_filenames=TEST_HDFS_FILENAMES,
         )
         result = sensor.poke(dict())
 
@@ -88,7 +88,7 @@ class TestMultipleFilesWebHdfsSensor:
             task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             directory_path=TEST_HDFS_DIRECTORY,
-            expected_filenames=TEST_HDFS_FILENAMES
+            expected_filenames=TEST_HDFS_FILENAMES,
         )
         exists = sensor.poke(dict())
 
