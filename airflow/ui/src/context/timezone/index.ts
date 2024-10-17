@@ -16,29 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { PropsWithChildren } from "react";
-import { MemoryRouter } from "react-router-dom";
 
-import { TimezoneProvider } from "src/context/timezone";
-
-export const Wrapper = ({ children }: PropsWithChildren) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
-
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TimezoneProvider>{children}</TimezoneProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
-    </ChakraProvider>
-  );
-};
+export * from "./TimezoneProvider";
+export * from "./useTimezone";

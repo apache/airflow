@@ -41,6 +41,7 @@ import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import {
   SearchParamsKeys,
@@ -82,6 +83,10 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "next_dagrun",
+    cell: ({ row: { original } }) =>
+      Boolean(original.next_dagrun) ? (
+        <Time datetime={original.next_dagrun} />
+      ) : undefined,
     enableSorting: false,
     header: "Next DAG Run",
   },

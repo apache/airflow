@@ -16,29 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { PropsWithChildren } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { useContext } from "react";
 
-import { TimezoneProvider } from "src/context/timezone";
+import { TimezoneContext, type TimezoneContextType } from "./TimezoneProvider";
 
-export const Wrapper = ({ children }: PropsWithChildren) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
+export const useTimezone = (): TimezoneContextType => {
+  const context = useContext(TimezoneContext);
 
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TimezoneProvider>{children}</TimezoneProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
-    </ChakraProvider>
-  );
+  if (context === undefined) {
+    throw new Error("useTimezone must be used within a TimezoneProvider");
+  }
+
+  return context;
 };

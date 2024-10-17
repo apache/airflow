@@ -16,29 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { PropsWithChildren } from "react";
-import { MemoryRouter } from "react-router-dom";
+import {
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+} from "@chakra-ui/react";
+import React from "react";
 
-import { TimezoneProvider } from "src/context/timezone";
+import TimezoneSelector from "./TimezoneSelector";
 
-export const Wrapper = ({ children }: PropsWithChildren) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
-
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <TimezoneProvider>{children}</TimezoneProvider>
-        </MemoryRouter>
-      </QueryClientProvider>
-    </ChakraProvider>
-  );
+type TimezoneModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
 };
+
+const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => (
+  <Modal isOpen={isOpen} onClose={onClose} size="xl">
+    <ModalOverlay />
+    <ModalContent>
+      <ModalHeader>Select Timezone</ModalHeader>
+      <ModalCloseButton />
+      <ModalBody>
+        <TimezoneSelector />
+      </ModalBody>
+    </ModalContent>
+  </Modal>
+);
+
+export default TimezoneModal;

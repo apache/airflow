@@ -24,6 +24,7 @@
     "@tanstack/react-table": "^8.20.1",
     "axios": "^1.7.7",
     "chakra-react-select": "^4.9.2",
+    "dayjs": "^1.11.13",
     "framer-motion": "^11.3.29",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
