@@ -32,7 +32,6 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 

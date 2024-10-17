@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 from jinja2 import StrictUndefined
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
@@ -34,6 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
