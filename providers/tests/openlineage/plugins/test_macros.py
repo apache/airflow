@@ -25,7 +25,6 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_parent_id,
-    lineage_run_id,
 )
 
 _DAG_NAMESPACE = namespace()

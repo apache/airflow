@@ -52,9 +52,8 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
 
-from tests_common.test_utils.compat import BashOperator, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 from tests_common.test_utils.config import conf_vars
-
 
 pytestmark = pytest.mark.db_test
 

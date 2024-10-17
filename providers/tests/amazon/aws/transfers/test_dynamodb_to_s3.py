@@ -23,7 +23,6 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow import DAG
 from airflow.models import DagRun, TaskInstance
@@ -33,6 +32,8 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
 )
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestJSONEncoder:
