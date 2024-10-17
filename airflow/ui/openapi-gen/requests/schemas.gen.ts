@@ -1189,6 +1189,142 @@ export const $HistoricalMetricDataResponse = {
   description: "Historical Metric Data serializer for responses.",
 } as const;
 
+export const $PluginCollectionResponse = {
+  properties: {
+    plugins: {
+      items: {
+        $ref: "#/components/schemas/PluginResponse",
+      },
+      type: "array",
+      title: "Plugins",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["plugins", "total_entries"],
+  title: "PluginCollectionResponse",
+  description: "Plugin Collection serializer.",
+} as const;
+
+export const $PluginResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    hooks: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Hooks",
+    },
+    executors: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Executors",
+    },
+    macros: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Macros",
+    },
+    flask_blueprints: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Flask Blueprints",
+    },
+    fastapi_apps: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Fastapi Apps",
+    },
+    appbuilder_views: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Appbuilder Views",
+    },
+    appbuilder_menu_items: {
+      items: {
+        type: "object",
+      },
+      type: "array",
+      title: "Appbuilder Menu Items",
+    },
+    global_operator_extra_links: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Global Operator Extra Links",
+    },
+    operator_extra_links: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Operator Extra Links",
+    },
+    source: {
+      type: "string",
+      title: "Source",
+    },
+    ti_deps: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Ti Deps",
+    },
+    listeners: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Listeners",
+    },
+    timetables: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Timetables",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "hooks",
+    "executors",
+    "macros",
+    "flask_blueprints",
+    "fastapi_apps",
+    "appbuilder_views",
+    "appbuilder_menu_items",
+    "global_operator_extra_links",
+    "operator_extra_links",
+    "source",
+    "ti_deps",
+    "listeners",
+    "timetables",
+  ],
+  title: "PluginResponse",
+  description: "Plugin serializer.",
+} as const;
+
 export const $PoolCollectionResponse = {
   properties: {
     pools: {

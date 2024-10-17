@@ -50,6 +50,8 @@ import type {
   GetPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
+  GetPluginsData,
+  GetPluginsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -733,6 +735,32 @@ export class ProviderService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/providers/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class PluginService {
+  /**
+   * Get Plugins
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns PluginCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPlugins(
+    data: GetPluginsData = {},
+  ): CancelablePromise<GetPluginsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/plugins/",
       query: {
         limit: data.limit,
         offset: data.offset,
