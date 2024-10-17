@@ -1169,11 +1169,10 @@ class TestSchedulerJob:
         assert ti2.state == State.QUEUED
 
     @pytest.mark.parametrize("active_state", [TaskInstanceState.RUNNING, TaskInstanceState.QUEUED])
-    def test_find_executable_task_instances_concurrency(self, dag_maker, active_state):
+    def test_find_executable_task_instances_concurrency(self, dag_maker, active_state, session):
         """We verify here that, with varying amounts of queued / running / scheduled tasks,
         the correct number of TIs are queued"""
         dag_id = "check_MAT_dag"
-        session = settings.Session()
         with dag_maker(dag_id=dag_id, max_active_tasks=2, session=session):
             EmptyOperator(task_id="task_1")
             EmptyOperator(task_id="task_2")
@@ -1182,13 +1181,17 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, run_id="run_1")
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED, run_id="run_2")
-        dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED, run_id="run_3")
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, run_id="run_1", session=session)
+        dr2 = dag_maker.create_dagrun_after(
+            dr1, run_type=DagRunType.SCHEDULED, run_id="run_2", session=session
+        )
+        dr3 = dag_maker.create_dagrun_after(
+            dr2, run_type=DagRunType.SCHEDULED, run_id="run_3", session=session
+        )
 
         # set 2 tis in dr1 to running
         # no more can be queued
-        t1, t2, t3 = dr1.task_instances
+        t1, t2, t3 = dr1.get_task_instances(session=session)
         t1.state = active_state
         t2.state = active_state
         t3.state = State.SCHEDULED
@@ -1197,7 +1200,7 @@ class TestSchedulerJob:
         session.merge(t3)
         # set 1 ti from dr1 to running
         # one can be queued
-        t1, t2, t3 = dr2.task_instances
+        t1, t2, t3 = dr2.get_task_instances(session=session)
         t1.state = active_state
         t2.state = State.SCHEDULED
         t3.state = State.SCHEDULED
@@ -1206,7 +1209,7 @@ class TestSchedulerJob:
         session.merge(t3)
         # set 0 tis from dr1 to running
         # two can be queued
-        t1, t2, t3 = dr3.task_instances
+        t1, t2, t3 = dr3.get_task_instances(session=session)
         t1.state = State.SCHEDULED
         t2.state = State.SCHEDULED
         t3.state = State.SCHEDULED
@@ -1641,9 +1644,10 @@ class TestSchedulerJob:
             ("secondary_exec", "secondary_exec"),
         ],
     )
-    def test_critical_section_enqueue_task_instances(self, task1_exec, task2_exec, dag_maker, mock_executors):
+    def test_critical_section_enqueue_task_instances(
+        self, task1_exec, task2_exec, dag_maker, mock_executors, session
+    ):
         dag_id = "SchedulerJobTest.test_execute_task_instances"
-        session = settings.Session()
         # important that len(tasks) is less than max_active_tasks
         # because before scheduler._execute_task_instances would only
         # check the num tasks once so if max_active_tasks was 3,
@@ -1659,7 +1663,7 @@ class TestSchedulerJob:
 
         # create first dag run with 3 running tasks
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
 
         dr1_ti1 = dr1.get_task_instance(task1.task_id, session)
         dr1_ti2 = dr1.get_task_instance(task2.task_id, session)
@@ -1681,7 +1685,7 @@ class TestSchedulerJob:
         assert num_tis == 3
 
         # create second dag run
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED, session=session)
         dr2_ti1 = dr2.get_task_instance(task1.task_id, session)
         dr2_ti2 = dr2.get_task_instance(task2.task_id, session)
         dr2_ti3 = dr2.get_task_instance(task3.task_id, session)
@@ -1695,7 +1699,7 @@ class TestSchedulerJob:
 
         assert dr2.state == State.RUNNING
 
-        num_queued = self.job_runner._critical_section_enqueue_task_instances(session)
+        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
         assert num_queued == 3
 
         # check that max_active_tasks is respected
@@ -1709,18 +1713,18 @@ class TestSchedulerJob:
         assert num_tis == 6
 
         # this doesn't really tell us anything since we set these values manually, but hey
-        dr1_counter = Counter(x.state for x in dr1.get_task_instances())
+        dr1_counter = Counter(x.state for x in dr1.get_task_instances(session=session))
         assert dr1_counter[State.RUNNING] == 3
         assert dr1_counter[State.SCHEDULED] == 1
 
         # this is the more meaningful bit
         # three of dr2's tasks should be queued since that's max active tasks
         # and max active tasks is evaluated per-dag-run
-        dr2_counter = Counter(x.state for x in dr2.get_task_instances())
+        dr2_counter = Counter(x.state for x in dr2.get_task_instances(session=session))
         assert dr2_counter[State.QUEUED] == 3
         assert dr2_counter[State.SCHEDULED] == 1
 
-        num_queued = self.job_runner._critical_section_enqueue_task_instances(session)
+        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
         assert num_queued == 0
 
     def test_execute_task_instances_limit_second_executor(self, dag_maker, mock_executors):
