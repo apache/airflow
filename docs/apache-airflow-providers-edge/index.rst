@@ -33,6 +33,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    EdgeExecutor details <edge_executor>
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Configuration <configurations-ref>
