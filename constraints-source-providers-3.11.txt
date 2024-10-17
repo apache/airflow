@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-16T19:42:01.114248
+# This constraints file was automatically generated on 2024-10-17T02:12:03.628701
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -278,7 +278,7 @@ hmsclient==0.1.1
 hpack==4.0.0
 httpcore==1.0.6
 httplib2==0.22.0
-httptools==0.6.3
+httptools==0.6.4
 httpx==0.27.0
 humanize==4.11.0
 hvac==2.3.0
@@ -646,10 +646,10 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
-yarl==1.15.3
+yarl==1.15.4
 ydb==3.18.3
 zeep==4.3.1
-zenpy==2.0.53
+zenpy==2.0.54
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.1.0
