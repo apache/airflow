@@ -24,9 +24,9 @@ from __future__ import annotations
 from airflow.exceptions import AirflowException
 
 
-class AirflowTaskExecutionError(AirflowException):
-    """Raised when there is an error in task execution."""
+class DatabricksSqlExecutionError(AirflowException):
+    """Raised when there is an error in sql execution."""
 
 
-class AirflowTaskExecutionTimeout(AirflowTaskExecutionError):
-    """Raised when a task execution times out."""
+class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
+    """Raised when a sql execution times out."""

@@ -18,16 +18,16 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.databricks.exceptions import AirflowTaskExecutionError, AirflowTaskExecutionTimeout
+from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 
 
-def test_airflow_task_execution_error():
+def test_databricks_sql_execution_error():
     """Test if AirflowTaskExecutionError can be raised correctly."""
-    with pytest.raises(AirflowTaskExecutionError, match="Task execution failed"):
-        raise AirflowTaskExecutionError("Task execution failed")
+    with pytest.raises(DatabricksSqlExecutionError, match="Task execution failed"):
+        raise DatabricksSqlExecutionError("Task execution failed")
 
 
-def test_airflow_task_execution_timeout():
+def test_databricks_sql_execution_timeout():
     """Test if AirflowTaskExecutionTimeout can be raised correctly."""
-    with pytest.raises(AirflowTaskExecutionTimeout, match="Task execution timed out"):
-        raise AirflowTaskExecutionTimeout("Task execution timed out")
+    with pytest.raises(DatabricksSqlExecutionTimeout, match="Task execution timed out"):
+        raise DatabricksSqlExecutionTimeout("Task execution timed out")
