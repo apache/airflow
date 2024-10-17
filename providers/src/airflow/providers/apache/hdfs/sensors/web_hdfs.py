@@ -61,13 +61,13 @@ class MultipleFilesWebHdfsSensor(BaseSensorOperator):
         from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 
         hook = WebHDFSHook(self.webhdfs_conn_id)
-        conn: 'Union[KerberosClient|InsecureClient]' = hook.get_conn()
+        conn: 'KerberosClient | InsecureClient' = hook.get_conn()
 
         actual_files = set(conn.list(self.directory_path))
-        self.log.debug(f"Files Found in directory: {actual_files}")
+        self.log.debug("Files Found in directory: %s", actual_files)
 
         missing_files = set(self.expected_filenames) - actual_files
         if missing_files:
-            self.log.info(f"There are missing files: {missing_files}")
+            self.log.info("There are missing files: %s", missing_files)
             return False
         return True
