@@ -36,7 +36,7 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.dynamic import DynamicClient
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
@@ -52,6 +52,7 @@ from airflow.cli.cli_config import (
 )
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
@@ -229,13 +230,30 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_client
         from airflow.models.taskinstance import TaskInstance
 
+        hybrid_executor_enabled = hasattr(TaskInstance, "executor")
+        default_executor = None
+        if hybrid_executor_enabled:
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            default_executor = str(ExecutorLoader.get_default_executor_name())
+
         with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
             self.log.debug("Clearing tasks that have not been launched")
             query = select(TaskInstance).where(
-                TaskInstance.state == TaskInstanceState.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+                TaskInstance.state == TaskInstanceState.QUEUED,
+                TaskInstance.queued_by_job_id == self.job_id,
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
+            elif hybrid_executor_enabled and KUBERNETES_EXECUTOR == default_executor:
+                query = query.where(
+                    or_(
+                        TaskInstance.executor == KUBERNETES_EXECUTOR,
+                        TaskInstance.executor.is_(None),
+                    ),
+                )
+            elif hybrid_executor_enabled:
+                query = query.where(TaskInstance.executor == KUBERNETES_EXECUTOR)
             queued_tis: list[TaskInstance] = session.scalars(query).all()
             self.log.info("Found %s queued task instances", len(queued_tis))
 
