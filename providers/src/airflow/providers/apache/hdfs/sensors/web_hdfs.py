@@ -54,7 +54,7 @@ class MultipleFilesWebHdfsSensor(BaseSensorOperator):
                  webhdfs_conn_id: str = "webhdfs_default", **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.directory_path = directory_path
-        self.expected_filenames = set(expected_filenames)
+        self.expected_filenames = expected_filenames
         self.webhdfs_conn_id = webhdfs_conn_id
 
     def poke(self, context: Context) -> bool:
@@ -66,7 +66,7 @@ class MultipleFilesWebHdfsSensor(BaseSensorOperator):
         actual_files = set(conn.list(self.directory_path))
         self.log.debug(f"Files Found in directory: {actual_files}")
 
-        missing_files = self.expected_filenames - actual_files
+        missing_files = set(self.expected_filenames) - actual_files
         if missing_files:
             self.log.info(f"There are missing files: {missing_files}")
             return False
