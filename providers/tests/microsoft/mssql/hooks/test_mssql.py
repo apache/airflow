@@ -24,7 +24,6 @@ import pytest
 import sqlalchemy
 
 from airflow.configuration import conf
-
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
@@ -114,7 +113,9 @@ class TestMsSqlHook:
         MsSqlHook._resolve_target_fields = True
 
     def teardown_method(self, method):
-        MsSqlHook._resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
+        MsSqlHook._resolve_target_fields = conf.getboolean(
+            "core", "dbapihook_resolve_target_fields", fallback=False
+        )
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
