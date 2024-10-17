@@ -24,6 +24,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { App } from "src/App";
 
+import { TimezoneProvider } from "./context/timezone";
 import theme from "./theme";
 
 const queryClient = new QueryClient({
@@ -64,7 +65,9 @@ root.render(
   <BrowserRouter basename="/webapp">
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <TimezoneProvider>
+          <App />
+        </TimezoneProvider>
       </QueryClientProvider>
     </ChakraProvider>
   </BrowserRouter>,

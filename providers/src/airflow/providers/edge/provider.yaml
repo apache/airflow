@@ -36,6 +36,9 @@ plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin
 
+executors:
+  - airflow.providers.edge.executors.EdgeExecutor
+
 config:
   edge:
     description: |
