@@ -46,7 +46,7 @@ import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
-import { pluralize } from "src/utils/pluralize";
+import { pluralize } from "src/utils";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";

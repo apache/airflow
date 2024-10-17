@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Flex,
-  Icon,
-  Link,
-  useColorModeValue,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Flex, Icon, useColorModeValue, VStack } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import {
   FiBarChart2,
@@ -68,12 +61,7 @@ export const Nav = () => {
         >
           <Icon as={AirflowPin} height="35px" width="35px" />
         </Box>
-        <NavButton
-          icon={<FiHome size="1.75rem" />}
-          isDisabled
-          title="Home"
-          to="/"
-        />
+        <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
         <NavButton
           icon={<DagIcon height={7} width={7} />}
           title="DAGs"
@@ -106,7 +94,6 @@ export const Nav = () => {
       </Flex>
       <Flex flexDir="column">
         <NavButton
-          as={Link}
           icon={<FiCornerUpLeft size="1.5rem" />}
           title="Return to legacy UI"
           to={import.meta.env.VITE_LEGACY_API_URL}

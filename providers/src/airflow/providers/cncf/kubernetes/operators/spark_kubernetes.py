@@ -69,7 +69,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param kubernetes_conn_id: the connection to Kubernetes cluster
     """
 
-    template_fields = ["application_file", "namespace", "template_spec"]
+    template_fields = ["application_file", "namespace", "template_spec", "kubernetes_conn_id"]
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"

@@ -78,7 +78,8 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cgroupspy>=0.2.2",
     ],
     "cloudpickle": [
-        "cloudpickle",
+        # Latest version of apache-beam requires cloudpickle~=2.2.1
+        "cloudpickle>=2.2.1",
     ],
     "github-enterprise": [
         "apache-airflow[fab]",
