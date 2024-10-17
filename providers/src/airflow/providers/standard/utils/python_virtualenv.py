@@ -21,13 +21,11 @@ from __future__ import annotations
 
 import os
 import sys
-import warnings
 from pathlib import Path
 
 import jinja2
 from jinja2 import select_autoescape
 
-from airflow.utils.decorators import remove_task_decorator as _remove_task_decorator
 from airflow.utils.process_utils import execute_in_subprocess
 
 
@@ -60,15 +58,6 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     else:
         pip_conf_options = "no-index = true"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
-
-
-def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
-    warnings.warn(
-        "Import remove_task_decorator from airflow.utils.decorators instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return _remove_task_decorator(python_source, task_decorator_name)
 
 
 def prepare_virtualenv(

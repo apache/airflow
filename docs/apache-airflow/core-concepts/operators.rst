@@ -29,12 +29,12 @@ An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, tha
 Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers. Some popular operators from core include:
 
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` - executes a bash command
-- :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
+- :class:`~airflow.providers.standard.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
 
 .. note::
-    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.providers.standard.operators.python.PythonOperator`
     to execute Python callables with no template rendering in its arguments.
 
 For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.

@@ -27,7 +27,6 @@ from google.cloud.run_v2 import Job
 from google.cloud.run_v2.types import k8s_min
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunDeleteJobOperator,
@@ -35,6 +34,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunListJobsOperator,
     CloudRunUpdateJobOperator,
 )
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

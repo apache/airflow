@@ -22,7 +22,7 @@
 PythonOperator
 ==============
 
-Use the :class:`~airflow.operators.python.PythonOperator` to execute Python callables.
+Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to execute Python callables.
 
 .. tip::
     The ``@task`` decorator is recommended over the classic ``PythonOperator`` to execute Python callables.
@@ -138,7 +138,7 @@ In this case, the type hint can be used for static analysis.
 PythonVirtualenvOperator
 ========================
 
-Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` decorator to execute Python callables
+Use the :class:`~airflow.providers.standard.operators.python.PythonVirtualenvOperator` decorator to execute Python callables
 inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment
 that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
@@ -187,7 +187,7 @@ If you want the context related to datetime objects like ``data_interval_start``
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
-    If you want to pass variables into the classic :class:`~airflow.operators.python.PythonVirtualenvOperator` use
+    If you want to pass variables into the classic :class:`~airflow.providers.standard.operators.python.PythonVirtualenvOperator` use
     ``op_args`` and ``op_kwargs``.
 
 If additional parameters for package installation are needed pass them in via the ``pip_install_options`` parameter or use a
@@ -294,7 +294,7 @@ environment, there is no need for ``activation`` of the environment. Merely usin
 automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is such a path, pointing
 to the executable Python binary.
 
-Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
+Use the :class:`~airflow.providers.standard.operators.python.ExternalPythonOperator` to execute Python callables inside a
 pre-defined environment. The virtualenv package should be preinstalled in the environment where Python is run.
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
@@ -339,7 +339,7 @@ If you want the context related to datetime objects like ``data_interval_start``
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
-    If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
+    If you want to pass variables into the classic :class:`~airflow.providers.standard.operators.python.ExternalPythonOperator` use
     ``op_args`` and ``op_kwargs``.
 
 Templating
@@ -377,7 +377,7 @@ You can use ``Context`` under the same conditions as ``PythonVirtualenvOperator`
 PythonBranchOperator
 ====================
 
-Use the :class:`~airflow.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
+Use the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
 tasks.
 
 .. tip::
@@ -414,8 +414,8 @@ Argument passing and templating options are the same as with :ref:`howto/operato
 BranchPythonVirtualenvOperator
 ==============================
 
-Use the :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in a virtual environment.
+Use the :class:`~airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in a virtual environment.
 
 .. tip::
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
@@ -451,8 +451,8 @@ Argument passing and templating options are the same as with :ref:`howto/operato
 BranchExternalPythonOperator
 ============================
 
-Use the :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in an
+Use the :class:`~airflow.providers.standard.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in an
 external Python environment.
 
 .. tip::
@@ -490,7 +490,7 @@ Argument passing and templating options are the same as with :ref:`howto/operato
 ShortCircuitOperator
 ====================
 
-Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
+Use the :class:`~airflow.providers.standard.operators.python.ShortCircuitOperator` to control whether a pipeline continues
 if a condition is satisfied or a truthy value is obtained.
 
 The evaluation of this condition and truthy value is done via the output of a callable. If the
@@ -570,7 +570,7 @@ Argument passing and templating options are the same as with :ref:`howto/operato
 PythonSensor
 ============
 
-The :class:`~airflow.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
+The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
 value to be True.
 
 .. tip::

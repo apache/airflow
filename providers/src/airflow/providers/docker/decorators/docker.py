@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator
@@ -34,7 +33,15 @@ if TYPE_CHECKING:
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 
 try:
-    from airflow.operators.python import _SERIALIZERS
+    from airflow.providers.standard.utils.python_virtualenv import write_python_script
+except ImportError:
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
+
+try:
+    try:
+        from airflow.providers.standard.operators.python import _SERIALIZERS
+    except ImportError:
+        from airflow.operators.python import _SERIALIZERS  # type: ignore[no-redef,attr-defined]
 except ImportError:
     import logging
 
