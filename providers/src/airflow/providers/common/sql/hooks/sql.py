@@ -68,7 +68,7 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
-resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=True)
+resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
