@@ -1377,12 +1377,11 @@ api:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
         `Security: API
-        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values.
-        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
+        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values
       version_added: 2.3.0
       type: string
       example: ~
-      default: "airflow.api.auth.backend.session"
+      default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
