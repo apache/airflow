@@ -23,6 +23,8 @@ from urllib.parse import quote_plus
 import pytest
 import sqlalchemy
 
+from airflow.configuration import conf
+
 from airflow.models import Connection
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
@@ -59,7 +61,7 @@ PYMSSQL_CONN_ALT_2 = Connection(
 )
 
 
-def get_column_names(self, table: str) -> list[str] | None:
+def get_target_fields(self, table: str) -> list[str] | None:
     return [
         "ReportRefreshDate",
         "UserId",
@@ -108,6 +110,12 @@ def get_primary_keys(self, table: str) -> list[str] | None:
 
 
 class TestMsSqlHook:
+    def setup_method(self):
+        MsSqlHook._resolve_target_fields = True
+
+    def teardown_method(self, method):
+        MsSqlHook._resolve_target_fields = conf.getboolean("core", "dbapihook_resolve_target_fields", fallback=False)
+
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
@@ -225,8 +233,8 @@ class TestMsSqlHook:
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     @mock.patch(
-        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_column_names",
-        get_column_names,
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_target_fields",
+        get_target_fields,
     )
     @mock.patch(
         "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_primary_keys",
