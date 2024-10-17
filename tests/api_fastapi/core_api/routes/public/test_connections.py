@@ -323,33 +323,101 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
         assert response.status_code == 200
 
-    def test_patch_should_respond_200_with_update_mask(self, test_client, session):
+    @pytest.mark.parametrize(
+        "payload, updated_connection, update_mask",
+        [
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["login, port"]},
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "test_host_patch"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": "test_host_patch",
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["host"]},
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "host": "test_host_patch",
+                    "port": 80,
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": "test_host_patch",
+                    "login": TEST_CONN_LOGIN,
+                    "port": 80,
+                    "schema": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["host", "port"]},
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "login": "test_login_patch"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": "test_login_patch",
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["login"]},
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "host": TEST_CONN_HOST,
+                    "port": 80,
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "extra": None,
+                    "host": TEST_CONN_HOST,
+                    "login": TEST_CONN_LOGIN,
+                    "port": TEST_CONN_PORT,
+                    "schema": None,
+                    "description": TEST_CONN_DESCRIPTION,
+                },
+                {"update_mask": ["host"]},
+            ),
+        ],
+    )
+    def test_patch_should_respond_200_with_update_mask(
+        self, test_client, session, payload, updated_connection, update_mask
+    ):
         self.create_connection()
         test_connection = TEST_CONN_ID
-        payload = {
-            "connection_id": test_connection,
-            "conn_type": TEST_CONN_TYPE_2,
-            "extra": "{'key': 'var'}",
-            "login": TEST_CONN_LOGIN,
-            "port": TEST_CONN_PORT,
-        }
-        response = test_client.patch(
-            f"/public/connections/{TEST_CONN_ID}?update_mask=port,login",
-            json=payload,
-        )
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload, params=update_mask)
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=test_connection).first()
         assert connection.password is None
-        assert response.json() == {
-            "connection_id": test_connection,  # not updated
-            "conn_type": TEST_CONN_TYPE,  # Not updated
-            "description": TEST_CONN_DESCRIPTION,  # Not updated
-            "extra": None,  # Not updated
-            "host": TEST_CONN_HOST,
-            "login": TEST_CONN_LOGIN,  # updated
-            "port": TEST_CONN_PORT,  # updated
-            "schema": None,
-        }
+        assert response.json() == updated_connection
 
     @pytest.mark.parametrize(
         "payload",
