@@ -31,6 +31,7 @@ from airflow.utils.timezone import datetime
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
+
 @pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
