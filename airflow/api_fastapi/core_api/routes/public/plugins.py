@@ -14,26 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from airflow.api_connexion import security
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
-from airflow.auth.managers.models.resource_details import AccessView
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.serializers.plugins import PluginCollectionResponse, PluginResponse
 from airflow.plugins_manager import get_plugin_info
-from airflow.utils.api_migration import mark_fastapi_migration_done
 
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
-@mark_fastapi_migration_done
-@security.requires_access_view(AccessView.PLUGINS)
-@format_parameters({"limit": check_limit})
-def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint."""
+@plugins_router.get("/")
+async def get_plugins(
+    limit: QueryLimit,
+    offset: QueryOffset,
+) -> PluginCollectionResponse:
     plugins_info = get_plugin_info()
-    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
-    return plugin_collection_schema.dump(collection)
+    return PluginCollectionResponse(
+        plugins=[
+            PluginResponse.model_validate(plugin_info)
+            for plugin_info in plugins_info[offset.value :][: limit.value]
+        ],
+        total_entries=len(plugins_info),
+    )

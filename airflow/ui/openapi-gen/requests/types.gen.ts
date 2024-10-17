@@ -259,6 +259,40 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Plugin Collection serializer.
+ */
+export type PluginCollectionResponse = {
+  plugins: Array<PluginResponse>;
+  total_entries: number;
+};
+
+/**
+ * Plugin serializer.
+ */
+export type PluginResponse = {
+  name: string;
+  hooks: Array<string>;
+  executors: Array<string>;
+  macros: Array<string>;
+  flask_blueprints: Array<string>;
+  fastapi_apps: Array<{
+    [key: string]: unknown;
+  }>;
+  appbuilder_views: Array<{
+    [key: string]: unknown;
+  }>;
+  appbuilder_menu_items: Array<{
+    [key: string]: unknown;
+  }>;
+  global_operator_extra_links: Array<string>;
+  operator_extra_links: Array<string>;
+  source: string;
+  ti_deps: Array<string>;
+  listeners: Array<string>;
+  timetables: Array<string>;
+};
+
+/**
  * Schema for Scheduler info.
  */
 export type SchedulerInfoSchema = {
@@ -449,6 +483,13 @@ export type DeleteDagRunData = {
 export type DeleteDagRunResponse = void;
 
 export type GetHealthResponse = HealthInfoSchema;
+
+export type GetPluginsData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetPluginsResponse = PluginCollectionResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -897,6 +938,21 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/plugins/": {
+    get: {
+      req: GetPluginsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
