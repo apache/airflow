@@ -65,11 +65,6 @@ def mock_workflow_run_metadata():
     return MagicMock(spec=WorkflowRunMetadata)
 
 
-@pytest.fixture
-def mock_workflow_run_metadata():
-    return MagicMock(spec=WorkflowRunMetadata)
-
-
 def test_flatten_node():
     """Test that _flatten_node returns a flat list of operators."""
     task_group = MagicMock(spec=DatabricksWorkflowTaskGroup)
