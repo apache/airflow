@@ -34,7 +34,7 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)

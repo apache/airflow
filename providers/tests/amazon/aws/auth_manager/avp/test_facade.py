@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerA
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.utils.helpers import prune_dict
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

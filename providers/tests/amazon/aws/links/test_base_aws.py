@@ -26,8 +26,8 @@ from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance

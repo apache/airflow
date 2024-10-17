@@ -29,7 +29,7 @@ from airflow.cli import cli_parser
 from airflow.models import DagBag
 from airflow.utils import timezone
 
-from dev.tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):

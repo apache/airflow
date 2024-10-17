@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers_manager import ProviderInfo
 
-from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

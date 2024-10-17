@@ -23,10 +23,10 @@ from google.auth.exceptions import GoogleAuthError
 
 from airflow.www.app import create_app
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_pools
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="module")

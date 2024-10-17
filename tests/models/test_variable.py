@@ -28,8 +28,8 @@ from airflow.models import Variable, crypto, variable
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 
-from dev.tests_common.test_utils import db
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

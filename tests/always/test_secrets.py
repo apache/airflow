@@ -25,8 +25,8 @@ from airflow.configuration import ensure_secrets_loaded, initialize_secrets_back
 from airflow.models import Connection, Variable
 from airflow.secrets.cache import SecretCache
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_variables
 
 
 class TestConnectionsFromSecrets:

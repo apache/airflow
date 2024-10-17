@@ -114,7 +114,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.63.0
+  - google-cloud-aiplatform>=1.70.0
   - google-cloud-automl>=2.12.0
   # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
   - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
@@ -170,6 +170,8 @@ dependencies:
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
+  # Used to write parquet files by BaseSqlToGCSOperator
+  - pyarrow>=14.0.1
   - python-slugify>=7.0.0
   - PyOpenSSL>=23.0.0
   - sqlalchemy-bigquery>=1.2.1

@@ -28,7 +28,7 @@ from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
 
-from dev.tests_common.test_utils import db
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 

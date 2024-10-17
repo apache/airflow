@@ -24,8 +24,8 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.mock_operators import MockOperator
 
 yandexcloud = pytest.importorskip("yandexcloud")
 

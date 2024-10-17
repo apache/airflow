@@ -45,6 +45,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
 from airflow.models.asset import (
+    AssetActive,
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
@@ -1076,7 +1077,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "zombie_detection_interval", fallback=10.0),
-            self._find_zombies,
+            self._find_and_purge_zombies,
         )
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
@@ -1336,9 +1337,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
-        active_runs_of_dags = Counter(
-            DagRun.active_runs_of_dags(dag_ids=(dm.dag_id for dm in dag_models), session=session),
-        )
+        dag_ids = (dm.dag_id for dm in dag_models)
+        active_runs_of_dags = Counter(DagRun.active_runs_of_dags(dag_ids=dag_ids, session=session))
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1511,11 +1511,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag.timetable.can_be_scheduled:
             return False
 
-        # get active dag runs from DB if not available
-        if not total_active_runs:
-            total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
+        if total_active_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(dag_ids=[dag.dag_id], session=session)
+            total_active_runs = runs_dict.get(dag.dag_id, 0)
 
-        if total_active_runs and total_active_runs >= dag.max_active_runs:
+        if total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
@@ -1952,73 +1952,76 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if num_timed_out_tasks:
                     self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
-    # [START find_zombies]
-    def _find_zombies(self) -> None:
+    # [START find_and_purge_zombies]
+    def _find_and_purge_zombies(self) -> None:
         """
-        Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
+        Find and purge zombie task instances.
 
-        Zombie instances are tasks haven't heartbeated for too long or have a no-longer-running LocalTaskJob.
+        Zombie instances are tasks that failed to heartbeat for too long, or
+        have a no-longer-running LocalTaskJob.
+
+        A TaskCallbackRequest is also created for the killed zombie to be
+        handled by the DAG processor, and the executor is informed to no longer
+        count the zombie as running when it calculates parallelism.
         """
+        with create_session() as session:
+            if zombies := self._find_zombies(session=session):
+                self._purge_zombies(zombies, session=session)
+
+    def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
         from airflow.jobs.job import Job
 
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-
-        with create_session() as session:
-            zombies: list[tuple[TI, str, str]] = (
-                session.execute(
-                    select(TI, DM.fileloc, DM.processor_subdir)
-                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                    .join(Job, TI.job_id == Job.id)
-                    .join(DM, TI.dag_id == DM.dag_id)
-                    .where(TI.state == TaskInstanceState.RUNNING)
-                    .where(
-                        or_(
-                            Job.state != JobState.RUNNING,
-                            Job.latest_heartbeat < limit_dttm,
-                        )
-                    )
-                    .where(Job.job_type == "LocalTaskJob")
-                    .where(TI.queued_by_job_id == self.job.id)
-                )
-                .unique()
-                .all()
-            )
-
+        zombies = session.execute(
+            select(TI, DM.fileloc, DM.processor_subdir)
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(Job, TI.job_id == Job.id)
+            .join(DM, TI.dag_id == DM.dag_id)
+            .where(TI.state == TaskInstanceState.RUNNING)
+            .where(or_(Job.state != JobState.RUNNING, Job.latest_heartbeat < limit_dttm))
+            .where(Job.job_type == "LocalTaskJob")
+            .where(TI.queued_by_job_id == self.job.id)
+        ).all()
         if zombies:
             self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+        return zombies
 
-        with create_session() as session:
-            for ti, file_loc, processor_subdir in zombies:
-                zombie_message_details = self._generate_zombie_message_details(ti)
-                request = TaskCallbackRequest(
-                    full_filepath=file_loc,
-                    processor_subdir=processor_subdir,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    msg=str(zombie_message_details),
+    def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:
+        for ti, file_loc, processor_subdir in zombies:
+            zombie_message_details = self._generate_zombie_message_details(ti)
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                processor_subdir=processor_subdir,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg=str(zombie_message_details),
+            )
+            session.add(
+                Log(
+                    event="heartbeat timeout",
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
+                        "seconds) and will be terminated. "
+                        "See https://airflow.apache.org/docs/apache-airflow/"
+                        "stable/core-concepts/tasks.html#zombie-undead-tasks"
+                    ),
                 )
-                session.add(
-                    Log(
-                        event="heartbeat timeout",
-                        task_instance=ti.key,
-                        extra=(
-                            f"Task did not emit heartbeat within time limit ({self._zombie_threshold_secs} "
-                            "seconds) and will be terminated. "
-                            "See https://airflow.apache.org/docs/apache-airflow/"
-                            "stable/core-concepts/tasks.html#zombie-undead-tasks"
-                        ),
-                    )
-                )
-                self.log.error(
-                    "Detected zombie job: %s "
-                    "(See https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/core-concepts/tasks.html#zombie-undead-tasks)",
-                    request,
-                )
-                self.job.executor.send_callback(request)
-                Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+            )
+            self.log.error(
+                "Detected zombie job: %s "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#zombie-undead-tasks)",
+                request,
+            )
+            self.job.executor.send_callback(request)
+            if (executor := self._try_to_load_executor(ti.executor)) is None:
+                self.log.warning("Cannot clean up zombie %r with non-existent executor %s", ti, ti.executor)
+                continue
+            executor.change_state(ti.key, TaskInstanceState.FAILED, remove_running=True)
+            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
-    # [END find_zombies]
+    # [END find_and_purge_zombies]
 
     @staticmethod
     def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
@@ -2062,15 +2065,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
-    def _set_orphaned(self, asset: AssetModel) -> int:
-        self.log.info("Orphaning unreferenced asset '%s'", asset.uri)
-        asset.is_orphaned = expression.true()
-        return 1
+    def _get_orphaning_identifier(self, asset: AssetModel) -> tuple[str, str]:
+        self.log.info("Orphaning unreferenced %s", asset)
+        return asset.name, asset.uri
 
     @provide_session
     def _orphan_unreferenced_assets(self, session: Session = NEW_SESSION) -> None:
         """
-        Detect orphaned assets and set is_orphaned flag to True.
+        Detect orphaned assets and remove their active entry.
 
         An orphaned asset is no longer referenced in any DAG schedule parameters or task outlets.
         """
@@ -2085,7 +2087,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(AssetModel.id)
-            .where(~AssetModel.is_orphaned)
+            .where(AssetModel.active.has())
             .having(
                 and_(
                     func.count(DagScheduleAssetReference.dag_id) == 0,
@@ -2094,8 +2096,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        updated_count = sum(self._set_orphaned(asset) for asset in orphaned_asset_query)
-        Stats.gauge("asset.orphaned", updated_count)
+        orphaning_identifiers = [self._get_orphaning_identifier(asset) for asset in orphaned_asset_query]
+        session.execute(
+            delete(AssetActive).where(
+                tuple_in_condition((AssetActive.name, AssetActive.uri), orphaning_identifiers)
+            )
+        )
+        Stats.gauge("asset.orphaned", len(orphaning_identifiers))
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""

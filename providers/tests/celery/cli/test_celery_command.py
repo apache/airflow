@@ -31,8 +31,8 @@ from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

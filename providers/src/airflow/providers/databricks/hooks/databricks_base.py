@@ -34,6 +34,7 @@ from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+from aiohttp.client_exceptions import ClientConnectorError
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -677,6 +678,9 @@ class BaseDatabricksHook(BaseHook):
         if isinstance(exception, aiohttp.ClientResponseError):
             if exception.status >= 500 or exception.status == 429:
                 return True
+
+        if isinstance(exception, ClientConnectorError):
+            return True
 
         return False
 

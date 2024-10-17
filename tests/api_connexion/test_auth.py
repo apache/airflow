@@ -23,9 +23,9 @@ import pytest
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -44,7 +44,9 @@ class TestSessionAuth(BaseTestAuth):
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.session"}):
+            with conf_vars(
+                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.session"}
+            ):
                 init_api_auth(minimal_app_for_api)
                 yield
         finally:

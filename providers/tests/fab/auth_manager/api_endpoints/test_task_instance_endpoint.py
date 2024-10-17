@@ -29,13 +29,13 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 
 pytestmark = [
     pytest.mark.db_test,
@@ -124,7 +124,6 @@ class TestTaskInstanceEndpoint:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
-        clear_db_sla_miss()
         clear_rendered_ti_fields()
         self.dagbag = dagbag
 

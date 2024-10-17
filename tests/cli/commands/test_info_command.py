@@ -33,7 +33,7 @@ from airflow.config_templates import airflow_local_settings
 from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 def capture_show_output(instance):

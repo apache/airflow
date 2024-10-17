@@ -31,13 +31,14 @@ try:
 except ImportError:
     pass
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
     from airflow.providers.fab.auth_manager.models import User
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -61,14 +62,6 @@ from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.security.permissions import RESOURCE_ASSET
-else:
-    try:
-        from airflow.security.permissions import RESOURCE_ASSET
-    except ImportError:
-        from airflow.security.permissions import (
-            RESOURCE_DATASET as RESOURCE_ASSET,
-        )
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {

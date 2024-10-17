@@ -232,6 +232,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task_sdk/src/",
             r"^task_sdk/tests/",
             r"^tests",
+            r"^tests_common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -245,7 +246,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^dev/tests_common/.*\.py$",
+            r"^tests_common/.*\.py$",
         ],
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
@@ -732,11 +733,21 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        # we should run all test
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
     def ci_image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+        # in case pyproject.toml changed, CI image should be built - even if no build dependencies
+        # changes because some of our tests - those that need CI image might need to be run depending on
+        # changed rules for static checks that are part of the pyproject.toml file
+        return (
+            self.run_tests
+            or self.docs_build
+            or self.run_kubernetes_tests
+            or self.needs_helm_tests
+            or self.pyproject_toml_changed
+        )
 
     @cached_property
     def prod_image_build(self) -> bool:
@@ -936,6 +947,8 @@ class SelectiveChecks:
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
+            return False
+        if "pyproject.toml" not in self._files:
             return False
         new_result = run_command(
             ["git", "show", f"{self._commit_ref}:pyproject.toml"],

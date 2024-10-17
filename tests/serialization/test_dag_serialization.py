@@ -81,9 +81,9 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from dev.tests_common.test_utils.compat import BaseOperatorLink
-from dev.tests_common.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
-from dev.tests_common.test_utils.timetables import (
+from tests_common.test_utils.compat import BaseOperatorLink
+from tests_common.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
+from tests_common.test_utils.timetables import (
     CustomSerializationTimetable,
     cron_timetable,
     delta_timetable,
@@ -190,9 +190,7 @@ serialized_simple_dag_ground_truth = {
                     "max_retry_delay": 600.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
-                    "_operator_extra_links": [
-                        {"dev.tests_common.test_utils.mock_operators.CustomOpLink": {}}
-                    ],
+                    "_operator_extra_links": [{"tests_common.test_utils.mock_operators.CustomOpLink": {}}],
                     "ui_color": "#fff",
                     "ui_fgcolor": "#000",
                     "template_ext": [],
@@ -200,7 +198,7 @@ serialized_simple_dag_ground_truth = {
                     "template_fields_renderers": {},
                     "_task_type": "CustomOperator",
                     "_operator_name": "@custom",
-                    "_task_module": "dev.tests_common.test_utils.mock_operators",
+                    "_task_module": "tests_common.test_utils.mock_operators",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -240,7 +238,7 @@ ROOT_FOLDER = os.path.realpath(
 )
 
 CUSTOM_TIMETABLE_SERIALIZED = {
-    "__type": "dev.tests_common.test_utils.timetables.CustomSerializationTimetable",
+    "__type": "tests_common.test_utils.timetables.CustomSerializationTimetable",
     "__var": {"value": "foo"},
 }
 
@@ -373,7 +371,7 @@ def timetable_plugin(monkeypatch):
     monkeypatch.setattr(
         plugins_manager,
         "timetable_classes",
-        {"dev.tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+        {"tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
     )
 
 
@@ -469,7 +467,7 @@ class TestStringifiedDAGs:
 
         message = (
             "Failed to serialize DAG 'simple_dag': Timetable class "
-            "'dev.tests_common.test_utils.timetables.CustomSerializationTimetable' "
+            "'tests_common.test_utils.timetables.CustomSerializationTimetable' "
             "is not registered or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
@@ -834,7 +832,7 @@ class TestStringifiedDAGs:
             SerializedDAG.from_dict(serialized)
         message = (
             "Timetable class "
-            "'dev.tests_common.test_utils.timetables.CustomSerializationTimetable' "
+            "'tests_common.test_utils.timetables.CustomSerializationTimetable' "
             "is not registered or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
@@ -986,15 +984,15 @@ class TestStringifiedDAGs:
         [
             pytest.param(
                 "true",
-                [{"dev.tests_common.test_utils.mock_operators.CustomOpLink": {}}],
+                [{"tests_common.test_utils.mock_operators.CustomOpLink": {}}],
                 {"Google Custom": "http://google.com/custom_base_link?search=true"},
                 id="non-indexed-link",
             ),
             pytest.param(
                 ["echo", "true"],
                 [
-                    {"dev.tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 0}},
-                    {"dev.tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 1}},
+                    {"tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 0}},
+                    {"tests_common.test_utils.mock_operators.CustomBaseIndexOpLink": {"index": 1}},
                 ],
                 {
                     "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=echo",
@@ -1297,7 +1295,7 @@ class TestStringifiedDAGs:
             "template_fields": ["bash_command"],
             "template_fields_renderers": {},
             "_task_type": "CustomOperator",
-            "_task_module": "dev.tests_common.test_utils.mock_operators",
+            "_task_module": "tests_common.test_utils.mock_operators",
             "pool": "default_pool",
             "ui_color": "#fff",
             "ui_fgcolor": "#000",
@@ -2354,7 +2352,7 @@ def test_operator_expand_xcomarg_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "dev.tests_common.test_utils.mock_operators",
+        "_task_module": "tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2409,7 +2407,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "dev.tests_common.test_utils.mock_operators",
+        "_task_module": "tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2464,7 +2462,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "dev.tests_common.test_utils.mock_operators",
+        "_task_module": "tests_common.test_utils.mock_operators",
         "_task_type": "MockOperator",
         "downstream_task_ids": [],
         "expand_input": {
@@ -2827,7 +2825,7 @@ def test_mapped_task_with_operator_extra_links_property():
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
         "downstream_task_ids": [],
-        "_operator_extra_links": [{"dev.tests_common.test_utils.mock_operators.AirflowLink2": {}}],
+        "_operator_extra_links": [{"tests_common.test_utils.mock_operators.AirflowLink2": {}}],
         "ui_color": "#fff",
         "ui_fgcolor": "#000",
         "template_ext": [],

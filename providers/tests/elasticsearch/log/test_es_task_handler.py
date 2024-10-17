@@ -44,10 +44,10 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from providers.tests.elasticsearch.log.elasticmock import elasticmock
 from providers.tests.elasticsearch.log.elasticmock.utilities import SearchFailedException
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 

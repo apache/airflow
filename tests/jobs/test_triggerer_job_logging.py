@@ -31,7 +31,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import RedirectStdHandler
 from airflow.utils.log.trigger_handler import DropTriggerLogsFilter, TriggererHandlerWrapper
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 def non_pytest_handlers(val):

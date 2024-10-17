@@ -80,8 +80,8 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
 

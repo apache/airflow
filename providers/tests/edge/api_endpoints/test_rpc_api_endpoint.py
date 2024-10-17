@@ -41,8 +41,8 @@ from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www import app
 
-from dev.tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 # Note: Sounds a bit strange to disable internal API tests in isolation mode but...
 # As long as the test is modelled to run its own internal API endpoints, it is conflicting

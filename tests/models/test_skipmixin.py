@@ -32,7 +32,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
