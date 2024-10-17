@@ -352,13 +352,15 @@
   },
   "cloudant": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "cloudant>=2.13.0"
+      "apache-airflow>=2.8.0",
+      "ibmcloudant>=0.9.1"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.9"
+    ],
     "state": "ready"
   },
   "cncf.kubernetes": {
