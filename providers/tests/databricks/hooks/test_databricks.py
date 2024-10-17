@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import itertools
 import json
+import ssl
 import time
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
+import aiohttp.client_exceptions
 import azure.identity
 import azure.identity.aio
 import pytest
@@ -1533,6 +1535,21 @@ class TestDatabricksHookAsyncMethods:
         async with self.hook:
             assert isinstance(self.hook._session, aiohttp.ClientSession)
         assert self.hook._session is None
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_do_api_call_retries_with_client_connector_error(self, mock_get):
+        mock_get.side_effect = aiohttp.ClientConnectorError(
+            connection_key=None,
+            os_error=ssl.SSLError(
+                "SSL handshake is taking longer than 60.0 seconds: aborting the connection"
+            ),
+        )
+        with mock.patch.object(self.hook.log, "error") as mock_errors:
+            async with self.hook:
+                with pytest.raises(AirflowException):
+                    await self.hook._a_do_api_call(GET_RUN_ENDPOINT, {})
+                assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
