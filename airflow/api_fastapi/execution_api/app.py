@@ -17,11 +17,18 @@
 
 from __future__ import annotations
 
-import os
+from fastapi import FastAPI
 
-from airflow.api_fastapi.app import cached_app
 
-# There is no way to pass the apps to this file from Airflow CLI
-# because fastapi dev command does not accept any additional arguments
-# so environment variable is being used to pass it
-app = cached_app(apps=os.environ.get("AIRFLOW_API_APPS", "all"))
+def create_task_execution_api_app(app: FastAPI) -> FastAPI:
+    """Create FastAPI app for task execution API."""
+    from airflow.api_fastapi.execution_api.routes import execution_api_router
+
+    task_exec_api_app = FastAPI(
+        title="Airflow Task Execution API",
+        description="The private Airflow Task Execution API.",
+        include_in_schema=False,
+    )
+
+    task_exec_api_app.include_router(execution_api_router)
+    return task_exec_api_app

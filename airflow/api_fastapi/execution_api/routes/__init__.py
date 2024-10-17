@@ -14,14 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import os
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.execution_api.routes.health import health_router
 
-from airflow.api_fastapi.app import cached_app
-
-# There is no way to pass the apps to this file from Airflow CLI
-# because fastapi dev command does not accept any additional arguments
-# so environment variable is being used to pass it
-app = cached_app(apps=os.environ.get("AIRFLOW_API_APPS", "all"))
+execution_api_router = AirflowRouter()
+execution_api_router.include_router(health_router)

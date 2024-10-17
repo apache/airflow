@@ -22,14 +22,17 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from airflow.api_fastapi.core_api.app import init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 
 log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
 
 
-def create_app(apps: list[str] | None = None) -> FastAPI:
+def create_app(apps: str = "all") -> FastAPI:
     from airflow.configuration import conf
+
+    apps_list = apps.split(",") if apps else ["all"]
 
     app = FastAPI(
         title="Airflow API",
@@ -38,11 +41,14 @@ def create_app(apps: list[str] | None = None) -> FastAPI:
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
     )
 
-    init_dag_bag(app)
+    if "core" in apps_list or "all" in apps_list:
+        init_dag_bag(app)
+        init_views(app)
+        init_plugins(app)
 
-    init_views(app)
-
-    init_plugins(app)
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app(app)
+        app.mount("/execution", task_exec_api_app)
 
     allow_origins = conf.getlist("api", "access_control_allow_origins")
     allow_methods = conf.getlist("api", "access_control_allow_methods")
@@ -60,11 +66,11 @@ def create_app(apps: list[str] | None = None) -> FastAPI:
     return app
 
 
-def cached_app(config=None, testing=False) -> FastAPI:
-    """Return cached instance of Airflow UI app."""
+def cached_app(config=None, testing=False, apps="all") -> FastAPI:
+    """Return cached instance of Airflow API app."""
     global app
     if not app:
-        app = create_app()
+        app = create_app(apps=apps)
     return app
 
 
