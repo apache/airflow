@@ -119,6 +119,8 @@ spec:
             tcpSocket:
               port: {{ .Values.ports.pgbouncer }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             - name: pgbouncer-config
               subPath: pgbouncer.ini
               mountPath: /etc/pgbouncer/pgbouncer.ini
@@ -209,4 +211,6 @@ spec:
         {{- if .Values.pgbouncer.extraVolumes }}
           {{- tpl (toYaml .Values.pgbouncer.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - emptyDir: {}
+          name: tmp        
 {{- end }}

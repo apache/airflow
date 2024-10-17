@@ -112,6 +112,10 @@ spec:
             {{- if .Values.flower.extraVolumeMounts }}
               {{- tpl (toYaml .Values.flower.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            - name: tmp
+              mountPath: /tmp
+            - name: opt
+              mountPath: /opt/airflow                           
           ports:
             - name: flower-ui
               containerPort: {{ .Values.ports.flowerUI }}
@@ -167,5 +171,9 @@ spec:
         {{- if .Values.flower.extraVolumes }}
           {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
+        - emptyDir: {}
+          name: tmp    
+        - name: opt
+          emptyDir: {}               
 {{- end }}
 {{- end }}
