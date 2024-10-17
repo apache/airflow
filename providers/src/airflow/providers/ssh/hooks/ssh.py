@@ -74,6 +74,7 @@ class SSHHook(BaseHook):
         iterable of algorithm identifiers, which will be disabled for the
         lifetime of the transport
     :param ciphers: list of ciphers to use in order of preference
+    :param auth_timeout: timeout (in seconds) for the attempt to authenticate with the remote_host
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -121,6 +122,7 @@ class SSHHook(BaseHook):
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
         ciphers: list[str] | None = None,
+        auth_timeout: int | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -138,6 +140,7 @@ class SSHHook(BaseHook):
         self.disabled_algorithms = disabled_algorithms
         self.ciphers = ciphers
         self.host_proxy_cmd = None
+        self.auth_timeout = auth_timeout
 
         # Default values, overridable from Connection
         self.compress = True
@@ -332,6 +335,7 @@ class SSHHook(BaseHook):
             "sock": self.host_proxy,
             "look_for_keys": self.look_for_keys,
             "banner_timeout": self.banner_timeout,
+            "auth_timeout": self.auth_timeout,
         }
 
         if self.password:
