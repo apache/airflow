@@ -33,6 +33,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
+from pytest import param
 from sqlalchemy import func, select, update
 
 import airflow.example_dags
@@ -3818,62 +3819,119 @@ class TestSchedulerJob:
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
 
     @pytest.mark.parametrize(
-        "schedule, number_running, excepted",
+        "kwargs",
         [
-            (None, None, False),
-            ("*/1 * * * *", None, False),
-            ("*/1 * * * *", 1, True),
+            param(
+                dict(
+                    schedule=None,
+                    backfill_runs=0,
+                    other_runs=2,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="no_dag_schedule",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=2,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="dag_schedule_at_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=1,
+                    max_active_runs=2,
+                    should_update=True,
+                ),
+                id="dag_schedule_under_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=5,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="dag_schedule_over_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    number_running=None,
+                    backfill_runs=5,
+                    other_runs=1,
+                    max_active_runs=2,
+                    should_update=True,
+                ),
+                id="dag_schedule_under_capacity_many_backfill",
+            ),
         ],
-        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
     )
-    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+    @pytest.mark.parametrize("provide_run_count", [True, False])
+    def test_should_update_dag_next_dagruns(self, provide_run_count: bool, kwargs: dict, session, dag_maker):
         """Test if really required to update next dagrun or possible to save run time"""
+        schedule: str | None = kwargs["schedule"]
+        backfill_runs: int = kwargs["backfill_runs"]
+        other_runs: int = kwargs["other_runs"]
+        max_active_runs: int = kwargs["max_active_runs"]
+        should_update: bool = kwargs["should_update"]
 
-        with dag_maker(
-            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
-        ) as dag:
+        with dag_maker(schedule=schedule, max_active_runs=max_active_runs) as dag:
             EmptyOperator(task_id="dummy")
 
-        dag_model = dag_maker.dag_model
-
-        for index in range(2):
+        index = 0
+        for index in range(other_runs):
             dag_maker.create_dagrun(
                 run_id=f"run_{index}",
                 execution_date=(DEFAULT_DATE + timedelta(days=index)),
                 start_date=timezone.utcnow(),
                 state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-
-        session.flush()
+        for index in range(index + 1, index + 1 + backfill_runs):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                run_type=DagRunType.BACKFILL_JOB,
+                session=session,
+            )
+        assert index == other_runs + backfill_runs - 1  # sanity check
+        session.commit()
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, total_active_runs=number_running, session=session
+        actual = self.job_runner._should_update_dag_next_dagruns(
+            dag=dag,
+            dag_model=dag_maker.dag_model,
+            active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
+            session=session,
         )
+        assert actual == should_update
 
     @pytest.mark.parametrize(
-        "run_type, should_update",
+        "run_type, expected",
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, True),
             (DagRunType.DATASET_TRIGGERED, False),
         ],
-        ids=[
-            DagRunType.MANUAL.name,
-            DagRunType.SCHEDULED.name,
-            DagRunType.BACKFILL_JOB.name,
-            DagRunType.DATASET_TRIGGERED.name,
-        ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, should_update, session, dag_maker):
-        """Test that whether next dagrun is updated depends on run type"""
+    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
+        """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
-            dag_id="test_should_update_dag_next_dagruns_after_run_type",
             schedule="*/1 * * * *",
-            max_active_runs=10,
+            max_active_runs=3,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -3892,9 +3950,13 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        assert should_update is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, last_dag_run=run, total_active_runs=0, session=session
+        actual = self.job_runner._should_update_dag_next_dagruns(
+            dag=dag,
+            dag_model=dag_model,
+            last_dag_run=run,
+            session=session,
         )
+        assert actual == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -4477,14 +4539,18 @@ class TestSchedulerJob:
         model: DagModel = session.get(DagModel, dag.dag_id)
 
         # Pre-condition
-        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], exclude_backfill=True, session=session) == {
+            "test_dag": 3
+        }
 
         assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()
 
-        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], exclude_backfill=True, session=session) == {
+            "test_dag": 3
+        }
 
         for _ in range(5):
             self.job_runner._do_scheduling(session)
