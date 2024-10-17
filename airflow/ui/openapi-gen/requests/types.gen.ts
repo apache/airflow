@@ -178,13 +178,6 @@ export type DAGRunTypes = {
 };
 
 /**
- * DAG Source Model class.
- */
-export type DAGSourceModel = {
-  content: string | null;
-};
-
-/**
  * Schema for DagProcessor info.
  */
 export type DagProcessorInfoSchema = {
@@ -433,7 +426,7 @@ export type GetDagSourceData = {
   fileToken: string;
 };
 
-export type GetDagSourceResponse = DAGSourceModel;
+export type GetDagSourceResponse = unknown;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -806,7 +799,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: DAGSourceModel;
+        200: unknown;
         /**
          * Bad Request
          */

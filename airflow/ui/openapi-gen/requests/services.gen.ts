@@ -444,7 +444,7 @@ export class DagSourceService {
    * Get source code using file token.
    * @param data The data for the request.
    * @param data.fileToken
-   * @returns DAGSourceModel Successful Response
+   * @returns unknown Successful Response
    * @throws ApiError
    */
   public static getDagSource(

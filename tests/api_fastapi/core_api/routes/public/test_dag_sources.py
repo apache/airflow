@@ -21,6 +21,7 @@ import ast
 import os
 
 import pytest
+from httpx import Response
 
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -29,6 +30,7 @@ from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_d
 
 pytestmark = pytest.mark.db_test
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
 TEST_DAG_ID = "latest_only"
 API_PREFIX = "/public/dagSources"
@@ -37,13 +39,13 @@ API_PREFIX = "/public/dagSources"
 class TestGetDAGSource:
     @pytest.fixture(autouse=True)
     def setup(self, url_safe_serializer) -> None:
-        clear_db_dag_code()
+        self.clear_db()
         self.test_dag, self.dag_docstring = self.create_dag_source()
         fileloc = url_safe_serializer.dumps(self.test_dag.fileloc)
         self.dag_sources_url = f"{API_PREFIX}/{fileloc}"
 
     def teardown_method(self) -> None:
-        clear_db_dag_code()
+        self.clear_db()
 
     @staticmethod
     def _get_dag_file_docstring(fileloc: str) -> str | None:
@@ -59,27 +61,40 @@ class TestGetDAGSource:
         test_dag: DAG = dagbag.dags[TEST_DAG_ID]
         return test_dag, self._get_dag_file_docstring(test_dag.fileloc)
 
-    @staticmethod
-    def clear_db():
+    def clear_db(self):
         clear_db_dags()
         clear_db_serialized_dags()
         clear_db_dag_code()
 
     def test_should_respond_200_text(self, test_client):
-        response = test_client.get(self.dag_sources_url, headers={"Accept": "text/plain"})
+        response: Response = test_client.get(self.dag_sources_url, headers={"Accept": "text/plain"})
+
+        assert isinstance(response, Response)
         assert 200 == response.status_code
         assert len(self.dag_docstring) > 0
-        assert self.dag_docstring == response.data.decode()
-        assert "text/plain" == response.headers["Content-Type"]
+        assert self.dag_docstring in response.content.decode()
+        assert response.headers["Content-Type"].startswith("text/plain")
 
     def test_should_respond_200_json(self, test_client):
-        response = test_client.get(self.dag_sources_url, headers={"Accept": "application/json"})
+        response: Response = test_client.get(
+            self.dag_sources_url,
+            headers={"Accept": "application/json"},
+        )
+        assert isinstance(response, Response)
         assert 200 == response.status_code
         assert len(self.dag_docstring) > 0
-        assert isinstance(response.json, dict)
-        assert len(response.json["content"]) > 0
-        assert self.dag_docstring == response.json["content"]
-        assert "application/json" == response.headers["Content-Type"]
+        res_json = response.json()
+        assert isinstance(res_json, dict)
+        assert len(res_json["content"]) > 0
+        assert self.dag_docstring in res_json["content"]
+        assert response.headers["Content-Type"].startswith("application/json")
+
+    def test_should_respond_406_unsupport_mime_type(self, test_client):
+        response = test_client.get(
+            self.dag_sources_url,
+            headers={"Accept": "text/html"},
+        )
+        assert 406 == response.status_code
 
     def test_should_respond_404(self, test_client):
         wrong_fileloc = "abcd1234"

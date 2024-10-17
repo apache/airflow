@@ -774,8 +774,7 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/DAGSourceModel'
+              schema: {}
         '400':
           content:
             application/json:
@@ -1629,18 +1628,6 @@ components:
       - dataset_triggered
       title: DAGRunTypes
       description: DAG Run Types for responses.
-    DAGSourceModel:
-      properties:
-        content:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Content
-      type: object
-      required:
-      - content
-      title: DAGSourceModel
-      description: DAG Source Model class.
     DagProcessorInfoSchema:
       properties:
         status:
