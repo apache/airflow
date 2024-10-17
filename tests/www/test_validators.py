@@ -151,7 +151,7 @@ class TestValidKey:
 
         with pytest.raises(
             validators.ValidationError,
-            match=r"The key has to be less than [0-9]+ characters",
+            match=r"The key: [x]+ has to be less than [0-9]+ characters",
         ):
             self._validate()
 
