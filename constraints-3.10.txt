@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-17T13:52:51.038162
+# This constraints file was automatically generated on 2024-10-17T19:48:44.691900
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -49,7 +49,6 @@ GitPython==3.1.43
 JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.4
-Js2Py==0.74
 Mako==1.3.5
 Markdown==3.7
 MarkupSafe==3.0.1
@@ -187,7 +186,7 @@ apache-airflow-providers-weaviate==2.1.0
 apache-airflow-providers-yandex==3.12.0
 apache-airflow-providers-ydb==1.4.0
 apache-airflow-providers-zendesk==4.8.0
-apache-beam==2.59.0
+apache-beam==2.60.0
 apispec==6.6.1
 apprise==1.9.0
 argcomplete==3.5.1
@@ -247,7 +246,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.16.1
+cfn-lint==1.17.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -380,7 +379,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.67.0
+grpcio==1.65.5
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -455,7 +454,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.22.0
+marshmallow==3.23.0
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.2
 mdurl==0.1.2
@@ -496,7 +495,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.51.2
+openai==1.52.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -577,7 +576,6 @@ pyenchant==3.2.2
 pyexasol==0.27.0
 pygraphviz==1.14
 pyiceberg==0.7.1
-pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.10.1
 pymssql==2.3.1
@@ -741,7 +739,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
-uv==0.4.22
+uv==0.4.23
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.33.0
