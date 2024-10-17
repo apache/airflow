@@ -27,7 +27,7 @@ import weakref
 from functools import cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Type, Union, cast
 
 import attrs
 import lazy_object_proxy
@@ -1026,10 +1026,36 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(Type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and "trigger_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.dag_id,
+                    target=task.partial_kwargs["trigger_dag_id"],
+                    dependency_type="trigger",
+                    dependency_id=task.task_id,
+                )
+            )
         elif isinstance(task, ExternalTaskSensor):
             deps.append(
                 DagDependency(
                     source=getattr(task, "external_dag_id"),
+                    target=task.dag_id,
+                    dependency_type="sensor",
+                    dependency_id=task.task_id,
+                )
+            )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(Type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and "external_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.partial_kwargs["external_dag_id"],
                     target=task.dag_id,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
