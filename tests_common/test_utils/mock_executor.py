@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
@@ -51,8 +51,6 @@ class MockExecutor(BaseExecutor):
         self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
-
-        self.task_context_logger = Mock()
 
     def success(self):
         return State.SUCCESS
