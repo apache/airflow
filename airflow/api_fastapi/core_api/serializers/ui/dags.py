@@ -14,15 +14,37 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
+from datetime import datetime
 
-ui_router = AirflowRouter(prefix="/ui")
+from pydantic import BaseModel
 
-ui_router.include_router(assets_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(dags_router)
+from airflow.utils.state import DagRunState
+
+
+class RecentDAGRun(BaseModel):
+    """Run serializer for Recent DAG Runs."""
+
+    dag_id: str
+    start_date: datetime | None
+    end_date: datetime | None
+    state: DagRunState
+    execution_date: datetime | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+
+
+class RecentDAGRunsResponse(BaseModel):
+    """Recent DAG Runs response serializer."""
+
+    dag_id: str
+    dag_runs: list[RecentDAGRun]
+
+
+class RecentDAGRunsCollectionResponse(BaseModel):
+    """Recent DAG Runs collection response serializer."""
+
+    recent_dag_runs: list[RecentDAGRunsResponse]
+    total_entries: int
