@@ -24,6 +24,7 @@ Base operator for all operators.
 from __future__ import annotations
 
 import collections.abc
+import contextlib
 import copy
 import functools
 import logging
@@ -391,7 +392,14 @@ class BaseOperatorMeta(TaskSDKBaseOperatorMeta):
         execute_method = namespace.get("execute")
         if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
             namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
-        return super().__new__(cls, name, bases, namespace, **kwargs)
+        new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
+        with contextlib.suppress(KeyError):
+            # Update the partial descriptor with the class method, so it calls the actual function
+            # (but let subclasses override it if they need to)
+            partial_desc = vars(new_cls)["partial"]
+            if isinstance(partial_desc, _PartialDescriptor):
+                partial_desc.class_method = classmethod(partial)
+        return new_cls
 
 
 class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperatorMeta):
@@ -620,16 +628,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
-    # base list which includes all the attrs that don't need deep copy.
-    _base_operator_shallow_copy_attrs: tuple[str, ...] = (
-        "user_defined_macros",
-        "user_defined_filters",
-        "params",
-    )
-
-    # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs: Sequence[str] = ()
-
     # Defines the operator level extra links
     operator_extra_links: Collection[BaseOperatorLink] = ()
 
@@ -718,38 +716,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             context_get_outlet_events(context),
             logger=self.log,
         ).run(context, result)
-
-    def __deepcopy__(self, memo):
-        # Hack sorting double chained task lists by task_id to avoid hitting
-        # max_depth on deepcopy operations.
-        sys.setrecursionlimit(5000)  # TODO fix this in a better way
-
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-
-        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
-
-        for k, v in self.__dict__.items():
-            if k == "_BaseOperator__instantiated":
-                # Don't set this until the _end_, as it changes behaviour of __setattr__
-                continue
-            if k not in shallow_copy:
-                setattr(result, k, copy.deepcopy(v, memo))
-            else:
-                setattr(result, k, copy.copy(v))
-        result.__instantiated = self.__instantiated
-        return result
-
-    def __getstate__(self):
-        state = dict(self.__dict__)
-        if self._log:
-            del state["_log"]
-
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__ = state
 
     def render_template_fields(
         self,

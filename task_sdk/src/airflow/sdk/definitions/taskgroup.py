@@ -96,7 +96,7 @@ class TaskGroup(DAGNode):
 
     _group_id: str | None
     prefix_group_id: bool = True
-    parent_group: TaskGroup | None = None
+    parent_group: TaskGroup | None = attrs.field()
     dag: DAG = attrs.field()
     default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
     tooltip: str = ""
@@ -112,17 +112,24 @@ class TaskGroup(DAGNode):
     ui_color: str = "CornflowerBlue"
     ui_fgcolor: str = "#000"
 
+    @parent_group.default
+    def _default_parent_group(self):
+        from airflow.sdk.definitions.contextmanager import TaskGroupContext
+
+        return TaskGroupContext.get_current()
+
     @dag.default
     def _default_dag(self):
         from airflow.sdk.definitions.contextmanager import DagContext
 
         if self.parent_group is not None:
             return self.parent_group.dag
-        dag = DagContext.get_current()
+        return DagContext.get_current()
+
+    @dag.validator
+    def _validate_dag(self, _attr, dag):
         if not dag:
             raise RuntimeError("TaskGroup can only be used inside a dag")
-        self.parent_group = dag.task_group
-        return dag
 
     def __attrs_post_init__(self):
         if self.parent_group:

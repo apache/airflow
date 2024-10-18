@@ -203,3 +203,45 @@ class TestDag:
         # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
         with pytest.raises(ValueError, match="start_date is required when catchup=True"):
             DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly", catchup=True)
+
+    def test_partial_subset_updates_all_references_while_deepcopy(self):
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            op1 = BaseOperator(task_id="t1")
+            op2 = BaseOperator(task_id="t2")
+            op3 = BaseOperator(task_id="t3")
+            op1 >> op2
+            op2 >> op3
+
+        partial = dag.partial_subset("t2", include_upstream=True, include_downstream=False)
+        assert id(partial.task_dict["t1"].downstream_list[0].dag) == id(partial)
+
+        # Copied DAG should not include unused task IDs in used_group_ids
+        assert "t3" not in partial.task_group.used_group_ids
+
+    def test_partial_subset_taskgroup_join_ids(self):
+        from airflow.sdk import TaskGroup
+
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            start = BaseOperator(task_id="start")
+            with TaskGroup(group_id="outer", prefix_group_id=False) as outer_group:
+                with TaskGroup(group_id="tg1", prefix_group_id=False) as tg1:
+                    BaseOperator(task_id="t1")
+                with TaskGroup(group_id="tg2", prefix_group_id=False) as tg2:
+                    BaseOperator(task_id="t2")
+
+                start >> tg1 >> tg2
+
+        # Pre-condition checks
+        task = dag.get_task("t2")
+        assert task.task_group.upstream_group_ids == {"tg1"}
+        assert isinstance(task.task_group.parent_group, weakref.ProxyType)
+        assert task.task_group.parent_group == outer_group
+
+        partial = dag.partial_subset(["t2"], include_upstream=True, include_downstream=False)
+        copied_task = partial.get_task("t2")
+        assert copied_task.task_group.upstream_group_ids == {"tg1"}
+        assert isinstance(copied_task.task_group.parent_group, weakref.ProxyType)
+        assert copied_task.task_group.parent_group
+
+        # Make sure we don't affect the original!
+        assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
