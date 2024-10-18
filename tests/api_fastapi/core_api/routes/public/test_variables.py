@@ -41,7 +41,7 @@ TEST_VARIABLE_DESCRIPTION3 = "Some description for the variable"
 
 
 @provide_session
-def _create_variable(session) -> None:
+def _create_variables(session) -> None:
     Variable.set(
         key=TEST_VARIABLE_KEY,
         value=TEST_VARIABLE_VALUE,
@@ -72,13 +72,13 @@ class TestVariableEndpoint:
     def teardown_method(self) -> None:
         clear_db_variables()
 
-    def create_variable(self):
-        _create_variable()
+    def create_variables(self):
+        _create_variables()
 
 
 class TestDeleteVariable(TestVariableEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
-        self.create_variable()
+        self.create_variables()
         variables = session.query(Variable).all()
         assert len(variables) == 3
         response = test_client.delete(f"/public/variables/{TEST_VARIABLE_KEY}")
@@ -125,7 +125,7 @@ class TestGetVariable(TestVariableEndpoint):
         ],
     )
     def test_get_should_respond_200(self, test_client, session, key, expected_response):
-        self.create_variable()
+        self.create_variables()
         response = test_client.get(f"/public/variables/{key}")
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -135,6 +135,34 @@ class TestGetVariable(TestVariableEndpoint):
         assert response.status_code == 404
         body = response.json()
         assert f"The Variable with key: `{TEST_VARIABLE_KEY}` was not found" == body["detail"]
+
+
+class TestGetVariables(TestVariableEndpoint):
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_keys",
+        [
+            # Filters
+            ({}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+            ({"limit": 1}, 3, [TEST_VARIABLE_KEY]),
+            ({"limit": 1, "offset": 1}, 3, [TEST_VARIABLE_KEY2]),
+            # Sort
+            ({"order_by": "id"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+            ({"order_by": "-id"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
+            ({"order_by": "key"}, 3, [TEST_VARIABLE_KEY3, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY]),
+            ({"order_by": "-key"}, 3, [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2, TEST_VARIABLE_KEY3]),
+        ],
+    )
+    def test_should_respond_200(
+        self, session, test_client, query_params, expected_total_entries, expected_keys
+    ):
+        self.create_variables()
+        response = test_client.get("/public/variables/", params=query_params)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert [variable["key"] for variable in body["variables"]] == expected_keys
 
 
 class TestPatchVariable(TestVariableEndpoint):
@@ -201,7 +229,7 @@ class TestPatchVariable(TestVariableEndpoint):
         ],
     )
     def test_patch_should_respond_200(self, test_client, session, key, body, params, expected_response):
-        self.create_variable()
+        self.create_variables()
         response = test_client.patch(f"/public/variables/{key}", json=body, params=params)
         assert response.status_code == 200
         assert response.json() == expected_response
@@ -269,7 +297,7 @@ class TestPostVariable(TestVariableEndpoint):
         ],
     )
     def test_post_should_respond_201(self, test_client, session, body, expected_response):
-        self.create_variable()
+        self.create_variables()
         response = test_client.post("/public/variables/", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response

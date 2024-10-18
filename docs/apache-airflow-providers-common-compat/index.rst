@@ -16,8 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-common-io``
-=======================================
+``apache-airflow-providers-common-compat``
+==========================================
 
 
 .. toctree::
