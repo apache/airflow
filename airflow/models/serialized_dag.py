@@ -222,6 +222,25 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_latest_serdags_of_given_dags(cls, dag_ids: list[str], session: Session = NEW_SESSION):
+        latest_serialized_dag_subquery = (
+            session.query(cls.dag_id, func.max(cls.id).label("max_id"))
+            .filter(cls.dag_id.in_(dag_ids))
+            .group_by(cls.dag_id)
+            .subquery()
+        )
+        serialized_dags = session.scalars(
+            select(cls)
+            .join(
+                latest_serialized_dag_subquery,
+                (cls.id == latest_serialized_dag_subquery.c.max_id),
+            )
+            .where(cls.dag_id.in_(dag_ids))
+        ).all()
+        return serialized_dags
+
+    @classmethod
+    @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.

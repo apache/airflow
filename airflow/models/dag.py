@@ -2278,9 +2278,9 @@ class DagModel(Base):
         dag_statuses = {}
         for dag_id, records in by_dag.items():
             dag_statuses[dag_id] = {x.asset.uri: True for x in records}
-        ser_dags = session.scalars(
-            select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
-        ).all()
+        ser_dags = SerializedDagModel.get_latest_serdags_of_given_dags(
+            list(dag_statuses.keys()), session=session
+        )
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]

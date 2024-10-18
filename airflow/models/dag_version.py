@@ -26,7 +26,9 @@ from sqlalchemy import Column, ForeignKey, Integer, select
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
+from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -50,6 +52,7 @@ class DagVersion(Base):
     serialized_dag = relationship("SerializedDagModel", back_populates="dag_version", uselist=False)
     dag_runs = relationship("DagRun", back_populates="dag_version")
     task_instances = relationship("TaskInstance", back_populates="dag_version")
+    created_at = Column(UtcDateTime, default=timezone.utcnow)
 
     def __init__(
         self,
@@ -96,7 +99,7 @@ class DagVersion(Base):
     ):
         """Write a new DagVersion into database."""
         existing_dag_version = session.scalar(
-            select(cls).where(cls.dag_id == dag_id).order_by(cls.version_number.desc()).limit(1)
+            select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
         )
         version_number = 1
 
