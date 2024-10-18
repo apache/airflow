@@ -22,6 +22,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+import re2
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -48,6 +49,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
+XCOM_DAG_ID = "trigger_dag_id"
 XCOM_RUN_ID = "trigger_run_id"
 
 
@@ -68,13 +70,22 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        # Fetch the correct dag_run_id for the triggerED dag which is
-        # stored in xcom during execution of the triggerING task.
+        # Fetch the correct dag id and run id for the triggerED dag
+        # which is stored in xcom during execution of the triggerING task.
+        dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
-        query = {
-            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
-            "dag_run_id": triggered_dag_run_id,
-        }
+
+        old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
+        # So the Triggered DAG button in the UI will be grayed out until the dag run is can be retrieved from
+        # the XCom
+        if isinstance(old_trigger_dag_id, str) and re2.match(r"^.*{{.+}}.*$", old_trigger_dag_id):
+            old_trigger_dag_id = None
+
+        # Includes the dag id from the XCom during execution or the one passed into the operator
+        # for backwards compatibility. If the dag id is templated, the old trigger dag id will
+        # be set to None so the button in the UI will be grayed out until the dag is can be
+        # retrieved from the XCom
+        query = {"dag_id": dag_id or old_trigger_dag_id, "dag_run_id": triggered_dag_run_id}
         return build_airflow_url_with_query(query)
 
 
@@ -225,6 +236,7 @@ class TriggerDagRunOperator(BaseOperator):
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context["task_instance"]
+        ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
