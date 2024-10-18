@@ -366,6 +366,20 @@ you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerAut
     :start-after: [START howto_operator_sagemaker_auto_ml]
     :end-before: [END howto_operator_sagemaker_auto_ml]
 
+.. _howto/sensor:SageMakerProcessingSensor:
+
+Wait on an Amazon SageMaker processing job state
+================================================
+
+To check the state of an Amazon Sagemaker processing job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerProcessingSensor`.
+
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_processing]
+    :end-before: [END howto_sensor_sagemaker_processing]
+
 Reference
 ---------
 
