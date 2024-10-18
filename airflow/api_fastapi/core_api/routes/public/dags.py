@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request, Response
-from sqlalchemy import distinct, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
@@ -32,7 +32,6 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
-    QueryDagTagOrderBy,
     QueryDagTagPatternSearch,
     QueryLastDagRunStateFilter,
     QueryLimit,
@@ -105,12 +104,20 @@ async def get_dags(
 async def get_dag_tags(
     limit: QueryLimit,
     offset: QueryOffset,
-    order_by: QueryDagTagOrderBy,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["name"],
+                DagTag,
+            ).dynamic_depends()
+        ),
+    ],
     tag_name_pattern: QueryDagTagPatternSearch,
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGTagCollectionResponse:
     """Get all DAG tags."""
-    base_select = select(distinct(DagTag.name))
+    base_select = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
         base_select=base_select,
         filters=[tag_name_pattern],

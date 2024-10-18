@@ -318,7 +318,7 @@ paths:
         required: false
         schema:
           type: string
-          default: asc
+          default: name
           title: Order By
       - name: tag_name_pattern
         in: query
