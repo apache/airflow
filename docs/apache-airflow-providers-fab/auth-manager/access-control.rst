@@ -264,8 +264,8 @@ Set Task Instance as failed            DAGs.can_edit                            
 Set Task Instance as success           DAGs.can_edit                                                           User
 Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
 Autocomplete                           DAGs.can_read                                                           Viewer
-Show Dataset menu                      Assets.menu_access                                                      Viewer
-Show Datasets                          Assets.can_read                                                         Viewer
+Show Asset menu                        Assets.menu_access                                                      Viewer
+Show Assets                            Assets.can_read                                                         Viewer
 Show Docs menu                         Docs.menu_access                                                        Viewer
 Show Documentation menu                Documentation.menu_access                                               Viewer
 Show Jobs menu                         Jobs.menu_access                                                        Viewer

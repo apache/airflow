@@ -23,7 +23,7 @@ import { useUpstreamAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
 import { CardDef, CardList } from "src/components/Table";
 import type { AssetEvent } from "src/types/api-generated";
-import DatasetEventCard from "src/components/DatasetEventCard";
+import AssetEventCard from "src/components/AssetEventCard";
 import { getMetaValue } from "src/utils";
 
 interface Props {
@@ -34,11 +34,11 @@ const dagId = getMetaValue("dag_id");
 
 const cardDef: CardDef<AssetEvent> = {
   card: ({ row }) => (
-    <DatasetEventCard assetEvent={row} showTriggeredDagRuns={false} />
+    <AssetEventCard assetEvent={row} showTriggeredDagRuns={false} />
   ),
 };
 
-const DatasetTriggerEvents = ({ runId }: Props) => {
+const AssetTriggerEvents = ({ runId }: Props) => {
   const {
     data: { assetEvents = [] },
     isLoading,
@@ -51,8 +51,8 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
-        accessor: "datasetUri",
+        Header: "Asset",
+        accessor: "assetUri",
       },
       {
         Header: "Source Task Instance",
@@ -71,9 +71,9 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   return (
     <Box mt={3} flexGrow={1}>
       <Text as="strong" mb={3}>
-        Dataset Events
+        Asset Events
       </Text>
-      <Text>Dataset updates that triggered this DAG run.</Text>
+      <Text>Asset updates that triggered this DAG run.</Text>
       <CardList
         data={data}
         columns={columns}
@@ -84,4 +84,4 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   );
 };
 
-export default DatasetTriggerEvents;
+export default AssetTriggerEvents;

@@ -358,7 +358,7 @@ export interface paths {
      */
     get: operations["get_asset_queued_events"];
     /**
-     * Delete queued Asset events for a Asset.
+     * Delete queued Asset events for an Asset.
      *
      * *New in version 2.9.0*
      */
@@ -1193,8 +1193,12 @@ export interface components {
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
-      /** @enum {string} */
-      run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
+      /**
+       * @description Changed in 3.0.0: The asset_triggered value was renamed from dataset_triggered)
+       *
+       * @enum {string}
+       */
+      run_type?: "backfill" | "manual" | "scheduled" | "asset_triggered";
       state?: components["schemas"]["DagState"];
       external_trigger?: boolean;
       /**
@@ -1648,7 +1652,7 @@ export interface components {
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       /** @description Nested asset any/all conditions */
-      dataset_expression?: { [key: string]: unknown } | null;
+      asset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -1910,9 +1914,9 @@ export interface components {
      */
     AssetEvent: {
       /** @description The asset id */
-      dataset_id?: number;
+      asset_id?: number;
       /** @description The URI of the asset */
-      dataset_uri?: string;
+      asset_uri?: string;
       /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
       /** @description The DAG ID that updated the asset. */
@@ -3799,7 +3803,7 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Asset events for a Asset.
+   * Delete queued Asset events for an Asset.
    *
    * *New in version 2.9.0*
    */

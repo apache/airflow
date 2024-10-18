@@ -20,11 +20,11 @@
 import React from "react";
 import { Select, SingleValue, useChakraSelectProps } from "chakra-react-select";
 
-import type { DatasetDependencies } from "src/api/useAssetDependencies";
+import type { AssetDependencies } from "src/api/useAssetDependencies";
 import type { OnSelectProps } from "./types";
 
 interface Props {
-  datasetDependencies?: DatasetDependencies;
+  assetDependencies?: AssetDependencies;
   selectedDagId?: string;
   selectedUri?: string;
   onSelectNode: (props: OnSelectProps) => void;
@@ -36,47 +36,47 @@ interface Option {
 }
 
 const SearchBar = ({
-  datasetDependencies,
+  assetDependencies,
   selectedDagId,
   selectedUri,
   onSelectNode,
 }: Props) => {
   const dagOptions: Option[] = [];
-  const datasetOptions: Option[] = [];
-  (datasetDependencies?.nodes || []).forEach((node) => {
+  const assetOptions: Option[] = [];
+  (assetDependencies?.nodes || []).forEach((node) => {
     if (node.value.class === "dag")
       dagOptions.push({ value: node.id, label: node.value.label });
     if (node.value.class === "asset")
-      datasetOptions.push({ value: node.id, label: node.value.label });
+      assetOptions.push({ value: node.id, label: node.value.label });
   });
 
   const onSelect = (option: SingleValue<Option>) => {
     let type = "";
     if (option) {
-      if (option.value.startsWith("dataset:")) type = "dataset";
+      if (option.value.startsWith("asset:")) type = "asset";
       else if (option.value.startsWith("dag:")) type = "dag";
       if (type === "dag") onSelectNode({ dagId: option.label });
-      else if (type === "dataset") onSelectNode({ uri: option.label });
+      else if (type === "asset") onSelectNode({ uri: option.label });
     }
   };
 
   let option;
   if (selectedUri) {
-    option = { label: selectedUri, value: `dataset:${selectedUri}` };
+    option = { label: selectedUri, value: `asset:${selectedUri}` };
   } else if (selectedDagId) {
     option = { label: selectedDagId, value: `dag:${selectedDagId}` };
   }
 
   const searchProps = useChakraSelectProps<Option, false>({
     selectedOptionStyle: "check",
-    isDisabled: !datasetDependencies,
+    isDisabled: !assetDependencies,
     value: option,
     onChange: onSelect,
     options: [
       { label: "DAGs", options: dagOptions },
-      { label: "Datasets", options: datasetOptions },
+      { label: "Assets", options: assetOptions },
     ],
-    placeholder: "Search by DAG ID or Dataset URI",
+    placeholder: "Search by DAG ID or Asset URI",
     chakraStyles: {
       dropdownIndicator: (provided) => ({
         ...provided,

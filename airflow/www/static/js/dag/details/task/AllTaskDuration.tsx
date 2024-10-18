@@ -110,7 +110,7 @@ const AllTaskDuration = ({ showBar }: Props) => {
       valueFormatter: formatTooltip,
     },
     // @ts-ignore
-    dataset: {
+    asset: {
       dimensions,
       source,
     },

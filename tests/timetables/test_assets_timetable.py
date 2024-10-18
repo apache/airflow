@@ -111,7 +111,7 @@ def test_assets() -> list[Asset]:
 @pytest.fixture
 def asset_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetOrTimeSchedule:
     """
-    Pytest fixture for creating a AssetOrTimeSchedule object.
+    Pytest fixture for creating an AssetOrTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
     :param test_assets: A list of Asset instances.
@@ -213,8 +213,8 @@ def asset_events(mocker) -> list[AssetEvent]:
     mock_dag_run_later.data_interval_end = later
 
     # Create AssetEvent objects with mock source_dag_run
-    event_earlier = AssetEvent(timestamp=earlier, dataset_id=1)
-    event_later = AssetEvent(timestamp=later, dataset_id=1)
+    event_earlier = AssetEvent(timestamp=earlier, asset_id=1)
+    event_later = AssetEvent(timestamp=later, asset_id=1)
 
     # Use mocker to set the source_dag_run attribute to avoid SQLAlchemy's instrumentation
     mocker.patch.object(event_earlier, "source_dag_run", new=mock_dag_run_earlier)
@@ -265,7 +265,7 @@ def test_summary(session: Session) -> None:
     table = AssetTriggeredTimetable(asset_alias)
     assert table.summary == "Unresolved AssetAlias"
 
-    asset_alias_model.datasets.append(asset_model)
+    asset_alias_model.assets.append(asset_model)
     session.add(asset_alias_model)
     session.commit()
 

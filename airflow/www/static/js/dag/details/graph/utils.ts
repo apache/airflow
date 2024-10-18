@@ -93,7 +93,7 @@ export const flattenNodes = ({
         },
         assetEvent:
           node.value.class === "asset"
-            ? assetEvents?.find((de) => de.datasetUri === node.value.label)
+            ? assetEvents?.find((de) => de.assetUri === node.value.label)
             : undefined,
         ...node.value,
       },

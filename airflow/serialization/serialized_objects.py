@@ -265,7 +265,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
 
 def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
-    Decode a previously serialized dataset condition.
+    Decode a previously serialized asset condition.
 
     :meta private:
     """
@@ -740,8 +740,8 @@ class BaseSerialization:
         elif isinstance(var, LazySelectSequence):
             return cls.serialize(list(var))
         elif isinstance(var, BaseAsset):
-            serialized_dataset = encode_asset_condition(var)
-            return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
+            serialized_asset = encode_asset_condition(var)
+            return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),

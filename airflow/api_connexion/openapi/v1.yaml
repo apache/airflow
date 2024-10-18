@@ -1358,7 +1358,7 @@ paths:
     delete:
       summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Asset events for a Asset.
+        Delete queued Asset events for an Asset.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
@@ -3299,7 +3299,9 @@ components:
             - backfill
             - manual
             - scheduled
-            - dataset_triggered
+            - asset_triggered
+          description: |
+            Changed in 3.0.0: The asset_triggered value was renamed from dataset_triggered)
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:
@@ -4088,7 +4090,7 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
-            dataset_expression:
+            asset_expression:
               type: object
               description: Nested asset any/all conditions
               nullable: true
@@ -4571,10 +4573,10 @@ components:
         *New in version 2.4.0*
       type: object
       properties:
-        dataset_id:
+        asset_id:
           type: integer
           description: The asset id
-        dataset_uri:
+        asset_uri:
           type: string
           description: The URI of the asset
           nullable: false

@@ -26,7 +26,7 @@ import { useAssetEvents } from "src/api";
 
 import { CardList, type CardDef } from "src/components/Table";
 import type { AssetEvent } from "src/types/api-generated";
-import DatasetEventCard from "src/components/DatasetEventCard";
+import AssetEventCard from "src/components/AssetEventCard";
 
 type Props = {
   assetId?: number;
@@ -34,7 +34,7 @@ type Props = {
 };
 
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => <DatasetEventCard assetEvent={row} />,
+  card: ({ row }) => <AssetEventCard assetEvent={row} />,
 };
 
 const Events = ({ assetId, showLabel }: Props) => {
@@ -64,8 +64,8 @@ const Events = ({ assetId, showLabel }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
-        accessor: "datasetUri",
+        Header: "Asset",
+        accessor: "assetUri",
       },
       {
         Header: "Source Task Instance",
