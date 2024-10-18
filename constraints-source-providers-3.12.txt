@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-18T13:46:25.689056
+# This constraints file was automatically generated on 2024-10-18T19:41:48.231207
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -30,7 +30,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.4
 Mako==1.3.5
 Markdown==3.7
-MarkupSafe==3.0.1
+MarkupSafe==3.0.2
 PyAthena==3.9.0
 PyGithub==2.4.0
 PyHive==0.7.0
@@ -131,7 +131,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.17.1
+cfn-lint==1.17.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -199,7 +199,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
 gcsfs==2024.9.0.post1
 geomet==0.2.1.post1
-gevent==24.10.2
+gevent==24.10.3
 gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.0
@@ -637,7 +637,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
-yarl==1.15.4
+yarl==1.15.5
 ydb==3.18.3
 zeep==4.3.1
 zenpy==2.0.54
