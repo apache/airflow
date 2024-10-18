@@ -272,7 +272,7 @@ const Details = ({
               <ClearInstance
                 taskId={taskId}
                 runId={runId}
-                executionDate={run?.executionDate || ""}
+                logicalDate={run?.logicalDate || ""}
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
@@ -502,7 +502,7 @@ const Details = ({
                 dagRunId={runId}
                 taskId={taskId}
                 mapIndex={mapIndex}
-                executionDate={run?.executionDate}
+                logicalDate={run?.logicalDate}
                 tryNumber={instance?.tryNumber}
                 state={
                   !instance?.state || instance?.state === "none"

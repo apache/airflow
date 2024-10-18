@@ -68,12 +68,11 @@ class TestFileTaskLogHandler:
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker"""
         executor_name = "CeleryExecutor"
-
         ti = create_task_instance(
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
         ti.try_number = 1

@@ -1041,7 +1041,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert simple_task.extra_links == sorted({*links, "airflow", "github", "google"})
 
-        dr = dag_maker.create_dagrun(execution_date=test_date)
+        dr = dag_maker.create_dagrun(logical_date=test_date)
         (ti,) = dr.task_instances
         XCom.set(
             key="search_query",

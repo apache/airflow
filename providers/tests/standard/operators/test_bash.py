@@ -99,21 +99,21 @@ class TestBashOperator:
                 f"echo $PYTHONPATH>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
                 f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
-                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
+                f"echo $AIRFLOW_CTX_LOGICAL_DATE>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
                 append_env=append_env,
                 env=user_defined_env,
             )
 
-        execution_date = utc_now
+        logical_date = utc_now
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 
@@ -277,7 +277,7 @@ class TestBashOperator:
             # Other parameters
             dag_id="test_templated_fields_dag",
             task_id="test_templated_fields_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         ti.render_templates()
         task: BashOperator = ti.task

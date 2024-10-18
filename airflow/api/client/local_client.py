@@ -36,14 +36,14 @@ class Client:
             self._session.auth = auth
 
     def trigger_dag(
-        self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True
+        self, dag_id, run_id=None, conf=None, logical_date=None, replace_microseconds=True
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
             triggered_by=DagRunTriggeredByType.CLI,
             run_id=run_id,
             conf=conf,
-            execution_date=execution_date,
+            logical_date=logical_date,
             replace_microseconds=replace_microseconds,
         )
         if dag_run:
