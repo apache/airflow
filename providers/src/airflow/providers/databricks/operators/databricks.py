@@ -992,6 +992,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self,
         caller: str = "DatabricksTaskBaseOperator",
         databricks_conn_id: str = "databricks_default",
+        databricks_task_key: str | None = None,
         databricks_retry_args: dict[Any, Any] | None = None,
         databricks_retry_delay: int = 1,
         databricks_retry_limit: int = 3,
@@ -1006,6 +1007,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     ):
         self.caller = caller
         self.databricks_conn_id = databricks_conn_id
+        self._databricks_task_key = databricks_task_key
         self.databricks_retry_args = databricks_retry_args
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_limit = databricks_retry_limit
@@ -1033,6 +1035,26 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     @cached_property
     def _hook(self) -> DatabricksHook:
         return self._get_hook(caller=self.caller)
+
+    @property
+    def databricks_task_key(self):
+        return self._databricks_task_key
+
+    @databricks_task_key.setter
+    def databricks_task_key(self, value: str):
+        if value is None or isinstance(value, str):
+            raise TypeError("task_key should be a string or None")
+        if value is None:
+            self._databricks_task_key = None
+        else:
+            if len(value) > 100:
+                self.log.warning(
+                    "The task_key '%s' exceeds 100 characters and will be truncated by the Databricks API. "
+                    "This will cause failure when trying to monitor the task. Using hash of the task_key instead.",
+                    "hash is computed using hashlib.md5",
+                    value,
+                )
+            self._databricks_task_key = value
 
     def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
