@@ -30,6 +30,7 @@ from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
+    BackfillDagRunExceptionReason,
     _cancel_backfill,
     _create_backfill,
 )
@@ -91,7 +92,8 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
 
 
 @pytest.mark.parametrize("reverse", [True, False])
-def test_create_backfill_simple(reverse, dag_maker, session):
+@pytest.mark.parametrize("existing", [["2021-01-02", "2021-01-03"], []])
+def test_create_backfill_simple(reverse, existing, dag_maker, session):
     """
     Verify simple case behavior.
 
@@ -101,6 +103,15 @@ def test_create_backfill_simple(reverse, dag_maker, session):
     """
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
+
+    for date in existing:
+        dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}",
+            execution_date=timezone.parse(date),
+            session=session,
+        )
+        session.commit()
+
     expected_run_conf = {"param1": "valABC"}
     b = _create_backfill(
         dag_id=dag.dag_id,
@@ -117,11 +128,21 @@ def test_create_backfill_simple(reverse, dag_maker, session):
         .order_by(BackfillDagRun.sort_ordinal)
     )
     dag_runs = session.scalars(query).all()
-    dates = [str(x.logical_date.date()) for x in dag_runs]
-    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
+    total_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
+    backfill_dates = [str(x.logical_date.date()) for x in dag_runs]
+    expected_dates = [x for x in total_dates if x not in existing]
     if reverse:
         expected_dates = list(reversed(expected_dates))
-    assert dates == expected_dates
+
+    for date in existing:
+        bdr = session.scalar(
+            select(BackfillDagRun).where(
+                BackfillDagRun.backfill_id == b.id,
+                BackfillDagRun.logical_date == timezone.parse(date),
+            )
+        )
+        assert bdr.exception_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
+    assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
 
