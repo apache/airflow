@@ -20,32 +20,8 @@ export const $BaseInfoSchema = {
   description: "Base status field for metadatabase and scheduler.",
 } as const;
 
-export const $ConnectionCollectionResponse = {
+export const $ConnectionBody = {
   properties: {
-    connections: {
-      items: {
-        $ref: "#/components/schemas/ConnectionResponse",
-      },
-      type: "array",
-      title: "Connections",
-    },
-    total_entries: {
-      type: "integer",
-      title: "Total Entries",
-    },
-  },
-  type: "object",
-  required: ["connections", "total_entries"],
-  title: "ConnectionCollectionResponse",
-  description: "DAG Collection serializer for responses.",
-} as const;
-
-export const $ConnectionResponse = {
-  properties: {
-    connection_id: {
-      type: "string",
-      title: "Connection Id",
-    },
     conn_type: {
       type: "string",
       title: "Conn Type",
@@ -116,18 +92,116 @@ export const $ConnectionResponse = {
       ],
       title: "Extra",
     },
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
   },
   type: "object",
-  required: [
-    "connection_id",
-    "conn_type",
-    "description",
-    "host",
-    "login",
-    "schema",
-    "port",
-    "extra",
-  ],
+  required: ["conn_type", "connection_id"],
+  title: "ConnectionBody",
+  description: "Connection Serializer for requests body.",
+} as const;
+
+export const $ConnectionCollectionResponse = {
+  properties: {
+    connections: {
+      items: {
+        $ref: "#/components/schemas/ConnectionResponse",
+      },
+      type: "array",
+      title: "Connections",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["connections", "total_entries"],
+  title: "ConnectionCollectionResponse",
+  description: "Connection Collection serializer for responses.",
+} as const;
+
+export const $ConnectionResponse = {
+  properties: {
+    conn_type: {
+      type: "string",
+      title: "Conn Type",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    host: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Host",
+    },
+    login: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Login",
+    },
+    schema: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Schema",
+    },
+    port: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Port",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
+  },
+  type: "object",
+  required: ["conn_type", "connection_id"],
   title: "ConnectionResponse",
   description: "Connection serializer for responses.",
 } as const;
@@ -1366,7 +1440,7 @@ export const $VariableBody = {
     },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
 } as const;
@@ -1421,7 +1495,7 @@ export const $VariableResponse = {
     },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;
