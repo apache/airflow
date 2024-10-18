@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, BeforeValidator, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, field_validator
 from typing_extensions import Annotated
 
 from airflow.plugins_manager import AirflowPluginSource
@@ -32,6 +32,8 @@ def coerce_to_string(data: Any) -> Any:
 class FastAPIAppResponse(BaseModel):
     """Serializer for Plugin FastAPI App responses."""
 
+    model_config = ConfigDict(extra="allow")
+
     app: str
     url_prefix: str
     name: str
@@ -39,6 +41,8 @@ class FastAPIAppResponse(BaseModel):
 
 class AppBuilderViewResponse(BaseModel):
     """Serializer for AppBuilder View responses."""
+
+    model_config = ConfigDict(extra="allow")
 
     name: str | None = None
     category: str | None = None
@@ -48,6 +52,8 @@ class AppBuilderViewResponse(BaseModel):
 
 class AppBuilderMenuItemResponse(BaseModel):
     """Serializer for AppBuilder Menu Item responses."""
+
+    model_config = ConfigDict(extra="allow")
 
     name: str
     href: str | None = None
