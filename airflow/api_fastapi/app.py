@@ -19,9 +19,8 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
-from airflow.api_fastapi.core_api.app import init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.core_api.app import init_config, init_dag_bag, init_plugins, init_views
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 
 log = logging.getLogger(__name__)
@@ -30,8 +29,6 @@ app: FastAPI | None = None
 
 
 def create_app(apps: str = "all") -> FastAPI:
-    from airflow.configuration import conf
-
     apps_list = apps.split(",") if apps else ["all"]
 
     app = FastAPI(
@@ -50,18 +47,7 @@ def create_app(apps: str = "all") -> FastAPI:
         task_exec_api_app = create_task_execution_api_app(app)
         app.mount("/execution", task_exec_api_app)
 
-    allow_origins = conf.getlist("api", "access_control_allow_origins")
-    allow_methods = conf.getlist("api", "access_control_allow_methods")
-    allow_headers = conf.getlist("api", "access_control_allow_headers")
-
-    if allow_origins or allow_methods or allow_headers:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=allow_origins,
-            allow_credentials=True,
-            allow_methods=allow_methods,
-            allow_headers=allow_headers,
-        )
+    init_config(app)
 
     return app
 
