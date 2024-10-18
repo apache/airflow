@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request, Response
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryDagIdPatternSearchWithNone,
+    QueryDagTagPatternSearch,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -48,9 +49,10 @@ from airflow.api_fastapi.core_api.serializers.dags import (
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
+    DAGTagCollectionResponse,
 )
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DAG, DagModel
+from airflow.models import DAG, DagModel, DagTag
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -93,6 +95,39 @@ async def get_dags(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
         total_entries=total_entries,
     )
+
+
+@dags_router.get(
+    "/tags",
+    responses=create_openapi_http_exception_doc([401, 403]),
+)
+async def get_dag_tags(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["name"],
+                DagTag,
+            ).dynamic_depends()
+        ),
+    ],
+    tag_name_pattern: QueryDagTagPatternSearch,
+    session: Annotated[Session, Depends(get_session)],
+) -> DAGTagCollectionResponse:
+    """Get all DAG tags."""
+    base_select = select(DagTag.name).group_by(DagTag.name)
+    dag_tags_select, total_entries = paginated_select(
+        base_select=base_select,
+        filters=[tag_name_pattern],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    dag_tags = session.execute(dag_tags_select).scalars().all()
+    return DAGTagCollectionResponse(tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries)
 
 
 @dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
