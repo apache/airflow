@@ -29,6 +29,7 @@ from airflow.providers.edge.cli.edge_command import (
     _EdgeWorkerCli,
     _get_sysinfo,
     _Job,
+    _write_pid_to_pidfile
 )
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
@@ -46,6 +47,28 @@ def test_get_sysinfo():
     sysinfo = _get_sysinfo()
     assert "airflow_version" in sysinfo
     assert "edge_provider_version" in sysinfo
+
+# Mock functions
+def mock_read_pid_from_pidfile(pid_file_path):
+    return 1234
+
+def mock_write_pid_to_pidfile(pid_file_path):
+    pass
+
+@pytest.fixture
+def mock_pid_file_path(tmp_path):
+    pid_file = tmp_path / "pidfile"
+    pid_file.write_text("1234")
+    return pid_file
+
+
+@patch('edge_command.read_pid_from_pidfile', side_effect=mock_read_pid_from_pidfile)
+@patch('edge_command.write_pid_to_pidfile', side_effect=mock_write_pid_to_pidfile)
+@patch('edge_command.process_exists', return_value=True)
+def test_pid_file_exists_process_running(mock_process_exists, mock_write_pid, mock_read_pid, mock_pid_file_path):
+    _write_pid_to_pidfile(mock_pid_file_path)
+    mock_process_exists.assert_called_once_with(1234)
+    mock_write_pid.assert_not_called()
 
 
 class TestEdgeWorkerCli:
