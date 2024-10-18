@@ -214,7 +214,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # TODO: upgrade to newer versions of MyPy continuously as they are released
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
-        "mypy==1.11.2",
+        "mypy==1.12.0",
         "types-Deprecated",
         "types-Markdown",
         "types-PyMySQL",
