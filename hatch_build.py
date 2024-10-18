@@ -101,7 +101,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus",
