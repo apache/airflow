@@ -44,7 +44,7 @@ PROVIDERS_ROOT = (AIRFLOW_SOURCES_ROOT_PATH / "providers" / "src" / "airflow" / 
 )
 COMMON_SQL_ROOT = (PROVIDERS_ROOT / "common" / "sql").resolve(strict=True)
 OUT_DIR = AIRFLOW_SOURCES_ROOT_PATH / "out"
-OUT_DIR_PROVIDERS = OUT_DIR / PROVIDERS_ROOT.relative_to(AIRFLOW_SOURCES_ROOT_PATH)
+OUT_DIR_PROVIDERS = OUT_DIR / "providers"
 
 COMMON_SQL_PACKAGE_PREFIX = "airflow.providers.common.sql."
 
@@ -337,7 +337,7 @@ if __name__ == "__main__":
         generated_path = OUT_DIR_PROVIDERS / target_path.relative_to(PROVIDERS_ROOT)
         if not generated_path.exists():
             console.print(
-                f"[red]The {target_path} file is missing in generated files:. "
+                f"[red]The {generated_path} file is missing in generated files:. "
                 f"This is treated as breaking change."
             )
             total_removals += 1

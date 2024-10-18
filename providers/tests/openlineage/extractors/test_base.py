@@ -277,7 +277,7 @@ def test_extract_on_failure(task_state, is_airflow_2_10_or_higher, should_call_o
 
 @mock.patch("airflow.providers.openlineage.conf.custom_extractors")
 def test_extractors_env_var(custom_extractors):
-    custom_extractors.return_value = {"providers.tests.openlineage.extractors.test_base.ExampleExtractor"}
+    custom_extractors.return_value = {"tests.openlineage.extractors.test_base.ExampleExtractor"}
     extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
     assert extractor is ExampleExtractor
 
