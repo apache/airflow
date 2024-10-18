@@ -17,20 +17,24 @@
 
 from __future__ import annotations
 
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.public.connections import connections_router
-from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
-from airflow.api_fastapi.core_api.routes.public.dags import dags_router
-from airflow.api_fastapi.core_api.routes.public.monitor import monitor_router
-from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
-from airflow.api_fastapi.core_api.routes.public.variables import variables_router
+from airflow.api_fastapi.core_api.serializers.plugins import PluginCollectionResponse, PluginResponse
+from airflow.plugins_manager import get_plugin_info
 
-public_router = AirflowRouter(prefix="/public")
+plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
-public_router.include_router(dags_router)
-public_router.include_router(connections_router)
-public_router.include_router(variables_router)
-public_router.include_router(dag_run_router)
-public_router.include_router(monitor_router)
-public_router.include_router(plugins_router)
+@plugins_router.get("/")
+async def get_plugins(
+    limit: QueryLimit,
+    offset: QueryOffset,
+) -> PluginCollectionResponse:
+    plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
+    return PluginCollectionResponse(
+        plugins=[
+            PluginResponse.model_validate(plugin_info)
+            for plugin_info in plugins_info[offset.value :][: limit.value]
+        ],
+        total_entries=len(plugins_info),
+    )
