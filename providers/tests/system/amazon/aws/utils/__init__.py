@@ -141,7 +141,8 @@ class Variable:
         if to_split:
             self.delimiter = delimiter or ","
         elif delimiter:
-            raise ValueError(f"Variable {name} has a delimiter but split_string is set to False.")
+            msg = f"Variable {name} has a delimiter but split_string is set to False."
+            raise ValueError(msg)
 
         self.optional = optional
 
@@ -168,7 +169,8 @@ class Variable:
     def _format_value(self, value):
         if self.to_split:
             if not isinstance(value, str):
-                raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
+                msg = f"{self.name} is type {type(value)} and can not be split as requested."
+                raise TypeError(msg)
             return value.split(self.delimiter)
         return value
 
@@ -195,7 +197,8 @@ class SystemTestContextBuilder:
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
         if variable_name in [variable.name for variable in self.variables]:
-            raise ValueError(f"Variable name {variable_name} already exists in the fetched variables list.")
+            msg = f"Variable name {variable_name} already exists in the fetched variables list."
+            raise ValueError(msg)
 
         new_variable = Variable(
             name=variable_name,

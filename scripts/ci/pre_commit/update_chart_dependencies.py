@@ -64,10 +64,11 @@ if __name__ == "__main__":
                 next_line = f"    tag: {latest_prometheus_statsd_exporter_version}"
                 replace = False
             else:
-                raise ValueError(
+                msg = (
                     f"ERROR! The next line after repository: should be tag: - "
                     f"index {index} in {VALUES_YAML_FILE}"
                 )
+                raise ValueError(msg)
         else:
             next_line = line
         result_lines.append(next_line)

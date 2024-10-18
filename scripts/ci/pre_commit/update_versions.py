@@ -31,7 +31,8 @@ def update_version(pattern: re.Pattern, v: str, file_path: Path):
     with file_path.open("r+") as f:
         file_content = f.read()
         if not pattern.search(file_content):
-            raise RuntimeError(f"Pattern {pattern!r} doesn't found in {file_path!r} file")
+            msg = f"Pattern {pattern!r} doesn't found in {file_path!r} file"
+            raise RuntimeError(msg)
         new_content = pattern.sub(rf"\g<1>{v}\g<2>", file_content)
         if file_content == new_content:
             return

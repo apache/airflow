@@ -282,6 +282,7 @@ extend-select = [
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "B028", # No explicit stacklevel keyword argument found
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "EM102"
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.

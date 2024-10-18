@@ -4977,7 +4977,8 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
             "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.\"key\" = 'xxx'",
         ]
     else:
-        raise RuntimeError(f"unknown backend {backend!r}")
+        msg = f"unknown backend {backend!r}"
+        raise RuntimeError(msg)
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

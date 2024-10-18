@@ -24,10 +24,11 @@ from pathlib import Path
 from rich.console import Console
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
+    raise SystemExit(msg)
 
 
 console = Console(color_system="standard", width=200)

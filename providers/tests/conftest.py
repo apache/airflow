@@ -60,9 +60,10 @@ def hook_conn(request):
         elif isinstance(conn, Exception):
             m.side_effect = conn
         else:
-            raise TypeError(
+            msg = (
                 f"{request.node.name!r}: expected dict, Connection object or Exception, "
                 f"but got {type(conn).__name__}"
             )
+            raise TypeError(msg)
 
         yield m

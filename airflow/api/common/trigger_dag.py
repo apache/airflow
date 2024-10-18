@@ -61,7 +61,8 @@ def _trigger_dag(
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
     if dag is None or dag_id not in dag_bag.dags:
-        raise DagNotFound(f"Dag id {dag_id} not found")
+        msg = f"Dag id {dag_id} not found"
+        raise DagNotFound(msg)
 
     execution_date = execution_date or timezone.utcnow()
 
@@ -133,7 +134,8 @@ def trigger_dag(
     """
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
-        raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
+        msg = f"Dag id {dag_id} not found in DagModel"
+        raise DagNotFound(msg)
 
     dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
     dr = _trigger_dag(

@@ -155,7 +155,8 @@ class TableauHook(BaseHook):
         try:
             resource = getattr(self.server, resource_name)
         except AttributeError:
-            raise ValueError(f"Resource name {resource_name} is not found.")
+            msg = f"Resource name {resource_name} is not found."
+            raise ValueError(msg)
         return Pager(resource.get)
 
     def get_job_status(self, job_id: str) -> TableauJobFinishCode:

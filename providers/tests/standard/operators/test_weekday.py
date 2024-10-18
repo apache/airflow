@@ -78,7 +78,8 @@ class TestBranchDayOfWeekOperator:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+                msg = f"Invalid task id {ti.task_id} found!"
+                raise ValueError(msg)
             else:
                 assert_msg = f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
                 assert ti.state == expected_state, assert_msg

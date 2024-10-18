@@ -102,11 +102,13 @@ async def get_dag(
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+        detail = f"Dag with id {dag_id} was not found"
+        raise HTTPException(404, detail)
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+        detail = f"Unable to obtain dag with id {dag_id} from session"
+        raise HTTPException(404, detail)
 
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
@@ -122,11 +124,13 @@ async def get_dag_details(
     """Get details of DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+        detail = f"Dag with id {dag_id} was not found"
+        raise HTTPException(404, detail=detail)
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+        detail = f"Unable to obtain dag with id {dag_id} from session"
+        raise HTTPException(404, detail)
 
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
@@ -146,7 +150,8 @@ async def patch_dag(
     dag = session.get(DagModel, dag_id)
 
     if dag is None:
-        raise HTTPException(404, f"Dag with id: {dag_id} was not found")
+        detail = f"Dag with id: {dag_id} was not found"
+        raise HTTPException(404, detail)
 
     if update_mask:
         if update_mask != ["is_paused"]:
@@ -220,5 +225,6 @@ async def delete_dag(
     except DagNotFound:
         raise HTTPException(404, f"Dag with id: {dag_id} was not found")
     except AirflowException:
-        raise HTTPException(409, f"Task instances of dag with id: '{dag_id}' are still running")
+        detail = f"Task instances of dag with id: '{dag_id}' are still running"
+        raise HTTPException(409, detail)
     return Response(status_code=204)

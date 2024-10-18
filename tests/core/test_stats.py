@@ -498,7 +498,8 @@ class TestStatsWithInfluxDBEnabled:
 
 
 def always_invalid(stat_name):
-    raise InvalidStatsNameException(f"Invalid name: {stat_name}")
+    msg = f"Invalid name: {stat_name}"
+    raise InvalidStatsNameException(msg)
 
 
 def always_valid(stat_name):
