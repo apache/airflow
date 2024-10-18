@@ -314,7 +314,7 @@ def test_query(
         conn = mock.MagicMock()
         cur = mock.MagicMock(
             rowcount=len(cursor_results[index]),
-            description=get_cursor_descriptions(cursor_descriptions[index]),
+            description=get_cursor_descriptions(cursor_description),
         )
         cur.fetchall.return_value = cursor_results[index]
         conn.cursor.return_value = cur
