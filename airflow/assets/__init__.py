@@ -377,29 +377,9 @@ class Dataset(Asset):
 
     group: str = "dataset"
 
-    @overload
-    def __init__(self, name: str, uri: str, *, extra: dict | None = None) -> None:
-        """Canonical; both name and uri are provided."""
-        super().__init__(name=name, uri=uri, group=Dataset.group, extra=extra)
-
-    @overload
-    def __init__(self, name: str, *, extra: dict | None = None) -> None:
-        """It's possible to only provide the name, either by keyword or as the only positional argument."""
-        super().__init__(name=name, group=Dataset.group, extra=extra)
-
-    @overload
-    def __init__(self, *, uri: str, extra: dict | None = None) -> None:
-        """It's possible to only provide the URI as a keyword argument."""
-        super().__init__(uri=uri, group=Dataset.group, extra=extra)
-
-    def __init__(
-        self,
-        name: str | None = None,
-        uri: str | None = None,
-        *,
-        extra: dict | None = None,
-    ) -> None:
-        super().__init__(name=name, uri=uri, group=Dataset.group, extra=extra)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["group"] = Dataset.group
+        super().__init__(*args, **kwargs)
 
 
 class Model(Asset):
@@ -407,29 +387,9 @@ class Model(Asset):
 
     group: str = "model"
 
-    @overload
-    def __init__(self, name: str, uri: str, *, extra: dict | None = None) -> None:
-        """Canonical; both name and uri are provided."""
-        super().__init__(name=name, uri=uri, group=Model.group, extra=extra)
-
-    @overload
-    def __init__(self, name: str, *, extra: dict | None = None) -> None:
-        """It's possible to only provide the name, either by keyword or as the only positional argument."""
-        super().__init__(name=name, group=Model.group, extra=extra)
-
-    @overload
-    def __init__(self, *, uri: str, extra: dict | None = None) -> None:
-        """It's possible to only provide the URI as a keyword argument."""
-        super().__init__(uri=uri, group=Model.group, extra=extra)
-
-    def __init__(
-        self,
-        name: str | None = None,
-        uri: str | None = None,
-        *,
-        extra: dict | None = None,
-    ) -> None:
-        super().__init__(name=name, uri=uri, group=Model.group, extra=extra)
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["group"] = Model.group
+        super().__init__(*args, **kwargs)
 
 
 class _AssetBooleanCondition(BaseAsset):
