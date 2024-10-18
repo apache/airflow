@@ -769,6 +769,11 @@ ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+ARG_FASTAPI_API_APPS = Arg(
+    ("--apps",),
+    help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
+    default="all",
+)
 
 
 # scheduler
@@ -1936,6 +1941,7 @@ core_commands: list[CLICommand] = [
             ARG_FASTAPI_API_ACCESS_LOGFILE,
             ARG_FASTAPI_API_ERROR_LOGFILE,
             ARG_FASTAPI_API_ACCESS_LOGFORMAT,
+            ARG_FASTAPI_API_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,

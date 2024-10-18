@@ -68,6 +68,13 @@ Extra (optional)
       should send a keepalive message to the server.
     * ``client_encoding``: specifies client encoding(character set) of the client connection.
       Refer to `Postgres supported character sets <https://www.postgresql.org/docs/current/multibyte.html>`_
+    * ``cursor`` - Specifies the cursor type to use when querying the database. You can choose one of the following:
+
+      - ``dictcursor``: Returns query results as Python dictionaries using ``psycopg2.extras.DictCursor``.
+      - ``realdictcursor``: Similar to ``DictCursor``, but uses ``psycopg2.extras.RealDictCursor`` for slightly better performance.
+      - ``namedtuplecursor``: Returns query results as named tuples using ``psycopg2.extras.NamedTupleCursor``.
+
+      For more information, refer to the psycopg2 documentation on `connection and cursor subclasses <https://www.psycopg.org/docs/extras.html#connection-and-cursor-subclasses>`_.
 
     More details on all Postgres parameters supported can be found in
     `Postgres documentation <https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING>`_.
