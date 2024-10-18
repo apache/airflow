@@ -38,6 +38,8 @@ import type {
   DeleteDagRunData,
   DeleteDagRunResponse,
   GetHealthResponse,
+  GetProvidersData,
+  GetProvidersResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -558,6 +560,33 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+    });
+  }
+}
+
+export class ProviderService {
+  /**
+   * Get Providers
+   * Get providers.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns ProviderCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getProviders(
+    data: GetProvidersData = {},
+  ): CancelablePromise<GetProvidersResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/providers/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        422: "Validation Error",
+      },
     });
   }
 }
