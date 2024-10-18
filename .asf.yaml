@@ -129,6 +129,7 @@ github:
     - vatsrahul1001
     - cmarteepants
     - gopidesupavan
+    - bugraoz93
 
 notifications:
   jobs: jobs@airflow.apache.org

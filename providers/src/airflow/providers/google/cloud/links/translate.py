@@ -167,13 +167,14 @@ class TranslationLegacyModelPredictLink(BaseGoogleLink):
         task_instance,
         model_id: str,
         project_id: str,
+        dataset_id: str,
     ):
         task_instance.xcom_push(
             context,
             key=TranslationLegacyModelPredictLink.key,
             value={
                 "location": task_instance.location,
-                "dataset_id": task_instance.model.dataset_id,
+                "dataset_id": dataset_id,
                 "model_id": model_id,
                 "project_id": project_id,
             },

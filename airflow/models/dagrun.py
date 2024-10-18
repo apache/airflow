@@ -386,7 +386,9 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def active_runs_of_dags(
         cls,
+        *,
         dag_ids: Iterable[str],
+        exclude_backfill,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
         """
@@ -400,6 +402,8 @@ class DagRun(Base, LoggingMixin):
             .where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
             .group_by(cls.dag_id)
         )
+        if exclude_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return dict(iter(session.execute(query)))
 
     @classmethod
