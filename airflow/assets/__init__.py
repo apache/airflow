@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Asset", "AssetAll", "AssetAny"]
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
 
 
 log = logging.getLogger(__name__)
@@ -370,6 +370,36 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             dependency_id=self.uri,
         )
+
+
+class Dataset(Asset):
+    """Subclass of asset."""
+
+    group: str = "dataset"
+
+    @overload
+    def __init__(self, name: str, uri: str, *, extra: dict | None = None) -> None:
+        """Canonical; both name and uri are provided."""
+        super().__init__(name=name, uri=uri, group=Dataset.group, extra=extra)
+
+    @overload
+    def __init__(self, name: str, *, extra: dict | None = None) -> None:
+        """It's possible to only provide the name, either by keyword or as the only positional argument."""
+        super().__init__(name=name, group=Dataset.group, extra=extra)
+
+    @overload
+    def __init__(self, *, uri: str, extra: dict | None = None) -> None:
+        """It's possible to only provide the URI as a keyword argument."""
+        super().__init__(uri=uri, group=Dataset.group, extra=extra)
+
+    def __init__(
+        self,
+        name: str | None = None,
+        uri: str | None = None,
+        *,
+        extra: dict | None = None,
+    ) -> None:
+        super().__init__(name=name, uri=uri, group=Dataset.group, extra=extra)
 
 
 class _AssetBooleanCondition(BaseAsset):
