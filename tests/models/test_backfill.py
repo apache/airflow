@@ -147,36 +147,6 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert all(x.conf == expected_run_conf for x in dag_runs)
 
 
-def test_create_backfill_one_run_exists(dag_maker, session):
-    """
-    Verify that when we create a backfill and there's an existing dag run in
-    the range, we don't create a new run, and we can see a note about it.
-    """
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    expected_run_conf = {"param1": "valABC"}
-    b = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=pendulum.parse("2021-01-01"),
-        to_date=pendulum.parse("2021-01-05"),
-        max_active_runs=2,
-        reverse=False,
-        dag_run_conf=expected_run_conf,
-    )
-    query = (
-        select(DagRun)
-        .join(BackfillDagRun.dag_run)
-        .where(BackfillDagRun.backfill_id == b.id)
-        .order_by(BackfillDagRun.sort_ordinal)
-    )
-    dag_runs = session.scalars(query).all()
-    dates = [str(x.logical_date.date()) for x in dag_runs]
-    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
-    assert dates == expected_dates
-    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
-    assert all(x.conf == expected_run_conf for x in dag_runs)
-
-
 def test_params_stored_correctly(dag_maker, session):
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
