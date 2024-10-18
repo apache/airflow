@@ -593,6 +593,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Connection
+      summary: Patch Connection
+      description: Update a connection entry.
+      operationId: patch_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/:
     get:
       tags:
@@ -971,27 +1037,8 @@ components:
       - status
       title: BaseInfoSchema
       description: Base status field for metadatabase and scheduler.
-    ConnectionCollectionResponse:
+    ConnectionBody:
       properties:
-        connections:
-          items:
-            $ref: '#/components/schemas/ConnectionResponse'
-          type: array
-          title: Connections
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - connections
-      - total_entries
-      title: ConnectionCollectionResponse
-      description: DAG Collection serializer for responses.
-    ConnectionResponse:
-      properties:
-        connection_id:
-          type: string
-          title: Connection Id
         conn_type:
           type: string
           title: Conn Type
@@ -1025,16 +1072,73 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        connection_id:
+          type: string
+          title: Connection Id
       type: object
       required:
-      - connection_id
       - conn_type
-      - description
-      - host
-      - login
-      - schema
-      - port
-      - extra
+      - connection_id
+      title: ConnectionBody
+      description: Connection Serializer for requests body.
+    ConnectionCollectionResponse:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionResponse'
+          type: array
+          title: Connections
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - connections
+      - total_entries
+      title: ConnectionCollectionResponse
+      description: Connection Collection serializer for responses.
+    ConnectionResponse:
+      properties:
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        connection_id:
+          type: string
+          title: Connection Id
+      type: object
+      required:
+      - conn_type
+      - connection_id
       title: ConnectionResponse
       description: Connection serializer for responses.
     DAGCollectionResponse:
@@ -1836,7 +1940,6 @@ components:
       type: object
       required:
       - key
-      - description
       - value
       title: VariableBody
       description: Variable serializer for bodies.
@@ -1858,7 +1961,6 @@ components:
       type: object
       required:
       - key
-      - description
       - value
       title: VariableResponse
       description: Variable serializer for responses.

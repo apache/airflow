@@ -31,7 +31,7 @@ class VariableBase(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     key: str
-    description: str | None
+    description: str | None = Field(default=None)
 
 
 class VariableResponse(VariableBase):
