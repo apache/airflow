@@ -457,14 +457,14 @@ class TestGetDagTags(TestDagEndpoint):
             ),
             # test order_by
             (
-                {"order_by": "desc"},
+                {"order_by": "-name"},
                 200,
                 ["tag_2", "tag_1", "example"],
                 3,
             ),
             # test all query params
             (
-                {"tag_name_pattern": "t%", "order_by": "desc", "offset": 1, "limit": 1},
+                {"tag_name_pattern": "t%", "order_by": "-name", "offset": 1, "limit": 1},
                 200,
                 ["tag_1"],
                 2,
@@ -474,6 +474,19 @@ class TestGetDagTags(TestDagEndpoint):
                 200,
                 ["tag_1", "tag_2"],
                 3,
+            ),
+            # test invalid query params
+            (
+                {"order_by": "dag_id"},
+                400,
+                None,
+                None,
+            ),
+            (
+                {"order_by": "-dag_id"},
+                400,
+                None,
+                None,
             ),
         ],
     )

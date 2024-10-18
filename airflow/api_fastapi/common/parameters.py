@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
@@ -126,26 +126,6 @@ class _SearchParam(BaseParam[str]):
         if value == "~":
             value = "%"
         return value
-
-
-class _OrderByParam(BaseParam[str]):
-    """Order result by specified attribute ascending or descending."""
-
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
-        super().__init__(skip_none)
-        self.attribute: ColumnElement = attribute
-        self.value: Literal["asc", "desc"] | None = None
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        asc_stmt = select.order_by(self.attribute.asc())
-        if self.value is None:
-            return asc_stmt
-        return asc_stmt if self.value == "asc" else select.order_by(self.attribute.desc())
-
-    def depends(self, order_by: str = "asc") -> _OrderByParam:
-        return self.set_value(order_by)
 
 
 class _DagIdPatternSearch(_SearchParam):
@@ -331,5 +311,4 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
 # DAGTags
-QueryDagTagOrderBy = Annotated[_OrderByParam, Depends(_OrderByParam(DagTag.name, skip_none=False).depends)]
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
