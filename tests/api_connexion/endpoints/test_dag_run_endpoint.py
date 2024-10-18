@@ -1772,7 +1772,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 
 
 @pytest.mark.need_serialized_dag
-class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
+class TestGetDagRunAssetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
         asset1 = Asset(uri="ds1")
 
@@ -1783,7 +1783,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
         event = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
@@ -1793,8 +1793,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
             pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
-        dr.consumed_dataset_events.append(event)
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
@@ -1808,8 +1808,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
             "asset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
-                    "dataset_id": asset1_id,
-                    "dataset_uri": asset1.uri,
+                    "asset_id": asset1_id,
+                    "asset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,

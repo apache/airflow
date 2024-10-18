@@ -202,7 +202,7 @@ const TaskDuration = () => {
       },
     ],
     // @ts-ignore
-    dataset: {
+    asset: {
       dimensions: ["runId", "queuedDurationUnit", "runDurationUnit"],
       source: durations.map((duration) => {
         if (duration) {

@@ -187,7 +187,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
       },
     ],
     // @ts-ignore
-    dataset: {
+    asset: {
       dimensions: [
         "runId",
         ...(showLandingTimes ? ["landingDurationUnit"] : []),

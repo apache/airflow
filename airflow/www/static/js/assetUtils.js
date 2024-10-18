@@ -21,52 +21,52 @@
 
 import { getMetaValue } from "./utils";
 
-export function openDatasetModal(dagId, summary, nextDatasets, error) {
-  const assetEvents = nextDatasets.events || [];
-  const expression = nextDatasets.dataset_expression;
-  const datasetsUrl = getMetaValue("datasets_url");
-  $("#dataset_expression").empty();
-  $("#datasets_tbody").empty();
-  $("#datasets_error").hide();
+export function openAssetModal(dagId, summary, nextAssets, error) {
+  const assetEvents = nextAssets.events || [];
+  const expression = nextAssets.asset_expression;
+  const assetsUrl = getMetaValue("assets_url");
+  $("#asset_expression").empty();
+  $("#assets_tbody").empty();
+  $("#assets_error").hide();
   $("#dag_id").text(dagId);
-  $("#dataset_expression").text(JSON.stringify(expression, null, 2));
-  $("#datasetNextRunModal").modal({});
+  $("#asset_expression").text(JSON.stringify(expression, null, 2));
+  $("#assetNextRunModal").modal({});
   if (summary) $("#next_run_summary").text(summary);
   assetEvents.forEach((d) => {
     const row = document.createElement("tr");
 
     const uriCell = document.createElement("td");
-    const datasetLink = document.createElement("a");
-    datasetLink.href = `${datasetsUrl}?uri=${encodeURIComponent(d.uri)}`;
-    datasetLink.innerText = d.uri;
-    uriCell.append(datasetLink);
+    const assetLink = document.createElement("a");
+    assetLink.href = `${assetsUrl}?uri=${encodeURIComponent(d.uri)}`;
+    assetLink.innerText = d.uri;
+    uriCell.append(assetLink);
 
     const timeCell = document.createElement("td");
     if (d.lastUpdate) timeCell.append(isoDateToTimeEl(d.lastUpdate));
 
     row.append(uriCell);
     row.append(timeCell);
-    $("#datasets_tbody").append(row);
+    $("#assets_tbody").append(row);
   });
 
   if (error) {
-    $("#datasets_error_msg").text(error);
-    $("#datasets_error").show();
+    $("#assets_error_msg").text(error);
+    $("#assets_error").show();
   }
 }
 
-export function getDatasetTooltipInfo(dagId, run, setNextDatasets) {
-  let nextRunUrl = getMetaValue("next_run_datasets_url");
+export function getAssetTooltipInfo(dagId, run, setNextAssets) {
+  let nextRunUrl = getMetaValue("next_run_assets_url");
   if (dagId) {
     if (nextRunUrl.includes("__DAG_ID__")) {
       nextRunUrl = nextRunUrl.replace("__DAG_ID__", dagId);
     }
     $.get(nextRunUrl)
-      .done((nextDatasets) => {
-        const assetEvents = nextDatasets.events;
+      .done((nextAssets) => {
+        const assetEvents = nextAssets.events;
         let count = 0;
-        let title = "<strong>Pending datasets:</strong><br>";
-        setNextDatasets(nextDatasets);
+        let title = "<strong>Pending assets:</strong><br>";
+        setNextAssets(nextAssets);
         assetEvents.forEach((d) => {
           if (!d.created_at) {
             if (count < 4) title += `${d.uri}<br>`;
@@ -84,7 +84,7 @@ export function getDatasetTooltipInfo(dagId, run, setNextDatasets) {
           (response.responseJSON && response.responseJSON.error) ||
           "Something went wrong.";
         const error = `${textStatus}: ${err} ${description}`;
-        setNextDatasets([], error);
+        setNextAssets([], error);
       });
   }
 }

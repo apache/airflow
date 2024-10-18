@@ -24,7 +24,7 @@ import type { DagRun as DagRunType } from "src/types";
 import { getMetaValue } from "src/utils";
 import { CardDef, CardList } from "src/components/Table";
 import type { AssetEvent } from "src/types/api-generated";
-import DatasetEventCard from "src/components/DatasetEventCard";
+import AssetEventCard from "src/components/AssetEventCard";
 
 interface Props {
   runId: DagRunType["runId"];
@@ -32,12 +32,12 @@ interface Props {
 }
 
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => <DatasetEventCard assetEvent={row} showSource={false} />,
+  card: ({ row }) => <AssetEventCard assetEvent={row} showSource={false} />,
 };
 
 const dagId = getMetaValue("dag_id") || undefined;
 
-const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
+const AssetUpdateEvents = ({ runId, taskId }: Props) => {
   const {
     data: { assetEvents = [] },
     isLoading,
@@ -54,8 +54,8 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
-        accessor: "datasetUri",
+        Header: "Asset",
+        accessor: "assetUri",
       },
       {
         Header: "Triggered Runs",
@@ -74,9 +74,9 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   return (
     <Box my={3} flexGrow={1}>
       <Text as="strong" mb={3}>
-        Dataset Events
+        Asset Events
       </Text>
-      <Text>Dataset updates caused by this task instance</Text>
+      <Text>Asset updates caused by this task instance</Text>
       <CardList
         data={data}
         columns={columns}
@@ -87,4 +87,4 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   );
 };
 
-export default DatasetUpdateEvents;
+export default AssetUpdateEvents;

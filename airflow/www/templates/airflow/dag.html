@@ -17,8 +17,27 @@
  under the License.
 #}
 
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
 {% extends base_template %}
-{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
+{% from 'airflow/asset_next_run_modal.html' import asset_next_run_modal %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
 {% block page_title %}{{ dag.dag_display_name }} - {{ appbuilder.app_name }}{% endblock %}
@@ -58,10 +77,10 @@
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="graph_data_url" content="{{ url_for('Airflow.graph_data') }}">
   <meta name="calendar_data_url" content="{{ url_for('Airflow.calendar_data') }}">
-  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
+  <meta name="next_run_assets_url" content="{{ url_for('Airflow.next_run_assets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="task_tries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance_tries', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
-  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="assets_url" content="{{ url_for('Airflow.assets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
@@ -81,7 +100,7 @@
   <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
   <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
   <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
-  <meta name="datasets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_assets') }}">
+  <meta name="assets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_assets') }}">
   <meta name="event_logs_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_event_log_endpoint_get_event_logs') }}">
   <meta name="audit_log_url" content="{{ url_for('LogModelView.list') }}">
   <meta name="dag_run_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_dag_run', dag_id='__DAG_ID__', dag_run_id='__DAG_RUN_ID__') }}">
@@ -133,7 +152,7 @@
       </h3>
     </div>
     <div>
-      <h4 class="js-dataset-triggered" style="user-select: none;-moz-user-select: auto; display: inline-block;">
+      <h4 class="js-asset-triggered" style="user-select: none;-moz-user-select: auto; display: inline-block;">
         {% if state_token is defined and state_token %}
           {{ state_token }}
         {% endif %}
@@ -143,35 +162,35 @@
         {% if dag_model is defined and dag_model and dag_model.timetable_description %}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag_model.timetable_description|string }}">info</span>
         {% endif %}
-        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.dataset_expression != None %}
+        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.asset_expression != None %}
           <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
             Next Run ID: <time datetime="{{ dag_model.next_dagrun }}" data-with-tz="true">{{ dag_model.next_dagrun }}</time>
           </p>
         {% endif %}
-        {% if dag_model is defined and dag_model.dataset_expression is defined and dag_model.dataset_expression != None %}
+        {% if dag_model is defined and dag_model.asset_expression is defined and dag_model.asset_expression != None %}
           {%- with asset_info = dag_model.get_asset_triggered_next_run_info() -%}
             <span
-              id="next-dataset-tooltip"
+              id="next-asset-tooltip"
               class="js-tooltip"
-              title="Click to see dataset details."
+              title="Click to see asset details."
               data-html="true"
               data-placement="bottom"
               data-uri="{{ asset_info.uri }}"
             >
                 <p
-                  class="label label-default next-dataset-triggered"
+                  class="label label-default next-asset-triggered"
                   style="margin-left: 5px;"
                   data-summary="
                     {%- if asset_info.total == 1 -%}
                     On {{ asset_info.uri }}
                     {%- else -%}
-                    {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
+                    {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                     {%- endif -%}"
                   >
                   {% if asset_info.total == 1 -%}
                     On {{ asset_info.uri }}
                   {%- else -%}
-                  {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
+                  {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                   {%- endif %}
                 </p>
             </span>
@@ -240,8 +259,8 @@
   </div>
   <div class="clearfix"></div>
   {{ dag_docs(doc_md) }}
-  <!-- Modal for dataset-triggered next run -->
-  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
+  <!-- Modal for asset-triggered next run -->
+  {{ asset_next_run_modal(id='asset-next-run-modal') }}
 {% endblock %}
 {% block tail %}
   {{ super() }}

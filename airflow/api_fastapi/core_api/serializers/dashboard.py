@@ -25,7 +25,7 @@ class DAGRunTypes(BaseModel):
     backfill: int
     scheduled: int
     manual: int
-    dataset_triggered: int
+    asset_triggered: int
 
 
 class DAGRunStates(BaseModel):

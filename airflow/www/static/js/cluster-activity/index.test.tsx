@@ -37,7 +37,7 @@ const mockHistoricalMetricsData = {
   dag_run_states: { failed: 0, queued: 0, running: 0, success: 306 },
   dag_run_types: {
     backfill: 0,
-    dataset_triggered: 0,
+    asset_triggered: 0,
     manual: 14,
     scheduled: 292,
   },

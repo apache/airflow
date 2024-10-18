@@ -3939,7 +3939,13 @@ class TestSchedulerJob:
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, True),
-            (DagRunType.DATASET_TRIGGERED, False),
+            (DagRunType.ASSET_TRIGGERED, False),
+        ],
+        ids=[
+            DagRunType.MANUAL.name,
+            DagRunType.SCHEDULED.name,
+            DagRunType.BACKFILL_JOB.name,
+            DagRunType.ASSET_TRIGGERED.name,
         ],
     )
     def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
@@ -4025,7 +4031,7 @@ class TestSchedulerJob:
         asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
 
         event1 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4041,7 +4047,7 @@ class TestSchedulerJob:
         )
 
         event2 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4059,8 +4065,8 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
             ]
         )
         session.flush()
@@ -4084,7 +4090,7 @@ class TestSchedulerJob:
 
         # we don't have __eq__ defined on AssetEvent because... given the fact that in the future
         # we may register events from other systems, asset_id + timestamp might not be enough PK
-        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
+        assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
             map(dict_from_obj, [event1, event2])
         )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
@@ -4116,9 +4122,9 @@ class TestSchedulerJob:
 
         asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
 
-        ase_q = select(AssetEvent).where(AssetEvent.dataset_id == asset_id).order_by(AssetEvent.timestamp)
+        ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
-            AssetDagRunQueue.dataset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
+            AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
 
         # Simulate the consumer DAG being disabled.
