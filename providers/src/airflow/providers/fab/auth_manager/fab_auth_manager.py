@@ -96,10 +96,7 @@ if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.security.permissions import RESOURCE_ASSET
 else:
-    try:
-        from airflow.security.permissions import RESOURCE_ASSET
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {

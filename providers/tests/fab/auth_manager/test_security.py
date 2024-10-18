@@ -66,10 +66,7 @@ from tests_common.test_utils.permissions import _resource_name
 if TYPE_CHECKING:
     from airflow.security.permissions import RESOURCE_ASSET
 else:
-    try:
-        from airflow.security.permissions import RESOURCE_ASSET
-    except ImportError:
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 
 pytestmark = pytest.mark.db_test

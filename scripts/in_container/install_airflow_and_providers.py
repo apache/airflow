@@ -484,7 +484,6 @@ def install_airflow_and_providers(
             "/usr/local/bin/uv",
             "pip",
             "install",
-            "--no-sources",
             "--python",
             "/usr/local/bin/python",
             installation_spec.airflow_package,
@@ -507,7 +506,6 @@ def install_airflow_and_providers(
             "/usr/local/bin/uv",
             "pip",
             "install",
-            "--no-sources",
             "--python",
             "/usr/local/bin/python",
         ]

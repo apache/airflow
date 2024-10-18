@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -1819,21 +1821,6 @@ export const typescriptRules =
       [`${typescriptNamespace}/triple-slash-reference`]: ERROR,
 
       /**
-       * Bind stuff before using it.
-       *
-       * @example
-       * ```typescript
-       * // ❌ Incorrect
-       * const foo = classInstance.method;
-       *
-       * // ✅ Correct
-       * const foo = classInstance.method.bind(classInstance);
-       * ```
-       * @see [@typescript-eslint/unbound-method](https://typescript-eslint.io/rules/unbound-method/)
-       */
-      [`${typescriptNamespace}/unbound-method`]: ERROR,
-
-      /**
        * Unify signatures instead of overloading.
        *
        * @example
@@ -1881,7 +1868,7 @@ export const typescriptRules =
         "camelcase",
         "class-methods-use-this",
         "consistent-return",
-        "constructor-super", // eslint-disable-line max-lines
+        "constructor-super",
         "default-param-last",
         "dot-notation",
         "getter-return",

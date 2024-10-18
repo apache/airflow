@@ -49,13 +49,6 @@ export const perfectionistRules =
       [`${perfectionistNamespace}/sort-array-includes`]: ERROR,
 
       /**
-       * Enforce sorted attributes in Astro elements.
-       *
-       * @see [perfectionist/sort-astro-attributes](https://perfectionist.dev/rules/sort-astro-attributes)
-       */
-      [`${perfectionistNamespace}/sort-astro-attributes`]: ERROR,
-
-      /**
        * Enforce sorted class members.
        *
        * @see [perfectionist/sort-classes](https://perfectionist.dev/rules/sort-classes)
@@ -109,14 +102,12 @@ export const perfectionistRules =
        *
        * @see [perfectionist/sort-objects](https://perfectionist.dev/rules/sort-objects)
        */
-      [`${perfectionistNamespace}/sort-objects`]: ERROR,
-
-      /**
-       * Enforce sorted attributes in Svelte elements.
-       *
-       * @see [perfectionist/sort-svelte-attributes](https://perfectionist.dev/rules/sort-svelte-attributes)
-       */
-      [`${perfectionistNamespace}/sort-svelte-attributes`]: ERROR,
+      [`${perfectionistNamespace}/sort-objects`]: [
+        ERROR,
+        {
+          type: "natural",
+        },
+      ],
 
       /**
        * Enforce sorted switch case statements.
@@ -128,16 +119,21 @@ export const perfectionistRules =
       /**
        * Enforce sorted TypeScript union types.
        *
+       * nullish groups will leave null and undefined at the end
+       *
        * @see [perfectionist/sort-union-types](https://perfectionist.dev/rules/sort-union-types)
        */
-      [`${perfectionistNamespace}/sort-union-types`]: ERROR,
-
-      /**
-       * Enforce sorted attributes in Vue elements.
-       *
-       * @see [perfectionist/sort-vue-attributes](https://perfectionist.dev/rules/sort-vue-attributes)
-       */
-      [`${perfectionistNamespace}/sort-vue-attributes`]: ERROR,
+      [`${perfectionistNamespace}/sort-union-types`]: [
+        ERROR,
+        {
+          groups: [
+            ["conditional", "function", "import"],
+            ["intersection", "keyword", "named"],
+            ["literal", "object", "operator", "tuple", "union"],
+            "nullish",
+          ],
+        },
+      ],
 
       ...off("sort-keys"),
     },
