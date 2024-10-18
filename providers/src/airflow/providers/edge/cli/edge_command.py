@@ -91,14 +91,6 @@ def _hostname() -> str:
         return os.uname()[1]
 
 
-def _get_sysinfo() -> dict:
-    """Produce the sysinfo from worker to post to central site."""
-    return {
-        "airflow_version": airflow_version,
-        "edge_provider_version": edge_provider_version,
-    }
-
-
 def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
 
@@ -145,11 +137,19 @@ class _EdgeWorkerCli:
         logger.info("Request to show down Edge Worker received, waiting for jobs to complete.")
         _EdgeWorkerCli.drain = True
 
+    def _get_sysinfo(self) -> dict:
+        """Produce the sysinfo from worker to post to central site."""
+        return {
+            "airflow_version": airflow_version,
+            "edge_provider_version": edge_provider_version,
+            "concurrency": self.concurrency,
+        }
+
     def start(self):
         """Start the execution in a loop until terminated."""
         try:
             self.last_hb = EdgeWorker.register_worker(
-                self.hostname, EdgeWorkerState.STARTING, self.queues, _get_sysinfo()
+                self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
             ).last_update
         except AirflowException as e:
             if "404:NOT FOUND" in str(e):
@@ -162,7 +162,7 @@ class _EdgeWorkerCli:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
-            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, _get_sysinfo())
+            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
         finally:
             remove_existing_pidfile(self.pid_file_path)
 
@@ -230,8 +230,8 @@ class _EdgeWorkerCli:
             if self.jobs
             else EdgeWorkerState.IDLE
         )
-        sysinfo = _get_sysinfo()
-        EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        sysinfo = self._get_sysinfo()
+        self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""
