@@ -29,7 +29,6 @@ app: FastAPI | None = None
 
 
 def create_app(apps: str = "all") -> FastAPI:
-
     apps_list = apps.split(",") if apps else ["all"]
 
     app = FastAPI(
