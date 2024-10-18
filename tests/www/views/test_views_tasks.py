@@ -621,6 +621,7 @@ def new_id_example_bash_operator():
     with create_session() as session:
         dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
+        dag_query.first().dag_versions = []  # same as above
     with create_session() as session:
         dag_query.update({"dag_id": test_dag_id})
     yield test_dag_id
@@ -1131,6 +1132,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1166,6 +1168,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1201,6 +1204,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1236,6 +1240,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1271,6 +1276,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1306,6 +1312,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1341,5 +1348,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
     }

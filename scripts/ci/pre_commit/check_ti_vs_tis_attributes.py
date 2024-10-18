@@ -52,6 +52,7 @@ def compare_attributes(path1, path2):
         "triggerer_job",
         "note",
         "rendered_task_instance_fields",
+        "dag_version",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return
