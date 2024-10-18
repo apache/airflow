@@ -1193,7 +1193,11 @@ export interface components {
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
-      /** @enum {string} */
+      /**
+       * @description Changed in 3.0.0: The asset_triggered value was renamed from dataset_triggered)
+       *
+       * @enum {string}
+       */
       run_type?: "backfill" | "manual" | "scheduled" | "asset_triggered";
       state?: components["schemas"]["DagState"];
       external_trigger?: boolean;
