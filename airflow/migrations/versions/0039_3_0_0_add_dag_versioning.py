@@ -32,6 +32,8 @@ from alembic import op
 
 from airflow.migrations.db_types import StringID
 from airflow.models.base import naming_convention
+from airflow.utils import timezone
+from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"
@@ -54,6 +56,7 @@ def upgrade():
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("dag_code_id", sa.Integer(), nullable=True),
         sa.Column("serialized_dag_id", sa.Integer(), nullable=True),
+        sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
         sa.ForeignKeyConstraint(("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey")),
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
     )
