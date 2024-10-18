@@ -130,6 +130,7 @@ github:
     - cmarteepants
     - gopidesupavan
     - bugraoz93
+    - omkar-foss
 
 notifications:
   jobs: jobs@airflow.apache.org
