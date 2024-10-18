@@ -7,6 +7,7 @@ export type AppBuilderMenuItemResponse = {
   name: string;
   href?: string | null;
   category?: string | null;
+  [key: string]: unknown | string;
 };
 
 /**
@@ -17,6 +18,7 @@ export type AppBuilderViewResponse = {
   category?: string | null;
   view?: string | null;
   label?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -250,6 +252,7 @@ export type FastAPIAppResponse = {
   app: string;
   url_prefix: string;
   name: string;
+  [key: string]: unknown | string;
 };
 
 /**
