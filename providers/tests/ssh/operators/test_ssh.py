@@ -24,7 +24,6 @@ from unittest import mock
 
 import pytest
 from paramiko.client import SSHClient
-from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
@@ -32,6 +31,8 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import NOTSET
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

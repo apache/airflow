@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 from kubernetes.client import Configuration
-from tests_common.test_utils.config import conf_vars
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
 from airflow.providers.cncf.kubernetes.kube_client import (
@@ -29,6 +28,8 @@ from airflow.providers.cncf.kubernetes.kube_client import (
     _enable_tcp_keepalive,
     get_kube_client,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestClient:

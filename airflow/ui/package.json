@@ -11,7 +11,7 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../api_fastapi/openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i \"../api_fastapi/core_api/openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
@@ -24,11 +24,13 @@
     "@tanstack/react-table": "^8.20.1",
     "axios": "^1.7.7",
     "chakra-react-select": "^4.9.2",
+    "dayjs": "^1.11.13",
     "framer-motion": "^11.3.29",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.3.0",
-    "react-router-dom": "^6.26.2"
+    "react-router-dom": "^6.26.2",
+    "use-debounce": "^10.0.3"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.0",

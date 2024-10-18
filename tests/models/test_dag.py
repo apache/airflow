@@ -90,6 +90,14 @@ from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
+
+from tests.models import DEFAULT_DATE
+from tests.plugins.priority_weight_strategy import (
+    FactorPriorityWeightStrategy,
+    NotRegisteredPriorityWeightStrategy,
+    StaticTestPriorityWeightStrategy,
+    TestPriorityWeightStrategyPlugin,
+)
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
@@ -102,14 +110,6 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
-
-from tests.models import DEFAULT_DATE
-from tests.plugins.priority_weight_strategy import (
-    FactorPriorityWeightStrategy,
-    NotRegisteredPriorityWeightStrategy,
-    StaticTestPriorityWeightStrategy,
-    TestPriorityWeightStrategyPlugin,
-)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -2715,10 +2715,10 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
                 AssetAll(
-                    Asset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Asset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
                 ),
                 AssetAlias(name="test_name"),
             ),

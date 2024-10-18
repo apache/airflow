@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from tests_common.test_utils.system_tests import get_test_env_id
-
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.dbt.cloud.operators.dbt import (
@@ -29,6 +27,8 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 )
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.utils.edgemodifier import Label
+
+from tests_common.test_utils.system_tests import get_test_env_id
 
 ENV_ID = get_test_env_id()
 DAG_ID = "example_dbt_cloud"

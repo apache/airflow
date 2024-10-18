@@ -29,7 +29,6 @@ from airflow.models import (
     Log,
     Pool,
     RenderedTaskInstanceFields,
-    SlaMiss,
     TaskFail,
     TaskInstance,
     TaskReschedule,
@@ -44,6 +43,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.compat import (
     AIRFLOW_V_2_10_PLUS,
     AssetDagRunQueue,
@@ -62,6 +62,7 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
+
     from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
     db.resetdb()
@@ -127,11 +128,6 @@ def drop_tables_with_prefix(prefix):
 def clear_db_serialized_dags():
     with create_session() as session:
         session.query(SerializedDagModel).delete()
-
-
-def clear_db_sla_miss():
-    with create_session() as session:
-        session.query(SlaMiss).delete()
 
 
 def clear_db_pools():
@@ -256,7 +252,6 @@ def clear_all():
     clear_db_assets()
     clear_db_dags()
     clear_db_serialized_dags()
-    clear_db_sla_miss()
     clear_db_dag_code()
     clear_db_callbacks()
     clear_rendered_ti_fields()

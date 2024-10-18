@@ -19,10 +19,11 @@ from __future__ import annotations
 import importlib
 
 import pytest
-from tests_common.test_utils.config import conf_vars
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.edge.plugins import edge_executor_plugin
+
+from tests_common.test_utils.config import conf_vars
 
 
 def test_plugin_inactive():

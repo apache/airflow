@@ -28,6 +28,7 @@ from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
+
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test

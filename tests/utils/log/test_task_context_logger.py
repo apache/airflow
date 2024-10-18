@@ -24,6 +24,7 @@ import pytest
 
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.log.task_context_logger import TaskContextLogger
+
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 

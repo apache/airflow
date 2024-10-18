@@ -113,6 +113,9 @@ dependencies:
   - microsoft-kiota-http>=1.3.0,!=1.3.4
   - microsoft-kiota-serialization-json==1.0.0
   - microsoft-kiota-serialization-text==1.0.0
+  # microsoft-kiota-abstractions 1.4.0 breaks MyPy static checks on main
+  # see https://github.com/apache/airflow/issues/43036
+  - microsoft-kiota-abstractions<1.4.0
 
 devel-dependencies:
   - pywinrm

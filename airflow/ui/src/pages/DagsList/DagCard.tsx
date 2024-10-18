@@ -31,6 +31,7 @@ import {
 import { FiCalendar, FiTag } from "react-icons/fi";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 
 type Props = {
@@ -98,7 +99,9 @@ export const DagCard = ({ dag }: Props) => {
             Next Run
           </Heading>
           {Boolean(dag.next_dagrun) ? (
-            <Text fontSize="sm">{dag.next_dagrun}</Text>
+            <Text fontSize="sm">
+              <Time datetime={dag.next_dagrun} />
+            </Text>
           ) : undefined}
           {Boolean(dag.timetable_summary) ? (
             <Tooltip hasArrow label={dag.timetable_description}>

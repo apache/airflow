@@ -27,12 +27,6 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter
 from google.cloud.exceptions import Conflict
-from tests_common.test_utils.db import (
-    clear_db_dags,
-    clear_db_runs,
-    clear_db_serialized_dags,
-    clear_db_xcom,
-)
 
 from airflow.exceptions import (
     AirflowException,
@@ -80,6 +74,13 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
+
+from tests_common.test_utils.db import (
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_serialized_dags,
+    clear_db_xcom,
+)
 
 pytestmark = pytest.mark.db_test
 

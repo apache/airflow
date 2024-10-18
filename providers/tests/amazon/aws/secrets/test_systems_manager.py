@@ -21,10 +21,11 @@ from unittest import mock
 
 import pytest
 from moto import mock_aws
-from tests_common.test_utils.config import conf_vars
 
 from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
+
+from tests_common.test_utils.config import conf_vars
 
 URI_CONNECTION = pytest.param(
     "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"

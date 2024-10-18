@@ -91,15 +91,28 @@ class AssetAliasModel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(
-        String(length=3000).with_variant(
+        String(length=1500).with_variant(
             String(
-                length=3000,
+                length=1500,
                 # latin1 allows for more indexed length in mysql
                 # and this field should only be ascii chars
                 collation="latin1_general_cs",
             ),
             "mysql",
         ),
+        nullable=False,
+    )
+    group = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        default=str,
         nullable=False,
     )
 
@@ -205,17 +218,23 @@ class AssetModel(Base):
 
     @classmethod
     def from_public(cls, obj: Asset) -> AssetModel:
-        return cls(uri=obj.uri, extra=obj.extra)
+        return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=obj.extra)
 
-    def __init__(self, uri: str, **kwargs):
+    def __init__(self, name: str = "", uri: str = "", **kwargs):
+        if not name and not uri:
+            raise TypeError("must provide either 'name' or 'uri'")
+        elif not name:
+            name = uri
+        elif not uri:
+            uri = name
         try:
             uri.encode("ascii")
         except UnicodeEncodeError:
-            raise ValueError("URI must be ascii")
+            raise ValueError("URI must be ascii") from None
         parsed = urlsplit(uri)
         if parsed.scheme and parsed.scheme.lower() == "airflow":
-            raise ValueError("Scheme `airflow` is reserved.")
-        super().__init__(name=uri, uri=uri, **kwargs)
+            raise ValueError("Scheme 'airflow' is reserved.")
+        super().__init__(name=name, uri=uri, **kwargs)
 
     def __eq__(self, other):
         if isinstance(other, (self.__class__, Asset)):
@@ -229,7 +248,7 @@ class AssetModel(Base):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
-        return Asset(uri=self.uri, extra=self.extra)
+        return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
 
 
 class AssetActive(Base):
