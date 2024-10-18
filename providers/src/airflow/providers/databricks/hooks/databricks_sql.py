@@ -196,11 +196,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = None,
     ) -> None: ...
 
     @overload
@@ -208,22 +208,22 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = None,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        execution_timeout: timedelta | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
+        execution_timeout: timedelta | None = None,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
@@ -241,10 +241,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond
-            it will raise and fail.
         :return: return only result of the LAST SQL expression if handler was provided unless return_last
             is set to False.
+        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond
+            it will raise and fail.
         """
         self.descriptions = []
         if isinstance(sql, str):
