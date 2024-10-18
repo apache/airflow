@@ -310,7 +310,7 @@ def test_query(
 ):
     connections = []
     cursors = []
-    for index in range(len(cursor_descriptions)):
+    for index, cursor_description in enumerate(cursor_descriptions):
         conn = mock.MagicMock()
         cur = mock.MagicMock(
             rowcount=len(cursor_results[index]),
