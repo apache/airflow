@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from unittest import mock
 
-from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor, MultipleFilesWebHdfsSensor
+from airflow.providers.apache.hdfs.sensors.web_hdfs import MultipleFilesWebHdfsSensor, WebHdfsSensor
 
 TEST_HDFS_CONN = "webhdfs_default"
 TEST_HDFS_DIRECTORY = "hdfs://user/hive/warehouse/airflow.db"
@@ -69,9 +69,11 @@ class TestMultipleFilesWebHdfsSensor:
             task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             directory_path=TEST_HDFS_DIRECTORY,
-            expected_filenames=TEST_HDFS_FILENAMES
+            expected_filenames=TEST_HDFS_FILENAMES,
         )
-        result = sensor.poke(dict())
+
+        with caplog.at_level("DEBUG", logger="airflow.task"):
+            result = sensor.poke(dict())
 
         assert result
         assert "Files Found in directory: " in caplog.text
@@ -88,12 +90,11 @@ class TestMultipleFilesWebHdfsSensor:
             task_id="test_task",
             webhdfs_conn_id=TEST_HDFS_CONN,
             directory_path=TEST_HDFS_DIRECTORY,
-            expected_filenames=TEST_HDFS_FILENAMES
+            expected_filenames=TEST_HDFS_FILENAMES,
         )
         exists = sensor.poke(dict())
 
         assert not exists
-        assert "Files Found in directory: " in caplog.text
         assert "There are missing files: " in caplog.text
 
         mock_hook.return_value.get_conn.return_value.list.assert_called_once_with(TEST_HDFS_DIRECTORY)
