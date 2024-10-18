@@ -31,7 +31,7 @@ from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, Pe
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning, InvalidStatsNameException
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -299,6 +299,21 @@ class SafeOtelLogger:
     ) -> TimerProtocol:
         """Timer context manager returns the duration and can be cancelled."""
         return _OtelTimer(self, stat, tags)
+
+    def get_name(self, metric_name: str, tags: dict[str, str]) -> str:
+        """
+        OpenTelemetry supports tagging natively, so return the metric name without modification.
+
+        :param metric_name: The base metric name.
+        :param tags: A dictionary of tags (ignored for OTel, as it supports native tagging).
+        :return: The base metric name.
+        """
+        # Validate and return the name (assuming OTel limits are respected)
+        if len(metric_name) > OTEL_NAME_MAX_LENGTH:
+            raise InvalidStatsNameException(
+                f"Metric name '{metric_name}' exceeds {OTEL_NAME_MAX_LENGTH} characters."
+            )
+        return metric_name
 
 
 class MetricsMap:
