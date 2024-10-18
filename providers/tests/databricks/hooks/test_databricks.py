@@ -21,6 +21,7 @@ import itertools
 import json
 import ssl
 import time
+from asyncio.exceptions import TimeoutError
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -1545,6 +1546,16 @@ class TestDatabricksHookAsyncMethods:
                 "SSL handshake is taking longer than 60.0 seconds: aborting the connection"
             ),
         )
+        with mock.patch.object(self.hook.log, "error") as mock_errors:
+            async with self.hook:
+                with pytest.raises(AirflowException):
+                    await self.hook._a_do_api_call(GET_RUN_ENDPOINT, {})
+                assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_do_api_call_retries_with_client_timeout_error(self, mock_get):
+        mock_get.side_effect = TimeoutError()
         with mock.patch.object(self.hook.log, "error") as mock_errors:
             async with self.hook:
                 with pytest.raises(AirflowException):
