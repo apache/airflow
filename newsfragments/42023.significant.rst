@@ -58,3 +58,7 @@
     * Rename index ``idx_dataset_id_timestamp`` as ``idx_asset_id_timestamp``
 
 * Rename column ``dataset_expression`` in ``dag`` table as ``asset_expression``
+
+* Rename property run_type ``dataset_triggered`` as ``asset_triggered`` in DAGRun endpoint
+
+* Change the string ``dataset_triggered`` in RUN_ID_REGEX as ``asset_triggered`` which affects the valid run id that an user can provide
