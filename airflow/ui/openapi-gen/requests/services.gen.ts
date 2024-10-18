@@ -40,6 +40,8 @@ import type {
   DeleteDagRunData,
   DeleteDagRunResponse,
   GetHealthResponse,
+  DeletePoolData,
+  DeletePoolResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -589,6 +591,35 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+    });
+  }
+}
+
+export class PoolService {
+  /**
+   * Delete Pool
+   * Delete a pool entry.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deletePool(
+    data: DeletePoolData,
+  ): CancelablePromise<DeletePoolResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
     });
   }
 }

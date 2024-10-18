@@ -13,6 +13,7 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PoolService,
   VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
@@ -761,5 +762,42 @@ export const useDagRunServiceDeleteDagRun = <
         dagId,
         dagRunId,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Pool
+ * Delete a pool entry.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceDeletePool = <
+  TData = Common.PoolServiceDeletePoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        poolName: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      poolName: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ poolName }) =>
+      PoolService.deletePool({ poolName }) as unknown as Promise<TData>,
     ...options,
   });

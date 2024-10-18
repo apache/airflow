@@ -8,6 +8,7 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PoolService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -268,4 +269,7 @@ export type VariableServiceDeleteVariableMutationResult = Awaited<
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.deleteDagRun>
+>;
+export type PoolServiceDeletePoolMutationResult = Awaited<
+  ReturnType<typeof PoolService.deletePool>
 >;
