@@ -49,6 +49,7 @@ from airflow.utils.types import DagRunType
 
 from tests.core.test_logging_config import reset_logging
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.log_handlers import non_pytest_handlers
 
 pytestmark = pytest.mark.db_test
 
@@ -771,9 +772,6 @@ def test_queue_listener():
     reset_logging()
     importlib.reload(airflow_local_settings)
     configure_logging()
-
-    def non_pytest_handlers(val):
-        return [h for h in val if "pytest" not in h.__module__]
 
     import logging
 
