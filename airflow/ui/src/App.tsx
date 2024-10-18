@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
 import { DagsList } from "src/pages/DagsList";
+import { Dashboard } from "src/pages/Dashboard";
 
 import { BaseLayout } from "./layouts/BaseLayout";
 
 export const App = () => (
   <Routes>
     <Route element={<BaseLayout />} path="/">
-      <Route element={<Navigate to="dags" />} index />
+      <Route element={<Dashboard />} index />
       <Route element={<DagsList />} path="dags" />
     </Route>
   </Routes>

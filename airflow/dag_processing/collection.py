@@ -31,13 +31,13 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
-from sqlalchemy.sql import expression
 
 from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -131,13 +131,23 @@ class _RunInfo(NamedTuple):
 
     @classmethod
     def calculate(cls, dags: dict[str, DAG], *, session: Session) -> Self:
+        """
+        Query the the run counts from the db.
+
+        :param dags: dict of dags to query
+        """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
             return cls({}, {})
-        return cls(
-            {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags))},
-            DagRun.active_runs_of_dags(dag_ids=dags, session=session),
+
+        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))}
+        active_run_counts = DagRun.active_runs_of_dags(
+            dag_ids=dags.keys(),
+            exclude_backfill=True,
+            session=session,
         )
+
+        return cls(latest_runs, active_run_counts)
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -188,7 +198,11 @@ class DagModelOperation(NamedTuple):
         processor_subdir: str | None = None,
         session: Session,
     ) -> None:
-        run_info = _RunInfo.calculate(self.dags, session=session)
+        # we exclude backfill from active run counts since their concurrency is separate
+        run_info = _RunInfo.calculate(
+            dags=self.dags,
+            session=session,
+        )
 
         for dag_id, dm in sorted(orm_dags.items()):
             dag = self.dags[dag_id]
@@ -298,8 +312,6 @@ class AssetModelOperation(NamedTuple):
         orm_assets: dict[str, AssetModel] = {
             am.uri: am for am in session.scalars(select(AssetModel).where(AssetModel.uri.in_(self.assets)))
         }
-        for model in orm_assets.values():
-            model.is_orphaned = expression.false()
         orm_assets.update(
             (model.uri, model)
             for model in asset_manager.create_assets(
@@ -327,6 +339,20 @@ class AssetModelOperation(NamedTuple):
             )
         )
         return orm_aliases
+
+    def add_asset_active_references(self, assets: Collection[AssetModel], *, session: Session) -> None:
+        existing_entries = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_(AssetActive.name, AssetActive.uri).in_((asset.name, asset.uri) for asset in assets)
+                )
+            )
+        )
+        session.add_all(
+            AssetActive.for_asset(asset)
+            for asset in assets
+            if (asset.name, asset.uri) not in existing_entries
+        )
 
     def add_dag_asset_references(
         self,

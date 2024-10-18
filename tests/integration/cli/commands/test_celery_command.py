@@ -26,7 +26,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
 from airflow.executors import executor_loader
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.integration("celery")

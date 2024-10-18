@@ -123,12 +123,13 @@ github:
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
     - aritra24
     - dirrao
-    - mhenc
+    - rawwar
     - nathadfield
     - sunank200
     - vatsrahul1001
     - cmarteepants
     - gopidesupavan
+    - bugraoz93
 
 notifications:
   jobs: jobs@airflow.apache.org

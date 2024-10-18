@@ -25,7 +25,7 @@ from airflow.models import Connection
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import timezone
 
-from dev.tests_common.test_utils.compat import connection_as_json
+from tests_common.test_utils.compat import connection_as_json
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MINIMAL_TEST_TICKET = {

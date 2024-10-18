@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 def get_time_str(time_in_milliseconds):

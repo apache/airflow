@@ -55,8 +55,8 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-from dev.tests_common.test_utils.compat import BashOperator
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 
@@ -781,6 +781,21 @@ class TestKubernetesExecutor:
             assert len(executor.event_buffer) == 0
             assert len(executor.running) == 0
             mock_delete_pod.assert_not_called()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_change_state_key_not_in_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = ("dag_id", "task_id", "run_id", "try_number1")
+            executor.running = set()
+            executor._change_state(key, State.SUCCESS, "pod_name", "default")
+            assert executor.event_buffer.get(key) is None
+            assert executor.running == set()
         finally:
             executor.end()
 
@@ -1857,14 +1872,6 @@ class TestKubernetesJobWatcher:
         self._run()
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
-
-    def test_process_status_succeeded_dedup_timestamp(self):
-        self.pod.status.phase = "Succeeded"
-        self.pod.metadata.deletion_timestamp = timezone.utcnow()
-        self.events.append({"type": "MODIFIED", "object": self.pod})
-
-        self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
 
     @pytest.mark.parametrize(
         "ti_state",

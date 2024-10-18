@@ -24,8 +24,8 @@ import pytest
 
 from airflow.models import DagBag
 
-from dev.tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from dev.tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

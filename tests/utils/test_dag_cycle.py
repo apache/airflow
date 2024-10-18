@@ -24,6 +24,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
+
 from tests.models import DEFAULT_DATE
 
 

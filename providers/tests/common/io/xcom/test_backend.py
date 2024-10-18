@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
-from dev.tests_common.test_utils.db import is_db_isolation_mode
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
+from tests_common.test_utils.db import is_db_isolation_mode
 
 pytestmark = [
     pytest.mark.db_test,
@@ -38,8 +38,8 @@ with ignore_provider_compatibility_error("2.8.0", __file__):
 from airflow.utils import timezone
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from dev.tests_common.test_utils import db
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)

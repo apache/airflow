@@ -34,7 +34,6 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 from providers.tests.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
@@ -42,6 +41,7 @@ from providers.tests.apache.hive import (
     MockHiveServer2Hook,
     MockSubProcess,
 )
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

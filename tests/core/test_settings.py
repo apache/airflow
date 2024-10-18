@@ -34,7 +34,7 @@ from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigExcep
 from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 SETTINGS_FILE_POLICY = """
 def test_policy(task_instance):

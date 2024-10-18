@@ -28,7 +28,7 @@ from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
 
-from dev.tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
 

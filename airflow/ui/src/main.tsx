@@ -18,12 +18,13 @@
  */
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import axios, { type AxiosError, type AxiosResponse } from "axios";
+import axios, { type AxiosError } from "axios";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { App } from "src/App";
 
+import { TimezoneProvider } from "./context/timezone";
 import theme from "./theme";
 
 const queryClient = new QueryClient({
@@ -45,7 +46,7 @@ const queryClient = new QueryClient({
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 403 || error.response?.status === 401) {
       const params = new URLSearchParams();
@@ -53,6 +54,8 @@ axios.interceptors.response.use(
       params.set("next", globalThis.location.href);
       globalThis.location.replace(`/login?${params.toString()}`);
     }
+
+    return Promise.reject(error);
   },
 );
 
@@ -62,7 +65,9 @@ root.render(
   <BrowserRouter basename="/webapp">
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <TimezoneProvider>
+          <App />
+        </TimezoneProvider>
       </QueryClientProvider>
     </ChakraProvider>
   </BrowserRouter>,

@@ -28,7 +28,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.version import version
 
-from dev.tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import BashOperator
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

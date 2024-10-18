@@ -23,6 +23,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
+
 from tests.listeners import asset_listener
 
 

@@ -169,6 +169,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/serialization",
     ],
     "System": ["tests/system"],
+    "TaskSDK": ["task_sdk/tests"],
     "WWW": [
         "tests/www",
     ],
