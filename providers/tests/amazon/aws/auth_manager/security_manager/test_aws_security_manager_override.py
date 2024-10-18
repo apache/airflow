@@ -21,7 +21,7 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 
-from dev.tests_common.test_utils.compat import ignore_provider_compatibility_error
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 python3_saml = pytest.importorskip("python3-saml")
 

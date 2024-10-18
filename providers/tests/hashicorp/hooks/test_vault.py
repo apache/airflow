@@ -27,7 +27,7 @@ from airflow.configuration import AirflowConfigParser
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.hashicorp.hooks.vault import VaultHook
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 class TestVaultHook:

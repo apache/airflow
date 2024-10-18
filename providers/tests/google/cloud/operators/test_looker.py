@@ -26,7 +26,7 @@ from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 
 OPERATOR_PATH = "airflow.providers.google.cloud.operators.looker.{}"
 

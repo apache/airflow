@@ -37,8 +37,8 @@ from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils import db
-from dev.tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 
 pytestmark = pytest.mark.db_test
 

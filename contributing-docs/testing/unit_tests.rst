@@ -778,7 +778,7 @@ Running Unit tests
 Running Unit Tests from PyCharm IDE
 ...................................
 
-To run unit tests from the PyCharm IDE, create the `local virtualenv <07_local_virtualenv.rst>`_,
+To run unit tests from the PyCharm IDE, create the `local virtualenv <../07_local_virtualenv.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/pycharm/configure_test_runner.png
@@ -1171,7 +1171,7 @@ are not part of the public API. We deal with it in one of the following ways:
 1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
    by excluding it from compatibility test configuration (see below)
 
-2) Some compatibility shims are defined in ``dev.tests_common.test_utils/compat.py`` - and they can be used to make the
+2) Some compatibility shims are defined in ``tests_common.test_utils/compat.py`` - and they can be used to make the
    tests compatible - for example importing ``ParseImportError`` after the exception has been renamed from
    ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback import in ``compat.py`` that
    falls back to old import automatically, so all tests testing / expecting ``ParseImportError`` should import
@@ -1184,7 +1184,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
+  from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
   @pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="The tests should be skipped for Airflow < 2.8")
@@ -1197,7 +1197,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+  from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 
 
   @pytest.mark.skipif(

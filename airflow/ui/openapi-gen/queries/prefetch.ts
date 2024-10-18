@@ -7,6 +7,7 @@ import {
   DagRunService,
   DagService,
   DashboardService,
+  MonitorService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -188,6 +189,36 @@ export const prefetchUseConnectionServiceGetConnection = (
     queryFn: () => ConnectionService.getConnection({ connectionId }),
   });
 /**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnections = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+  });
+/**
  * Get Variable
  * Get a variable entry.
  * @param data The data for the request.
@@ -228,4 +259,14 @@ export const prefetchUseDagRunServiceGetDagRun = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
+    queryFn: () => MonitorService.getHealth(),
   });

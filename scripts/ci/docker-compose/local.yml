@@ -89,6 +89,9 @@ services:
         source: ../../../providers
         target: /opt/airflow/providers
       - type: bind
+        source: ../../../task_sdk
+        target: /opt/airflow/task_sdk
+      - type: bind
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
@@ -97,6 +100,9 @@ services:
       - type: bind
         source: ../../../scripts/docker/entrypoint_ci.sh
         target: /entrypoint
+      - type: bind
+        source: ../../../tests_common
+        target: /opt/airflow/tests_common
       - type: bind
         source: ../../../tests
         target: /opt/airflow/tests

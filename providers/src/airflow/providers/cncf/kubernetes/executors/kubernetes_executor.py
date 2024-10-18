@@ -482,6 +482,7 @@ class KubernetesExecutor(BaseExecutor):
             self.running.remove(key)
         except KeyError:
             self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
+            return
 
         # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
         if state is None:

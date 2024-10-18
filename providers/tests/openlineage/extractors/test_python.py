@@ -31,7 +31,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
-from dev.tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import BashOperator
 
 pytestmark = pytest.mark.db_test
 

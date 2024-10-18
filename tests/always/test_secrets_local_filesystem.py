@@ -30,7 +30,7 @@ from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 
 @contextmanager

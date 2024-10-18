@@ -30,14 +30,14 @@ from airflow.models import TaskInstance
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_runs
-from dev.tests_common.test_utils.gcp_system_helpers import (
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
     resolve_full_gcp_key_path,
 )
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_STACKDRIVER
 
 
 @pytest.mark.system("google")

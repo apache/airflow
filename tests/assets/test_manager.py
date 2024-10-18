@@ -38,6 +38,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
 from tests.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 @pytest.fixture
 def clear_assets():
-    from dev.tests_common.test_utils.db import clear_db_assets
+    from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield

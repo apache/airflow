@@ -27,7 +27,7 @@ from airflow.ti_deps.deps.pool_slots_available_dep import PoolSlotsAvailableDep
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
-from dev.tests_common.test_utils import db
+from tests_common.test_utils import db
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

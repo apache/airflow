@@ -114,7 +114,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.63.0
+  - google-cloud-aiplatform>=1.70.0
   - google-cloud-automl>=2.12.0
   # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
   - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
@@ -157,7 +157,9 @@ dependencies:
   - grpcio-gcp>=0.2.2
   - httpx>=0.25.0
   - json-merge-patch>=0.2
-  - looker-sdk>=22.4.0
+  # looker-sdk 24.18.0 has issues in import looker_sdk.rtl,  No module named looker_sdk.rtl
+  # See https://github.com/looker-open-source/sdk-codegen/issues/1518
+  - looker-sdk>=22.4.0,!=24.18.0
   - pandas-gbq>=0.7.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
@@ -168,6 +170,8 @@ dependencies:
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
+  # Used to write parquet files by BaseSqlToGCSOperator
+  - pyarrow>=14.0.1
   - python-slugify>=7.0.0
   - PyOpenSSL>=23.0.0
   - sqlalchemy-bigquery>=1.2.1
@@ -184,7 +188,7 @@ additional-extras:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: leveldb
     dependencies:
-      - plyvel
+      - plyvel>=1.5.1
   - name: oracle
     dependencies:
       - apache-airflow-providers-oracle>=3.1.0

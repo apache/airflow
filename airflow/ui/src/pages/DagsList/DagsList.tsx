@@ -25,7 +25,12 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEventHandler, useCallback, useState } from "react";
+import {
+  type ChangeEvent,
+  type ChangeEventHandler,
+  useCallback,
+  useState,
+} from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
@@ -36,8 +41,13 @@ import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
-import { pluralize } from "src/utils/pluralize";
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
+import { pluralize } from "src/utils";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
@@ -73,6 +83,10 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "next_dagrun",
+    cell: ({ row: { original } }) =>
+      Boolean(original.next_dagrun) ? (
+        <Time datetime={original.next_dagrun} />
+      ) : undefined,
     enableSorting: false,
     header: "Next DAG Run",
   },
@@ -90,6 +104,12 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
 ];
 
+const {
+  LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  NAME_PATTERN: NAME_PATTERN_PARAM,
+  PAUSED: PAUSED_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
+
 const cardDef: CardDef<DAGResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
   meta: {
@@ -97,31 +117,61 @@ const cardDef: CardDef<DAGResponse> = {
   },
 };
 
-const PAUSED_PARAM = "paused";
-const STATE_PARAM = "last_dag_run_state";
-
 export const DagsList = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
-  const lastDagRunState = searchParams.get(STATE_PARAM) as DagRunState;
+  const lastDagRunState = searchParams.get(
+    LAST_DAG_RUN_STATE_PARAM,
+  ) as DagRunState;
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
+  const [dagDisplayNamePattern, setDagDisplayNamePattern] = useState(
+    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
+  );
 
   // TODO: update API to accept multiple orderBy params
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, error, isFetching, isLoading } = useDagServiceGetDags({
-    lastDagRunState,
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    onlyActive: true,
-    orderBy,
-    paused: showPaused === null ? undefined : showPaused === "true",
-  });
+  const handleSearchChange = ({
+    target: { value },
+  }: ChangeEvent<HTMLInputElement>) => {
+    if (value) {
+      searchParams.set(NAME_PATTERN_PARAM, value);
+    } else {
+      searchParams.delete(NAME_PATTERN_PARAM);
+    }
+    setSearchParams(searchParams);
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    setDagDisplayNamePattern(value);
+  };
+
+  const { data, error, isFetching, isLoading } = useDagServiceGetDags(
+    {
+      dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
+        ? `%${dagDisplayNamePattern}%`
+        : undefined,
+      lastDagRunState,
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      onlyActive: true,
+      orderBy,
+      paused: showPaused === null ? undefined : showPaused === "true",
+    },
+    [dagDisplayNamePattern, showPaused],
+    {
+      refetchOnMount: true,
+      refetchOnReconnect: false,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
 
   const handleSortChange = useCallback<ChangeEventHandler<HTMLSelectElement>>(
     ({ currentTarget: { value } }) => {
@@ -140,7 +190,10 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ isDisabled: true }}
-          inputProps={{ isDisabled: true }}
+          inputProps={{
+            defaultValue: dagDisplayNamePattern,
+            onChange: handleSearchChange,
+          }}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

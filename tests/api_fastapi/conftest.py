@@ -25,3 +25,14 @@ from airflow.api_fastapi.app import create_app
 @pytest.fixture
 def test_client():
     return TestClient(create_app())
+
+
+@pytest.fixture
+def client():
+    """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
+
+    def create_test_client(apps="all"):
+        app = create_app(apps=apps)
+        return TestClient(app)
+
+    return create_test_client

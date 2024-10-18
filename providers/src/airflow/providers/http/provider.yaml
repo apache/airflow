@@ -65,9 +65,9 @@ dependencies:
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
   - requests>=2.27.0,<3
-  - requests_toolbelt
+  - requests-toolbelt>=0.4.0
   - aiohttp>=3.9.2
-  - asgiref
+  - asgiref>=2.3.0
 
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)

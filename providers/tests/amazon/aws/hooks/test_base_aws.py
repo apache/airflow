@@ -50,7 +50,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("aiobotocore")
 

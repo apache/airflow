@@ -28,7 +28,7 @@ from airflow.models import Connection
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.utils import db
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

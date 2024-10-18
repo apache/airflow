@@ -43,7 +43,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

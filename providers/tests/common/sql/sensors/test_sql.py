@@ -27,7 +27,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only"),
@@ -263,6 +263,31 @@ class TestSqlSensor:
         with pytest.raises(AirflowException) as ctx:
             op.poke({})
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
+
+    @pytest.mark.backend("postgres")
+    def test_sql_sensor_postgres_with_selector(self):
+        op1 = SqlSensor(
+            task_id="sql_sensor_check_1",
+            conn_id="postgres_default",
+            sql="SELECT 0, 1",
+            dag=self.dag,
+            success=lambda x: x in [1],
+            failure=lambda x: x in [0],
+            selector=lambda x: x[1],
+        )
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        op2 = SqlSensor(
+            task_id="sql_sensor_check_2",
+            conn_id="postgres_default",
+            sql="SELECT 0, 1",
+            dag=self.dag,
+            success=lambda x: x in [1],
+            failure=lambda x: x in [0],
+            selector=lambda x: x[0],
+        )
+        with pytest.raises(AirflowException):
+            op2.poke({})
 
     @pytest.mark.db_test
     def test_sql_sensor_hook_params(self):
