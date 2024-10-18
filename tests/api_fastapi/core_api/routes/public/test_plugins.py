@@ -28,7 +28,7 @@ class TestGetConnections:
             # Filters
             (
                 {},
-                12,
+                13,
                 [
                     "test_plugin",
                     "plugin-a",
@@ -45,7 +45,7 @@ class TestGetConnections:
                 ],
             ),
             ({"limit": 3, "offset": 2}, 12, ["plugin-b", "plugin-c", "postload"]),
-            ({"limit": 1}, 12, ["test_plugin"]),
+            ({"limit": 1}, 13, ["test_plugin"]),
         ],
     )
     def test_should_respond_200(

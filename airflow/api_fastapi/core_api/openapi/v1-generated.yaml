@@ -1309,6 +1309,7 @@ components:
           - type: string
           - type: 'null'
           title: Category
+      additionalProperties: true
       type: object
       required:
       - name
@@ -1336,6 +1337,7 @@ components:
           - type: string
           - type: 'null'
           title: Label
+      additionalProperties: true
       type: object
       title: AppBuilderViewResponse
       description: Serializer for AppBuilder View responses.
@@ -2056,6 +2058,7 @@ components:
         name:
           type: string
           title: Name
+      additionalProperties: true
       type: object
       required:
       - app
