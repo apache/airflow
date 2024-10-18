@@ -385,6 +385,35 @@ export type ProviderResponse = {
 };
 
 /**
+ * Run serializer for Recent DAG Runs.
+ */
+export type RecentDAGRun = {
+  dag_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  state: DagRunState;
+  execution_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+};
+
+/**
+ * Recent DAG Runs collection response serializer.
+ */
+export type RecentDAGRunsCollectionResponse = {
+  recent_dag_runs: Array<RecentDAGRunsResponse>;
+  total_entries: number;
+};
+
+/**
+ * Recent DAG Runs response serializer.
+ */
+export type RecentDAGRunsResponse = {
+  dag_id: string;
+  dag_runs: Array<RecentDAGRun>;
+};
+
+/**
  * Schema for Scheduler info.
  */
 export type SchedulerInfoSchema = {
@@ -473,6 +502,20 @@ export type HistoricalMetricsData = {
 };
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type RecentDagRunsData = {
+  dagDisplayNamePattern?: string | null;
+  dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+};
+
+export type RecentDagRunsResponse = RecentDAGRunsCollectionResponse;
 
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
@@ -689,6 +732,21 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dags/recent_dag_runs": {
+    get: {
+      req: RecentDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: RecentDAGRunsCollectionResponse;
         /**
          * Validation Error
          */

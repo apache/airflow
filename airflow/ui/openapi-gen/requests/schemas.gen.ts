@@ -1633,6 +1633,130 @@ export const $ProviderResponse = {
   description: "Provider serializer for responses.",
 } as const;
 
+export const $RecentDAGRun = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    execution_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Execution Date",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+  },
+  type: "object",
+  required: [
+    "dag_id",
+    "start_date",
+    "end_date",
+    "state",
+    "execution_date",
+    "data_interval_start",
+    "data_interval_end",
+  ],
+  title: "RecentDAGRun",
+  description: "Run serializer for Recent DAG Runs.",
+} as const;
+
+export const $RecentDAGRunsCollectionResponse = {
+  properties: {
+    recent_dag_runs: {
+      items: {
+        $ref: "#/components/schemas/RecentDAGRunsResponse",
+      },
+      type: "array",
+      title: "Recent Dag Runs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["recent_dag_runs", "total_entries"],
+  title: "RecentDAGRunsCollectionResponse",
+  description: "Recent DAG Runs collection response serializer.",
+} as const;
+
+export const $RecentDAGRunsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    dag_runs: {
+      items: {
+        $ref: "#/components/schemas/RecentDAGRun",
+      },
+      type: "array",
+      title: "Dag Runs",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "dag_runs"],
+  title: "RecentDAGRunsResponse",
+  description: "Recent DAG Runs response serializer.",
+} as const;
+
 export const $SchedulerInfoSchema = {
   properties: {
     status: {

@@ -16,13 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
+from tests.api_fastapi.core_api.routes.public.test_dags import TestDagEndpoint
 
-ui_router = AirflowRouter(prefix="/ui")
 
-ui_router.include_router(assets_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(dags_router)
+class TestRecentDagRuns(TestDagEndpoint):
+    def test_recent_dag_runs(self, test_client, query_params, expected_total_entries, expected_ids):
+        response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
+        assert response.status_code == 200
+        print(response.json())

@@ -73,6 +73,96 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/recent_dag_runs:
+    get:
+      tags:
+      - Dags
+      summary: Recent Dag Runs
+      description: Get recent DAG runs.
+      operationId: recent_dag_runs
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name Pattern
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecentDAGRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/:
     get:
       tags:
@@ -2473,6 +2563,86 @@ components:
       - version
       title: ProviderResponse
       description: Provider serializer for responses.
+    RecentDAGRun:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        execution_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Execution Date
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+      type: object
+      required:
+      - dag_id
+      - start_date
+      - end_date
+      - state
+      - execution_date
+      - data_interval_start
+      - data_interval_end
+      title: RecentDAGRun
+      description: Run serializer for Recent DAG Runs.
+    RecentDAGRunsCollectionResponse:
+      properties:
+        recent_dag_runs:
+          items:
+            $ref: '#/components/schemas/RecentDAGRunsResponse'
+          type: array
+          title: Recent Dag Runs
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - recent_dag_runs
+      - total_entries
+      title: RecentDAGRunsCollectionResponse
+      description: Recent DAG Runs collection response serializer.
+    RecentDAGRunsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/RecentDAGRun'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - dag_id
+      - dag_runs
+      title: RecentDAGRunsResponse
+      description: Recent DAG Runs response serializer.
     SchedulerInfoSchema:
       properties:
         status:
