@@ -82,5 +82,4 @@ jobs:
       - name: >
           Run unit tests for Airflow Task SDK:Python ${{ matrix.python-version }}
         run: >
-          breeze testing tests --run-in-parallel
-          --parallel-test-types TaskSDK
+          breeze testing task-sdk-tests --python "${{ matrix.python-version }}"
