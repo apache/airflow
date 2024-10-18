@@ -58,9 +58,7 @@ const DagRun = ({ runId }: Props) => {
         initialValue={note}
         key={dagId + runId}
       />
-      {runType === "dataset_triggered" && (
-        <DatasetTriggerEvents runId={runId} />
-      )}
+      {runType === "asset_triggered" && <DatasetTriggerEvents runId={runId} />}
       <DagRunDetails run={run} />
     </Box>
   );

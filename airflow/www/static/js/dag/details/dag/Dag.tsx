@@ -242,14 +242,14 @@ const Dag = () => {
                 </Td>
                 <Td />
               </Tr>
-              {!!dagDetailsData.datasetExpression && (
+              {!!dagDetailsData.assetExpression && (
                 <Tr>
                   <Td>Dataset Conditions</Td>
                   <Td>
                     <Code>
                       <pre>
                         {JSON.stringify(
-                          dagDetailsData.datasetExpression,
+                          dagDetailsData.assetExpression,
                           null,
                           2
                         )}

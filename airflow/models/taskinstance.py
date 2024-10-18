@@ -1086,11 +1086,11 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        asset_events = dag_run.consumed_dataset_events
+        asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
         for event in asset_events:
-            if event.dataset:
-                triggering_events[event.dataset.uri].append(event)
+            if event.asset:
+                triggering_events[event.asset.uri].append(event)
 
         return triggering_events
 
@@ -2911,22 +2911,22 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(asset_alias_event["extra"].items())
                     asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-        dataset_models: dict[str, AssetModel] = {
-            dataset_obj.uri: dataset_obj
-            for dataset_obj in session.scalars(
+        asset_models: dict[str, AssetModel] = {
+            asset_obj.uri: asset_obj
+            for asset_obj in session.scalars(
                 select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
-        if missing_datasets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
-            dataset_models.update(
-                (dataset_obj.uri, dataset_obj)
-                for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
+        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in asset_models]:
+            asset_models.update(
+                (asset_obj.uri, asset_obj)
+                for asset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
-            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            self.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
         for (uri, extra_items), alias_names in asset_alias_names.items():
-            asset_obj = dataset_models[uri]
+            asset_obj = asset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
                 asset_obj,
@@ -2935,7 +2935,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=self,
                 asset=asset_obj,
-                aliases=[AssetAlias(name) for name in alias_names],
+                aliases=[AssetAlias(name=name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
