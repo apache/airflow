@@ -450,6 +450,12 @@ export type DeleteDagRunResponse = void;
 
 export type GetHealthResponse = HealthInfoSchema;
 
+export type DeletePoolData = {
+  poolName: string;
+};
+
+export type DeletePoolResponse = void;
+
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
@@ -897,6 +903,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/pools/{pool_name}": {
+    delete: {
+      req: DeletePoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
