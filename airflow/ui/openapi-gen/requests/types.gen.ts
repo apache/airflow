@@ -321,6 +321,14 @@ export type VariableBody = {
 };
 
 /**
+ * Variable Collection serializer for responses.
+ */
+export type VariableCollectionResponse = {
+  variables: Array<VariableResponse>;
+  total_entries: number;
+};
+
+/**
  * Variable serializer for responses.
  */
 export type VariableResponse = {
@@ -439,6 +447,14 @@ export type PatchVariableData = {
 };
 
 export type PatchVariableResponse = VariableResponse;
+
+export type GetVariablesData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetVariablesResponse = VariableCollectionResponse;
 
 export type PostVariableData = {
   requestBody: VariableBody;
@@ -832,6 +848,27 @@ export type $OpenApiTs = {
     };
   };
   "/public/variables/": {
+    get: {
+      req: GetVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
     post: {
       req: PostVariableData;
       res: {

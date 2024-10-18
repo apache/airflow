@@ -31,6 +31,8 @@ import type {
   GetVariableResponse,
   PatchVariableData,
   PatchVariableResponse,
+  GetVariablesData,
+  GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
   GetDagRunData,
@@ -462,6 +464,35 @@ export class VariableService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Variables
+   * Get all Variables entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns VariableCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getVariables(
+    data: GetVariablesData = {},
+  ): CancelablePromise<GetVariablesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/variables/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

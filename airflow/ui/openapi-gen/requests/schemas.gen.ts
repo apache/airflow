@@ -1390,6 +1390,26 @@ export const $VariableBody = {
   description: "Variable serializer for bodies.",
 } as const;
 
+export const $VariableCollectionResponse = {
+  properties: {
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableResponse",
+      },
+      type: "array",
+      title: "Variables",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["variables", "total_entries"],
+  title: "VariableCollectionResponse",
+  description: "Variable Collection serializer for responses.",
+} as const;
+
 export const $VariableResponse = {
   properties: {
     key: {

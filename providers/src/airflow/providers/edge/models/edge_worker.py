@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 from datetime import datetime
 from enum import Enum
@@ -71,7 +72,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     __tablename__ = "edge_worker"
     worker_name = Column(String(64), primary_key=True, nullable=False)
     state = Column(String(20))
-    queues = Column(String(256))
+    _queues = Column("queues", String(256))
     first_online = Column(UtcDateTime)
     last_update = Column(UtcDateTime)
     jobs_active = Column(Integer, default=0)
@@ -90,7 +91,7 @@ class EdgeWorkerModel(Base, LoggingMixin):
     ):
         self.worker_name = worker_name
         self.state = state
-        self.queues = ", ".join(queues) if queues else None
+        self.queues = queues
         self.first_online = first_online or timezone.utcnow()
         self.last_update = last_update
         super().__init__()
@@ -98,6 +99,33 @@ class EdgeWorkerModel(Base, LoggingMixin):
     @property
     def sysinfo_json(self) -> dict:
         return json.loads(self.sysinfo) if self.sysinfo else None
+
+    @property
+    def queues(self) -> list[str] | None:
+        """Return list of queues which are stored in queues field."""
+        if self._queues:
+            return ast.literal_eval(self._queues)
+        return None
+
+    @queues.setter
+    def queues(self, queues: list[str] | None) -> None:
+        """Set all queues of list into queues field."""
+        self._queues = str(queues) if queues else None
+
+    def add_queues(self, new_queues: list[str]) -> None:
+        """Add new queue to the queues field."""
+        queues = self.queues if self.queues else []
+        queues.extend(new_queues)
+        # remove duplicated items
+        self.queues = list(set(queues))
+
+    def remove_queues(self, remove_queues: list[str]) -> None:
+        """Remove queue from queues field."""
+        queues = self.queues if self.queues else []
+        for queue_name in remove_queues:
+            if queue_name in queues:
+                queues.remove(queue_name)
+        self.queues = queues
 
 
 class EdgeWorker(BaseModel, LoggingMixin):
@@ -168,7 +196,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
         return EdgeWorker(
             worker_name=worker_name,
             state=state,
-            queues=worker.queues,
+            queues=queues,
             first_online=worker.first_online,
             last_update=worker.last_update,
             jobs_active=worker.jobs_active or 0,
@@ -187,7 +215,8 @@ class EdgeWorker(BaseModel, LoggingMixin):
         jobs_active: int,
         sysinfo: dict[str, str],
         session: Session = NEW_SESSION,
-    ):
+    ) -> list[str] | None:
+        """Set state of worker and returns the current assigned queues."""
         EdgeWorker.assert_version(sysinfo)
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
@@ -195,6 +224,24 @@ class EdgeWorker(BaseModel, LoggingMixin):
         worker.jobs_active = jobs_active
         worker.sysinfo = json.dumps(sysinfo)
         worker.last_update = timezone.utcnow()
+        session.commit()
+        return worker.queues
+
+    @staticmethod
+    @provide_session
+    def add_and_remove_queues(
+        worker_name: str,
+        new_queues: list[str] | None = None,
+        remove_queues: list[str] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
+        worker: EdgeWorkerModel = session.scalar(query)
+        if new_queues:
+            worker.add_queues(new_queues)
+        if remove_queues:
+            worker.remove_queues(remove_queues)
+        session.add(worker)
         session.commit()
 
 
