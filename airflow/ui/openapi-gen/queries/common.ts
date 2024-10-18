@@ -192,6 +192,29 @@ export const UseVariableServiceGetVariableKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
+export type VariableServiceGetVariablesDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariables>
+>;
+export type VariableServiceGetVariablesQueryResult<
+  TData = VariableServiceGetVariablesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVariableServiceGetVariablesKey = "VariableServiceGetVariables";
+export const UseVariableServiceGetVariablesKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useVariableServiceGetVariablesKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<
   ReturnType<typeof DagRunService.getDagRun>
 >;
