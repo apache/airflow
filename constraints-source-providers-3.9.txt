@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-18T07:43:11.314968
+# This constraints file was automatically generated on 2024-10-18T13:46:25.614203
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -358,7 +358,7 @@ moto==5.0.17
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.5
+msgraph-core==1.1.6
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
