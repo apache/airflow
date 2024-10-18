@@ -28,6 +28,7 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from asyncio.exceptions import TimeoutError
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -679,7 +680,7 @@ class BaseDatabricksHook(BaseHook):
             if exception.status >= 500 or exception.status == 429:
                 return True
 
-        if isinstance(exception, ClientConnectorError):
+        if isinstance(exception, (ClientConnectorError, TimeoutError)):
             return True
 
         return False
