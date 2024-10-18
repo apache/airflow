@@ -85,7 +85,4 @@ jobs:
           Airflow Task SDK:Python ${{ matrix.python-version }}
         if: matrix.run-tests == 'true'
         run: >
-          breeze testing tests --run-in-parallel
-          --parallel-test-types TaskSDK
-          --use-packages-from-dist
-          --package-format wheel
+          breeze testing task-sdk-tests --python "${{ matrix.python-version }}"
