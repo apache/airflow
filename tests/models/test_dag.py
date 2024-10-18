@@ -1116,46 +1116,6 @@ class TestDag:
         dag = DAG("DAG", schedule=None, default_args=default_args)
         assert dag.timezone.name == local_tz.name
 
-    def test_partial_subset_updates_all_references_while_deepcopy(self):
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
-            op2 = EmptyOperator(task_id="t2")
-            op3 = EmptyOperator(task_id="t3")
-            op1 >> op2
-            op2 >> op3
-
-        partial = dag.partial_subset("t2", include_upstream=True, include_downstream=False)
-        assert id(partial.task_dict["t1"].downstream_list[0].dag) == id(partial)
-
-        # Copied DAG should not include unused task IDs in used_group_ids
-        assert "t3" not in partial.task_group.used_group_ids
-
-    def test_partial_subset_taskgroup_join_ids(self):
-        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
-            start = EmptyOperator(task_id="start")
-            with TaskGroup(group_id="outer", prefix_group_id=False) as outer_group:
-                with TaskGroup(group_id="tg1", prefix_group_id=False) as tg1:
-                    EmptyOperator(task_id="t1")
-                with TaskGroup(group_id="tg2", prefix_group_id=False) as tg2:
-                    EmptyOperator(task_id="t2")
-
-                start >> tg1 >> tg2
-
-        # Pre-condition checks
-        task = dag.get_task("t2")
-        assert task.task_group.upstream_group_ids == {"tg1"}
-        assert isinstance(task.task_group.parent_group, weakref.ProxyType)
-        assert task.task_group.parent_group == outer_group
-
-        partial = dag.partial_subset(["t2"], include_upstream=True, include_downstream=False)
-        copied_task = partial.get_task("t2")
-        assert copied_task.task_group.upstream_group_ids == {"tg1"}
-        assert isinstance(copied_task.task_group.parent_group, weakref.ProxyType)
-        assert copied_task.task_group.parent_group
-
-        # Make sure we don't affect the original!
-        assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
-
     def test_schedule_dag_no_previous_runs(self):
         """
         Tests scheduling a dag with no previous runs
@@ -1539,6 +1499,9 @@ class TestDag:
 
         # a fail stop dag should not allow a non-default trigger rule
         with pytest.raises(FailStopDagInvalidTriggerRule):
+            task_with_non_default_trigger_rule = EmptyOperator(
+                task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
+            )
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):

@@ -22,13 +22,14 @@ import collections.abc
 import contextlib
 import copy
 import inspect
+import sys
 import warnings
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
 from types import FunctionType
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Final, TypeVar, cast
 
 import attrs
 
@@ -617,6 +618,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # start_trigger_args: StartTriggerArgs | None = None
     # start_from_trigger: bool = False
 
+    # base list which includes all the attrs that don't need deep copy.
+    _base_operator_shallow_copy_attrs: Final[tuple[str, ...]] = (
+        "user_defined_macros",
+        "user_defined_filters",
+        "params",
+    )
+
+    # each operator should override this class attr for shallow copy attrs.
+    shallow_copy_attrs: ClassVar[Sequence[str]] = ()
+
     def __setattr__(self: BaseOperator, key: str, value: Any):
         if converter := getattr(self, f"_convert_{key}", None):
             value = converter(value)
@@ -916,6 +927,38 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.add_inlets(other)
 
         return self
+
+    def __deepcopy__(self, memo: dict[int, Any]):
+        # Hack sorting double chained task lists by task_id to avoid hitting
+        # max_depth on deepcopy operations.
+        sys.setrecursionlimit(5000)  # TODO fix this in a better way
+
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
+
+        for k, v in self.__dict__.items():
+            if k not in shallow_copy:
+                v = copy.deepcopy(v, memo)
+            else:
+                v = copy.copy(v)
+
+            # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
+            # we know the type is already fine
+            object.__setattr__(result, k, v)
+        return result
+
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        if self._log:
+            del state["_log"]
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__ = state
 
     def add_inlets(self, inlets: Iterable[Any]):
         """Set inlets to this operator."""

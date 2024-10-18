@@ -108,13 +108,14 @@ _DAG_HASH_ATTRS = frozenset(
     {
         "dag_id",
         "task_ids",
-        "parent_dag",
         "start_date",
         "end_date",
         "fileloc",
         "template_searchpath",
         "last_loaded",
-        "timetable",
+        "schedule",
+        # TODO: Task-SDK: we should be hashing on timetable now, not scheulde!
+        # "timetable",
     }
 )
 
@@ -218,7 +219,8 @@ else:
     dict_copy = copy.copy
 
 
-@attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only)
+# TODO: Task-SDK: look at re-enabling slots after we remove pickling
+@attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only, slots=False)
 class DAG:
     """
     A dag (directed acyclic graph) is a collection of tasks with directional dependencies.
@@ -330,16 +332,6 @@ class DAG:
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
-    _comps = {
-        "dag_id",
-        "task_ids",
-        "start_date",
-        "end_date",
-        "fileloc",
-        "template_searchpath",
-        "last_loaded",
-    }
-
     __serialized_fields: ClassVar[frozenset[str] | None] = None
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
@@ -430,7 +422,8 @@ class DAG:
         from airflow.assets import AssetAll
 
         schedule = self.schedule
-        delattr(self, "schedule")
+        # TODO: Once
+        # delattr(self, "schedule")
         if isinstance(schedule, Timetable):
             return schedule
         elif isinstance(schedule, BaseAsset):
@@ -495,8 +488,9 @@ class DAG:
         return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other: Self | Any):
-        if not isinstance(other, type(self)):
-            return NotImplemented
+        # TODO: This subclassing behaviour seems wrong, but it's what Airflow has done for ~ever.
+        if type(self) is not type(other):
+            return False
         return all(getattr(self, c, None) == getattr(other, c, None) for c in _DAG_HASH_ATTRS)
 
     def __ne__(self, other: Any):
@@ -685,7 +679,7 @@ class DAG:
 
         return tuple(nested_topo(self.task_group))
 
-    def __deepcopy__(self, memo):
+    def __deepcopy__(self, memo: dict[int, Any]):
         # Switcharoo to go around deepcopying objects coming through the
         # backdoor
         cls = self.__class__
@@ -693,7 +687,7 @@ class DAG:
         memo[id(self)] = result
         for k, v in self.__dict__.items():
             if k not in ("user_defined_macros", "user_defined_filters", "_log"):
-                setattr(result, k, copy.deepcopy(v, memo))
+                object.__setattr__(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
@@ -763,13 +757,13 @@ class DAG:
                 upstream = (u for u in t.upstream_list if isinstance(u, (BaseOperator, MappedOperator)))
                 direct_upstreams.extend(upstream)
 
-        # Compiling the unique list of tasks that made the cut
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
         def _deepcopy_task(t) -> Operator:
             memo.setdefault(id(t.task_group), None)
             return copy.deepcopy(t, memo)
 
+        # Compiling the unique list of tasks that made the cut
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
@@ -785,12 +779,10 @@ class DAG:
             memo[id(group.children)] = {}
             if parent_group:
                 memo[id(group.parent_group)] = parent_group
-            for attr, value in copied.__dict__.items():
-                if id(value) in memo:
-                    value = memo[id(value)]
-                else:
-                    value = copy.deepcopy(value, memo)
-                copied.__dict__[attr] = value
+            for attr in type(group).__slots__:
+                value = getattr(group, attr)
+                value = copy.deepcopy(value, memo)
+                object.__setattr__(copied, attr, value)
 
             proxy = weakref.proxy(copied)
 

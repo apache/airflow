@@ -413,7 +413,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     """
 
     partial: bool = False
-    last_loaded: datetime | None = None
+    last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
 
