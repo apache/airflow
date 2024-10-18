@@ -1586,6 +1586,7 @@ class SerializedDAG(DAG, BaseSerialization):
             "description": "_description",
             "default_view": "_default_view",
             "access_control": "_access_control",
+            "version_name": "_version_name",
         }
         return {
             param_to_attr.get(k, k): v.default
