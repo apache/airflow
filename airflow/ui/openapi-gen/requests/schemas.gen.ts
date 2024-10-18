@@ -1169,6 +1169,47 @@ export const $HistoricalMetricDataResponse = {
   description: "Historical Metric Data serializer for responses.",
 } as const;
 
+export const $ProviderCollectionResponse = {
+  properties: {
+    providers: {
+      items: {
+        $ref: "#/components/schemas/ProviderResponse",
+      },
+      type: "array",
+      title: "Providers",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["providers", "total_entries"],
+  title: "ProviderCollectionResponse",
+  description: "Provider Collection serializer for responses.",
+} as const;
+
+export const $ProviderResponse = {
+  properties: {
+    package_name: {
+      type: "string",
+      title: "Package Name",
+    },
+    description: {
+      type: "string",
+      title: "Description",
+    },
+    version: {
+      type: "string",
+      title: "Version",
+    },
+  },
+  type: "object",
+  required: ["package_name", "description", "version"],
+  title: "ProviderResponse",
+  description: "Provider serializer for responses.",
+} as const;
+
 export const $SchedulerInfoSchema = {
   properties: {
     status: {
