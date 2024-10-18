@@ -3300,6 +3300,8 @@ components:
             - manual
             - scheduled
             - asset_triggered
+          description: |
+            Changed in 3.0.0: The asset_triggered value was renamed from dataset_triggered)
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:
