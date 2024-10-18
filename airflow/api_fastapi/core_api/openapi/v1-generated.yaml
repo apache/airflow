@@ -1010,6 +1010,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
+  /public/pools/{pool_name}:
+    delete:
+      tags:
+      - Pool
+      summary: Delete Pool
+      description: Delete a pool entry.
+      operationId: delete_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BaseInfoSchema:
