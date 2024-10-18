@@ -30,7 +30,7 @@ async def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
 ) -> PluginCollectionResponse:
-    plugins_info = get_plugin_info()
+    plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
     return PluginCollectionResponse(
         plugins=[
             PluginResponse.model_validate(plugin_info)
