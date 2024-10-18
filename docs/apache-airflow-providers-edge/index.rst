@@ -44,6 +44,7 @@
     :caption: References
 
     Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/edge/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge/>
     Installing from sources <installing-providers-from-sources>
