@@ -25,7 +25,7 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunPatchBody, DAGRunResponse
 from airflow.models import DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
@@ -57,3 +57,19 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
         )
 
     session.delete(dag_run)
+
+
+@dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+async def update_dag_run_state(
+    dag_id: str, dag_run_id: str, state: DAGRunPatchBody, session: Annotated[Session, Depends(get_session)]
+) -> DAGRunResponse:
+    """Modify a DAG Run."""
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    if dag_run is None:
+        raise HTTPException(
+            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+        )
+
+    setattr(dag_run, "state", state.state)
+
+    return DAGRunResponse.model_validate(dag_run, from_attributes=True)
