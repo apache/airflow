@@ -29,6 +29,31 @@ def coerce_to_string(data: Any) -> Any:
     return str(data)
 
 
+class FastAPIAppResponse(BaseModel):
+    """Serializer for Plugin FastAPI App responses."""
+
+    app: str
+    url_prefix: str
+    name: str
+
+
+class AppBuilderViewResponse(BaseModel):
+    """Serializer for AppBuilder View responses."""
+
+    name: str | None = None
+    category: str | None = None
+    view: str | None = None
+    label: str | None = None
+
+
+class AppBuilderMenuItemResponse(BaseModel):
+    """Serializer for AppBuilder Menu Item responses."""
+
+    name: str
+    href: str | None = None
+    category: str | None = None
+
+
 class PluginResponse(BaseModel):
     """Plugin serializer."""
 
@@ -37,9 +62,9 @@ class PluginResponse(BaseModel):
     executors: list[str]
     macros: list[str]
     flask_blueprints: list[str]
-    fastapi_apps: list[dict]
-    appbuilder_views: list[dict]
-    appbuilder_menu_items: list[dict]
+    fastapi_apps: list[FastAPIAppResponse]
+    appbuilder_views: list[AppBuilderViewResponse]
+    appbuilder_menu_items: list[AppBuilderMenuItemResponse]
     global_operator_extra_links: list[str]
     operator_extra_links: list[str]
     source: Annotated[str, BeforeValidator(coerce_to_string)]

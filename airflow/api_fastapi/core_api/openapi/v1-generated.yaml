@@ -1294,6 +1294,51 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AppBuilderMenuItemResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        href:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Href
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+      type: object
+      required:
+      - name
+      title: AppBuilderMenuItemResponse
+      description: Serializer for AppBuilder Menu Item responses.
+    AppBuilderViewResponse:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        view:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: View
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+      type: object
+      title: AppBuilderViewResponse
+      description: Serializer for AppBuilder View responses.
     BaseInfoSchema:
       properties:
         status:
@@ -2000,6 +2045,24 @@ components:
       title: DagTagPydantic
       description: Serializable representation of the DagTag ORM SqlAlchemyModel used
         by internal API.
+    FastAPIAppResponse:
+      properties:
+        app:
+          type: string
+          title: App
+        url_prefix:
+          type: string
+          title: Url Prefix
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - app
+      - url_prefix
+      - name
+      title: FastAPIAppResponse
+      description: Serializer for Plugin FastAPI App responses.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -2097,17 +2160,17 @@ components:
           title: Flask Blueprints
         fastapi_apps:
           items:
-            type: object
+            $ref: '#/components/schemas/FastAPIAppResponse'
           type: array
           title: Fastapi Apps
         appbuilder_views:
           items:
-            type: object
+            $ref: '#/components/schemas/AppBuilderViewResponse'
           type: array
           title: Appbuilder Views
         appbuilder_menu_items:
           items:
-            type: object
+            $ref: '#/components/schemas/AppBuilderMenuItemResponse'
           type: array
           title: Appbuilder Menu Items
         global_operator_extra_links:
