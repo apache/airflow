@@ -81,7 +81,7 @@ class TestEdgeWorker:
         ],
     )
     def test_register_worker(
-        self, session: Session, input_queues: Sequence[str] | None, cli_worker: _EdgeWorkerCli
+        self, session: Session, input_queues: list[str] | None, cli_worker: _EdgeWorkerCli
     ):
         EdgeWorker.register_worker(
             "test_worker", EdgeWorkerState.STARTING, queues=input_queues, sysinfo=cli_worker._get_sysinfo()
@@ -130,9 +130,9 @@ class TestEdgeWorker:
     def test_add_and_remove_queues(
         self,
         session: Session,
-        add_queues: Sequence[str] | None,
-        remove_queues: Sequence[str] | None,
-        expected_queues: Sequence[str] | None,
+        add_queues: list[str] | None,
+        remove_queues: list[str] | None,
+        expected_queues: list[str],
         cli_worker: _EdgeWorkerCli,
     ):
         rwm = EdgeWorkerModel(
@@ -147,6 +147,6 @@ class TestEdgeWorker:
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
-        assert len(expected_queues) == len(worker[0].queues)
+        assert len(expected_queues) == len(worker[0].queues or [])
         for expected_queue in expected_queues:
-            assert expected_queue in worker[0].queues
+            assert expected_queue in (worker[0].queues or [])

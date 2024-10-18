@@ -33,7 +33,7 @@ from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
 from airflow.utils.state import TaskInstanceState
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 
@@ -205,9 +205,10 @@ class TestEdgeWorkerCli:
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
-        assert len(worker_with_job.queues) == 2
-        assert "queue1" in worker_with_job.queues
-        assert "queue2" in worker_with_job.queues
+        queue_list = worker_with_job.queues or []
+        assert len(queue_list) == 2
+        assert "queue1" in (queue_list)
+        assert "queue2" in (queue_list)
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
