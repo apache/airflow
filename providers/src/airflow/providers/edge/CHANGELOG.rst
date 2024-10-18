@@ -34,7 +34,6 @@ Misc
 ~~~~
 
 * ``Edge Worker can add or remove queues in the queue field in the DB (#43115)``
-* ``Worker gets queue information, consumes tasks from assigned queues (#43115)``
 
 0.1.0pre0
 .........
