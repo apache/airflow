@@ -64,7 +64,7 @@ def _get_databricks_task_id(task: BaseOperator) -> str:
     :param task: The task to get the databricks task ID for.
     :return: The databricks task ID.
     """
-    return f"{task.dag_id}__{task.task_id.replace('.', '__')}"
+    return task.databricks_task_key  # type: ignore[attr-defined]
 
 
 def get_databricks_task_ids(
