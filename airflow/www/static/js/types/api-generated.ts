@@ -954,6 +954,14 @@ export interface components {
       dag_run_conf?: { [key: string]: unknown } | null;
       /** @description is_paused */
       is_paused?: boolean | null;
+      /**
+       * @description Controls whether new runs will be created when there's an existing run
+       * for a given logical date.
+       *
+       * @default none
+       * @enum {string}
+       */
+      reprocess_behavior?: "none" | "failed" | "completed";
       /** @description max_active_runs */
       max_active_runs?: number | null;
       /** @description created_at */
