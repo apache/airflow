@@ -3476,6 +3476,22 @@ def generate_issue_content(
                 continue
 
             pull_requests[pr_number] = pr
+
+            # retrieve and append commit authors (to handle cherry picks)
+            if hasattr(pr, "get_commits"):
+                try:
+                    commits = pr.get_commits()
+                    for commit in commits:
+                        author = commit.author
+                        if author:
+                            users.setdefault(pr_number, set()).add(author.login)
+                            progress.console.print(f"Added commit author {author.login} for PR#{pr_number}")
+
+                except Exception as e:
+                    progress.console.print(
+                        f"[warn]Could not retrieve commits for PR#{pr_number}: {e}, skipping[/]"
+                    )
+
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
             if pr.body:
