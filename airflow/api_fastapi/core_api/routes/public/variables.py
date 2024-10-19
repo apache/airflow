@@ -21,9 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.common.parameters import UpdateMask
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam, UpdateMask
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.variables import (
