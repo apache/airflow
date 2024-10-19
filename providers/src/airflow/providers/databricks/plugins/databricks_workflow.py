@@ -44,6 +44,8 @@ from airflow.www.views import AirflowBaseView
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
+
 
 REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
 REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
@@ -57,18 +59,8 @@ def get_auth_decorator():
     return auth.has_access_dag("POST", DagAccessEntity.RUN)
 
 
-def _get_databricks_task_id(task: BaseOperator) -> str:
-    """
-    Get the databricks task ID using dag_id and task_id. removes illegal characters.
-
-    :param task: The task to get the databricks task ID for.
-    :return: The databricks task ID.
-    """
-    return task.databricks_task_key  # type: ignore[attr-defined]
-
-
 def get_databricks_task_ids(
-    group_id: str, task_map: dict[str, BaseOperator], log: logging.Logger
+    group_id: str, task_map: dict[str, DatabricksTaskBaseOperator], log: logging.Logger
 ) -> list[str]:
     """
     Return a list of all Databricks task IDs for a dictionary of Airflow tasks.
@@ -83,7 +75,7 @@ def get_databricks_task_ids(
     for task_id, task in task_map.items():
         if task_id == f"{group_id}.launch":
             continue
-        databricks_task_id = _get_databricks_task_id(task)
+        databricks_task_id = task.databricks_task_key
         log.debug("databricks task id for task %s is %s", task_id, databricks_task_id)
         task_ids.append(databricks_task_id)
     return task_ids
@@ -112,7 +104,7 @@ def _clear_task_instances(
     dag = airflow_app.dag_bag.get_dag(dag_id)
     log.debug("task_ids %s to clear", str(task_ids))
     dr: DagRun = _get_dagrun(dag, run_id, session=session)
-    tis_to_clear = [ti for ti in dr.get_task_instances() if _get_databricks_task_id(ti) in task_ids]
+    tis_to_clear = [ti for ti in dr.get_task_instances() if ti.databricks_task_key in task_ids]
     clear_task_instances(tis_to_clear, session)
 
 
@@ -324,7 +316,7 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
 
         tasks_to_run = {ti: t for ti, t in task_group_sub_tasks if ti in failed_and_skipped_tasks}
 
-        return ",".join(get_databricks_task_ids(task_group.group_id, tasks_to_run, log))
+        return ",".join(get_databricks_task_ids(task_group.group_id, tasks_to_run, log))  # type: ignore[arg-type]
 
     @staticmethod
     def _get_failed_and_skipped_tasks(dr: DagRun) -> list[str]:
@@ -387,7 +379,7 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
             "databricks_conn_id": metadata.conn_id,
             "databricks_run_id": metadata.run_id,
             "run_id": ti_key.run_id,
-            "tasks_to_repair": _get_databricks_task_id(task),
+            "tasks_to_repair": task.databricks_task_key,
         }
         return url_for("RepairDatabricksTasks.repair", **query_params)
 
