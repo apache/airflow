@@ -1079,8 +1079,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
 
         num_entries_batch3 = len(response_batch3.json["task_instances"])
-        assert num_entries_batch3 == 9
-        assert len(response_batch3.json["task_instances"]) == 9
+        assert num_entries_batch3 == ti_count
+        assert len(response_batch3.json["task_instances"]) == ti_count
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
