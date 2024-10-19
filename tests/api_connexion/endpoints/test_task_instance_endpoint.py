@@ -1034,6 +1034,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
 
     def test_should_respond_200_for_pagination(self, session):
         dag_id = "example_python_operator"
+
         self.create_task_instances(
             session,
             task_instances=[
@@ -1069,6 +1070,17 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
+
+        # default limit and offset
+        response_batch3 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+
+        num_entries_batch3 = len(response_batch3.json["task_instances"])
+        assert num_entries_batch3 == 9
+        assert len(response_batch3.json["task_instances"]) == 9
 
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
