@@ -138,18 +138,6 @@ class TestGetDagRun:
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
 
-class TestDeleteDagRun:
-    def test_delete_dag_run(self, test_client):
-        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
-        assert response.status_code == 204
-
-    def test_delete_dag_run_not_found(self, test_client):
-        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
-        assert response.status_code == 404
-        body = response.json()
-        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
-
-
 class TestModifyDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, state, response_state",
@@ -182,3 +170,15 @@ class TestModifyDagRun:
         assert response.status_code == 422
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
+
+
+class TestDeleteDagRun:
+    def test_delete_dag_run(self, test_client):
+        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        assert response.status_code == 204
+
+    def test_delete_dag_run_not_found(self, test_client):
+        response = test_client.delete(f"/public/dags/{DAG1_ID}/dagRuns/invalid")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
