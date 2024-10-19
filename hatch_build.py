@@ -118,7 +118,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "flask-bcrypt>=0.7.1",
     ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
