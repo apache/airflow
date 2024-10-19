@@ -1291,6 +1291,7 @@ repos:
           ^.*/.*_vendor/ |
           ^airflow/migrations |
           ^providers/ |
+          ^task_sdk/ |
           ^dev |
           ^scripts |
           ^docs |
@@ -1339,6 +1340,23 @@ repos:
         name: Run mypy for /docs/ folder (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py docs
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-task-sdk
+        name: Run mypy for Task SDK
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
+        files: ^task_sdk/src/airflow/sdk/.*\.py$|^task_sdk/tests//.*\.py$
+        exclude: ^.*/.*_vendor/
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: mypy-task-sdk
+        stages: ['manual']
+        name: Run mypy for Task SDK (manual)
+        language: python
+        entry: ./scripts/ci/pre_commit/mypy_folder.py task_sdk/src/airflow/sdk
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true

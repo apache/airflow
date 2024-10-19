@@ -194,7 +194,6 @@ class SelectiveUnitTestTypes(Enum):
     PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
     PYTHON_VENV = "PythonVenv"
-    TASK_SDK = "TaskSDK"
     WWW = "WWW"
 
 
