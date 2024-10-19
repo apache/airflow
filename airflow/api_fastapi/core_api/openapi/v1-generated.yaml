@@ -360,9 +360,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: array
-            items:
-              type: string
+          - type: string
           - type: 'null'
           title: Update Mask
       requestBody:
@@ -611,9 +609,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: array
-            items:
-              type: string
+          - type: string
           - type: 'null'
           title: Update Mask
       requestBody:
@@ -822,9 +818,7 @@ paths:
         required: false
         schema:
           anyOf:
-          - type: array
-            items:
-              type: string
+          - type: string
           - type: 'null'
           title: Update Mask
       requestBody:
@@ -1092,6 +1086,9 @@ components:
       description: Base status field for metadatabase and scheduler.
     ConnectionBody:
       properties:
+        connection_id:
+          type: string
+          title: Connection Id
         conn_type:
           type: string
           title: Conn Type
@@ -1125,13 +1122,10 @@ components:
           - type: string
           - type: 'null'
           title: Extra
-        connection_id:
-          type: string
-          title: Connection Id
       type: object
       required:
-      - conn_type
       - connection_id
+      - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
     ConnectionCollectionResponse:
@@ -1152,6 +1146,9 @@ components:
       description: Connection Collection serializer for responses.
     ConnectionResponse:
       properties:
+        connection_id:
+          type: string
+          title: Connection Id
         conn_type:
           type: string
           title: Conn Type
@@ -1185,13 +1182,16 @@ components:
           - type: string
           - type: 'null'
           title: Extra
-        connection_id:
-          type: string
-          title: Connection Id
       type: object
       required:
-      - conn_type
       - connection_id
+      - conn_type
+      - description
+      - host
+      - login
+      - schema
+      - port
+      - extra
       title: ConnectionResponse
       description: Connection serializer for responses.
     DAGCollectionResponse:
@@ -1980,16 +1980,16 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
@@ -2017,19 +2017,20 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
       - value
+      - description
       title: VariableResponse
       description: Variable serializer for responses.

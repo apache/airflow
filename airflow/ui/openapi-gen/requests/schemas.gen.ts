@@ -22,6 +22,10 @@ export const $BaseInfoSchema = {
 
 export const $ConnectionBody = {
   properties: {
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
     conn_type: {
       type: "string",
       title: "Conn Type",
@@ -92,13 +96,9 @@ export const $ConnectionBody = {
       ],
       title: "Extra",
     },
-    connection_id: {
-      type: "string",
-      title: "Connection Id",
-    },
   },
   type: "object",
-  required: ["conn_type", "connection_id"],
+  required: ["connection_id", "conn_type"],
   title: "ConnectionBody",
   description: "Connection Serializer for requests body.",
 } as const;
@@ -125,6 +125,10 @@ export const $ConnectionCollectionResponse = {
 
 export const $ConnectionResponse = {
   properties: {
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
     conn_type: {
       type: "string",
       title: "Conn Type",
@@ -195,13 +199,18 @@ export const $ConnectionResponse = {
       ],
       title: "Extra",
     },
-    connection_id: {
-      type: "string",
-      title: "Connection Id",
-    },
   },
   type: "object",
-  required: ["conn_type", "connection_id"],
+  required: [
+    "connection_id",
+    "conn_type",
+    "description",
+    "host",
+    "login",
+    "schema",
+    "port",
+    "extra",
+  ],
   title: "ConnectionResponse",
   description: "Connection serializer for responses.",
 } as const;
@@ -1416,17 +1425,6 @@ export const $VariableBody = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -1437,6 +1435,17 @@ export const $VariableBody = {
         },
       ],
       title: "Value",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
     },
   },
   type: "object",
@@ -1471,17 +1480,6 @@ export const $VariableResponse = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -1493,9 +1491,20 @@ export const $VariableResponse = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "value"],
+  required: ["key", "value", "description"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;

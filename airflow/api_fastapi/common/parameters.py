@@ -265,6 +265,16 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+def _parse_comma_separated_query_params(comma_separated_list: str | None = None) -> list[str]:
+    """Parse Comma Separated Query Params for backward compatibility."""
+    if not comma_separated_list:
+        return Query(None)
+    try:
+        return comma_separated_list.split(",") if "," in comma_separated_list else [comma_separated_list]
+    except AttributeError:
+        raise HTTPException(400, "Invalid update_mask. Please provide a comma-separated list of fields.")
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -283,6 +293,8 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
 
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
+# Comma Separated List Query Params
+UpdateMask = Annotated[str, Query(), AfterValidator(_parse_comma_separated_query_params)]
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
@@ -299,3 +311,4 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# PATCH Methods Generic Params

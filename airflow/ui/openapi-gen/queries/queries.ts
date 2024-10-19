@@ -538,7 +538,7 @@ export const useDagServicePatchDag = <
       {
         dagId: string;
         requestBody: DAGPatchBody;
-        updateMask?: string[];
+        updateMask?: string;
       },
       TContext
     >,
@@ -551,7 +551,7 @@ export const useDagServicePatchDag = <
     {
       dagId: string;
       requestBody: DAGPatchBody;
-      updateMask?: string[];
+      updateMask?: string;
     },
     TContext
   >({
@@ -585,7 +585,7 @@ export const useConnectionServicePatchConnection = <
       {
         connectionId: string;
         requestBody: ConnectionBody;
-        updateMask?: string[];
+        updateMask?: string;
       },
       TContext
     >,
@@ -598,7 +598,7 @@ export const useConnectionServicePatchConnection = <
     {
       connectionId: string;
       requestBody: ConnectionBody;
-      updateMask?: string[];
+      updateMask?: string;
     },
     TContext
   >({
@@ -631,7 +631,7 @@ export const useVariableServicePatchVariable = <
       TError,
       {
         requestBody: VariableBody;
-        updateMask?: string[];
+        updateMask?: string;
         variableKey: string;
       },
       TContext
@@ -644,7 +644,7 @@ export const useVariableServicePatchVariable = <
     TError,
     {
       requestBody: VariableBody;
-      updateMask?: string[];
+      updateMask?: string;
       variableKey: string;
     },
     TContext

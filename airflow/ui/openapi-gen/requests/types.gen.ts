@@ -11,6 +11,7 @@ export type BaseInfoSchema = {
  * Connection Serializer for requests body.
  */
 export type ConnectionBody = {
+  connection_id: string;
   conn_type: string;
   description?: string | null;
   host?: string | null;
@@ -18,7 +19,6 @@ export type ConnectionBody = {
   schema?: string | null;
   port?: number | null;
   extra?: string | null;
-  connection_id: string;
 };
 
 /**
@@ -33,14 +33,14 @@ export type ConnectionCollectionResponse = {
  * Connection serializer for responses.
  */
 export type ConnectionResponse = {
-  conn_type: string;
-  description?: string | null;
-  host?: string | null;
-  login?: string | null;
-  schema?: string | null;
-  port?: number | null;
-  extra?: string | null;
   connection_id: string;
+  conn_type: string;
+  description: string | null;
+  host: string | null;
+  login: string | null;
+  schema: string | null;
+  port: number | null;
+  extra: string | null;
 };
 
 /**
@@ -318,8 +318,8 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  description?: string | null;
   value: string | null;
+  description?: string | null;
 };
 
 /**
@@ -335,8 +335,8 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  description?: string | null;
   value: string | null;
+  description: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -393,7 +393,7 @@ export type GetDagResponse = DAGResponse;
 export type PatchDagData = {
   dagId: string;
   requestBody: DAGPatchBody;
-  updateMask?: Array<string> | null;
+  updateMask?: string | null;
 };
 
 export type PatchDagResponse = DAGResponse;
@@ -425,7 +425,7 @@ export type GetConnectionResponse = ConnectionResponse;
 export type PatchConnectionData = {
   connectionId: string;
   requestBody: ConnectionBody;
-  updateMask?: Array<string> | null;
+  updateMask?: string | null;
 };
 
 export type PatchConnectionResponse = ConnectionResponse;
@@ -452,7 +452,7 @@ export type GetVariableResponse = VariableResponse;
 
 export type PatchVariableData = {
   requestBody: VariableBody;
-  updateMask?: Array<string> | null;
+  updateMask?: string | null;
   variableKey: string;
 };
 
