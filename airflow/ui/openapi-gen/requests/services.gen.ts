@@ -594,7 +594,7 @@ export class DagRunService {
     data: UpdateDagRunStateData,
   ): CancelablePromise<UpdateDagRunStateResponse> {
     return __request(OpenAPI, {
-      method: "PATCH",
+      method: "PUT",
       url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
       path: {
         dag_id: data.dagId,

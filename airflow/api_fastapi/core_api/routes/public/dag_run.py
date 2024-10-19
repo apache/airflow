@@ -68,7 +68,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
     session.delete(dag_run)
 
 
-@dag_run_router.patch("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dag_run_router.put("/{dag_run_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def update_dag_run_state(
     dag_id: str,
     dag_run_id: str,
@@ -88,10 +88,8 @@ async def update_dag_run_state(
     print("State is ", state)
     print("stats equals", state == DAGRunModifyStates.SUCCESS)
     if state.state == DAGRunModifyStates.SUCCESS:
-        print("Setting state to success")
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     elif state.state == DAGRunModifyStates.QUEUED:
-        print("setting state to queued")
         set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)

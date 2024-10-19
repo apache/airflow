@@ -248,6 +248,9 @@ export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
+export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
+  ReturnType<typeof DagRunService.updateDagRunState>
+>;
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
@@ -256,9 +259,6 @@ export type DagServicePatchDagMutationResult = Awaited<
 >;
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
->;
-export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
-  ReturnType<typeof DagRunService.updateDagRunState>
 >;
 export type DagServiceDeleteDagMutationResult = Awaited<
   ReturnType<typeof DagService.deleteDag>

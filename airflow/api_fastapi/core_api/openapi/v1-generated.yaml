@@ -997,7 +997,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-    patch:
+    put:
       tags:
       - DagRun
       summary: Update Dag Run State
