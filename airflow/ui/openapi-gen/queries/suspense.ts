@@ -297,6 +297,42 @@ export const useVariableServiceGetVariableSuspense = <
     ...options,
   });
 /**
+ * Get Variables
+ * Get all Variables entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns VariableCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceGetVariablesSuspense = <
+  TData = Common.VariableServiceGetVariablesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseVariableServiceGetVariablesKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      VariableService.getVariables({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId

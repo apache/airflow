@@ -98,13 +98,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "python-ldap",
+        "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
-        "opentelemetry-exporter-prometheus",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
         # In pandas 2.2 minimal version of the sqlalchemy is 2.0
@@ -118,7 +118,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "flask-bcrypt>=0.7.1",
     ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
