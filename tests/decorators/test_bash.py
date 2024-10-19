@@ -507,6 +507,7 @@ class TestBashDecorator:
             ti.run()
         assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
 
+    @pytest.mark.db_test
     def test_templated_bash_script(self, dag_maker, tmp_path, session):
         """
         Creates a .sh script with Jinja template.

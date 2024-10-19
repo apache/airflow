@@ -290,6 +290,7 @@ class TestBashOperator:
         assert task.env == {"FOO": "2024-02-01"}
         assert task.cwd == Path(__file__).absolute().parent.as_posix()
 
+    @pytest.mark.db_test
     def test_templated_bash_script(self, dag_maker, tmp_path, session):
         """
         Creates a .sh script with Jinja template.
