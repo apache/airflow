@@ -24,7 +24,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.operator_helpers import context_to_airflow_vars
@@ -256,7 +256,19 @@ class BashOperator(BaseOperator):
         if is_inline_command:
             result = self._run_inline_command(bash_path=bash_path, env=env)
         else:
-            result = self._run_rendered_script_file(bash_path=bash_path, env=env)
+            try:
+                result = self._run_rendered_script_file(bash_path=bash_path, env=env)
+            except PermissionError:
+                directory: str = self.cwd or tempfile.gettempdir()
+                warnings.warn(
+                    "BashOperator behavior for script files (`.sh` and `.bash`) containing Jinja templating "
+                    "will change in Airflow 3: script's content will be rendered into a new temporary file, "
+                    "and then executed (instead of being directly executed as inline command). "
+                    f"Ensure Airflow has write and execute permission in the `{directory}` directory.",
+                    RemovedInAirflow3Warning,
+                    stacklevel=2,
+                )
+                result = self._run_inline_command(bash_path=bash_path, env=env)
 
         if result.exit_code in self.skip_on_exit_code:
             raise AirflowSkipException(f"Bash command returned exit code {result.exit_code}. Skipping.")
