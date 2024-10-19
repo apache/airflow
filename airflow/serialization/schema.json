@@ -137,7 +137,7 @@
       "type": "object",
       "properties": {
         "params": { "$ref": "#/definitions/params" },
-        "_dag_id": { "type": "string" },
+        "dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
         "owner_links": { "type": "object" },
@@ -157,10 +157,10 @@
             ]
         },
         "orientation": { "type" : "string"},
-        "_dag_display_property_value": { "type" : "string"},
+        "dag_display_name": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
-        "_max_active_tasks": { "type" : "number"},
+        "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},
         "max_consecutive_failed_dag_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },
@@ -175,7 +175,7 @@
         "has_on_failure_callback":  { "type": "boolean" },
         "render_template_as_native_obj":  { "type": "boolean" },
         "tags": { "type": "array" },
-        "_task_group": {"anyOf": [
+        "task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
         ]},
@@ -183,7 +183,7 @@
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
-        "_dag_id",
+        "dag_id",
         "fileloc",
         "tasks"
       ],

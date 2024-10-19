@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import weakref
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -23,7 +24,7 @@ import pytest
 from airflow.exceptions import DuplicateTaskIdFound
 from airflow.models.param import Param, ParamsDict
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -245,3 +246,72 @@ class TestDag:
 
         # Make sure we don't affect the original!
         assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
+
+
+class TestDagDecorator:
+    DEFAULT_ARGS = {
+        "owner": "test",
+        "depends_on_past": True,
+        "start_date": datetime.now(tz=timezone.utc),
+        "retries": 1,
+        "retry_delay": timedelta(minutes=1),
+    }
+    VALUE = 42
+
+    def test_fileloc(self):
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id == "noop_pipeline"
+        assert dag.fileloc == __file__
+
+    def test_set_dag_id(self):
+        """Test that checks you can set dag_id from decorator."""
+
+        @dag_decorator("test", schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id == "test"
+
+    def test_default_dag_id(self):
+        """Test that @dag uses function name as default dag id."""
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline(): ...
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id == "noop_pipeline"
+
+    @pytest.mark.parametrize(
+        argnames=["dag_doc_md", "expected_doc_md"],
+        argvalues=[
+            pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
+            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
+        ],
+    )
+    def test_documentation_added(self, dag_doc_md, expected_doc_md):
+        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
+        def noop_pipeline():
+            """Regular DAG documentation"""
+
+        dag = noop_pipeline()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id == "noop_pipeline"
+        assert dag.doc_md == expected_doc_md
+
+    def test_fails_if_arg_not_set(self):
+        """Test that @dag decorated function fails if positional argument is not set"""
+
+        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
+        def noop_pipeline(value): ...
+
+        # Test that if arg is not passed it raises a type error as expected.
+        with pytest.raises(TypeError):
+            noop_pipeline()

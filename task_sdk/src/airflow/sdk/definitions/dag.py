@@ -947,6 +947,7 @@ class DAG:
                 "has_on_failure_callback",
                 "auto_register",
                 "fail_stop",
+                "schedule",
             }
             cls.__serialized_fields = frozenset(vars(DAG(dag_id="test", schedule=None))) - exclusion_list
         return cls.__serialized_fields
@@ -984,114 +985,93 @@ class DAG:
                 yield owner, link
 
 
-# NOTE: Please keep the list of arguments in sync with DAG.__init__.
-# Only exception: dag_id here should have a default value, but not in DAG.
-def dag(
-    dag_id: str = "",
-    description: str | None = None,
-    schedule: ScheduleArg = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    template_searchpath: str | Iterable[str] | None = None,
-    template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
-    user_defined_macros: dict | None = None,
-    user_defined_filters: dict | None = None,
-    default_args: dict | None = None,
-    max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
-    max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-    max_consecutive_failed_dag_runs: int = airflow_conf.getint(
-        "core", "max_consecutive_failed_dag_runs_per_dag"
-    ),
-    dagrun_timeout: timedelta | None = None,
-    sla_miss_callback: Any = None,
-    catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
-    on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-    on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-    doc_md: str | None = None,
-    params: abc.MutableMapping | None = None,
-    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
-    is_paused_upon_creation: bool | None = None,
-    jinja_environment_kwargs: dict | None = None,
-    render_template_as_native_obj: bool = False,
-    tags: Collection[str] | None = None,
-    owner_links: dict[str, str] | None = None,
-    auto_register: bool = True,
-    fail_stop: bool = False,
-    dag_display_name: str | None = None,
-) -> Callable[[Callable], Callable[..., DAG]]:
-    """
-    Python dag decorator which wraps a function into an Airflow DAG.
+if TYPE_CHECKING:
+    # NOTE: Please keep the list of arguments in sync with DAG.__init__.
+    # Only exception: dag_id here should have a default value, but not in DAG.
+    def dag(
+        dag_id: str = "",
+        *,
+        description: str | None = None,
+        schedule: ScheduleArg = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        template_searchpath: str | Iterable[str] | None = None,
+        template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
+        user_defined_macros: dict | None = None,
+        user_defined_filters: dict | None = None,
+        default_args: dict | None = None,
+        max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
+        max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
+        max_consecutive_failed_dag_runs: int = airflow_conf.getint(
+            "core", "max_consecutive_failed_dag_runs_per_dag"
+        ),
+        dagrun_timeout: timedelta | None = None,
+        sla_miss_callback: Any = None,
+        catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
+        on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        doc_md: str | None = None,
+        params: abc.MutableMapping | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
+        is_paused_upon_creation: bool | None = None,
+        jinja_environment_kwargs: dict | None = None,
+        render_template_as_native_obj: bool = False,
+        tags: Collection[str] | None = None,
+        owner_links: dict[str, str] | None = None,
+        auto_register: bool = True,
+        fail_stop: bool = False,
+        dag_display_name: str | None = None,
+    ) -> Callable[[Callable], Callable[..., DAG]]:
+        """
+        Python dag decorator which wraps a function into an Airflow DAG.
 
-    Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
+        Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
 
-    :param dag_args: Arguments for DAG object
-    :param dag_kwargs: Kwargs for DAG object.
-    """
+        :param dag_args: Arguments for DAG object
+        :param dag_kwargs: Kwargs for DAG object.
+        """
+else:
 
-    def wrapper(f: Callable) -> Callable[..., DAG]:
-        @functools.wraps(f)
-        def factory(*args, **kwargs):
-            # Generate signature for decorated function and bind the arguments when called
-            # we do this to extract parameters, so we can annotate them on the DAG object.
-            # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
-            f_sig = signature(f).bind(*args, **kwargs)
-            # Apply defaults to capture default values if set.
-            f_sig.apply_defaults()
+    def dag(dag_id="", __DAG_class=DAG, __warnings_stacklevel_delta=2, **decorator_kwargs):
+        # TODO: Task-SDK: remove __DAG_class
+        # __DAG_class is a temporary hack to allow the dag decorator in airflow.models.dag to continue to
+        # return SchedulerDag objects
+        DAG = __DAG_class
 
-            # Initialize DAG with bound arguments
-            with DAG(
-                dag_id or f.__name__,
-                description=description,
-                start_date=start_date,
-                end_date=end_date,
-                template_searchpath=template_searchpath,
-                template_undefined=template_undefined,
-                user_defined_macros=user_defined_macros,
-                user_defined_filters=user_defined_filters,
-                default_args=default_args,
-                max_active_tasks=max_active_tasks,
-                max_active_runs=max_active_runs,
-                max_consecutive_failed_dag_runs=max_consecutive_failed_dag_runs,
-                dagrun_timeout=dagrun_timeout,
-                sla_miss_callback=sla_miss_callback,
-                catchup=catchup,
-                on_success_callback=on_success_callback,
-                on_failure_callback=on_failure_callback,
-                doc_md=doc_md,
-                params=params,
-                access_control=access_control,
-                is_paused_upon_creation=is_paused_upon_creation,
-                jinja_environment_kwargs=jinja_environment_kwargs,
-                render_template_as_native_obj=render_template_as_native_obj,
-                tags=tags,
-                schedule=schedule,
-                owner_links=owner_links,
-                auto_register=auto_register,
-                fail_stop=fail_stop,
-                dag_display_name=dag_display_name,
-            ) as dag_obj:
-                # Set DAG documentation from function documentation if it exists and doc_md is not set.
-                if f.__doc__ and not dag_obj.doc_md:
-                    dag_obj.doc_md = f.__doc__
+        def wrapper(f: Callable) -> Callable[..., DAG]:
+            @functools.wraps(f)
+            def factory(*args, **kwargs):
+                # Generate signature for decorated function and bind the arguments when called
+                # we do this to extract parameters, so we can annotate them on the DAG object.
+                # In addition, this fails if we are missing any args/kwargs with TypeError as expected.
+                f_sig = signature(f).bind(*args, **kwargs)
+                # Apply defaults to capture default values if set.
+                f_sig.apply_defaults()
 
-                # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
-                # All args/kwargs for function will be DAGParam object and replaced on execution time.
-                f_kwargs = {}
-                for name, value in f_sig.arguments.items():
-                    f_kwargs[name] = dag_obj.param(name, value)
+                # Initialize DAG with bound arguments
+                with DAG(dag_id or f.__name__, **decorator_kwargs) as dag_obj:
+                    # Set DAG documentation from function documentation if it exists and doc_md is not set.
+                    if f.__doc__ and not dag_obj.doc_md:
+                        dag_obj.doc_md = f.__doc__
 
-                # set file location to caller source path
-                back = sys._getframe().f_back
-                dag_obj.fileloc = back.f_code.co_filename if back else ""
+                    # Generate DAGParam for each function arg/kwarg and replace it for calling the function.
+                    # All args/kwargs for function will be DAGParam object and replaced on execution time.
+                    f_kwargs = {}
+                    for name, value in f_sig.arguments.items():
+                        f_kwargs[name] = dag_obj.param(name, value)
 
-                # Invoke function to create operators in the DAG scope.
-                f(**f_kwargs)
+                    # set file location to caller source path
+                    back = sys._getframe().f_back
+                    dag_obj.fileloc = back.f_code.co_filename if back else ""
 
-            # Return dag object such that it's accessible in Globals.
-            return dag_obj
+                    # Invoke function to create operators in the DAG scope.
+                    f(**f_kwargs)
 
-        # Ensure that warnings from inside DAG() are emitted from the caller, not here
-        fixup_decorator_warning_stack(factory)
-        return factory
+                # Return dag object such that it's accessible in Globals.
+                return dag_obj
 
-    return wrapper
+            # Ensure that warnings from inside DAG() are emitted from the caller, not here
+            fixup_decorator_warning_stack(factory)
+            return factory
+
+        return wrapper
