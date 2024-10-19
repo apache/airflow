@@ -148,7 +148,7 @@ class TestModifyDagRun:
         ],
     )
     def test_modify_dag_run(self, test_client, dag_id, run_id, state, response_state):
-        response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
+        response = test_client.put(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
@@ -156,7 +156,7 @@ class TestModifyDagRun:
         assert body["state"] == response_state
 
     def test_modify_dag_run_not_found(self, test_client):
-        response = test_client.patch(
+        response = test_client.put(
             f"/public/dags/{DAG1_ID}/dagRuns/invalid", json={"state": DagRunState.SUCCESS}
         )
         assert response.status_code == 404
@@ -164,7 +164,7 @@ class TestModifyDagRun:
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
     def test_modify_dag_run_bad_request(self, test_client):
-        response = test_client.patch(
+        response = test_client.put(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": "running"}
         )
         assert response.status_code == 422
