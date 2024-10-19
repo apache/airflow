@@ -82,11 +82,12 @@ async def update_dag_run_state(
         raise HTTPException(
             404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
         )
+
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+
     if not dag:
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
-    print("State is ", state)
-    print("stats equals", state == DAGRunModifyStates.SUCCESS)
+
     if state.state == DAGRunModifyStates.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     elif state.state == DAGRunModifyStates.QUEUED:
