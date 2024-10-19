@@ -557,6 +557,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     logger_name: str | None = None
     allow_nested_operators: bool = True
 
+    is_setup: bool = False
+    is_teardown: bool = False
+
     template_fields: Collection[str] = ()
     template_ext: Sequence[str] = ()
 
@@ -1040,6 +1043,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.utils.operator_resources import Resources
 
         return Resources(**resources)
+
+    def _convert_is_setup(self, value: bool) -> bool:
+        """
+        Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        return value
+
+    def _convert_is_teardown(self, value: bool) -> bool:
+        if self.is_setup and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        return value
 
     @property
     def task_display_name(self) -> str:

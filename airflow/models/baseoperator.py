@@ -28,7 +28,6 @@ import contextlib
 import copy
 import functools
 import logging
-import sys
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import local
@@ -878,46 +877,6 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             return self.upstream_list
         else:
             return self.downstream_list
-
-    @property
-    def is_setup(self) -> bool:
-        """
-        Whether the operator is a setup task.
-
-        :meta private:
-        """
-        return self._is_setup
-
-    @is_setup.setter
-    def is_setup(self, value: bool) -> None:
-        """
-        Setter for is_setup property.
-
-        :meta private:
-        """
-        if self.is_teardown and value:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
-        self._is_setup = value
-
-    @property
-    def is_teardown(self) -> bool:
-        """
-        Whether the operator is a teardown task.
-
-        :meta private:
-        """
-        return self._is_teardown
-
-    @is_teardown.setter
-    def is_teardown(self, value: bool) -> None:
-        """
-        Setter for is_teardown property.
-
-        :meta private:
-        """
-        if self.is_setup and value:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
-        self._is_teardown = value
 
     @staticmethod
     def xcom_push(

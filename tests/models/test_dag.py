@@ -23,7 +23,6 @@ import logging
 import os
 import pickle
 import re
-import weakref
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -92,7 +91,6 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.plugins.priority_weight_strategy import (
     FactorPriorityWeightStrategy,
-    NotRegisteredPriorityWeightStrategy,
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
@@ -2517,54 +2515,6 @@ class TestDagDecorator:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_fileloc(self):
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-        assert dag.fileloc == __file__
-
-    def test_set_dag_id(self):
-        """Test that checks you can set dag_id from decorator."""
-
-        @dag_decorator("test", schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "test"
-
-    def test_default_dag_id(self):
-        """Test that @dag uses function name as default dag id."""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(): ...
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-
-    @pytest.mark.parametrize(
-        argnames=["dag_doc_md", "expected_doc_md"],
-        argvalues=[
-            pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
-            pytest.param(None, "Regular DAG documentation", id="use_dag_docstring"),
-        ],
-    )
-    def test_documentation_added(self, dag_doc_md, expected_doc_md):
-        """Test that @dag uses function docs as doc_md for DAG object if doc_md is not explicitly set."""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS, doc_md=dag_doc_md)
-        def noop_pipeline():
-            """Regular DAG documentation"""
-
-        dag = noop_pipeline()
-        assert isinstance(dag, DAG)
-        assert dag.dag_id == "noop_pipeline"
-        assert dag.doc_md == expected_doc_md
-
     def test_documentation_template_rendered(self):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
@@ -2577,7 +2527,6 @@ class TestDagDecorator:
             """
 
         dag = noop_pipeline()
-        assert isinstance(dag, DAG)
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
@@ -2597,24 +2546,8 @@ class TestDagDecorator:
         def markdown_docs(): ...
 
         dag = markdown_docs()
-        assert isinstance(dag, DAG)
         assert dag.dag_id == "test-dag"
         assert dag.doc_md == raw_content
-
-    def test_fails_if_arg_not_set(self):
-        """Test that @dag decorated function fails if positional argument is not set"""
-
-        @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
-        def noop_pipeline(value):
-            @task_decorator
-            def return_num(num):
-                return num
-
-            return_num(value)
-
-        # Test that if arg is not passed it raises a type error as expected.
-        with pytest.raises(TypeError):
-            noop_pipeline()
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""

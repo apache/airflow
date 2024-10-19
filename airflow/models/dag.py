@@ -100,7 +100,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk import DAG as TaskSDKDag, dag as dag
+from airflow.sdk import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -294,6 +294,14 @@ def _create_orm_dagrun(
     # state is None at the moment of creation
     run.verify_integrity(session=session)
     return run
+
+
+if TYPE_CHECKING:
+    dag = task_sdk_dag_decorator
+else:
+
+    def dag(dag_id: str = "", **kwargs):
+        return task_sdk_dag_decorator(dag_id, __DAG_class=DAG, __warnings_stacklevel_delta=3)
 
 
 @functools.total_ordering

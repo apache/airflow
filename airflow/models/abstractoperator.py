@@ -107,22 +107,6 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
     weight_rule: PriorityWeightStrategy
 
     @property
-    def is_setup(self) -> bool:
-        raise NotImplementedError()
-
-    @is_setup.setter
-    def is_setup(self, value: bool) -> None:
-        raise NotImplementedError()
-
-    @property
-    def is_teardown(self) -> bool:
-        raise NotImplementedError()
-
-    @is_teardown.setter
-    def is_teardown(self, value: bool) -> None:
-        raise NotImplementedError()
-
-    @property
     def on_failure_fail_dagrun(self):
         """
         Whether the operator should fail the dagrun on failure.
@@ -210,108 +194,6 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
-
-    def as_setup(self):
-        self.is_setup = True
-        return self
-
-    def as_teardown(
-        self,
-        *,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
-        on_failure_fail_dagrun=NOTSET,
-    ):
-        self.is_teardown = True
-        self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-        if on_failure_fail_dagrun is not NOTSET:
-            self.on_failure_fail_dagrun = on_failure_fail_dagrun
-        if not isinstance(setups, ArgNotSet):
-            setups = [setups] if isinstance(setups, DependencyMixin) else setups
-            for s in setups:
-                s.is_setup = True
-                s >> self
-        return self
-
-    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
-        """
-        Get a flat set of relative IDs, upstream or downstream.
-
-        Will recurse each relative found in the direction specified.
-
-        :param upstream: Whether to look for upstream or downstream relatives.
-        """
-        dag = self.get_dag()
-        if not dag:
-            return set()
-
-        relatives: set[str] = set()
-
-        # This is intentionally implemented as a loop, instead of calling
-        # get_direct_relative_ids() recursively, since Python has significant
-        # limitation on stack level, and a recursive implementation can blow up
-        # if a DAG contains very long routes.
-        task_ids_to_trace = self.get_direct_relative_ids(upstream)
-        while task_ids_to_trace:
-            task_ids_to_trace_next: set[str] = set()
-            for task_id in task_ids_to_trace:
-                if task_id in relatives:
-                    continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                relatives.add(task_id)
-            task_ids_to_trace = task_ids_to_trace_next
-
-        return relatives
-
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
-        """Get a flat list of relatives, either upstream or downstream."""
-        dag = self.get_dag()
-        if not dag:
-            return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
-
-    def get_upstreams_follow_setups(self) -> Iterable[Operator]:
-        """All upstreams and, for each upstream setup, its respective teardowns."""
-        for task in self.get_flat_relatives(upstream=True):
-            yield task
-            if task.is_setup:
-                for t in task.downstream_list:
-                    if t.is_teardown and t != self:
-                        yield t
-
-    def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
-        """
-        Only *relevant* upstream setups and their teardowns.
-
-        This method is meant to be used when we are clearing the task (non-upstream) and we need
-        to add in the *relevant* setups and their teardowns.
-
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
-        or the setup has no teardowns.
-        """
-        downstream_teardown_ids = {
-            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
-        }
-        for task in self.get_flat_relatives(upstream=True):
-            if not task.is_setup:
-                continue
-            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
-            # if task has no teardowns or has teardowns downstream of self
-            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
-                yield task
-                for t in task.downstream_list:
-                    if t.is_teardown and t != self:
-                        yield t
-
-    def get_upstreams_only_setups(self) -> Iterable[Operator]:
-        """
-        Return relevant upstream setups.
-
-        This method is meant to be used when we are checking task dependencies where we need
-        to wait for all the upstream setups to complete before we can run the task.
-        """
-        for task in self.get_upstreams_only_setups_and_teardowns():
-            if task.is_setup:
-                yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """
