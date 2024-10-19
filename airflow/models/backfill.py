@@ -296,22 +296,46 @@ def _create_backfill(
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
-            _create_backfill_dag_run(
-                dag=dag,
-                info=info,
-                clearing_behavior=br.clearing_behavior,
-                backfill_id=br.id,
-                dag_run_conf=br.dag_run_conf,
-                backfill_sort_ordinal=backfill_sort_ordinal,
-                session=session,
-            )
-            session.commit()
-            log.info(
-                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
-                dag.dag_id,
-                br.id,
-                info,
-            )
+            from tenacity import RetryError, Retrying, stop_after_attempt
+
+            try:
+                for attempt in Retrying(stop=stop_after_attempt(3)):
+                    # we do retries here because it's possible that we check to see if dr exists
+                    # before we attempt to create the dag run. if something else creates the dag
+                    # run in between, we'll have to retry the transaction
+                    with attempt:
+                        with session.begin():
+                            _create_backfill_dag_run(
+                                dag=dag,
+                                info=info,
+                                backfill_id=br.id,
+                                dag_run_conf=br.dag_run_conf,
+                                clearing_behavior=br.clearing_behavior,
+                                backfill_sort_ordinal=backfill_sort_ordinal,
+                                session=session,
+                            )
+                            log.info(
+                                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
+                                dag.dag_id,
+                                br.id,
+                                info,
+                            )
+            except RetryError:
+                dag.log.exception(
+                    "Error while attempting to create a dag run dag_id='%s' logical_date='%s'",
+                    dag.dag_id,
+                    info.logical_date,
+                )
+                session.add(
+                    BackfillDagRun(
+                        backfill_id=br.id,
+                        dag_run_id=None,
+                        exception_reason=BackfillDagRunExceptionReason.UNKNOWN,
+                        logical_date=info.logical_date,
+                        sort_ordinal=backfill_sort_ordinal,
+                    )
+                )
+                session.commit()
     return br
 
 
