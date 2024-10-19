@@ -3484,7 +3484,7 @@ def generate_issue_content(
                     for commit in commits:
                         author = commit.author
                         if author:
-                            users.setdefault(pr_number, set()).add(author.login)
+                            users[pr_number].add(author.login)
                             progress.console.print(f"Added commit author {author.login} for PR#{pr_number}")
 
                 except Exception as e:
