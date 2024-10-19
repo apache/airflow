@@ -30,9 +30,9 @@ from airflow.providers.google.cloud.log.stackdriver_task_handler import Stackdri
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 
 def _create_list_log_entries_response_mock(messages, token):

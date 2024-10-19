@@ -20,13 +20,15 @@ import os
 
 import pytest
 
-from dev.tests_common.test_utils.gcp_system_helpers import (
-    CLOUD_DAG_FOLDER,
+from airflow.providers.google.cloud.example_dags import example_salesforce_to_gcs
+
+from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests_common.test_utils.gcp_system_helpers import (
     GoogleSystemTest,
     provide_gcp_context,
 )
-from dev.tests_common.test_utils.salesforce_system_helpers import provide_salesforce_connection
-from providers.tests.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY
+from tests_common.test_utils.salesforce_system_helpers import provide_salesforce_connection
+from tests_common.test_utils.system_tests import get_test_run
 
 CREDENTIALS_DIR = os.environ.get("CREDENTIALS_DIR", "/files/airflow-breeze-config/keys")
 SALESFORCE_KEY = "salesforce.json"
@@ -42,4 +44,5 @@ class TestSalesforceIntoGCSExample(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_salesforce_connection(SALESFORCE_CREDENTIALS_PATH)
     def test_run_example_dag_salesforce_to_gcs_operator(self):
-        self.run_dag("example_salesforce_to_gcs", CLOUD_DAG_FOLDER)
+        run = get_test_run(example_salesforce_to_gcs.dag)
+        run()

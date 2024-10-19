@@ -645,6 +645,26 @@ The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom
     :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
     :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+To create cached content you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CreateCachedContentOperator`.
+The operator returns the cached content resource name in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_cached_content_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_cached_content_operator]
+
+To generate a response from cached content you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateFromCachedContentOperator`.
+The operator returns the cached content response in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+    :end-before: [END how_to_cloud_vertex_ai_generate_from_cached_content_operator]
+
 Reference
 ^^^^^^^^^
 

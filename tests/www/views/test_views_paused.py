@@ -20,7 +20,7 @@ import pytest
 
 from airflow.models.log import Log
 
-from dev.tests_common.test_utils.db import clear_db_dags
+from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = pytest.mark.db_test
 

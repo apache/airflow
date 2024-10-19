@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.providers.amazon.aws.sensors.sagemaker import (
     SageMakerAutoMLSensor,
+    SageMakerProcessingSensor,
     SageMakerTrainingSensor,
     SageMakerTransformSensor,
     SageMakerTuningSensor,
@@ -390,6 +391,7 @@ def set_up(env_id, role_arn):
     ti.xcom_push(key="raw_data_s3_key", value=raw_data_s3_key)
     ti.xcom_push(key="ecr_repository_name", value=ecr_repository_name)
     ti.xcom_push(key="processing_config", value=processing_config)
+    ti.xcom_push(key="processing_job_name", value=processing_job_name)
     ti.xcom_push(key="input_data_uri", value=input_data_uri)
     ti.xcom_push(key="output_data_uri", value=f"s3://{bucket_name}/{training_output_s3_key}")
     ti.xcom_push(key="training_config", value=training_config)
@@ -518,7 +520,17 @@ with DAG(
         task_id="preprocess_raw_data",
         config=test_setup["processing_config"],
     )
+
+    # SageMakerProcessingOperator waits by default, setting as False to test the Sensor below.
+    preprocess_raw_data.wait_for_completion = False
+
     # [END howto_operator_sagemaker_processing]
+
+    # [START howto_sensor_sagemaker_processing]
+    await_preprocess = SageMakerProcessingSensor(
+        task_id="await_preprocess", job_name=test_setup["processing_job_name"]
+    )
+    # [END howto_sensor_sagemaker_processing]
 
     # [START howto_operator_sagemaker_training]
     train_model = SageMakerTrainingOperator(
@@ -622,6 +634,7 @@ with DAG(
         await_automl,
         create_experiment,
         preprocess_raw_data,
+        await_preprocess,
         train_model,
         await_training,
         create_model,
@@ -646,13 +659,13 @@ with DAG(
         log_cleanup,
     )
 
-    from dev.tests_common.test_utils.watcher import watcher
+    from tests_common.test_utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

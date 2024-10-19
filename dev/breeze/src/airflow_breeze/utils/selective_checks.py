@@ -42,6 +42,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -87,12 +88,12 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization WWW"
+    "PythonVenv Serialization TaskSDK WWW"
 )
 
 ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW"
 )
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
@@ -112,6 +113,7 @@ class FileGroupForCi(Enum):
     LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
+    TASK_SDK_FILES = "task_sdk_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -227,7 +229,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^providers/src/",
             r"^providers/tests/",
+            r"^task_sdk/src/",
+            r"^task_sdk/tests/",
             r"^tests",
+            r"^tests_common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -241,7 +246,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^dev/tests_common/.*\.py$",
+            r"^tests_common/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_FILES: [
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ],
     }
 )
@@ -258,6 +267,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
             r"^providers/tests/.*",
             r"^providers/tests/system/.*",
             r"^tests/dags/test_imports.py",
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ]
     }
 )
@@ -295,6 +306,10 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
+        ],
+        SelectiveUnitTestTypes.TASK_SDK: [
+            r"^task_sdk/src/airflow/sdk/",
+            r"^task_sdk/tests/",
         ],
         SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
         SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
@@ -701,6 +716,10 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def run_task_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
+
+    @cached_property
     def run_kubernetes_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
@@ -714,11 +733,21 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        # we should run all test
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
     def ci_image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+        # in case pyproject.toml changed, CI image should be built - even if no build dependencies
+        # changes because some of our tests - those that need CI image might need to be run depending on
+        # changed rules for static checks that are part of the pyproject.toml file
+        return (
+            self.run_tests
+            or self.docs_build
+            or self.run_kubernetes_tests
+            or self.needs_helm_tests
+            or self.pyproject_toml_changed
+        )
 
     @cached_property
     def prod_image_build(self) -> bool:
@@ -919,6 +948,8 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
             return False
+        if "pyproject.toml" not in self._files:
+            return False
         new_result = run_command(
             ["git", "show", f"{self._commit_ref}:pyproject.toml"],
             capture_output=True,
@@ -1116,6 +1147,10 @@ class SelectiveChecks:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
 
     @cached_property
+    def disable_airflow_repo_cache(self) -> bool:
+        return self.docker_cache == "disabled"
+
+    @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
 
@@ -1297,7 +1332,11 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return TESTABLE_INTEGRATIONS
+        return [
+            integration
+            for integration in TESTABLE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):
@@ -1370,6 +1409,12 @@ class SelectiveChecks:
     def is_legacy_ui_api_labeled(self) -> bool:
         # Selective check for legacy UI/API updates.
         # It is to ping the maintainer to add the label and make them aware of the changes.
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+
         if (
             self._matching_files(
                 FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES

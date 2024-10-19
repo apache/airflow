@@ -30,7 +30,7 @@ from packaging.version import Version
 from airflow.models import DagBag
 from airflow.utils import yaml
 
-from dev.tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, or_, select
 
+from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -74,12 +75,13 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return exists_query(
+        query = exists_query(
             TI.dag_id == ti.dag_id,
             TI.task_id == ti.task_id,
             TI.execution_date < ti.execution_date,
             session=session,
         )
+        return query
 
     @staticmethod
     def _count_unsuccessful_tis(dagrun: DagRun, task_id: str, *, session: Session) -> int:
@@ -138,6 +140,17 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         dr = ti.get_dagrun(session=session)
+        if dr.backfill_id:
+            sort_ordinal = session.scalar(
+                select(BackfillDagRun.sort_ordinal).where(
+                    BackfillDagRun.backfill_id == dr.backfill_id,
+                    BackfillDagRun.dag_run_id == dr.id,
+                )
+            )
+            if sort_ordinal == 1:
+                yield self._passing_status(reason="Task instance is first run in a backfill.")
+                return
+
         if not dr:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance does not belong to a DAG.")
@@ -149,7 +162,6 @@ class PrevDagrunDep(BaseTIDep):
             last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session)
         else:
             last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
-
         # First ever run for this DAG.
         if not last_dagrun:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)

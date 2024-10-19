@@ -55,8 +55,8 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

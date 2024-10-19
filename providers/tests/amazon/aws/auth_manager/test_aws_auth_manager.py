@@ -39,9 +39,9 @@ from airflow.security.permissions import (
 from airflow.www import app as application
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.www import check_content_in_response
+from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response
 
 try:
     from airflow.auth.managers.models.resource_details import (
@@ -68,12 +68,8 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
     from airflow.security.permissions import RESOURCE_ASSET
 else:
-    try:
-        from airflow.auth.managers.models.resource_details import AssetDetails
-        from airflow.security.permissions import RESOURCE_ASSET
-    except ImportError:
-        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
-        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+    from airflow.providers.common.compat.assets import AssetDetails
+    from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),

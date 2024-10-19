@@ -25,8 +25,9 @@ import pytest
 from airflow.models import Connection
 from airflow.utils.session import create_session
 
-from dev.tests_common.test_utils.db import clear_db_connections
-from dev.tests_common.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest
+from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.gcp_system_helpers import GoogleSystemTest
+from tests_common.test_utils.system_tests import get_test_run
 
 TOKEN = os.environ.get("DATAPREP_TOKEN")
 EXTRA = {"token": TOKEN}
@@ -52,4 +53,7 @@ class TestDataprepExampleDagsSystem(GoogleSystemTest):
         clear_db_connections()
 
     def test_run_example_dag(self):
-        self.run_dag(dag_id="example_dataprep", dag_folder=CLOUD_DAG_FOLDER)
+        from providers.tests.system.google.cloud.dataprep.example_dataprep import dag
+
+        run = get_test_run(dag)
+        run()

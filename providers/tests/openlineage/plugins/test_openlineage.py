@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
-from dev.tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.skipif(

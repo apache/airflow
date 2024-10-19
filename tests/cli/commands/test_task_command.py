@@ -52,9 +52,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_pools, clear_db_runs
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools, clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -1070,7 +1070,7 @@ class TestLoggerMutationHelper:
         assert tgt.propagate is False if target_name else True  # root propagate unchanged
         assert tgt.level == -1
 
-    def test_apply_no_replace(self):
+    def test_apply_no_replace(self, clear_all_logger_handlers):
         """
         Handlers, level and propagate should be applied on target.
         """

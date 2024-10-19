@@ -133,6 +133,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("pyproject.toml",),
+                {
+                    "ci-image-build": "true",
+                },
+                id="CI image build and when pyproject.toml change",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow/api/file.py",),
                 {
                     "affected-providers-list-as-string": "common.compat fab",
@@ -778,7 +787,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("dev/tests_common/__init__.py",),
+                ("tests_common/__init__.py",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.9']",
@@ -799,7 +808,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
-                id="All tests should be run when dev/tests_common/ change",
+                id="All tests should be run when tests_common/ change",
             )
         ),
     ],
@@ -1140,7 +1149,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "separate-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
                     "CLI Core ExternalPython Operators Other PlainAsserts "
                     + LIST_OF_ALL_PROVIDER_TESTS
-                    + " PythonVenv Serialization WWW",
+                    + " PythonVenv Serialization TaskSDK WWW",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
@@ -1171,10 +1180,10 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always BranchExternalPython "
                     "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
-                    "PythonVenv Serialization WWW",
+                    "PythonVenv Serialization TaskSDK WWW",
                     "separate-test-types-list-as-string": "API Always BranchExternalPython "
                     "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
-                    "PythonVenv Serialization WWW",
+                    "PythonVenv Serialization TaskSDK WWW",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'docs', 'dev']",
                 },
@@ -1300,7 +1309,7 @@ def test_expected_output_full_tests_needed(
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
-                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
+                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow']",
             },
@@ -1536,7 +1545,7 @@ def test_expected_output_pull_request_target(
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
-                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
+                "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization TaskSDK WWW",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow', 'docs', 'dev']",
             },
@@ -2307,6 +2316,26 @@ def test_mypy_matches(
             "potiuk",
             ("non committer build",),
             id="Committer regular PR - forcing non-committer build",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "docker-cache": "disabled",
+                "disable-airflow-repo-cache": "true",
+            },
+            "potiuk",
+            ("disable image cache",),
+            id="Disabled cache",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "docker-cache": "registry",
+                "disable-airflow-repo-cache": "false",
+            },
+            "potiuk",
+            (),
+            id="Standard cache",
         ),
     ],
 )

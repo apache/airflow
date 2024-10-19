@@ -30,9 +30,9 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import GunicornMonitor
-from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
+from tests_common.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
 

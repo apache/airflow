@@ -28,7 +28,6 @@ import pickle
 import sys
 import time
 import traceback
-import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
@@ -88,13 +87,11 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.asset import (
     AssetDagRunQueue,
@@ -1286,28 +1283,6 @@ class DAG(LoggingMixin):
 
         return active_dates
 
-    @provide_session
-    def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
-        """
-        Return the number of active "running" dag runs.
-
-        :param external_trigger: True for externally triggered active dag runs
-        :param session:
-        :return: number greater than 0 for active dag runs
-        """
-        query = select(func.count()).where(DagRun.dag_id == self.dag_id)
-        if only_running:
-            query = query.where(DagRun.state == DagRunState.RUNNING)
-        else:
-            query = query.where(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
-
-        if external_trigger is not None:
-            query = query.where(
-                DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
-            )
-
-        return session.scalar(query)
-
     @staticmethod
     @internal_api_call
     @provide_session
@@ -2296,85 +2271,6 @@ class DAG(LoggingMixin):
 
         self.task_count = len(self.task_dict)
 
-    def run(
-        self,
-        start_date=None,
-        end_date=None,
-        mark_success=False,
-        local=False,
-        donot_pickle=airflow_conf.getboolean("core", "donot_pickle"),
-        ignore_task_deps=False,
-        ignore_first_depends_on_past=True,
-        pool=None,
-        delay_on_limit_secs=1.0,
-        verbose=False,
-        conf=None,
-        rerun_failed_tasks=False,
-        run_backwards=False,
-        run_at_least_once=False,
-        continue_on_failures=False,
-        disable_retry=False,
-    ):
-        """
-        Run the DAG.
-
-        :param start_date: the start date of the range to run
-        :param end_date: the end date of the range to run
-        :param mark_success: True to mark jobs as succeeded without running them
-        :param local: True to run the tasks using the LocalExecutor
-        :param donot_pickle: True to avoid pickling DAG object and send to workers
-        :param ignore_task_deps: True to skip upstream tasks
-        :param ignore_first_depends_on_past: True to ignore depends_on_past
-            dependencies for the first set of tasks only
-        :param pool: Resource pool to use
-        :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
-            dag run when max_active_runs limit has been reached
-        :param verbose: Make logging output more verbose
-        :param conf: user defined dictionary passed from CLI
-        :param rerun_failed_tasks:
-        :param run_backwards:
-        :param run_at_least_once: If true, always run the DAG at least once even
-            if no logical run exists within the time range.
-        """
-        warnings.warn(
-            "`DAG.run()` is deprecated and will be removed in Airflow 3.0. Consider "
-            "using `DAG.test()` instead, or trigger your dag via API.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-
-        from airflow.executors.executor_loader import ExecutorLoader
-        from airflow.jobs.backfill_job_runner import BackfillJobRunner
-
-        if local:
-            from airflow.executors.local_executor import LocalExecutor
-
-            ExecutorLoader.set_default_executor(LocalExecutor())
-
-        from airflow.jobs.job import Job
-
-        job = Job()
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=self,
-            start_date=start_date,
-            end_date=end_date,
-            mark_success=mark_success,
-            donot_pickle=donot_pickle,
-            ignore_task_deps=ignore_task_deps,
-            ignore_first_depends_on_past=ignore_first_depends_on_past,
-            pool=pool,
-            delay_on_limit_secs=delay_on_limit_secs,
-            verbose=verbose,
-            conf=conf,
-            rerun_failed_tasks=rerun_failed_tasks,
-            run_backwards=run_backwards,
-            run_at_least_once=run_at_least_once,
-            continue_on_failures=continue_on_failures,
-            disable_retry=disable_retry,
-        )
-        run_job(job=job, execute_callable=job_runner._execute)
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
@@ -2463,8 +2359,7 @@ class DAG(LoggingMixin):
             tasks = self.task_dict
             self.log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
-            # for task readiness and dependency management. This is notably faster
-            # than creating a BackfillJob and allows us to surface logs to the user
+            # for task readiness and dependency management.
 
             # ``Dag.test()`` works in two different modes depending on ``use_executor``:
             # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
@@ -2676,6 +2571,7 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
+        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
@@ -3124,6 +3020,18 @@ class DagModel(Base):
     @hybrid_property
     def dag_display_name(self) -> str:
         return self._dag_display_property_value or self.dag_id
+
+    @dag_display_name.expression  # type: ignore[no-redef]
+    def dag_display_name(self) -> str:
+        """
+        Expression part of the ``dag_display`` name hybrid property.
+
+        :meta private:
+        """
+        return case(
+            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            else_=self.dag_id,
+        )
 
     @classmethod
     @internal_api_call

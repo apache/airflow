@@ -29,7 +29,7 @@ from airflow.utils import timezone
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.serve_logs import create_app
 
-from dev.tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from flask.testing import FlaskClient

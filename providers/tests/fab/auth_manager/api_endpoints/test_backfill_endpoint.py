@@ -19,7 +19,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from unittest import mock
-from urllib.parse import urlencode
 
 import pendulum
 import pytest
@@ -32,14 +31,14 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import (
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 try:
     from airflow.models.backfill import Backfill
@@ -197,21 +196,20 @@ class TestCreateBackfill(TestBackfillEndpoint):
         to_date = pendulum.parse("2024-02-01")
         to_date_iso = to_date.isoformat()
         max_active_runs = 5
-        query = urlencode(
-            query={
-                "dag_id": dag.dag_id,
-                "from_date": f"{from_date_iso}",
-                "to_date": f"{to_date_iso}",
-                "max_active_runs": max_active_runs,
-                "reverse": False,
-            }
-        )
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": f"{from_date_iso}",
+            "to_date": f"{to_date_iso}",
+            "max_active_runs": max_active_runs,
+            "reverse": False,
+        }
         kwargs = {}
         kwargs.update(environ_overrides={"REMOTE_USER": "test_granular_permissions"})
 
         response = self.client.post(
-            f"/api/v1/backfills?{query}",
+            "/api/v1/backfills",
             **kwargs,
+            json=data,
         )
         assert response.status_code == 200
         assert response.json == {

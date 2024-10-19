@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecatio
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 
-from dev.tests_common.test_utils.compat import connection_as_json
+from tests_common.test_utils.compat import connection_as_json
 
 pytestmark = pytest.mark.db_test
 
@@ -62,6 +62,12 @@ def mongo_connections():
             host="mongo",
             port=27017,
             extra='{"srv": true}',
+        ),
+        Connection(
+            conn_id="mongo_default_with_allow_insecure_ssl_fields",
+            conn_type="mongo",
+            host="mongo",
+            extra='{"allow_insecure": false, "ssl": true}',
         ),
         # Mongo establishes connection during initialization, so we need to have this connection
         Connection(conn_id="fake_connection", conn_type="mongo", host="mongo", port=27017),
@@ -400,3 +406,9 @@ def test_context_manager():
         assert ctx_hook.client is not None
 
     assert ctx_hook.client is None
+
+
+def test_allow_insecure_and_ssl_enabled():
+    hook = MongoHook(mongo_conn_id="mongo_default_with_allow_insecure_ssl_fields")
+    assert hook.allow_insecure is False
+    assert hook.ssl_enabled is True

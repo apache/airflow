@@ -22,9 +22,9 @@ from airflow.models import Log
 from airflow.security import permissions
 from airflow.utils import timezone
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.db import clear_db_logs
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_logs
 
 pytestmark = [
     pytest.mark.db_test,

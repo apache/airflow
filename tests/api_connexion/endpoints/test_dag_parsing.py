@@ -25,8 +25,8 @@ from sqlalchemy import select
 from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
 
-from dev.tests_common.test_utils.api_connexion_utils import create_user, delete_user
-from dev.tests_common.test_utils.db import clear_db_dag_parsing_requests
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.db import clear_db_dag_parsing_requests
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

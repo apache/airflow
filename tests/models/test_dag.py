@@ -25,7 +25,6 @@ import pickle
 import re
 import weakref
 from datetime import timedelta
-from importlib import reload
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -45,12 +44,8 @@ from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     UnknownExecutorException,
 )
-from airflow.executors import executor_loader
-from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -95,6 +90,7 @@ from airflow.utils.timezone import datetime as datetime_tz
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
+
 from tests.models import DEFAULT_DATE
 from tests.plugins.priority_weight_strategy import (
     FactorPriorityWeightStrategy,
@@ -102,19 +98,18 @@ from tests.plugins.priority_weight_strategy import (
     StaticTestPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
-
-from dev.tests_common.test_utils.asserts import assert_queries_count
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import (
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from dev.tests_common.test_utils.mapping import expand_mapped_task
-from dev.tests_common.test_utils.mock_plugins import mock_plugin_manager
-from dev.tests_common.test_utils.timetables import cron_timetable, delta_timetable
+from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -1085,10 +1080,10 @@ class TestDag:
             # orphans
             asset1 = Asset(uri="ds1")
             asset2 = Asset(uri="ds2")
-            session.add(AssetModel(uri=asset2.uri, is_orphaned=True))
+            session.add(AssetModel(uri=asset2.uri))
             asset3 = Asset(uri="ds3")
             asset4 = Asset(uri="ds4")
-            session.add(AssetModel(uri=asset4.uri, is_orphaned=True))
+            session.add(AssetModel(uri=asset4.uri))
             session.flush()
 
             dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
@@ -1100,14 +1095,14 @@ class TestDag:
             non_orphaned_assets = [
                 asset.uri
                 for asset in session.query(AssetModel.uri)
-                .filter(~AssetModel.is_orphaned)
+                .filter(AssetModel.active.has())
                 .order_by(AssetModel.uri)
             ]
             assert non_orphaned_assets == ["ds1", "ds3"]
             orphaned_assets = [
                 asset.uri
                 for asset in session.query(AssetModel.uri)
-                .filter(AssetModel.is_orphaned)
+                .filter(~AssetModel.active.has())
                 .order_by(AssetModel.uri)
             ]
             assert orphaned_assets == ["ds2", "ds4"]
@@ -1119,9 +1114,9 @@ class TestDag:
             DAG.bulk_write_to_db([dag1], session=session)
 
             # and count the orphans and non-orphans
-            non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+            non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
             assert non_orphaned_asset_count == 4
-            orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+            orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
             assert orphaned_asset_count == 0
 
     def test_bulk_write_to_db_asset_aliases(self):
@@ -2720,10 +2715,10 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
                 AssetAll(
-                    Asset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Asset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
                 ),
                 AssetAlias(name="test_name"),
             ),
@@ -2739,20 +2734,6 @@ class TestDagModel:
                 {"alias": "test_name"},
             ]
         }
-
-    @mock.patch("airflow.models.dag.run_job")
-    def test_dag_executors(self, run_job_mock):
-        # todo: AIP-78 remove along with DAG.run()
-        #  this only tests the backfill job runner, not the scheduler
-        with pytest.warns(RemovedInAirflow3Warning):
-            dag = DAG(dag_id="test", schedule=None)
-            reload(executor_loader)
-            with conf_vars({("core", "executor"): "SequentialExecutor"}):
-                dag.run()
-                assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
-
-                dag.run(local=True)
-                assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:

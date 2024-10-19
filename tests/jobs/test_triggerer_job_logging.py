@@ -31,23 +31,14 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import RedirectStdHandler
 from airflow.utils.log.trigger_handler import DropTriggerLogsFilter, TriggererHandlerWrapper
 
-from dev.tests_common.test_utils.config import conf_vars
-
-
-def non_pytest_handlers(val):
-    return [h for h in val if "pytest" not in h.__module__]
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.log_handlers import non_pytest_handlers
 
 
 def assert_handlers(logger, *classes):
     handlers = non_pytest_handlers(logger.handlers)
     assert [x.__class__ for x in handlers] == list(classes or [])
     return handlers
-
-
-def clear_logger_handlers(log):
-    for h in log.handlers[:]:
-        if "pytest" not in h.__module__:
-            log.removeHandler(h)
 
 
 @pytest.fixture(autouse=True)
@@ -64,7 +55,6 @@ def test_configure_trigger_log_handler_file():
     """
     # reset logging
     root_logger = logging.getLogger()
-    clear_logger_handlers(root_logger)
     configure_logging()
 
     # before config
@@ -168,15 +158,12 @@ not_found_message = ["Could not find log handler suitable for individual trigger
         ("non_file_task_handler", logging.Handler, not_found_message),
     ],
 )
-def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg):
+def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg, clear_all_logger_handlers):
     """
     No root handler configured.
     When non FileTaskHandler is configured, don't modify.
     When an incompatible subclass of FileTaskHandler is configured, don't modify.
     """
-    # reset handlers
-    root_logger = logging.getLogger()
-    clear_logger_handlers(root_logger)
 
     with conf_vars(
         {
@@ -190,6 +177,7 @@ def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg):
         configure_logging()
 
     # no root handlers
+    root_logger = logging.getLogger()
     assert_handlers(root_logger)
 
     # default task logger
@@ -328,7 +316,7 @@ root_not_file_task = {
 }
 
 
-def test_configure_trigger_log_handler_root_not_file_task():
+def test_configure_trigger_log_handler_root_not_file_task(clear_all_logger_handlers):
     """
     root: A handler that doesn't support trigger or inherit FileTaskHandler
     task: Supports triggerer

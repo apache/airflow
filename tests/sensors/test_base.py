@@ -58,7 +58,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils import db
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 

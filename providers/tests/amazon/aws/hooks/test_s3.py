@@ -43,7 +43,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
 )
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 @pytest.fixture
@@ -64,7 +64,7 @@ if AIRFLOW_V_2_10_PLUS:
     @pytest.fixture
     def hook_lineage_collector():
         from airflow.lineage import hook
-        from airflow.providers.amazon.aws.hooks.s3 import get_hook_lineage_collector
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
 
         hook._hook_lineage_collector = None
         hook._hook_lineage_collector = hook.HookLineageCollector()

@@ -28,7 +28,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
 from airflow.utils.state import JobState, State
 
-from dev.tests_common.test_utils.db import clear_db_jobs
+from tests_common.test_utils.db import clear_db_jobs
 
 
 @pytest.mark.skip_if_database_isolation_mode

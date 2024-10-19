@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 from airflow import DAG
 from airflow.decorators import task
 
-SNOWFLAKE_CONN_ID = "snowflake_default"
-DAG_ID = "example_snowpark"
+SNOWFLAKE_CONN_ID = "my_snowflake_conn"
+DAG_ID = "example_snowpark_decorator"
 
 with DAG(
     DAG_ID,
@@ -80,7 +80,7 @@ with DAG(
     # [END howto_decorator_snowpark]
 
 
-from dev.tests_common.test_utils.system_tests import get_test_run  # noqa: E402
+from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
