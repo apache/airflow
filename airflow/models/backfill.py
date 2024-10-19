@@ -33,11 +33,12 @@ from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.exceptions import AirflowException
+from airflow.models import clear_task_instances
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -56,6 +57,18 @@ class AlreadyRunningBackfill(AirflowException):
     """
 
 
+class ClearingBehavior(str, Enum):
+    """
+    Internal enum for setting clearing behavior in a backfill.
+
+    :meta private:
+    """
+
+    FAILED_RUNS = "failed-runs"
+    COMPLETED_RUNS = "completed-runs"
+    NO_CLEARING = "no-clearing"
+
+
 class Backfill(Base):
     """Model representing a backfill job."""
 
@@ -72,6 +85,7 @@ class Backfill(Base):
 
     Does not pause existing dag runs.
     """
+    clearing_behavior = Column(StringID(), nullable=False, default=ClearingBehavior.NO_CLEARING)
     max_active_runs = Column(Integer, default=10, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
@@ -131,27 +145,82 @@ class BackfillDagRun(Base):
         return val
 
 
-def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort_ordinal, session):
+def _create_backfill_dag_run(
+    *,
+    dag,
+    info,
+    clearing_behavior: ClearingBehavior,
+    backfill_id,
+    dag_run_conf,
+    backfill_sort_ordinal,
+    session,
+):
     from airflow.models import DagRun
 
-    dr = session.scalar(select(DagRun).where(DagRun.execution_date == info.logical_date).limit(1))
-    if dr:
-        session.add(
-            BackfillDagRun(
-                backfill_id=backfill_id,
-                dag_run_id=None,
-                logical_date=info.logical_date,
-                exception_reason=BackfillDagRunExceptionReason.ALREADY_EXISTS,
-                sort_ordinal=backfill_sort_ordinal,
+    states_to_query = None
+    dr_exists = session.scalar(select(DagRun.id).where(DagRun.execution_date == info.logical_date).limit(1))
+    if dr_exists:
+        if clearing_behavior is ClearingBehavior.NO_CLEARING:
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=None,
+                    logical_date=info.logical_date,
+                    exception_reason=BackfillDagRunExceptionReason.ALREADY_EXISTS,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
             )
+            return
+        elif clearing_behavior is ClearingBehavior.FAILED_RUNS:
+            states_to_query = [DagRunState.FAILED]
+        elif clearing_behavior is ClearingBehavior.COMPLETED_RUNS:
+            states_to_query = [DagRunState.SUCCESS, DagRunState.FAILED]
+        else:
+            raise RuntimeError("unexpected")
+    if states_to_query:
+        # we only get here if user requested some clearing behavior
+        # and there are some dag runs for the logical date
+        # find the ones in the requested states and clear them
+        runs_to_clear_query = select(DagRun).where(
+            DagRun.execution_date == info.logical_date,
+            DagRun.state.in_(states_to_query),
         )
-        log.info(
-            "dag run already exists for dag_id=%s backfill_id=%s, info=%s",
-            dag.dag_id,
-            backfill_id,
-            info,
-        )
+        runs_to_clear = session.scalars(with_row_locks(runs_to_clear_query, session=session)).all()
+        for dr in runs_to_clear:
+            clear_task_instances(
+                tis=dr.get_task_instances(session=session),
+                session=session,
+            )
+            dr.backfill_id = backfill_id
+            dr.run_type = DagRunType.BACKFILL_JOB
+            dr.triggered_by = DagRunTriggeredByType.BACKFILL
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=dr.id,
+                    logical_date=info.logical_date,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            )
+        if not runs_to_clear:
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=None,
+                    logical_date=info.logical_date,
+                    exception_reason=BackfillDagRunExceptionReason.ALREADY_EXISTS,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            )
         return
+
+    if dr_exists:
+        return
+
+    # we only get here if there's no dag run for the logical date
+    # todo: we're subject to a race condition here where something else
+    #   could create a dag run for the same logical date at the same time
+    #   but there's no easy solution for this right now
     dr = dag.create_dagrun(
         triggered_by=DagRunTriggeredByType.BACKFILL,
         execution_date=info.logical_date,
@@ -183,6 +252,7 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
+    clearing_behavior: ClearingBehavior | None = None,
 ) -> Backfill | None:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -206,6 +276,7 @@ def _create_backfill(
             to_date=to_date,
             max_active_runs=max_active_runs,
             dag_run_conf=dag_run_conf,
+            clearing_behavior=clearing_behavior,
         )
         session.add(br)
         session.commit()
@@ -225,45 +296,22 @@ def _create_backfill(
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
-            from tenacity import RetryError, Retrying, stop_after_attempt
-
-            try:
-                for attempt in Retrying(stop=stop_after_attempt(3)):
-                    # we do retries here because it's possible that we check to see if dr exists
-                    # before we attempt to create the dag run. if something else creates the dag
-                    # run in between, we'll have to retry the transaction
-                    with attempt:
-                        with session.begin():
-                            _create_backfill_dag_run(
-                                dag=dag,
-                                info=info,
-                                backfill_id=br.id,
-                                dag_run_conf=br.dag_run_conf,
-                                backfill_sort_ordinal=backfill_sort_ordinal,
-                                session=session,
-                            )
-                            log.info(
-                                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
-                                dag.dag_id,
-                                br.id,
-                                info,
-                            )
-            except RetryError:
-                dag.log.exception(
-                    "Error while attempting to create a dag run dag_id='%s' logical_date='%s'",
-                    dag.dag_id,
-                    info.logical_date,
-                )
-                session.add(
-                    BackfillDagRun(
-                        backfill_id=br.id,
-                        dag_run_id=None,
-                        exception_reason=BackfillDagRunExceptionReason.UNKNOWN,
-                        logical_date=info.logical_date,
-                        sort_ordinal=backfill_sort_ordinal,
-                    )
-                )
-                session.commit()
+            _create_backfill_dag_run(
+                dag=dag,
+                info=info,
+                clearing_behavior=br.clearing_behavior,
+                backfill_id=br.id,
+                dag_run_conf=br.dag_run_conf,
+                backfill_sort_ordinal=backfill_sort_ordinal,
+                session=session,
+            )
+            session.commit()
+            log.info(
+                "created backfill dag run dag_id=%s backfill_id=%s, info=%s",
+                dag.dag_id,
+                br.id,
+                info,
+            )
     return br
 
 

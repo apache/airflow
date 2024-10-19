@@ -31,6 +31,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
+    ClearingBehavior,
     _cancel_backfill,
     _create_backfill,
 )
@@ -38,7 +39,7 @@ from airflow.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_backfills,
@@ -145,6 +146,149 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+@pytest.mark.parametrize(
+    "clearing_behavior, run_counts",
+    [
+        (
+            ClearingBehavior.FAILED_RUNS,
+            {
+                "2021-01-01": 1,
+                "2021-01-02": 1,
+                "2021-01-03": 1,
+                "2021-01-04": 1,
+                "2021-01-06": 2,
+                "2021-01-08": 1,
+            },
+        ),
+        (
+            ClearingBehavior.COMPLETED_RUNS,
+            {
+                "2021-01-01": 1,
+                "2021-01-02": 1,
+                "2021-01-03": 2,
+                "2021-01-04": 2,
+                "2021-01-05": 2,
+                "2021-01-06": 2,
+                "2021-01-08": 1,
+            },
+        ),
+    ],
+)
+def test_clearing_behavior(clearing_behavior, run_counts, dag_maker, session):
+    """
+    We have two modes whereby when there's an existing run(s) in the range
+    of the backfill, we clear the dagrun to be rerun.
+    """
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+
+    # for the first existing date, let's have one failed
+    date = "2021-01-02"
+    dr = dag_maker.create_dagrun(
+        run_id=f"scheduled_{date}",
+        execution_date=timezone.parse(date),
+        session=session,
+        state=DagRunState.FAILED,
+    )
+    for ti in dr.get_task_instances(session=session):
+        ti.state = TaskInstanceState.FAILED
+    session.commit()
+
+    # for the next existing date, let's have one failed, one success
+    date = "2021-01-03"
+    for num, state in [(1, "failed"), (2, "success")]:
+        dr = dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}-{num}",
+            execution_date=timezone.parse(date),
+            session=session,
+            state=state,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = state
+    session.commit()
+
+    # for the next existing date, let's have both failed
+    date = "2021-01-04"
+    for num, state in [(1, "failed"), (2, "success")]:
+        dr = dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}-{num}",
+            execution_date=timezone.parse(date),
+            session=session,
+            state=state,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = state
+    session.commit()
+
+    # for the next existing date, let's have both success
+    date = "2021-01-05"
+    for num, state in [(1, "success"), (2, "success")]:
+        dr = dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}-{num}",
+            execution_date=timezone.parse(date),
+            session=session,
+            state=state,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = state
+    session.commit()
+
+    # for the next existing date, let's have both failed
+    date = "2021-01-06"
+    for num, state in [(1, "failed"), (2, "failed")]:
+        dr = dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}-{num}",
+            execution_date=timezone.parse(date),
+            session=session,
+            state=state,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = state
+    session.commit()
+
+    # for the next existing date, let's have both running
+    date = "2021-01-07"
+    for num, state in [(1, "running"), (2, "running")]:
+        dr = dag_maker.create_dagrun(
+            run_id=f"scheduled_{date}-{num}",
+            execution_date=timezone.parse(date),
+            session=session,
+            state=state,
+        )
+        for ti in dr.get_task_instances(session=session):
+            ti.state = state
+    session.commit()
+
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-08"),
+        max_active_runs=2,
+        clearing_behavior=clearing_behavior,
+        reverse=False,
+        dag_run_conf=None,
+    )
+    from collections import Counter
+
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    assert all(x.run_type == DagRunType.BACKFILL_JOB for x in dag_runs)
+    assert all(x.triggered_by == DagRunTriggeredByType.BACKFILL for x in dag_runs)
+    backfill_dates = [str(x.logical_date.date()) for x in dag_runs]
+    assert Counter(backfill_dates) == run_counts
+    non_run = session.scalar(
+        select(BackfillDagRun).where(BackfillDagRun.logical_date == timezone.parse("2021-01-07"))
+    )
+    assert non_run.exception_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
+    # todo AIP-78: require clear_failed if any task is depends_on_past
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
 
 
 def test_params_stored_correctly(dag_maker, session):
