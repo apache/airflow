@@ -191,7 +191,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": "The new value",
                     "description": "The new description",
                 },
-                {"update_mask": ["value"]},
+                {"update_mask": "value"},
                 {
                     "key": TEST_VARIABLE_KEY,
                     "value": "The new value",
@@ -219,7 +219,7 @@ class TestPatchVariable(TestVariableEndpoint):
                     "value": '{"password": "new_password"}',
                     "description": "new description",
                 },
-                {"update_mask": ["value", "description"]},
+                {"update_mask": "value,description"},
                 {
                     "key": TEST_VARIABLE_KEY3,
                     "value": '{"password": "***"}',

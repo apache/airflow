@@ -193,11 +193,11 @@ class TestPatchDag(TestDagEndpoint):
         "query_params, dag_id, body, expected_status_code, expected_is_paused",
         [
             ({}, "fake_dag_id", {"is_paused": True}, 404, None),
-            ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
+            ({"update_mask": "field_1, is_paused"}, DAG1_ID, {"is_paused": True}, 400, None),
             ({}, DAG1_ID, {"is_paused": True}, 200, True),
             ({}, DAG1_ID, {"is_paused": False}, 200, False),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
-            ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+            ({"update_mask": "is_paused"}, DAG1_ID, {"is_paused": True}, 200, True),
+            ({"update_mask": "is_paused"}, DAG1_ID, {"is_paused": False}, 200, False),
         ],
     )
     def test_patch_dag(
@@ -217,7 +217,7 @@ class TestPatchDags(TestDagEndpoint):
     @pytest.mark.parametrize(
         "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
         [
-            ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
+            ({"update_mask": "field_1, is_paused"}, {"is_paused": True}, 400, None, None),
             (
                 {"only_active": False},
                 {"is_paused": True},
