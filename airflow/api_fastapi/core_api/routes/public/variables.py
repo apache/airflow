@@ -21,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
+from airflow.api_fastapi.common.parameters import UpdateMask
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -104,7 +105,7 @@ async def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
     session: Annotated[Session, Depends(get_session)],
-    update_mask: list[str] | None = Query(None),
+    update_mask: UpdateMask | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
     if patch_body.key != variable_key:
@@ -113,13 +114,17 @@ async def patch_variable(
     variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
     if not variable:
         raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
+    print(update_mask)
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+        data = patch_body.model_dump(
+            include=set(update_mask) - non_update_fields, by_alias=True, exclude_none=True
+        )
     else:
-        data = patch_body.model_dump(exclude=non_update_fields)
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
+    print(data)
     for key, val in data.items():
         setattr(variable, key, val)
-    return variable
+    return VariableResponse.model_validate(variable, from_attributes=True)
 
 
 @variables_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
