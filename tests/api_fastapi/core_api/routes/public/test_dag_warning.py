@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DagModel
-from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
@@ -33,7 +33,7 @@ DAG2_ID = "test_dag2"
 DAG2_MESSAGE = "test message 2"
 DAG3_ID = "test_dag3"
 DAG3_MESSAGE = "test message 3"
-DAG_WARNING_TYPE = DagWarningType.NONEXISTENT_POOL.value
+DAG_WARNING_TYPE = "non-existent pool"
 
 
 @pytest.fixture(autouse=True)
@@ -53,29 +53,36 @@ def setup(dag_maker, session=None) -> None:
     session.commit()
 
 
-@pytest.mark.parametrize(
-    "query_params, expected_total_entries, expected_messages",
-    [
-        ({}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
-        ({"dag_id": DAG1_ID}, 1, [DAG1_MESSAGE]),
-        ({"warning_type": DAG_WARNING_TYPE}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
-        ({"limit": 1, "order_by": "message"}, 3, [DAG1_MESSAGE]),
-        ({"limit": 1, "offset": 1, "order_by": "message"}, 3, [DAG2_MESSAGE]),
-        ({"limit": 1, "offset": 2, "order_by": "dag_id"}, 3, [DAG3_MESSAGE]),
-        ({"limit": 1, "offset": 2, "order_by": "-dag_id"}, 3, [DAG1_MESSAGE]),
-        ({"limit": 1, "order_by": "timestamp"}, 3, [DAG1_MESSAGE]),
-        ({"limit": 1, "order_by": "-timestamp"}, 3, [DAG3_MESSAGE]),
-        ({"order_by": "timestamp"}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
-        ({"order_by": "-timestamp"}, 3, [DAG3_MESSAGE, DAG2_MESSAGE, DAG1_MESSAGE]),
-        ({"order_by": "dag_id"}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
-        ({"order_by": "-dag_id"}, 3, [DAG3_MESSAGE, DAG2_MESSAGE, DAG1_MESSAGE]),
-    ],
-)
-def test_get_dag_warnings(test_client, query_params, expected_total_entries, expected_messages):
-    response = test_client.get("/public/dagWarnings", params=query_params)
-    assert response.status_code == 200
-    response_json = response.json()
-    # breakpoint()
-    assert response_json["total_entries"] == expected_total_entries
-    assert len(response_json["dag_warnings"]) == len(expected_messages)
-    assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
+class TestGetDagWarnings:
+    @pytest.mark.parametrize(
+        "query_params, expected_total_entries, expected_messages",
+        [
+            ({}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
+            ({"dag_id": DAG1_ID}, 1, [DAG1_MESSAGE]),
+            ({"warning_type": DAG_WARNING_TYPE}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
+            ({"limit": 1, "order_by": "message"}, 3, [DAG1_MESSAGE]),
+            ({"limit": 1, "offset": 1, "order_by": "message"}, 3, [DAG2_MESSAGE]),
+            ({"limit": 1, "offset": 2, "order_by": "dag_id"}, 3, [DAG3_MESSAGE]),
+            ({"limit": 1, "offset": 2, "order_by": "-dag_id"}, 3, [DAG1_MESSAGE]),
+            ({"limit": 1, "order_by": "timestamp"}, 3, [DAG1_MESSAGE]),
+            ({"limit": 1, "order_by": "-timestamp"}, 3, [DAG3_MESSAGE]),
+            ({"order_by": "timestamp"}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
+            ({"order_by": "-timestamp"}, 3, [DAG3_MESSAGE, DAG2_MESSAGE, DAG1_MESSAGE]),
+            ({"order_by": "dag_id"}, 3, [DAG1_MESSAGE, DAG2_MESSAGE, DAG3_MESSAGE]),
+            ({"order_by": "-dag_id"}, 3, [DAG3_MESSAGE, DAG2_MESSAGE, DAG1_MESSAGE]),
+        ],
+    )
+    def test_get_dag_warnings(self, test_client, query_params, expected_total_entries, expected_messages):
+        response = test_client.get("/public/dagWarnings", params=query_params)
+        assert response.status_code == 200
+        response_json = response.json()
+        # breakpoint()
+        assert response_json["total_entries"] == expected_total_entries
+        assert len(response_json["dag_warnings"]) == len(expected_messages)
+        assert [dag_warning["message"] for dag_warning in response_json["dag_warnings"]] == expected_messages
+
+    def test_get_dag_warnings_bad_request(self, test_client):
+        response = test_client.get("/public/dagWarnings", params={"warning_type": "invalid"})
+        response_json = response.json()
+        assert response.status_code == 422
+        assert response_json["detail"][0]["msg"] == "Input should be 'non-existent pool'"
