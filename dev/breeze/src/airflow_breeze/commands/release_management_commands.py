@@ -229,7 +229,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "24.0"
+AIRFLOW_PIP_VERSION = "24.2"
 AIRFLOW_UV_VERSION = "0.4.24"
 AIRFLOW_USE_UV = False
 WHEEL_VERSION = "0.36.2"
