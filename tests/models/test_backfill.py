@@ -31,7 +31,7 @@ from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
     BackfillDagRunExceptionReason,
-    ClearingBehavior,
+    ReprocessBehavior,
     _cancel_backfill,
     _create_backfill,
 )
@@ -149,10 +149,10 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    "clearing_behavior, run_counts",
+    "reprocess_behavior, run_counts",
     [
         (
-            ClearingBehavior.FAILED_RUNS,
+            ReprocessBehavior.REPROCESS_FAILED,
             {
                 "2021-01-01": 1,
                 "2021-01-02": 1,
@@ -163,7 +163,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
             },
         ),
         (
-            ClearingBehavior.COMPLETED_RUNS,
+            ReprocessBehavior.REPROCESS_COMPLETED,
             {
                 "2021-01-01": 1,
                 "2021-01-02": 1,
@@ -176,7 +176,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
         ),
     ],
 )
-def test_clearing_behavior(clearing_behavior, run_counts, dag_maker, session):
+def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
     """
     We have two modes whereby when there's an existing run(s) in the range
     of the backfill, we clear the dagrun to be rerun.
@@ -266,7 +266,7 @@ def test_clearing_behavior(clearing_behavior, run_counts, dag_maker, session):
         from_date=pendulum.parse("2021-01-01"),
         to_date=pendulum.parse("2021-01-08"),
         max_active_runs=2,
-        clearing_behavior=clearing_behavior,
+        reprocess_behavior=reprocess_behavior,
         reverse=False,
         dag_run_conf=None,
     )
