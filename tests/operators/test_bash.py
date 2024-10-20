@@ -23,6 +23,7 @@ import signal
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import sleep
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -32,6 +33,9 @@ from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -55,6 +59,7 @@ class TestBashOperator:
         assert op.skip_on_exit_code == [99]
         assert op.cwd is None
         assert op._init_bash_command_not_set is False
+        assert op._unrendered_bash_command == "echo"
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
@@ -277,3 +282,26 @@ class TestBashOperator:
         assert task.bash_command == 'echo "test_templated_fields_dag"'
         assert task.env == {"FOO": "2024-02-01"}
         assert task.cwd == Path(__file__).absolute().parent.as_posix()
+
+    def test_templated_bash_script(self, dag_maker, tmp_path, session):
+        """
+        Creates a .sh script with Jinja template.
+        Pass it to the BashOperator and ensure it gets correctly rendered and executed.
+        """
+        bash_script: str = "sample.sh"
+        path: Path = tmp_path / bash_script
+        path.write_text('echo "{{ ti.task_id }}"')
+
+        with dag_maker(
+            dag_id="test_templated_bash_script", session=session, template_searchpath=os.fspath(path.parent)
+        ):
+            BashOperator(task_id="test_templated_fields_task", bash_command=bash_script)
+        ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session=session)
+        ti.render_templates(context=context)
+
+        task: BashOperator = ti.task
+        result = task.execute(context=context)
+        assert result == "test_templated_fields_task"
