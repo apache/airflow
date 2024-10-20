@@ -22,7 +22,7 @@ import random
 import string
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKey, Integer, select
+from sqlalchemy import Column, ForeignKey, Integer, func, select
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base, StringID
@@ -98,15 +98,8 @@ class DagVersion(Base):
         session: Session = NEW_SESSION,
     ):
         """Write a new DagVersion into database."""
-        existing_dag_version = session.scalar(
-            select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
-        )
-        version_number = 1
-
-        if existing_dag_version:
-            version_number = existing_dag_version.version_number + 1
-        if not version_name and existing_dag_version:
-            version_name = existing_dag_version.version_name
+        dag_version_count = session.scalar(select(func.count()).select_from(cls).where(cls.dag_id == dag_id))
+        version_number = dag_version_count + 1
 
         dag_version = DagVersion(
             dag_id=dag_id,
@@ -118,6 +111,7 @@ class DagVersion(Base):
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
         log.debug("DagVersion %s written to the DB", dag_version)
+        session.flush()
         return dag_version
 
     @classmethod
