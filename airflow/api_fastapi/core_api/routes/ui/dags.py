@@ -59,66 +59,92 @@ async def recent_dag_runs(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_runs_limit: QueryLimit,
     session: Annotated[Session, Depends(get_session)],
 ) -> RecentDAGRunsCollectionResponse:
     """Get recent DAG runs."""
     recent_runs_subquery = (
         select(
             DagRun.dag_id,
-            func.max(DagRun.execution_date).label("max_execution_date"),
+            DagRun.execution_date,
+            func.rank()
+            .over(
+                partition_by=DagRun.dag_id,
+                order_by=DagRun.execution_date.desc(),
+            )
+            .label("rank"),
         )
-        .group_by(DagRun.dag_id)
-        .subquery("last_runs")
+        .order_by(DagRun.execution_date.desc())
+        .subquery()
     )
-    dags_select_with_recent_dag_run = (
+    dags_with_recent_dag_runs_select = (
         select(
             DagModel.dag_id,
+            # should select DagModel fields that `get_dags` in public endpoint will filter at
+            DagModel.dag_display_name,
+            DagModel.next_dagrun,
+            recent_runs_subquery.c.execution_date,
             DagRun.start_date,
             DagRun.end_date,
             DagRun.state,
-            DagRun.execution_date,
             DagRun.data_interval_start,
             DagRun.data_interval_end,
         )
+        .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
+        # `last_run_state` and `last_run_start_date` query params of`get_dags` endpoint
+        # needs `DagRun` to order_by
         .join(
             DagRun,
-            DagModel.dag_id == DagRun.dag_id,
-        )
-        .join(
-            recent_runs_subquery,
             and_(
-                recent_runs_subquery.c.dag_id == DagModel.dag_id,
-                recent_runs_subquery.c.max_execution_date == DagRun.execution_date,
+                DagRun.dag_id == DagModel.dag_id,
+                DagRun.execution_date == recent_runs_subquery.c.execution_date,
             ),
         )
+        .where(recent_runs_subquery.c.rank <= dag_runs_limit.value)
+        .group_by(
+            DagModel.dag_id,
+            recent_runs_subquery.c.execution_date,
+            DagRun.start_date,
+            DagRun.end_date,
+            DagRun.state,
+            DagRun.data_interval_start,
+            DagRun.data_interval_end,
+        )
     )
-    recent_dags_select, total_entries = paginated_select(
-        dags_select_with_recent_dag_run,
+    dags_with_recent_dag_runs_select_filter, total_entries = paginated_select(
+        dags_with_recent_dag_runs_select,
         [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
         None,
         offset,
         limit,
     )
+    dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter).all()
+    # aggregate rows by dag_id
+    dag_runs_by_dag_id: dict[str, list] = {}
+    for row in dags_with_recent_dag_runs:
+        dag_id = row.dag_id
+        if dag_id not in dag_runs_by_dag_id:
+            dag_runs_by_dag_id[dag_id] = []
+        dag_runs_by_dag_id[dag_id].append(row)
 
-    dag_runs = session.execute(recent_dags_select).all()
-    print("dag_runs\n", dag_runs)
     return RecentDAGRunsCollectionResponse(
-        total_entries=total_entries,
+        total_dag_runs=total_entries,
+        total_dag_ids=len(dag_runs_by_dag_id),
         recent_dag_runs=[
             RecentDAGRunsResponse(
-                dag_id=row.dag_id,
+                dag_id=dag_id,
                 dag_runs=[
                     RecentDAGRun(
-                        dag_id=row.dag_id,
-                        start_date=row.start_date,
-                        end_date=row.end_date,
-                        state=row.state,
-                        execution_date=row.execution_date,
-                        data_interval_start=row.data_interval_start,
-                        data_interval_end=row.data_interval_end,
+                        start_date=dag_run.start_date,
+                        end_date=dag_run.end_date,
+                        state=dag_run.state,
+                        execution_date=dag_run.execution_date,
+                        data_interval_start=dag_run.data_interval_start,
+                        data_interval_end=dag_run.data_interval_end,
                     )
+                    for dag_run in dag_runs
                 ],
             )
-            for row in dag_runs
+            for dag_id, dag_runs in dag_runs_by_dag_id.items()
         ],
     )

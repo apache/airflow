@@ -287,7 +287,6 @@ export type ProviderResponse = {
  * Run serializer for Recent DAG Runs.
  */
 export type RecentDAGRun = {
-  dag_id: string;
   start_date: string | null;
   end_date: string | null;
   state: DagRunState;
@@ -301,7 +300,8 @@ export type RecentDAGRun = {
  */
 export type RecentDAGRunsCollectionResponse = {
   recent_dag_runs: Array<RecentDAGRunsResponse>;
-  total_entries: number;
+  total_dag_ids: number;
+  total_dag_runs: number;
 };
 
 /**
