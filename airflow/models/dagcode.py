@@ -17,11 +17,9 @@
 from __future__ import annotations
 
 import logging
-import os
 import struct
 import uuid
-from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Iterable
+from typing import TYPE_CHECKING, Collection
 
 from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
@@ -30,10 +28,10 @@ from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.exceptions import AirflowException, DagCodeNotFound
+from airflow.exceptions import DagCodeNotFound
 from airflow.models.base import Base
 from airflow.utils import timezone
-from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
+from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -82,72 +80,6 @@ class DagCode(Base):
         session.add(dag_code)
         log.debug("DAG file %s written into DagCode table", fileloc)
         return dag_code
-
-    @provide_session
-    def sync_to_db(self, session: Session = NEW_SESSION) -> None:
-        """
-        Write code into database.
-
-        :param session: ORM Session
-        """
-        self.bulk_sync_to_db([self.fileloc], session)
-
-    @classmethod
-    @provide_session
-    def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
-        """
-        Write code in bulk into database.
-
-        :param filelocs: file paths of DAGs to sync
-        :param session: ORM Session
-        """
-        filelocs = set(filelocs)
-        filelocs_to_hashes = {fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs}
-        existing_orm_dag_codes = session.scalars(
-            select(DagCode)
-            .filter(DagCode.fileloc_hash.in_(filelocs_to_hashes.values()))
-            .with_for_update(of=DagCode)
-        ).all()
-
-        if existing_orm_dag_codes:
-            existing_orm_dag_codes_map = {
-                orm_dag_code.fileloc: orm_dag_code for orm_dag_code in existing_orm_dag_codes
-            }
-        else:
-            existing_orm_dag_codes_map = {}
-
-        existing_orm_dag_codes_by_fileloc_hashes = {orm.fileloc_hash: orm for orm in existing_orm_dag_codes}
-        existing_orm_filelocs = {orm.fileloc for orm in existing_orm_dag_codes_by_fileloc_hashes.values()}
-        if not existing_orm_filelocs.issubset(filelocs):
-            conflicting_filelocs = existing_orm_filelocs.difference(filelocs)
-            hashes_to_filelocs = {DagCode.dag_fileloc_hash(fileloc): fileloc for fileloc in filelocs}
-            message = ""
-            for fileloc in conflicting_filelocs:
-                filename = hashes_to_filelocs[DagCode.dag_fileloc_hash(fileloc)]
-                message += (
-                    f"Filename '{filename}' causes a hash collision in the "
-                    f"database with '{fileloc}'. Please rename the file."
-                )
-            raise AirflowException(message)
-
-        existing_filelocs = {dag_code.fileloc for dag_code in existing_orm_dag_codes}
-        missing_filelocs = filelocs.difference(existing_filelocs)
-
-        for fileloc in missing_filelocs:
-            orm_dag_code = DagCode(fileloc, cls._get_code_from_file(fileloc))
-            session.add(orm_dag_code)
-
-        for fileloc in existing_filelocs:
-            current_version = existing_orm_dag_codes_by_fileloc_hashes[filelocs_to_hashes[fileloc]]
-            file_mod_time = datetime.fromtimestamp(
-                os.path.getmtime(correct_maybe_zipped(fileloc)), tz=timezone.utc
-            )
-
-            if file_mod_time > current_version.last_updated:
-                orm_dag_code = existing_orm_dag_codes_map[fileloc]
-                orm_dag_code.last_updated = file_mod_time
-                orm_dag_code.source_code = cls._get_code_from_file(orm_dag_code.fileloc)
-                session.merge(orm_dag_code)
 
     @classmethod
     @internal_api_call

@@ -69,33 +69,9 @@ class TestDagCode:
             SDM.write_dag(dag)
         return example_dags
 
-    def test_sync_to_db(self):
+    def test_write_to_db(self):
         """Dg code can be written into database."""
         example_dags = self._write_example_dags()
-
-        self._compare_example_dags(example_dags)
-
-    def test_bulk_sync_to_db(self):
-        """Dg code can be bulk written into database."""
-        example_dags = make_example_dags(example_dags_module)
-        files = [dag.fileloc for dag in example_dags.values()]
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(files, session=session)
-            session.commit()
-
-        self._compare_example_dags(example_dags)
-
-    def test_bulk_sync_to_db_half_files(self):
-        """Dg code can be bulk written into database."""
-        example_dags = make_example_dags(example_dags_module)
-        files = [dag.fileloc for dag in example_dags.values()]
-        half_files = files[: len(files) // 2]
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(half_files, session=session)
-            session.commit()
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(files, session=session)
-            session.commit()
 
         self._compare_example_dags(example_dags)
 
