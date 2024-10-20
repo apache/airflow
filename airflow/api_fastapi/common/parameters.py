@@ -31,6 +31,7 @@ from typing_extensions import Annotated, Self
 from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
@@ -281,6 +282,30 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
         )
 
 
+class _WarningTypeFilter(BaseParam[str]):
+    """Filter on warning type."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(DagWarning.warning_type.contains(self.value))
+
+    def depends(self, warning_type: DagWarningType | None = None) -> _WarningTypeFilter:
+        return self.set_value(warning_type)
+
+
+class _DagIdInDagWarningFilter(BaseParam[str]):
+    """Filter on dag_id in DagWarning."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(DagWarning.dag_id == self.value)
+
+    def depends(self, dag_id: str | None = None) -> _DagIdInDagWarningFilter:
+        return self.set_value(dag_id)
+
+
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 # DAG
@@ -299,3 +324,8 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGWarning
+QueryDagIdInDagWarningFilter = Annotated[
+    _DagIdInDagWarningFilter, Depends(_DagIdInDagWarningFilter().depends)
+]
+QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilter().depends)]

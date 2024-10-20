@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagWarningService,
   DashboardService,
   MonitorService,
   VariableService,
@@ -299,4 +300,49 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagWarningServiceListDagWarnings = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: "non-existent pool";
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({
+      dagId,
+      limit,
+      offset,
+      orderBy,
+      warningType,
+    }),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }),
   });
