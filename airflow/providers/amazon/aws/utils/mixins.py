@@ -28,13 +28,12 @@ This module contains different mixin classes for internal use within the Amazon 
 from __future__ import annotations
 
 import warnings
-from functools import cached_property
+from functools import cache, cached_property
 from typing import Any, Generic, NamedTuple, TypeVar
 
 from deprecated import deprecated
 from typing_extensions import final
 
-from airflow.compat.functools import cache
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
