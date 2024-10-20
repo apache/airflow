@@ -23,7 +23,7 @@ import platform
 import re
 import subprocess
 import sys
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generator, Protocol, TypeVar
@@ -1591,3 +1591,25 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
     from itsdangerous import URLSafeSerializer
 
     return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture
+def file_updater():
+    @contextmanager
+    def _file_updater(file_path):
+        original_content = None
+        try:
+            with open(file_path) as file:
+                original_content = file.read()
+                updated_content = original_content.replace("2021", "2024")
+
+            with open(file_path, "w") as file:
+                file.write(updated_content)
+
+            yield file_path
+        finally:
+            if original_content is not None:
+                with open(file_path, "w") as file:
+                    file.write(original_content)
+
+    return _file_updater

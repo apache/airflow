@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -36,28 +35,6 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
-
-
-@pytest.fixture
-def file_updater():
-    @contextmanager
-    def _file_updater(file_path):
-        original_content = None
-        try:
-            with open(file_path) as file:
-                original_content = file.read()
-                updated_content = original_content.replace("2021", "2024")
-
-            with open(file_path, "w") as file:
-                file.write(updated_content)
-
-            yield file_path
-        finally:
-            if original_content is not None:
-                with open(file_path, "w") as file:
-                    file.write(original_content)
-
-    return _file_updater
 
 
 def make_example_dags(module):

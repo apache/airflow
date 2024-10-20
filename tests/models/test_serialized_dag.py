@@ -164,6 +164,20 @@ class TestSerializedDagModel:
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    def test_read_all_dags_only_picks_the_latest_serdags(self, file_updater, session):
+        example_dags = self._write_example_dags()
+        serialized_dags = SDM.read_all_dags()
+        assert len(example_dags) == len(serialized_dags)
+        example_bash_op = example_dags.get("example_bash_operator")
+        with file_updater(example_bash_op.fileloc):
+            ex_dags = make_example_dags(example_dags_module)
+            SDM.write_dag(ex_dags.get("example_bash_operator"))
+            serialized_dags2 = SDM.read_all_dags()
+            sdags = session.query(SDM).all()
+            # assert only the latest SDM is returned
+            assert len(sdags) != len(serialized_dags2)
+
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
