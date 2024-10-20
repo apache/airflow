@@ -48,6 +48,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -164,7 +165,7 @@ class DagRun(Base, LoggingMixin):
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
     """
-    dag_version_id = Column(Integer, ForeignKey("dag_version.id"))
+    dag_version_id = Column(UUIDType, ForeignKey("dag_version.id"))
     dag_version = relationship("DagVersion", back_populates="dag_runs")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI

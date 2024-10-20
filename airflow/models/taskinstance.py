@@ -69,6 +69,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
@@ -1875,7 +1876,7 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
-    dag_version_id = Column(Integer, ForeignKey("dag_version.id"))
+    dag_version_id = Column(UUIDType, ForeignKey("dag_version.id"))
     dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
     # _set_ti_attrs() or they won't display in the UI correctly
