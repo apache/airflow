@@ -27,7 +27,6 @@ from airflow.utils.state import DagRunState
 class RecentDAGRun(BaseModel):
     """Run serializer for Recent DAG Runs."""
 
-    dag_id: str
     start_date: datetime | None
     end_date: datetime | None
     state: DagRunState
@@ -47,4 +46,5 @@ class RecentDAGRunsCollectionResponse(BaseModel):
     """Recent DAG Runs collection response serializer."""
 
     recent_dag_runs: list[RecentDAGRunsResponse]
-    total_entries: int
+    total_dag_ids: int
+    total_dag_runs: int

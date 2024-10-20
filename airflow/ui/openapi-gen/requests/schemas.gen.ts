@@ -1635,10 +1635,6 @@ export const $ProviderResponse = {
 
 export const $RecentDAGRun = {
   properties: {
-    dag_id: {
-      type: "string",
-      title: "Dag Id",
-    },
     start_date: {
       anyOf: [
         {
@@ -1705,7 +1701,6 @@ export const $RecentDAGRun = {
   },
   type: "object",
   required: [
-    "dag_id",
     "start_date",
     "end_date",
     "state",
@@ -1726,13 +1721,17 @@ export const $RecentDAGRunsCollectionResponse = {
       type: "array",
       title: "Recent Dag Runs",
     },
-    total_entries: {
+    total_dag_ids: {
       type: "integer",
-      title: "Total Entries",
+      title: "Total Dag Ids",
+    },
+    total_dag_runs: {
+      type: "integer",
+      title: "Total Dag Runs",
     },
   },
   type: "object",
-  required: ["recent_dag_runs", "total_entries"],
+  required: ["recent_dag_runs", "total_dag_ids", "total_dag_runs"],
   title: "RecentDAGRunsCollectionResponse",
   description: "Recent DAG Runs collection response serializer.",
 } as const;
