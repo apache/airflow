@@ -20,10 +20,12 @@ from __future__ import annotations
 import logging
 import random
 import string
+import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKey, Integer, func, select
 from sqlalchemy.orm import relationship
+from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -43,7 +45,7 @@ class DagVersion(Base):
     """Model to track the versions of DAGs in the database."""
 
     __tablename__ = "dag_version"
-    id = Column(Integer, primary_key=True)
+    id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
     version_number = Column(Integer)
     version_name = Column(StringID())
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
