@@ -133,6 +133,7 @@ class DockerSwarmOperator(DockerOperator):
         container_resources: types.Resources | None = None,
         logging_driver: Literal["json-path", "gelf"] | None = None,
         logging_driver_opts: dict | None = None,
+        hosts: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
@@ -149,6 +150,7 @@ class DockerSwarmOperator(DockerOperator):
         self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
         self.logging_driver = logging_driver
         self.logging_driver_opts = logging_driver_opts
+        self.hosts = hosts or {}
 
         if self.logging_driver:
             supported_logging_drivers = ("json-file", "gelf")
@@ -176,6 +178,7 @@ class DockerSwarmOperator(DockerOperator):
                     env=self.environment,
                     user=self.user,
                     tty=self.tty,
+                    hosts=self.hosts,
                     configs=self.configs,
                     secrets=self.secrets,
                 ),
