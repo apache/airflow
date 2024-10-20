@@ -61,7 +61,7 @@ def upgrade():
     )
     with op.batch_alter_table("dag_code", recreate="always", naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True), insert_before="fileloc_hash")
+        batch_op.add_column(sa.Column("id", UUIDType, primary_key=True), insert_before="fileloc_hash")
         batch_op.create_primary_key("dag_code_pkey", ["id"])
         batch_op.add_column(sa.Column("dag_version_id", UUIDType))
         batch_op.create_foreign_key(
