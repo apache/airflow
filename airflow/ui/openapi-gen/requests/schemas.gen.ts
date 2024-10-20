@@ -1013,6 +1013,51 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGWarningCollectionResponse = {
+  properties: {
+    dag_warnings: {
+      items: {
+        $ref: "#/components/schemas/DAGWarningResponse",
+      },
+      type: "array",
+      title: "Dag Warnings",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_warnings", "total_entries"],
+  title: "DAGWarningCollectionResponse",
+  description: "DAG warning collection serializer for responses.",
+} as const;
+
+export const $DAGWarningResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    warning_type: {
+      $ref: "#/components/schemas/DagWarningType",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "warning_type", "message", "timestamp"],
+  title: "DAGWarningResponse",
+  description: "DAG Warning serializer for responses.",
+} as const;
+
 export const $DagProcessorInfoSchema = {
   properties: {
     status: {
@@ -1094,6 +1139,17 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $DagWarningType = {
+  type: "string",
+  enum: ["non-existent pool"],
+  const: "non-existent pool",
+  title: "DagWarningType",
+  description: `Enum for DAG warning types.
+
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`,
 } as const;
 
 export const $HTTPExceptionResponse = {

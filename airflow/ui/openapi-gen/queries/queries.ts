@@ -11,6 +11,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagWarningService,
   DashboardService,
   MonitorService,
   VariableService,
@@ -384,6 +385,54 @@ export const useMonitorServiceGetHealth = <
   useQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagWarningServiceListDagWarnings = <
+  TData = Common.DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: "non-existent pool";
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn(
+      { dagId, limit, offset, orderBy, warningType },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }) as TData,
     ...options,
   });
 /**

@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagWarningService,
   DashboardService,
   MonitorService,
   VariableService,
@@ -244,6 +245,34 @@ export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
 export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
   useMonitorServiceGetHealthKey,
   ...(queryKey ?? []),
+];
+export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
+  ReturnType<typeof DagWarningService.listDagWarnings>
+>;
+export type DagWarningServiceListDagWarningsQueryResult<
+  TData = DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagWarningServiceListDagWarningsKey =
+  "DagWarningServiceListDagWarnings";
+export const UseDagWarningServiceListDagWarningsKeyFn = (
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: "non-existent pool";
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagWarningServiceListDagWarningsKey,
+  ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }]),
 ];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>

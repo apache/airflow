@@ -178,6 +178,24 @@ export type DAGRunTypes = {
 };
 
 /**
+ * DAG warning collection serializer for responses.
+ */
+export type DAGWarningCollectionResponse = {
+  dag_warnings: Array<DAGWarningResponse>;
+  total_entries: number;
+};
+
+/**
+ * DAG Warning serializer for responses.
+ */
+export type DAGWarningResponse = {
+  dag_id: string;
+  warning_type: DagWarningType;
+  message: string;
+  timestamp: string;
+};
+
+/**
  * Schema for DagProcessor info.
  */
 export type DagProcessorInfoSchema = {
@@ -223,6 +241,14 @@ export type DagTagPydantic = {
   name: string;
   dag_id: string;
 };
+
+/**
+ * Enum for DAG warning types.
+ *
+ * This is the set of allowable values for the ``warning_type`` field
+ * in the DagWarning model.
+ */
+export type DagWarningType = "non-existent pool";
 
 /**
  * HTTPException Model used for error response.
@@ -465,6 +491,16 @@ export type DeleteDagRunData = {
 export type DeleteDagRunResponse = void;
 
 export type GetHealthResponse = HealthInfoSchema;
+
+export type ListDagWarningsData = {
+  dagId?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  warningType?: DagWarningType | null;
+};
+
+export type ListDagWarningsResponse = DAGWarningCollectionResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -934,6 +970,29 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/dagWarnings": {
+    get: {
+      req: ListDagWarningsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWarningCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
