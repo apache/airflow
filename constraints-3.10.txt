@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-19T19:48:40.825865
+# This constraints file was automatically generated on 2024-10-20T13:51:00.236021
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -484,7 +484,7 @@ mypy-boto3-s3==1.35.42
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
-mysqlclient==2.2.4
+mysqlclient==2.2.5
 nbclient==0.10.0
 nbformat==5.10.4
 neo4j==5.25.0
@@ -601,7 +601,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-multipart==0.0.12
+python-multipart==0.0.13
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.6
