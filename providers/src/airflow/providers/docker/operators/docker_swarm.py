@@ -164,7 +164,7 @@ class DockerSwarmOperator(DockerOperator):
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         return self._run_service()
 
-    def _run_service(self) -> None:
+    def _run_service(self) -> str | None:
         self.log.info("Starting docker service from image %s", self.image)
         self.service = self.cli.create_service(
             types.TaskTemplate(
@@ -217,6 +217,17 @@ class DockerSwarmOperator(DockerOperator):
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()
 
+        logs = None
+        if self.do_xcom_push:
+            all_logs = self.get_logs()
+            if self.xcom_all:
+                # Get all logs
+                logs = "\n".join(all_logs)
+            else:
+                if len(all_logs):
+                    # get last log
+                    logs = all_logs[-1]
+
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
@@ -226,6 +237,7 @@ class DockerSwarmOperator(DockerOperator):
             if not self.service:
                 raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
+        return logs
 
     def _service_status(self) -> str | None:
         if not self.service:
@@ -235,6 +247,14 @@ class DockerSwarmOperator(DockerOperator):
     def _has_service_terminated(self) -> bool:
         status = self._service_status()
         return status in ["complete", "failed", "shutdown", "rejected", "orphaned", "remove"]
+
+    def get_logs(self) -> list[str]:
+        logs =  self.cli.service_logs(
+            self.service["ID"],
+            stdout=True,
+            stderr=True,
+        )
+        return list(map(lambda line: line.decode("utf-8"), logs))
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
