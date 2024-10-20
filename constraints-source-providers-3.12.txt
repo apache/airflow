@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-18T06:42:41.443119
+# This constraints file was automatically generated on 2024-10-20T07:56:31.229387
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -30,7 +30,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.4
 Mako==1.3.5
 Markdown==3.7
-MarkupSafe==3.0.1
+MarkupSafe==3.0.2
 PyAthena==3.9.0
 PyGithub==2.4.0
 PyHive==0.7.0
@@ -129,7 +129,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.17.1
+cfn-lint==1.17.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -189,7 +189,7 @@ gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.3.0
 gcsfs==2024.9.0.post1
 geomet==0.2.1.post1
-gevent==24.10.2
+gevent==24.10.3
 gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.0
@@ -324,9 +324,9 @@ mdit-py-plugins==0.4.2
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.4.5
-microsoft-kiota-authentication-azure==1.4.5
-microsoft-kiota-http==1.4.5
+microsoft-kiota-abstractions==1.3.3
+microsoft-kiota-authentication-azure==1.1.0
+microsoft-kiota-http==1.3.4
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
@@ -334,7 +334,7 @@ moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.5
+msgraph-core==1.1.6
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -534,7 +534,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==1.0.6
+std-uritemplate==2.0.0
 strictyaml==1.7.3
 sympy==1.13.3
 tableauserverclient==0.33
@@ -574,7 +574,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
-types-setuptools==75.2.0.20241018
+types-setuptools==75.2.0.20241019
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -603,7 +603,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.321.0
-yarl==1.15.4
+yarl==1.15.5
 ydb==3.18.3
 zeep==4.3.1
 zenpy==2.0.54

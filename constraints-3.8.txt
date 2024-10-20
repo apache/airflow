@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-18T06:50:40.057267
+# This constraints file was automatically generated on 2024-10-20T08:04:31.670766
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -250,7 +250,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.17.1
+cfn-lint==1.17.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -458,9 +458,9 @@ mdit-py-plugins==0.4.2
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.4.5
-microsoft-kiota-authentication-azure==1.4.5
-microsoft-kiota-http==1.3.3
+microsoft-kiota-abstractions==1.3.3
+microsoft-kiota-authentication-azure==1.1.0
+microsoft-kiota-http==1.3.4
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
@@ -468,7 +468,7 @@ moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.5
+msgraph-core==1.1.6
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -511,7 +511,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==2.4.1
 ordered-set==4.1.0
-orjson==3.10.7
+orjson==3.10.9
 oss2==2.19.0
 packaging==24.1
 pandas-gbq==0.24.0
@@ -680,7 +680,7 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==1.0.6
+std-uritemplate==2.0.0
 strictyaml==1.7.3
 sympy==1.13.3
 tableauserverclient==0.25
@@ -721,7 +721,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==75.2.0.20241018
+types-setuptools==75.2.0.20241019
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
