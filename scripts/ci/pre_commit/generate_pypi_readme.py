@@ -54,7 +54,8 @@ def extract_section(content, section_name):
     if section_match:
         return section_match.group(1)
     else:
-        raise RuntimeError(f"Cannot find section {section_name} in README.md")
+        msg = f"Cannot find section {section_name} in README.md"
+        raise RuntimeError(msg)
 
 
 if __name__ == "__main__":

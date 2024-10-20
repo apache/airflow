@@ -1150,7 +1150,8 @@ class TestSqlBranch:
             elif ti.task_id == "branch_2":
                 assert ti.state == State.SKIPPED
             else:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+                msg = f"Invalid task id {ti.task_id} found!"
+                raise ValueError(msg)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
@@ -1194,7 +1195,8 @@ class TestSqlBranch:
                 elif ti.task_id == "branch_2":
                     assert ti.state == State.SKIPPED
                 else:
-                    raise ValueError(f"Invalid task id {ti.task_id} found!")
+                    msg = f"Invalid task id {ti.task_id} found!"
+                    raise ValueError(msg)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_false_with_dag_run(self, mock_get_db_hook):
@@ -1237,7 +1239,8 @@ class TestSqlBranch:
                 elif ti.task_id == "branch_2":
                     assert ti.state == State.NONE
                 else:
-                    raise ValueError(f"Invalid task id {ti.task_id} found!")
+                    msg = f"Invalid task id {ti.task_id} found!"
+                    raise ValueError(msg)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_list_with_dag_run(self, mock_get_db_hook):
@@ -1281,7 +1284,8 @@ class TestSqlBranch:
             elif ti.task_id == "branch_3":
                 assert ti.state == State.SKIPPED
             else:
-                raise ValueError(f"Invalid task id {ti.task_id} found!")
+                msg = f"Invalid task id {ti.task_id} found!"
+                raise ValueError(msg)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_invalid_query_result_with_dag_run(self, mock_get_db_hook):
@@ -1356,7 +1360,8 @@ class TestSqlBranch:
                 elif ti.task_id in ("branch_1", "branch_2"):
                     assert ti.state == State.NONE
                 else:
-                    raise ValueError(f"Invalid task id {ti.task_id} found!")
+                    msg = f"Invalid task id {ti.task_id} found!"
+                    raise ValueError(msg)
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
     def test_with_skip_in_branch_downstream_dependencies2(self, mock_get_db_hook):
@@ -1400,7 +1405,8 @@ class TestSqlBranch:
                 elif ti.task_id == "branch_2":
                     assert ti.state == State.NONE
                 else:
-                    raise ValueError(f"Invalid task id {ti.task_id} found!")
+                    msg = f"Invalid task id {ti.task_id} found!"
+                    raise ValueError(msg)
 
 
 class TestBaseSQLOperatorSubClass:

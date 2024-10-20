@@ -126,7 +126,8 @@ class TableauOperator(BaseOperator):
                         check_interval=self.check_interval,
                         target_state=TableauJobFinishCode.SUCCESS,
                     ):
-                        raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
+                        msg = f"The Tableau Refresh {self.resource} Job failed!"
+                        raise TableauJobFailedException(msg)
 
         return job_id
 
@@ -139,5 +140,5 @@ class TableauOperator(BaseOperator):
                 resource_id = resource.id
                 self.log.info("Found matching with id %s", resource_id)
                 return resource_id
-
-        raise AirflowException(f"{self.resource} with {self.match_with} {self.find} not found!")
+        msg = f"{self.resource} with {self.match_with} {self.find} not found!"
+        raise AirflowException(msg)

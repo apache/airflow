@@ -150,7 +150,8 @@ def _load_spec(spec_file: str | None, spec_url: str | None):
     if spec_url:
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
     if not spec_file:
-        raise ValueError(f"The {spec_file} was None and {spec_url} did not lead to any file loading.")
+        msg = f"The {spec_file} was None and {spec_url} did not lead to any file loading."
+        raise ValueError(msg)
     with open(spec_file) as schema_file:
         schema = json.loads(schema_file.read())
     return schema

@@ -296,7 +296,8 @@ class TeradataHook(DbApiHook):
 
             if isinstance(records, dict):
                 return {n: v for (n, v) in records.items()}
-            raise TypeError(f"Unexpected results: {records}")
+            msg = f"Unexpected results: {records}"
+            raise TypeError(msg)
 
         result = self.run(
             sql,

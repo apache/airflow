@@ -27,10 +27,11 @@ from pathlib import Path
 # They are importing rich library which is not available in the node environment.
 
 if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
+    msg = (
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
+    raise SystemExit(msg)
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 UI_CACHE_DIR = AIRFLOW_SOURCES_PATH / ".build" / "ui"

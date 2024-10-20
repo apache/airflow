@@ -47,8 +47,8 @@ async def delete_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
-
+        detail = f"The Connection with connection_id: `{connection_id}` was not found"
+        raise HTTPException(404, detail)
     session.delete(connection)
 
 
@@ -64,7 +64,8 @@ async def get_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        detail = f"The Connection with connection_id: `{connection_id}` was not found"
+        raise HTTPException(404, detail)
 
     return ConnectionResponse.model_validate(connection, from_attributes=True)
 

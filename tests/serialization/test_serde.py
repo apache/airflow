@@ -387,11 +387,13 @@ class TestSerDe:
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
-                    raise TypeError(f"{s} is not of type str. This is required for lazy loading")
+                    msg = f"{s} is not of type str. This is required for lazy loading"
+                    raise TypeError(msg)
                 try:
                     import_string(s)
                 except ImportError:
-                    raise AttributeError(f"{s} cannot be imported (located in {name})")
+                    msg = f"{s} cannot be imported (located in {name})"
+                    raise AttributeError(msg)
 
     def test_stringify(self):
         i = V(W(10), ["l1", "l2"], (1, 2), 10)

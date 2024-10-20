@@ -42,7 +42,8 @@ def get_header_and_footer(extra_type: str, file_format: str) -> tuple[str, str]:
     elif file_format == "txt":
         return f"# START {extra_type.upper()} HERE", f"# END {extra_type.upper()} HERE"
     else:
-        raise ValueError(f"Bad format {format} passed. Only rst and txt are supported")
+        msg = f"Bad format {format} passed. Only rst and txt are supported"
+        raise ValueError(msg)
 
 
 def get_wrapped_list(extras_set: list[str]) -> list[str]:
@@ -81,7 +82,8 @@ def process_documentation_files() -> bool:
     extra_type_dict = get_extra_types_dict()
     for file, file_format, add_comment in FILES_TO_UPDATE:
         if not file.exists():
-            raise FileNotFoundError(f"File {file} does not exist")
+            msg = f"File {file} does not exist"
+            raise FileNotFoundError(msg)
         for extra_type_description in extra_type_dict:
             header, footer = get_header_and_footer(extra_type_description, file_format)
             if insert_documentation(
