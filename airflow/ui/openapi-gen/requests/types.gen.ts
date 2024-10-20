@@ -8,7 +8,21 @@ export type BaseInfoSchema = {
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Connection Serializer for requests body.
+ */
+export type ConnectionBody = {
+  connection_id: string;
+  conn_type: string;
+  description?: string | null;
+  host?: string | null;
+  login?: string | null;
+  schema?: string | null;
+  port?: number | null;
+  extra?: string | null;
+};
+
+/**
+ * Connection Collection serializer for responses.
  */
 export type ConnectionCollectionResponse = {
   connections: Array<ConnectionResponse>;
@@ -304,8 +318,8 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  description: string | null;
   value: string | null;
+  description?: string | null;
 };
 
 /**
@@ -321,8 +335,8 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  description: string | null;
   value: string | null;
+  description: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -379,7 +393,7 @@ export type GetDagResponse = DAGResponse;
 export type PatchDagData = {
   dagId: string;
   requestBody: DAGPatchBody;
-  updateMask?: Array<string> | null;
+  updateMask?: string | null;
 };
 
 export type PatchDagResponse = DAGResponse;
@@ -408,6 +422,14 @@ export type GetConnectionData = {
 
 export type GetConnectionResponse = ConnectionResponse;
 
+export type PatchConnectionData = {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: string | null;
+};
+
+export type PatchConnectionResponse = ConnectionResponse;
+
 export type GetConnectionsData = {
   limit?: number;
   offset?: number;
@@ -430,7 +452,7 @@ export type GetVariableResponse = VariableResponse;
 
 export type PatchVariableData = {
   requestBody: VariableBody;
-  updateMask?: Array<string> | null;
+  updateMask?: string | null;
   variableKey: string;
 };
 
@@ -700,6 +722,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */
