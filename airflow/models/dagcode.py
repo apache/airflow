@@ -19,13 +19,15 @@ from __future__ import annotations
 import logging
 import os
 import struct
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable
 
-from sqlalchemy import BigInteger, Column, ForeignKey, Integer, String, Text, delete, select
+from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
+from sqlalchemy_utils import UUIDType
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException, DagCodeNotFound
@@ -51,13 +53,13 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-    id = Column(Integer, primary_key=True)
+    id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
     fileloc_hash = Column(BigInteger, nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
-    dag_version_id = Column(Integer, ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version_id = Column(UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False, cascade_backrefs=False)
 
     def __init__(self, full_filepath: str, source_code: str | None = None):
@@ -189,7 +191,10 @@ class DagCode(Base):
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
         return (
             session.scalars(
-                select(literal(True)).where(cls.fileloc_hash == fileloc_hash).order_by(cls.id.desc()).limit(1)
+                select(literal(True))
+                .where(cls.fileloc_hash == fileloc_hash)
+                .order_by(cls.last_updated.desc())
+                .limit(1)
             ).one_or_none()
             is not None
         )

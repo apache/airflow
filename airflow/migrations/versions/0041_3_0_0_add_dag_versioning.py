@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy_utils import UUIDType
 
 from airflow.migrations.db_types import StringID
 from airflow.models.base import naming_convention
@@ -50,12 +51,10 @@ def upgrade():
 
     op.create_table(
         "dag_version",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", UUIDType, nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("version_name", StringID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
-        sa.Column("dag_code_id", sa.Integer(), nullable=True),
-        sa.Column("serialized_dag_id", sa.Integer(), nullable=True),
         sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
         sa.ForeignKeyConstraint(("dag_id",), ["dag.dag_id"], name=op.f("dag_version_dag_id_fkey")),
         sa.PrimaryKeyConstraint("id", name=op.f("dag_version_pkey")),
@@ -64,7 +63,7 @@ def upgrade():
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
         batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True), insert_before="fileloc_hash")
         batch_op.create_primary_key("dag_code_pkey", ["id"])
-        batch_op.add_column(sa.Column("dag_version_id", sa.Integer()))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType))
         batch_op.create_foreign_key(
             batch_op.f("dag_code_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
         )
@@ -73,27 +72,27 @@ def upgrade():
         "serialized_dag", recreate="always", naming_convention=naming_convention
     ) as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True))
+        batch_op.add_column(sa.Column("id", UUIDType, primary_key=True))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")
         batch_op.create_primary_key("serialized_dag_pkey", ["id"])
-        batch_op.add_column(sa.Column("dag_version_id", sa.Integer()))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType))
         batch_op.create_foreign_key(
             batch_op.f("serialized_dag_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
         )
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType, nullable=True))
         batch_op.create_foreign_key(
             batch_op.f("task_instance_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType, nullable=True))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType, nullable=True))
         batch_op.create_foreign_key(
             batch_op.f("dag_run_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
         )

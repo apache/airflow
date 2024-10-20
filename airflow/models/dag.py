@@ -2449,7 +2449,7 @@ class DAG(LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        dag_version_id: int | None = None,
+        dag_version_id: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         backfill_id: int | None = None,
