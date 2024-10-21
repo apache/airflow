@@ -7,6 +7,12 @@ import type {
   NextRunAssetsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
+  DeleteConnectionData,
+  DeleteConnectionResponse,
+  GetConnectionData,
+  GetConnectionResponse,
+  GetConnectionsData,
+  GetConnectionsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -19,12 +25,13 @@ import type {
   DeleteDagResponse,
   GetDagDetailsData,
   GetDagDetailsResponse,
-  DeleteConnectionData,
-  DeleteConnectionResponse,
-  GetConnectionData,
-  GetConnectionResponse,
-  GetConnectionsData,
-  GetConnectionsResponse,
+  GetDagRunData,
+  GetDagRunResponse,
+  DeleteDagRunData,
+  DeleteDagRunResponse,
+  GetDagSourceData,
+  GetDagSourceResponse,
+  GetHealthResponse,
   DeleteVariableData,
   DeleteVariableResponse,
   GetVariableData,
@@ -35,11 +42,6 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetDagRunData,
-  GetDagRunResponse,
-  DeleteDagRunData,
-  DeleteDagRunResponse,
-  GetHealthResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -88,6 +90,90 @@ export class DashboardService {
       },
       errors: {
         400: "Bad Request",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ConnectionService {
+  /**
+   * Delete Connection
+   * Delete a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteConnection(
+    data: DeleteConnectionData,
+  ): CancelablePromise<DeleteConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connection
+   * Get a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConnection(
+    data: GetConnectionData,
+  ): CancelablePromise<GetConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connections
+   * Get all connection entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConnections(
+    data: GetConnectionsData = {},
+  ): CancelablePromise<GetConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -296,25 +382,55 @@ export class DagService {
   }
 }
 
-export class ConnectionService {
+export class DagRunService {
   /**
-   * Delete Connection
-   * Delete a connection entry.
+   * Get Dag Run
    * @param data The data for the request.
-   * @param data.connectionId
+   * @param data.dagId
+   * @param data.dagRunId
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagRun(
+    data: GetDagRunData,
+  ): CancelablePromise<GetDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Dag Run
+   * Delete a DAG Run entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
    * @returns void Successful Response
    * @throws ApiError
    */
-  public static deleteConnection(
-    data: DeleteConnectionData,
-  ): CancelablePromise<DeleteConnectionResponse> {
+  public static deleteDagRun(
+    data: DeleteDagRunData,
+  ): CancelablePromise<DeleteDagRunResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/connections/{connection_id}",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
       path: {
-        connection_id: data.connectionId,
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
       },
       errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -322,60 +438,47 @@ export class ConnectionService {
       },
     });
   }
+}
 
+export class DagSourceService {
   /**
-   * Get Connection
-   * Get a connection entry.
+   * Get Dag Source
+   * Get source code using file token.
    * @param data The data for the request.
-   * @param data.connectionId
-   * @returns ConnectionResponse Successful Response
+   * @param data.fileToken
+   * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getConnection(
-    data: GetConnectionData,
-  ): CancelablePromise<GetConnectionResponse> {
+  public static getDagSource(
+    data: GetDagSourceData,
+  ): CancelablePromise<GetDagSourceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections/{connection_id}",
+      url: "/public/dagSources/{file_token}",
       path: {
-        connection_id: data.connectionId,
+        file_token: data.fileToken,
       },
       errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
-        422: "Validation Error",
+        422: "Unprocessable Entity",
       },
     });
   }
+}
 
+export class MonitorService {
   /**
-   * Get Connections
-   * Get all connection entries.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns ConnectionCollectionResponse Successful Response
+   * Get Health
+   * @returns HealthInfoSchema Successful Response
    * @throws ApiError
    */
-  public static getConnections(
-    data: GetConnectionsData = {},
-  ): CancelablePromise<GetConnectionsResponse> {
+  public static getHealth(): CancelablePromise<GetHealthResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections/",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
+      url: "/public/monitor/health",
     });
   }
 }
@@ -517,78 +620,6 @@ export class VariableService {
         403: "Forbidden",
         422: "Validation Error",
       },
-    });
-  }
-}
-
-export class DagRunService {
-  /**
-   * Get Dag Run
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @returns DAGRunResponse Successful Response
-   * @throws ApiError
-   */
-  public static getDagRun(
-    data: GetDagRunData,
-  ): CancelablePromise<GetDagRunResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Delete Dag Run
-   * Delete a DAG Run entry.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @returns void Successful Response
-   * @throws ApiError
-   */
-  public static deleteDagRun(
-    data: DeleteDagRunData,
-  ): CancelablePromise<DeleteDagRunResponse> {
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-      },
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class MonitorService {
-  /**
-   * Get Health
-   * @returns HealthInfoSchema Successful Response
-   * @throws ApiError
-   */
-  public static getHealth(): CancelablePromise<GetHealthResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/monitor/health",
     });
   }
 }
