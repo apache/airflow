@@ -108,6 +108,12 @@ option_dev_apt_deps = click.option(
     help="Apt dev dependencies to use when building the images.",
     envvar="DEV_APT_DEPS",
 )
+option_disable_airflow_repo_cache = click.option(
+    "--disable-airflow-repo-cache",
+    help="Disable cache from Airflow repository during building.",
+    is_flag=True,
+    envvar="DISABLE_AIRFLOW_REPO_CACHE",
+)
 option_docker_cache = click.option(
     "-c",
     "--docker-cache",
@@ -115,6 +121,7 @@ option_docker_cache = click.option(
     default=ALLOWED_BUILD_CACHE[0],
     show_default=True,
     type=BetterChoice(ALLOWED_BUILD_CACHE),
+    envvar="DOCKER_CACHE",
 )
 option_image_tag_for_pulling = click.option(
     "-t",

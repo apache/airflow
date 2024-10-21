@@ -70,10 +70,10 @@ const BaseNode = ({
           justifyContent="space-between"
           alignItems="center"
         >
-          {type === "dataset" && <HiDatabase size="16px" />}
+          {type === "asset" && <HiDatabase size="16px" />}
           {type === "sensor" && <MdSensors size="16px" />}
           {type === "trigger" && <MdPlayArrow size="16px" />}
-          {type === "dataset-alias" && <PiRectangleDashed size="16px" />}
+          {type === "asset-alias" && <PiRectangleDashed size="16px" />}
           <Text ml={2}>{label}</Text>
         </Flex>
       )}

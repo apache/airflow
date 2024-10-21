@@ -94,7 +94,6 @@ class TestBaseNotifier:
                 "dag": None,
                 "task_list": ["some_task"],
                 "blocking_task_list": None,
-                "slas": None,
                 "blocking_tis": None,
                 "message": "task: {{ task_list[0] }}",
             }

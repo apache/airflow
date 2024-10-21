@@ -36,6 +36,7 @@ from airflow_breeze.commands.common_image_options import (
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
+    option_disable_airflow_repo_cache,
     option_docker_cache,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
@@ -193,11 +194,6 @@ def prod_image():
 @click.option("--disable-mssql-client-installation", help="Do not install MsSQl client.", is_flag=True)
 @click.option("--disable-postgres-client-installation", help="Do not install Postgres client.", is_flag=True)
 @click.option(
-    "--disable-airflow-repo-cache",
-    help="Disable cache from Airflow repository during building.",
-    is_flag=True,
-)
-@click.option(
     "--install-airflow-reference",
     help="Install Airflow using GitHub tag or branch.",
 )
@@ -222,6 +218,7 @@ def prod_image():
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_disable_airflow_repo_cache
 @option_docker_cache
 @option_docker_host
 @option_dry_run

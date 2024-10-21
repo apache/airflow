@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-redis/|version|/tests/system/providers/redis>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-redis/|version|/providers/tests/system/redis>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-redis/>
     Installing from sources <installing-providers-from-sources>
 
@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/redis/index>
+    System Tests <_api/tests/system/redis/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

@@ -47,14 +47,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/pig/index>
+    System Tests <_api/tests/system/apache/pig/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pig/|version|/tests/system/providers/apache/pig>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pig/|version|/providers/tests/system/apache/pig>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pig/>
     Installing from sources <installing-providers-from-sources>
 

@@ -26,65 +26,94 @@ Prerequisite Tasks
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleSearchAdsInsertReportOperator:
+.. _howto/operator:GoogleSearchAdsSearchOperator:
 
-Inserting a report
+Querying a report
 ^^^^^^^^^^^^^^^^^^
 
-To insert a Search Ads report use the
-:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`.
+To query a Search Ads report use the
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_search_ads_generate_report_operator]
-    :end-before: [END howto_search_ads_generate_report_operator]
+    :start-after: [START howto_search_ads_search_query_reports]
+    :end-before: [END howto_search_ads_search_query_reports]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsInsertReportOperator`
-parameters which allows you to dynamically determine values. You can provide report definition using ``
-.json`` file as this operator supports this template extension.
-The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators:
-
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_search_ads_get_report_id]
-    :end-before: [END howto_search_ads_get_report_id]
-
-.. _howto/operator:GoogleSearchAdsReportSensor:
-
-Awaiting for a report
-^^^^^^^^^^^^^^^^^^^^^
-
-To wait for a report to be ready for download use
-:class:`~airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`.
-
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_search_ads_get_report_operator]
-    :end-before: [END howto_search_ads_get_report_operator]
-
-You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor`
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchOperator`
 parameters which allows you to dynamically determine values.
 
-.. _howto/operator:GoogleSearchAdsGetfileReportOperator:
+.. _howto/operator:GoogleSearchAdsGetFieldOperator:
 
-Downloading a report
-^^^^^^^^^^^^^^^^^^^^
+Retrieve a field metadata
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To download a Search Ads report to Google Cloud Storage bucket use the
-:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`.
+To retrieve metadata of a field use
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetFieldOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_search_ads.py
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_search_ads_getfile_report_operator]
-    :end-before: [END howto_search_ads_getfile_report_operator]
+    :start-after: [START howto_search_ads_get_field]
+    :end-before: [END howto_search_ads_get_field]
 
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsDownloadReportOperator`
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetFieldOperator`
 parameters which allows you to dynamically determine values.
-The result is saved to :ref:`XCom <concepts:xcom>`, which allows it to be used by other operators.
+
+.. _howto/operator:GoogleSearchAdsSearchFieldsOperator:
+
+Retrieve metadata for multiple fields
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To retrieve metadata of multiple fields use the
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchFieldsOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_search_ads_search_fields]
+    :end-before: [END howto_search_ads_search_fields]
+
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsSearchFieldsOperator`
+parameters which allows you to dynamically determine values.
+
+
+.. _howto/operator:GoogleSearchAdsGetCustomColumnOperator:
+
+Retrieve a custom column details
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To retrieve details of a custom column use
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetCustomColumnOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_search_ads_get_custom_column]
+    :end-before: [END howto_search_ads_get_custom_column]
+
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsGetCustomColumnOperator`
+parameters which allows you to dynamically determine values.
+
+.. _howto/operator:GoogleSearchAdsListCustomColumnsOperator:
+
+Retrieve a custom column details
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To retrieve the list of all custom columns use
+
+:class:`~airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsListCustomColumnsOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/google/marketing_platform/example_search_ads.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_search_ads_list_custom_columns]
+    :end-before: [END howto_search_ads_list_custom_columns]
+
+You can use :ref:`Jinja templating <concepts:jinja-templating>` with
+:template-fields:`airflow.providers.google.marketing_platform.operators.search_ads.GoogleSearchAdsListCustomColumnsOperator`
+parameters which allows you to dynamically determine values.

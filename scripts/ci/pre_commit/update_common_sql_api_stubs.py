@@ -39,10 +39,12 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 from common_precommit_black_utils import black_format
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH
 
-PROVIDERS_ROOT = (AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "providers").resolve(strict=True)
+PROVIDERS_ROOT = (AIRFLOW_SOURCES_ROOT_PATH / "providers" / "src" / "airflow" / "providers").resolve(
+    strict=True
+)
 COMMON_SQL_ROOT = (PROVIDERS_ROOT / "common" / "sql").resolve(strict=True)
 OUT_DIR = AIRFLOW_SOURCES_ROOT_PATH / "out"
-OUT_DIR_PROVIDERS = OUT_DIR / "airflow" / "providers"
+OUT_DIR_PROVIDERS = OUT_DIR / PROVIDERS_ROOT.relative_to(AIRFLOW_SOURCES_ROOT_PATH)
 
 COMMON_SQL_PACKAGE_PREFIX = "airflow.providers.common.sql."
 
@@ -317,7 +319,7 @@ if __name__ == "__main__":
     shutil.rmtree(OUT_DIR, ignore_errors=True)
 
     subprocess.run(
-        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("*.py")]],
+        ["stubgen", f"--out={ OUT_DIR }", COMMON_SQL_ROOT],
         cwd=AIRFLOW_SOURCES_ROOT_PATH,
     )
     total_removals, total_additions = 0, 0

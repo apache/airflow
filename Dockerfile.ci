@@ -16,7 +16,7 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -461,8 +461,6 @@ function common::get_colors() {
 }
 
 function common::get_packaging_tool() {
-    : "${AIRFLOW_PIP_VERSION:?Should be set}"
-    : "${AIRFLOW_UV_VERSION:?Should be set}"
     : "${AIRFLOW_USE_UV:?Should be set}"
 
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
@@ -558,7 +556,12 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
         echo
     fi
-    if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_PIP_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest pip version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade pip
+    elif [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
         echo
@@ -575,7 +578,12 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ! ${AIRFLOW_UV_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade uv
+    elif [[ ! ${AIRFLOW_UV_VERSION} =~ [0-9.]* ]]; then
         echo
         echo "${COLOR_BLUE}Installing uv version from spec ${AIRFLOW_UV_VERSION}${COLOR_RESET}"
         echo
@@ -676,8 +684,18 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # We need _a_ file in there otherwise the editable install doesn't include anything in the .pth file
+        mkdir -p ./providers/src/airflow/providers/
+        touch ./providers/src/airflow/providers/__init__.py
+
+        # Similarly we need _a_ file for task_sdk too
+        mkdir -p ./task_sdk/src/airflow/sdk/
+        touch ./task_sdk/src/airflow/__init__.py
+
+        trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
+
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers --editable ./task_sdk"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
@@ -810,7 +828,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -903,6 +921,9 @@ function environment_initialization() {
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
+
+    # Directory where simple auth manager store generated passwords
+    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -1013,16 +1034,17 @@ function check_boto_upgrade() {
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
     # We need to include few dependencies to pass pip check with other dependencies:
     #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * gcloud-aio-auth limit is needed to be included as it bumps cryptography (sync with google provider)
+    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
     #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
     #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
     #   Both requests and yandexcloud exclusion above might be removed after
     #   https://github.com/apache/beam/issues/32080 is addressed
-    #   When you remove yandexcloud from the above list, also remove it from "test_example_dags.py"
-    #   in "tests/always".
+    #   This is already addressed and planned for 2.59.0 release.
+    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
+    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
@@ -1030,46 +1052,6 @@ function check_boto_upgrade() {
     set +x
     pip check
 }
-
-function check_pydantic() {
-    if [[ ${PYDANTIC=} == "none" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
-        echo
-        echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
-           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
-        pip check
-    elif [[ ${PYDANTIC=} == "v1" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
-        echo
-        echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg weaviate-client
-        echo
-        echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
-        echo
-        # Pydantic 1.10.17/1.10.15 conflicts with aws-sam-translator so we need to exclude it
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0,!=1.10.17,!=1.10.15"
-        pip check
-    else
-        echo
-        echo "${COLOR_BLUE}Leaving default pydantic v2${COLOR_RESET}"
-        echo
-    fi
-}
-
 
 function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
@@ -1153,26 +1135,26 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    EXTRA=""
+    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/')
+        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
+        export EXTRA
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
         echo
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+            echo
+            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo
+            exit 0
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
     fi
     set -x
-    # TODO: hard-code explicitly papermill on 3.12 but we should automate it
-    if [[ ${EXTRA}  == "[papermill]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
-        echo
-        echo "Skipping papermill check on Python 3.12!"
-        echo
-        exit 0
-    fi
     uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
     set +x
 }
@@ -1180,7 +1162,6 @@ function check_force_lowest_dependencies() {
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
-check_pydantic
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
@@ -1210,7 +1191,10 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
-# By increasing this number we can do force build of all dependencies
+# By increasing this number we can do force build of all dependencies.
+# NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
+# some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
+# not built using the "main" version of those dependencies.
 ARG DEPENDENCIES_EPOCH_NUMBER="11"
 
 # Make sure noninteractive debian install is used and language variables set
@@ -1301,9 +1285,6 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.2.37
-ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1325,8 +1306,6 @@ ARG AIRFLOW_VERSION=""
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
-ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.2.37
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
@@ -1372,10 +1351,22 @@ COPY --from=scripts install_packaging_tools.sh install_airflow_dependencies_from
 # The Airflow and providers are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
+#
+# We are installing from branch tip without fixing UV or PIP version - in order to avoid rebuilding the
+# base cache layer every time the UV or PIP version changes.
 RUN bash /scripts/docker/install_packaging_tools.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
+
+
+# Here we fix the versions so all subsequent commands will use the versions
+# from the sources
+ARG AIRFLOW_PIP_VERSION=24.2
+ARG AIRFLOW_UV_VERSION=0.4.24
+
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION}
 
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"
@@ -1383,14 +1374,20 @@ ENV PATH="/root/.local/bin:${PATH}"
 COPY --from=scripts install_pipx_tools.sh /scripts/docker/
 
 # Install useful command line tools in their own virtualenv so that they do not clash with
-# dependencies installed in Airflow
-RUN bash /scripts/docker/install_pipx_tools.sh
+# dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
+# in the version specified above
+RUN bash /scripts/docker/install_packaging_tools.sh; \
+    bash /scripts/docker/install_pipx_tools.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy pyproject.toml and other files needed to perform setup of dependencies
 # So in case pyproject.toml changes we can install latest dependencies required.
 COPY pyproject.toml ${AIRFLOW_SOURCES}/pyproject.toml
+COPY providers/pyproject.toml ${AIRFLOW_SOURCES}/providers/pyproject.toml
+COPY task_sdk/pyproject.toml ${AIRFLOW_SOURCES}/task_sdk/pyproject.toml
+COPY task_sdk/README.md ${AIRFLOW_SOURCES}/task_sdk/README.md
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY tests_common/ ${AIRFLOW_SOURCES}/tests_common/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE

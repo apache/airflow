@@ -1,0 +1,184 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-openlineage
+name: OpenLineage Airflow
+description: |
+  `OpenLineage <https://openlineage.io/>`__
+
+state: ready
+source-date-epoch: 1728485291
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 1.12.2
+  - 1.12.1
+  - 1.12.0
+  - 1.11.0
+  - 1.10.0
+  - 1.9.1
+  - 1.9.0
+  - 1.8.0
+  - 1.7.1
+  - 1.7.0
+  - 1.6.0
+  - 1.5.0
+  - 1.4.0
+  - 1.3.1
+  - 1.3.0
+  - 1.2.1
+  - 1.2.0
+  - 1.1.1
+  - 1.1.0
+  - 1.0.2
+  - 1.0.1
+  - 1.0.0
+
+dependencies:
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-sql>=1.6.0
+  - apache-airflow-providers-common-compat>=1.2.1
+  - attrs>=22.2
+  - openlineage-integration-common>=1.22.0
+  - openlineage-python>=1.22.0
+
+integrations:
+  - integration-name: OpenLineage
+    external-doc-url: https://openlineage.io
+    logo: /integration-logos/openlineage/openlineage.svg
+    tags: [protocol]
+
+plugins:
+  - name: openlineage
+    plugin-class: airflow.providers.openlineage.plugins.openlineage.OpenLineageProviderPlugin
+
+config:
+  openlineage:
+    description: |
+      This section applies settings for OpenLineage integration.
+      More about configuration and it's precedence can be found at
+      https://airflow.apache.org/docs/apache-airflow-providers-openlineage/stable/guides/user.html#transport-setup
+    options:
+      disabled:
+        description: |
+          Disable sending events without uninstalling the OpenLineage Provider by setting this to true.
+        type: boolean
+        example: ~
+        default: "False"
+        version_added: ~
+      disabled_for_operators:
+        description: |
+          Exclude some Operators from emitting OpenLineage events by passing a string of semicolon separated
+          full import paths of Operators to disable.
+        type: string
+        example: "airflow.providers.standard.operators.bash.BashOperator;
+          airflow.operators.python.PythonOperator"
+        default: ""
+        version_added: 1.1.0
+      selective_enable:
+        description: |
+          If this setting is enabled, OpenLineage integration won't collect and emit metadata,
+          unless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.
+        type: boolean
+        default: "False"
+        example: ~
+        version_added: 1.7.0
+      namespace:
+        description: |
+          Set namespace that the lineage data belongs to, so that if you use multiple OpenLineage producers,
+          events coming from them will be logically separated.
+        version_added: ~
+        type: string
+        example: "my_airflow_instance_1"
+        default: ~
+      extractors:
+        description: |
+          Register custom OpenLineage Extractors by passing a string of semicolon separated full import paths.
+        type: string
+        example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
+        default: ~
+        version_added: ~
+      custom_run_facets:
+        description: |
+          Register custom run facet functions by passing a string of semicolon separated full import paths.
+        type: string
+        example: full.path.to.custom_facet_function;full.path.to.another_custom_facet_function
+        default: ''
+        version_added: 1.10.0
+      config_path:
+        description: |
+          Specify the path to the YAML configuration file.
+          This ensures backwards compatibility with passing config through the `openlineage.yml` file.
+        version_added: ~
+        type: string
+        example: "full/path/to/openlineage.yml"
+        default: ""
+      transport:
+        description: |
+          Pass OpenLineage Client transport configuration as JSON string. It should contain type of the
+          transport and additional options (different for each transport type). For more details see:
+          https://openlineage.io/docs/client/python/#built-in-transport-types
+
+          Currently supported types are:
+
+            * HTTP
+            * Kafka
+            * Console
+            * File
+        type: string
+        example: '{"type": "http", "url": "http://localhost:5000", "endpoint": "api/v1/lineage"}'
+        default: ""
+        version_added: ~
+      disable_source_code:
+        description: |
+          Disable the inclusion of source code in OpenLineage events by setting this to `true`.
+          By default, several Operators (e.g. Python, Bash) will include their source code in the events
+          unless disabled.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: ~
+      dag_state_change_process_pool_size:
+        description: |
+          Number of processes to utilize for processing DAG state changes
+          in an asynchronous manner within the scheduler process.
+        default: "1"
+        example: ~
+        type: integer
+        version_added: 1.8.0
+      execution_timeout:
+        description: |
+          Maximum amount of time (in seconds) that OpenLineage can spend executing metadata extraction.
+        default: "10"
+        example: ~
+        type: integer
+        version_added: 1.9.0
+      include_full_task_info:
+        description: |
+          If true, OpenLineage event will include full task info - potentially containing large fields.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.10.0
+      debug_mode:
+        description: |
+          If true, OpenLineage events will include information useful for debugging - potentially
+          containing large fields e.g. all installed packages and their versions.
+        default: "False"
+        example: ~
+        type: boolean
+        version_added: 1.11.0

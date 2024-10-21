@@ -137,23 +137,3 @@ class DagCallbackRequest(CallbackRequest):
         self.dag_id = dag_id
         self.run_id = run_id
         self.is_failure_callback = is_failure_callback
-
-
-class SlaCallbackRequest(CallbackRequest):
-    """
-    A class with information about the SLA callback to be executed.
-
-    :param full_filepath: File Path to use to run the callback
-    :param dag_id: DAG ID
-    :param processor_subdir: Directory used by Dag Processor when parsed the dag.
-    """
-
-    def __init__(
-        self,
-        full_filepath: str,
-        dag_id: str,
-        processor_subdir: str | None,
-        msg: str | None = None,
-    ):
-        super().__init__(full_filepath, processor_subdir=processor_subdir, msg=msg)
-        self.dag_id = dag_id

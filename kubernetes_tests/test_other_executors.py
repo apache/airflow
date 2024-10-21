@@ -20,7 +20,10 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import (
+    EXECUTOR,
+    BaseK8STest,  # isort:skip (needed to workaround isort bug)
+)
 
 
 # These tests are here because only KubernetesExecutor can run the tests in

@@ -81,7 +81,7 @@ Non-authenticated UI users
 ..........................
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
-must be assessed and addressed by the Deployment Manager.
+must be assessed and addressed by the Deployment Manager. However, there are exceptions to this. The ``/health`` endpoint responsible to get health check updates should be publicly accessible. This is because other systems would want to retrieve that information. Another exception is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -212,11 +212,14 @@ DAG author to choose the code that will be executed in the scheduler or webserve
 should not be arbitrary code that DAG author can add in DAG folder. All those functionalities are
 only available via ``plugins`` and ``providers`` mechanisms where the code that is executed can only be
 provided by installed packages (or in case of plugins it can also be added to PLUGINS folder where DAG
-authors should not have write access to). PLUGINS FOLDER is a legacy mechanism coming from Airflow 1.10
+authors should not have write access to). PLUGINS_FOLDER is a legacy mechanism coming from Airflow 1.10
 - but we recommend using entrypoint mechanism that allows the Deployment Manager to - effectively -
 choose and register the code that will be executed in those contexts. DAG Author has no access to
 install or modify packages installed in Webserver and Scheduler, and this is the way to prevent
 the DAG Author to execute arbitrary code in those processes.
+
+Additionally, if you decide to utilize and configure the PLUGINS_FOLDER, it is essential for the Deployment
+Manager to ensure that the DAG author does not have write access to this folder.
 
 The Deployment Manager might decide to introduce additional control mechanisms to prevent DAG authors from
 executing arbitrary code. This is all fully in hands of the Deployment Manager and it is discussed in the

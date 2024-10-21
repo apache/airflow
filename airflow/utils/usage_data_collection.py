@@ -80,8 +80,8 @@ def get_database_version() -> str:
         return "None"
 
     version_info = settings.engine.dialect.server_version_info
-    # Example: (1, 2, 3) -> "1.2.3"
-    return ".".join(map(str, version_info)) if version_info else "None"
+    # Example: (1, 2, 3) -> "1.2" (cut only major+minor w/o patch)
+    return ".".join(map(str, version_info[0:2])) if version_info else "None"
 
 
 def get_database_name() -> str:
@@ -95,7 +95,8 @@ def get_executor() -> str:
 
 
 def get_python_version() -> str:
-    return platform.python_version()
+    # Cut only major+minor from the python version string (e.g. 3.10.12 --> 3.10)
+    return ".".join(platform.python_version().split(".")[0:2])
 
 
 def get_plugin_counts() -> dict[str, int]:
@@ -108,3 +109,14 @@ def get_plugin_counts() -> dict[str, int]:
         "appbuilder_menu_items": sum(len(x["appbuilder_menu_items"]) for x in plugin_info),
         "timetables": sum(len(x["timetables"]) for x in plugin_info),
     }
+
+
+def to_bucket(counter: int) -> str:
+    """As we don't want to have preceise numbers, make number into a bucket."""
+    if counter == 0:
+        return "0"
+    buckets = [0, 5, 10, 20, 50, 100, 200, 500, 1000, 2000]
+    for idx, val in enumerate(buckets[1:]):
+        if buckets[idx] < counter and counter <= val:
+            return f"{buckets[idx] + 1}-{val}"
+    return f"{buckets[-1]}+"

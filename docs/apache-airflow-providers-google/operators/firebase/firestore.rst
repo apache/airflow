@@ -41,7 +41,7 @@ Export database
 Exports a copy of all or a subset of documents from Google Cloud Firestore to Google Cloud Storage is performed with the
 :class:`~airflow.providers.google.firebase.operators.firestore.CloudFirestoreExportDatabaseOperator` operator.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_firestore.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_firestore.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_export_database_to_gcs]

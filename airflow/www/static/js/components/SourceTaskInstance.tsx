@@ -22,7 +22,7 @@ import { Box, Link, Tooltip, Flex } from "@chakra-ui/react";
 import { FiLink } from "react-icons/fi";
 
 import { useTaskInstance } from "src/api";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
 import InstanceTooltip from "src/components/InstanceTooltip";
@@ -30,20 +30,16 @@ import type { TaskInstance } from "src/types";
 import { getMetaValue } from "src/utils";
 
 type SourceTIProps = {
-  datasetEvent: DatasetEvent;
+  assetEvent: AssetEvent;
   showLink?: boolean;
 };
 
 const gridUrl = getMetaValue("grid_url");
 const dagId = getMetaValue("dag_id") || "__DAG_ID__";
 
-const SourceTaskInstance = ({
-  datasetEvent,
-  showLink = true,
-}: SourceTIProps) => {
+const SourceTaskInstance = ({ assetEvent, showLink = true }: SourceTIProps) => {
   const containerRef = useContainerRef();
-  const { sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex } =
-    datasetEvent;
+  const { sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex } = assetEvent;
 
   const { data: taskInstance } = useTaskInstance({
     dagId: sourceDagId || "",

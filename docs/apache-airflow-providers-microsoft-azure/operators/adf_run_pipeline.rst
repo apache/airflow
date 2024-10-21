@@ -31,7 +31,7 @@ This functionality can be disabled for an asynchronous wait -- typically with th
 
 Below is an example of using this operator to execute an Azure Data Factory pipeline.
 
-  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+  .. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adf_run_pipeline.py
       :language: python
       :dedent: 0
       :start-after: [START howto_operator_adf_run_pipeline]
@@ -40,7 +40,7 @@ Below is an example of using this operator to execute an Azure Data Factory pipe
 Below is an example of using this operator to execute an Azure Data Factory pipeline with a deferrable flag
 so that polling for the status of the pipeline run occurs on the Airflow Triggerer.
 
-  .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+  .. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adf_run_pipeline.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_adf_run_pipeline_with_deferrable_flag]
@@ -48,7 +48,7 @@ so that polling for the status of the pipeline run occurs on the Airflow Trigger
 
 Here is a different example of using this operator to execute a pipeline but coupled with the :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` to perform an asynchronous wait.
 
-    .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+    .. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adf_run_pipeline.py
         :language: python
         :dedent: 0
         :start-after: [START howto_operator_adf_run_pipeline_async]
@@ -56,7 +56,7 @@ Here is a different example of using this operator to execute a pipeline but cou
 
 Also you can use deferrable mode in :class:`~airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor` if you would like to free up the worker slots while the sensor is running.
 
-    .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+    .. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adf_run_pipeline.py
         :language: python
         :dedent: 0
         :start-after: [START howto_operator_adf_run_pipeline_async]
@@ -72,7 +72,7 @@ status of a data factory pipeline run asynchronously. This sensor will free up t
 polling for job status happens on the Airflow triggerer, leading to efficient utilization
 of resources within Airflow.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adf_run_pipeline.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_adf_run_pipeline.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_adf_run_pipeline_async]

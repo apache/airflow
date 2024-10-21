@@ -1,0 +1,7 @@
+Removed a set of deprecations in BaseOperator.
+
+- Parameter ``task_concurrency`` removed, please use ``max_active_tis_per_dag``.
+- Support for additional (not defined) arguments removed.
+- Support for trigger rule ``dummy`` removed. Please use ``always``.
+- Support for trigger rule ``none_failed_or_skipped`` removed. Please use ``none_failed_min_one_success``.
+- Support to load ``BaseOperatorLink`` via ``airflow.models.baseoperator`` module removed.

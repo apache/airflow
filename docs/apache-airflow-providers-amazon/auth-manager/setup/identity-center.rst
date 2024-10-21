@@ -27,55 +27,23 @@ Create resources
 ================
 
 The AWS auth manager needs two resources in AWS IAM Identity Center: an instance and an application.
-You can create them either through the provided CLI command or manually.
-
-Create resources with CLI
--------------------------
-
-.. note::
-  The CLI command is not compatible with AWS accounts that are managed through AWS organizations.
-  If your AWS account is managed through an AWS organization, please follow the
-  :ref:`manual configuration <identity_center_manual_configuration>`.
-
-.. note::
-  To create all necessary resources for the AWS Auth Manager, you can utilize the CLI command provided as part of the
-  AWS auth manager. Before executing the command, ensure the AWS auth manager is configured as the auth manager
-  for the Airflow instance. See :doc:`/auth-manager/setup/config`.
-
-To create the resources, please run the following command:
-
-.. code-block:: bash
-
-  airflow aws-auth-manager init-identity-center
-
-The CLI command should exit successfully with the message: ::
-
-  AWS IAM Identity Center resources created successfully.
-
-If the CLI command exited with an error, please look carefully at the CLI command output to understand which resource(s)
-have or have not been created successfully. The resource(s) which have not been successfully created need to be
-:ref:`created manually <identity_center_manual_configuration>`.
-
-If the error message below is raised, please create the AWS IAM Identity Center application through the console
-following :ref:`these instructions <identity_center_manual_configuration_application>`: ::
-
-  Creation of SAML applications is only supported in AWS console today. Please create the application through the console.
-
-.. _identity_center_manual_configuration:
-
-Create resources manually
--------------------------
+You can must create them manually.
 
 Create the instance
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
-Please follow `AWS documentation <https://docs.aws.amazon.com/singlesignon/latest/userguide/identity-center-instances.html>`_
-to create the AWS IAM Identity Center instance.
+The AWS auth manager leverages SAML 2.0 as the underlying technology powering authentication against AWS Identity Center.
+
+There are several instance types, but only Organization level instances can use SAML 2.0 applications. See more details
+about instances types `here <https://docs.aws.amazon.com/singlesignon/latest/userguide/identity-center-instances.html>`_.
+
+Please follow `AWS documentation <https://docs.aws.amazon.com/singlesignon/latest/userguide/get-set-up-for-idc.html>`_
+to create the AWS IAM Identity Center instance at the organization level.
 
 .. _identity_center_manual_configuration_application:
 
 Create the application
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 Please follow the instructions below to create the AWS IAM Identity Center application.
 

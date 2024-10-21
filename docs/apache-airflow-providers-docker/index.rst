@@ -42,14 +42,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/docker/index>
+    System Tests <_api/tests/system/docker/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/tests/system/providers/docker>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/providers/tests/system/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -70,7 +70,7 @@ apache-airflow-providers-docker package
 `Docker <https://www.docker.com/>`__
 
 
-Release: 3.13.0
+Release: 3.14.0
 
 Provider package
 ----------------

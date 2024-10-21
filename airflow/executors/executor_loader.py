@@ -171,7 +171,7 @@ class ExecutorLoader:
         """
         Externally set an executor to be the default.
 
-        This is used in rare cases such as dag.run which allows, as a user convenience, to provide
+        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
         the executor by cli/argument instead of Airflow configuration
         """
         exec_class_name = executor.__class__.__qualname__

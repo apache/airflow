@@ -23,7 +23,7 @@ import yaml
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import get_tag_date
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_NS_PACKAGE, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
 DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text())
 
@@ -67,7 +67,7 @@ def generate_providers_metadata_for_package(
 ) -> dict[str, dict[str, str]]:
     get_console().print(f"[info]Generating metadata for {provider_id}")
     provider_yaml_dict = yaml.safe_load(
-        (AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split(".")) / "provider.yaml").read_text()
+        (AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split(".")) / "provider.yaml").read_text()
     )
     provider_metadata: dict[str, dict[str, str]] = {}
     last_airflow_version = START_AIRFLOW_VERSION_FROM

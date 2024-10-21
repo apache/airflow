@@ -377,7 +377,8 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
         if any(
-            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
             for filename, _, _, _ in airflow_frames
         ):
             # This is a fixture call or testing utilities
@@ -653,11 +654,8 @@ def configure_action_logging() -> None:
     """Any additional configuration (register callback) for airflow.utils.action_loggers module."""
 
 
-def prepare_syspath():
-    """Ensure certain subfolders of AIRFLOW_HOME are on the classpath."""
-    if DAGS_FOLDER not in sys.path:
-        sys.path.append(DAGS_FOLDER)
-
+def prepare_syspath_for_config_and_plugins():
+    """Update sys.path for the config and plugins directories."""
     # Add ./config/ for loading custom log parsers etc, or
     # airflow_local_settings etc.
     config_path = os.path.join(AIRFLOW_HOME, "config")
@@ -666,6 +664,12 @@ def prepare_syspath():
 
     if PLUGINS_FOLDER not in sys.path:
         sys.path.append(PLUGINS_FOLDER)
+
+
+def prepare_syspath_for_dags_folder():
+    """Update sys.path to include the DAGs folder."""
+    if DAGS_FOLDER not in sys.path:
+        sys.path.append(DAGS_FOLDER)
 
 
 def get_session_lifetime_config():
@@ -721,12 +725,13 @@ def import_local_settings():
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
-    prepare_syspath()
+    prepare_syspath_for_config_and_plugins()
     configure_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)
     import_local_settings()
+    prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
     State.state_color.update(STATE_COLORS)
@@ -756,7 +761,6 @@ KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
 
-
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_update_interval", fallback=30)
@@ -777,9 +781,6 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
 )
 
 ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
-
-# Whether or not to check each dagrun against defined SLAs
-CHECK_SLAS = conf.getboolean("core", "check_slas", fallback=True)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

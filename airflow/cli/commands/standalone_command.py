@@ -80,6 +80,12 @@ class StandaloneCommand:
             command=["webserver"],
             env=env,
         )
+        self.subcommands["fastapi-api"] = SubCommand(
+            self,
+            name="fastapi-api",
+            command=["fastapi-api"],
+            env=env,
+        )
         self.subcommands["triggerer"] = SubCommand(
             self,
             name="triggerer",
@@ -136,6 +142,7 @@ class StandaloneCommand:
         You can pass multiple lines to output if you wish; it will be split for you.
         """
         color = {
+            "fastapi-api": "magenta",
             "webserver": "green",
             "scheduler": "blue",
             "triggerer": "cyan",

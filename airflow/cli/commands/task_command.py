@@ -70,6 +70,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -143,6 +144,7 @@ def _get_dag_run(
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     elif create_if_necessary == "db":
@@ -152,6 +154,7 @@ def _get_dag_run(
             run_id=_generate_temporary_run_id(),
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
             session=session,
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -330,7 +333,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -548,11 +550,8 @@ def task_state(args) -> None:
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
-    if args.tree:
-        dag.tree_view()
-    else:
-        tasks = sorted(t.task_id for t in dag.tasks)
-        print("\n".join(tasks))
+    tasks = sorted(t.task_id for t in dag.tasks)
+    print("\n".join(tasks))
 
 
 class _SupportedDebugger(Protocol):

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.hooks.filesystem import FSHook
+from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.base import StartTriggerArgs
 from airflow.triggers.file import FileTrigger

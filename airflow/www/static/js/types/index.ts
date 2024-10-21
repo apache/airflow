@@ -135,12 +135,12 @@ interface DepNode {
     id?: string;
     class:
       | "dag"
-      | "dataset"
+      | "asset"
       | "trigger"
       | "sensor"
       | "or-gate"
       | "and-gate"
-      | "dataset-alias";
+      | "asset-alias";
     label: string;
     rx?: number;
     ry?: number;
@@ -193,7 +193,7 @@ export interface WebserverEdge {
   isSourceDataset?: boolean;
 }
 
-interface DatasetListItem extends API.Dataset {
+interface DatasetListItem extends API.Asset {
   lastDatasetUpdate: string | null;
   totalUpdates: number;
 }

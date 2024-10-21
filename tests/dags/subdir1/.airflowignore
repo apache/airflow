@@ -1,1 +1,1 @@
-.*_ignore_this.py  # Ignore files ending with "_ignore_this.py"
+*_ignore_this.py  # Ignore files ending with "_ignore_this.py"

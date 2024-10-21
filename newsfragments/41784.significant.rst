@@ -1,0 +1,12 @@
+Removed a set of deprecations in from ``airflow.models.taskinstance``.
+
+ - Removed deprecated arg ``activate_dag_runs`` from ``TaskInstance.clear_task_instances()``. Please use ``dag_run_state`` instead.
+ - Removed deprecated arg ``execution_date`` from ``TaskInstance.__init__()``. Please use ``run_id`` instead.
+ - Removed deprecated property ``_try_number`` from ``TaskInstance``. Please use ``try_number`` instead.
+ - Removed deprecated property ``prev_attempted_tries`` from ``TaskInstance``. Please use ``try_number`` instead.
+ - Removed deprecated property ``next_try_number`` from ``TaskInstance``. Please use ``try_number + 1`` instead.
+ - Removed deprecated property ``previous_ti`` from ``TaskInstance``. Please use ``get_previous_ti`` instead.
+ - Removed deprecated property ``previous_ti_success`` from ``TaskInstance``. Please use ``get_previous_ti`` instead.
+ - Removed deprecated property ``previous_start_date_success`` from ``TaskInstance``. Please use ``get_previous_start_date`` instead.
+ - Removed deprecated function ``as_dict`` from ``SimpleTaskInstance``. Please use ``BaseSerialization.serialize`` instead.
+ - Removed deprecated function ``from_dict`` from ``SimpleTaskInstance``. Please use ``BaseSerialization.deserialize`` instead.

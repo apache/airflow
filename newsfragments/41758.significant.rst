@@ -1,0 +1,12 @@
+Removed deprecated functions and modules from ``airflow.www`` module.
+
+- Config flag default warning ``cookie_samesite`` option in section ``[webserver]`` removed.
+- Legacy decorator ``@has_access`` in ``airflow.www.auth``: Please use one of the decorator ``has_access_*``
+  defined in airflow/www/auth.py instead.
+- Removed legacy modules ``airflow.www.security``: Should be inherited from
+  ``airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride`` instead.
+  The constant value ``EXISTING_ROLES`` should be used from ``airflow.www.security_manager`` module.
+- Removed the method ``get_sensitive_variables_fields()`` from ``airflow.www.utils``: Please use
+  ``airflow.utils.log.secrets_masker.get_sensitive_variables_fields`` instead.
+- Removed the method ``should_hide_value_for_key()`` from ``airflow.www.utils``: Please use
+  ``airflow.utils.log.secrets_masker.should_hide_value_for_key`` instead.

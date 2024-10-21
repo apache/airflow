@@ -47,7 +47,7 @@ for example :class:`~airflow.providers.google.cloud.operators.bigquery_dts.BigQu
 scheduling option is present in passed configuration. If present then nothing is done, otherwise its value is
 set to ``True``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_dts.py
     :language: python
     :start-after: [START howto_bigquery_dts_create_args]
     :end-before: [END howto_bigquery_dts_create_args]
@@ -55,7 +55,7 @@ set to ``True``.
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Basic usage of the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_dts.py
     :language: python
     :dedent: 4
     :start-after: [START howto_bigquery_create_data_transfer]
@@ -78,7 +78,7 @@ To delete DTS transfer configuration you can use
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_dts.py
     :language: python
     :dedent: 4
     :start-after: [START howto_bigquery_delete_data_transfer]
@@ -99,7 +99,7 @@ Start manual transfer runs to be executed now with schedule_time equal to curren
 
 Basic usage of the operator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_dts.py
     :language: python
     :dedent: 4
     :start-after: [START howto_bigquery_start_transfer]
@@ -112,7 +112,7 @@ parameters which allows you to dynamically determine values.
 To check if operation succeeded you can use
 :class:`~airflow.providers.google.cloud.sensors.bigquery_dts.BigQueryDataTransferServiceTransferRunSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_dts.py
     :language: python
     :dedent: 4
     :start-after: [START howto_bigquery_dts_sensor]

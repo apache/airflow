@@ -23,29 +23,18 @@ import pytest
 
 import airflow.www.auth as auth
 from airflow.auth.managers.models.resource_details import DagAccessEntity
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import Connection, Pool, Variable
-from airflow.www.auth import has_access
 
 mock_call = Mock()
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
-class TestHasAccessDecorator:
-    def test_has_access_decorator_raises_deprecation_warning(self):
-        with pytest.warns(RemovedInAirflow3Warning):
-
-            @has_access
-            def test_function():
-                pass
-
-
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",
     [
         ("has_access_configuration", "is_authorized_configuration"),
-        ("has_access_dataset", "is_authorized_dataset"),
+        ("has_access_asset", "is_authorized_asset"),
         ("has_access_view", "is_authorized_view"),
     ],
 )

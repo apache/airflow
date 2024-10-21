@@ -1,0 +1,7 @@
+Removed a set of deprecations in ``Connection`` from ``airflow.models``.
+
+- Validation of extra fields is now enforcing that JSON values are provided. If a non-JSON value is provided
+  a ValueError will be raised.
+- Removed utility method ``parse_netloc_to_hostname()``
+- Removed utility method ``parse_from_uri()``.
+- Removed utility method ``log_info()`` and ``log_debug``.

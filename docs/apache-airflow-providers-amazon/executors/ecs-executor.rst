@@ -16,9 +16,6 @@
     under the License.
 
 
-.. warning::
-   The ECS Executor is alpha/experimental at the moment and may be subject to change without warning.
-
 .. |executorName| replace:: ECS
 .. |dockerfileLink| replace:: `here <https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/executors/Dockerfile>`__
 .. |configKwargs| replace:: SUBMIT_JOB_KWARGS

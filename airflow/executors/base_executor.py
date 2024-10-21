@@ -537,11 +537,11 @@ class BaseExecutor(LoggingMixin):
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """

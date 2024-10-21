@@ -1,0 +1,579 @@
+apache-airflow v3.0.0.dev0
+├── aiohttp v3.10.5
+│   ├── aiohappyeyeballs v2.4.0
+│   ├── aiosignal v1.3.1
+│   │   └── frozenlist v1.4.1
+│   ├── async-timeout v4.0.3
+│   ├── attrs v24.2.0
+│   ├── frozenlist v1.4.1
+│   ├── multidict v6.0.5
+│   └── yarl v1.9.6
+│       ├── idna v3.8
+│       └── multidict v6.0.5
+├── alembic v1.13.2
+│   ├── importlib-metadata v8.4.0
+│   │   └── zipp v3.20.1
+│   ├── importlib-resources v6.4.4
+│   │   └── zipp v3.20.1
+│   ├── mako v1.3.5
+│   │   └── markupsafe v2.1.5
+│   ├── sqlalchemy v1.4.53
+│   │   └── greenlet v3.0.3
+│   └── typing-extensions v4.12.2
+├── argcomplete v3.5.0
+├── asgiref v3.8.1
+│   └── typing-extensions v4.12.2
+├── attrs v24.2.0
+├── blinker v1.8.2
+├── colorlog v6.8.2
+├── configupdater v3.2
+├── connexion[flask] v2.14.2
+│   ├── clickclick v20.10.2
+│   │   ├── click v8.1.7
+│   │   └── pyyaml v6.0.2
+│   ├── flask v2.2.5
+│   │   ├── click v8.1.7
+│   │   ├── importlib-metadata v8.4.0
+│   │   │   └── zipp v3.20.1
+│   │   ├── itsdangerous v2.2.0
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   ├── inflection v0.5.1
+│   ├── itsdangerous v2.2.0
+│   ├── jsonschema v4.23.0
+│   │   ├── attrs v24.2.0
+│   │   ├── importlib-resources v6.4.4
+│   │   │   └── zipp v3.20.1
+│   │   ├── jsonschema-specifications v2023.12.1
+│   │   │   ├── importlib-resources v6.4.4
+│   │   │   │   └── zipp v3.20.1
+│   │   │   └── referencing v0.35.1
+│   │   │       ├── attrs v24.2.0
+│   │   │       └── rpds-py v0.20.0
+│   │   ├── pkgutil-resolve-name v1.3.10
+│   │   ├── referencing v0.35.1
+│   │   │   ├── attrs v24.2.0
+│   │   │   └── rpds-py v0.20.0
+│   │   └── rpds-py v0.20.0
+│   ├── packaging v24.1
+│   ├── pyyaml v6.0.2
+│   ├── requests v2.32.3
+│   │   ├── certifi v2024.8.30
+│   │   ├── charset-normalizer v3.3.2
+│   │   ├── idna v3.8
+│   │   └── urllib3 v2.2.2
+│   ├── werkzeug v2.2.3
+│   │   └── markupsafe v2.1.5
+│   ├── flask v2.2.5 (extra: flask)
+│   │   ├── click v8.1.7
+│   │   ├── importlib-metadata v8.4.0
+│   │   │   └── zipp v3.20.1
+│   │   ├── itsdangerous v2.2.0
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   └── itsdangerous v2.2.0 (extra: flask)
+├── cron-descriptor v1.4.5
+├── croniter v3.0.3
+│   ├── python-dateutil v2.9.0.post0
+│   │   └── six v1.16.0
+│   └── pytz v2024.1
+├── cryptography v43.0.0
+│   └── cffi v1.17.0
+│       └── pycparser v2.22
+├── deprecated v1.2.14
+│   └── wrapt v1.16.0
+├── dill v0.3.8
+├── fastapi[standard] v0.112.2
+│   ├── pydantic v2.8.2
+│   │   ├── annotated-types v0.7.0
+│   │   │   └── typing-extensions v4.12.2
+│   │   ├── pydantic-core v2.20.1
+│   │   │   └── typing-extensions v4.12.2
+│   │   └── typing-extensions v4.12.2
+│   ├── starlette v0.38.2
+│   │   ├── anyio v4.4.0
+│   │   │   ├── exceptiongroup v1.2.2
+│   │   │   ├── idna v3.8
+│   │   │   ├── sniffio v1.3.1
+│   │   │   └── typing-extensions v4.12.2
+│   │   └── typing-extensions v4.12.2
+│   ├── typing-extensions v4.12.2
+│   ├── email-validator v2.2.0 (extra: standard)
+│   │   ├── dnspython v2.6.1
+│   │   └── idna v3.8
+│   ├── fastapi-cli[standard] v0.0.5 (extra: standard)
+│   │   ├── typer v0.12.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── rich v13.8.0
+│   │   │   │   ├── markdown-it-py v3.0.0
+│   │   │   │   │   └── mdurl v0.1.2
+│   │   │   │   ├── pygments v2.18.0
+│   │   │   │   └── typing-extensions v4.12.2
+│   │   │   ├── shellingham v1.5.4
+│   │   │   └── typing-extensions v4.12.2
+│   │   ├── uvicorn[standard] v0.30.6
+│   │   │   ├── click v8.1.7
+│   │   │   ├── h11 v0.14.0
+│   │   │   ├── typing-extensions v4.12.2
+│   │   │   ├── httptools v0.6.1 (extra: standard)
+│   │   │   ├── python-dotenv v1.0.1 (extra: standard)
+│   │   │   ├── pyyaml v6.0.2 (extra: standard)
+│   │   │   ├── uvloop v0.20.0 (extra: standard)
+│   │   │   ├── watchfiles v0.24.0 (extra: standard)
+│   │   │   │   └── anyio v4.4.0
+│   │   │   │       ├── exceptiongroup v1.2.2
+│   │   │   │       ├── idna v3.8
+│   │   │   │       ├── sniffio v1.3.1
+│   │   │   │       └── typing-extensions v4.12.2
+│   │   │   └── websockets v13.0.1 (extra: standard)
+│   │   └── uvicorn[standard] v0.30.6 (extra: standard)
+│   │       ├── click v8.1.7
+│   │       ├── h11 v0.14.0
+│   │       ├── typing-extensions v4.12.2
+│   │       ├── httptools v0.6.1 (extra: standard)
+│   │       ├── python-dotenv v1.0.1 (extra: standard)
+│   │       ├── pyyaml v6.0.2 (extra: standard)
+│   │       ├── uvloop v0.20.0 (extra: standard)
+│   │       ├── watchfiles v0.24.0 (extra: standard)
+│   │       │   └── anyio v4.4.0
+│   │       │       ├── exceptiongroup v1.2.2
+│   │       │       ├── idna v3.8
+│   │       │       ├── sniffio v1.3.1
+│   │       │       └── typing-extensions v4.12.2
+│   │       └── websockets v13.0.1 (extra: standard)
+│   ├── httpx v0.27.2 (extra: standard)
+│   │   ├── anyio v4.4.0
+│   │   │   ├── exceptiongroup v1.2.2
+│   │   │   ├── idna v3.8
+│   │   │   ├── sniffio v1.3.1
+│   │   │   └── typing-extensions v4.12.2
+│   │   ├── certifi v2024.8.30
+│   │   ├── httpcore v1.0.5
+│   │   │   ├── certifi v2024.8.30
+│   │   │   └── h11 v0.14.0
+│   │   ├── idna v3.8
+│   │   └── sniffio v1.3.1
+│   ├── jinja2 v3.1.4 (extra: standard)
+│   │   └── markupsafe v2.1.5
+│   ├── python-multipart v0.0.9 (extra: standard)
+│   └── uvicorn[standard] v0.30.6 (extra: standard)
+│       ├── click v8.1.7
+│       ├── h11 v0.14.0
+│       ├── typing-extensions v4.12.2
+│       ├── httptools v0.6.1 (extra: standard)
+│       ├── python-dotenv v1.0.1 (extra: standard)
+│       ├── pyyaml v6.0.2 (extra: standard)
+│       ├── uvloop v0.20.0 (extra: standard)
+│       ├── watchfiles v0.24.0 (extra: standard)
+│       │   └── anyio v4.4.0
+│       │       ├── exceptiongroup v1.2.2
+│       │       ├── idna v3.8
+│       │       ├── sniffio v1.3.1
+│       │       └── typing-extensions v4.12.2
+│       └── websockets v13.0.1 (extra: standard)
+├── flask v2.2.5
+│   ├── click v8.1.7
+│   ├── importlib-metadata v8.4.0
+│   │   └── zipp v3.20.1
+│   ├── itsdangerous v2.2.0
+│   ├── jinja2 v3.1.4
+│   │   └── markupsafe v2.1.5
+│   └── werkzeug v2.2.3
+│       └── markupsafe v2.1.5
+├── flask-appbuilder v4.5.0
+│   ├── apispec[yaml] v6.6.1
+│   │   ├── packaging v24.1
+│   │   └── pyyaml v6.0.2 (extra: yaml)
+│   ├── click v8.1.7
+│   ├── colorama v0.4.6
+│   ├── email-validator v2.2.0
+│   │   ├── dnspython v2.6.1
+│   │   └── idna v3.8
+│   ├── flask v2.2.5
+│   │   ├── click v8.1.7
+│   │   ├── importlib-metadata v8.4.0
+│   │   │   └── zipp v3.20.1
+│   │   ├── itsdangerous v2.2.0
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   ├── flask-babel v2.0.0
+│   │   ├── babel v2.16.0
+│   │   │   └── pytz v2024.1
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── pytz v2024.1
+│   ├── flask-jwt-extended v4.6.0
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   ├── pyjwt v2.9.0
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   ├── flask-limiter v3.8.0
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   ├── limits v3.13.0
+│   │   │   ├── deprecated v1.2.14
+│   │   │   │   └── wrapt v1.16.0
+│   │   │   ├── importlib-resources v6.4.4
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── packaging v24.1
+│   │   │   └── typing-extensions v4.12.2
+│   │   ├── ordered-set v4.1.0
+│   │   ├── rich v13.8.0
+│   │   │   ├── markdown-it-py v3.0.0
+│   │   │   │   └── mdurl v0.1.2
+│   │   │   ├── pygments v2.18.0
+│   │   │   └── typing-extensions v4.12.2
+│   │   └── typing-extensions v4.12.2
+│   ├── flask-login v0.6.3
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   ├── flask-sqlalchemy v2.5.1
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   └── sqlalchemy v1.4.53
+│   │       └── greenlet v3.0.3
+│   ├── flask-wtf v1.2.1
+│   │   ├── flask v2.2.5
+│   │   │   ├── click v8.1.7
+│   │   │   ├── importlib-metadata v8.4.0
+│   │   │   │   └── zipp v3.20.1
+│   │   │   ├── itsdangerous v2.2.0
+│   │   │   ├── jinja2 v3.1.4
+│   │   │   │   └── markupsafe v2.1.5
+│   │   │   └── werkzeug v2.2.3
+│   │   │       └── markupsafe v2.1.5
+│   │   ├── itsdangerous v2.2.0
+│   │   └── wtforms v3.1.2
+│   │       └── markupsafe v2.1.5
+│   ├── jsonschema v4.23.0
+│   │   ├── attrs v24.2.0
+│   │   ├── importlib-resources v6.4.4
+│   │   │   └── zipp v3.20.1
+│   │   ├── jsonschema-specifications v2023.12.1
+│   │   │   ├── importlib-resources v6.4.4
+│   │   │   │   └── zipp v3.20.1
+│   │   │   └── referencing v0.35.1
+│   │   │       ├── attrs v24.2.0
+│   │   │       └── rpds-py v0.20.0
+│   │   ├── pkgutil-resolve-name v1.3.10
+│   │   ├── referencing v0.35.1
+│   │   │   ├── attrs v24.2.0
+│   │   │   └── rpds-py v0.20.0
+│   │   └── rpds-py v0.20.0
+│   ├── marshmallow v3.22.0
+│   │   └── packaging v24.1
+│   ├── marshmallow-sqlalchemy v0.28.2
+│   │   ├── marshmallow v3.22.0
+│   │   │   └── packaging v24.1
+│   │   ├── packaging v24.1
+│   │   └── sqlalchemy v1.4.53
+│   │       └── greenlet v3.0.3
+│   ├── prison v0.2.1
+│   │   └── six v1.16.0
+│   ├── pyjwt v2.9.0
+│   ├── python-dateutil v2.9.0.post0
+│   │   └── six v1.16.0
+│   ├── sqlalchemy v1.4.53
+│   │   └── greenlet v3.0.3
+│   ├── sqlalchemy-utils v0.41.2
+│   │   └── sqlalchemy v1.4.53
+│   │       └── greenlet v3.0.3
+│   ├── werkzeug v2.2.3
+│   │   └── markupsafe v2.1.5
+│   └── wtforms v3.1.2
+│       └── markupsafe v2.1.5
+├── flask-caching v2.3.0
+│   ├── cachelib v0.9.0
+│   └── flask v2.2.5
+│       ├── click v8.1.7
+│       ├── importlib-metadata v8.4.0
+│       │   └── zipp v3.20.1
+│       ├── itsdangerous v2.2.0
+│       ├── jinja2 v3.1.4
+│       │   └── markupsafe v2.1.5
+│       └── werkzeug v2.2.3
+│           └── markupsafe v2.1.5
+├── flask-login v0.6.3
+│   ├── flask v2.2.5
+│   │   ├── click v8.1.7
+│   │   ├── importlib-metadata v8.4.0
+│   │   │   └── zipp v3.20.1
+│   │   ├── itsdangerous v2.2.0
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   └── werkzeug v2.2.3
+│       └── markupsafe v2.1.5
+├── flask-session v0.5.0
+│   ├── cachelib v0.9.0
+│   └── flask v2.2.5
+│       ├── click v8.1.7
+│       ├── importlib-metadata v8.4.0
+│       │   └── zipp v3.20.1
+│       ├── itsdangerous v2.2.0
+│       ├── jinja2 v3.1.4
+│       │   └── markupsafe v2.1.5
+│       └── werkzeug v2.2.3
+│           └── markupsafe v2.1.5
+├── flask-wtf v1.2.1
+│   ├── flask v2.2.5
+│   │   ├── click v8.1.7
+│   │   ├── importlib-metadata v8.4.0
+│   │   │   └── zipp v3.20.1
+│   │   ├── itsdangerous v2.2.0
+│   │   ├── jinja2 v3.1.4
+│   │   │   └── markupsafe v2.1.5
+│   │   └── werkzeug v2.2.3
+│   │       └── markupsafe v2.1.5
+│   ├── itsdangerous v2.2.0
+│   └── wtforms v3.1.2
+│       └── markupsafe v2.1.5
+├── fsspec v2024.6.1
+├── google-re2 v1.1.20240702
+├── gunicorn v23.0.0
+│   └── packaging v24.1
+├── httpx v0.27.2
+│   ├── anyio v4.4.0
+│   │   ├── exceptiongroup v1.2.2
+│   │   ├── idna v3.8
+│   │   ├── sniffio v1.3.1
+│   │   └── typing-extensions v4.12.2
+│   ├── certifi v2024.8.30
+│   ├── httpcore v1.0.5
+│   │   ├── certifi v2024.8.30
+│   │   └── h11 v0.14.0
+│   ├── idna v3.8
+│   └── sniffio v1.3.1
+├── importlib-metadata v8.4.0
+│   └── zipp v3.20.1
+├── importlib-resources v6.4.4
+│   └── zipp v3.20.1
+├── itsdangerous v2.2.0
+├── jinja2 v3.1.4
+│   └── markupsafe v2.1.5
+├── jmespath v1.0.1
+├── jsonschema v4.23.0
+│   ├── attrs v24.2.0
+│   ├── importlib-resources v6.4.4
+│   │   └── zipp v3.20.1
+│   ├── jsonschema-specifications v2023.12.1
+│   │   ├── importlib-resources v6.4.4
+│   │   │   └── zipp v3.20.1
+│   │   └── referencing v0.35.1
+│   │       ├── attrs v24.2.0
+│   │       └── rpds-py v0.20.0
+│   ├── pkgutil-resolve-name v1.3.10
+│   ├── referencing v0.35.1
+│   │   ├── attrs v24.2.0
+│   │   └── rpds-py v0.20.0
+│   └── rpds-py v0.20.0
+├── lazy-object-proxy v1.10.0
+├── linkify-it-py v2.0.3
+│   └── uc-micro-py v1.0.3
+├── lockfile v0.12.2
+├── markdown-it-py v3.0.0
+│   └── mdurl v0.1.2
+├── markupsafe v2.1.5
+├── marshmallow-oneofschema v3.1.1
+│   └── marshmallow v3.22.0
+│       └── packaging v24.1
+├── mdit-py-plugins v0.4.1
+│   └── markdown-it-py v3.0.0
+│       └── mdurl v0.1.2
+├── methodtools v0.4.7
+│   └── wirerope v0.4.7
+│       └── six v1.16.0
+├── more-itertools v10.4.0
+├── opentelemetry-api v1.27.0
+│   ├── deprecated v1.2.14
+│   │   └── wrapt v1.16.0
+│   └── importlib-metadata v8.4.0
+│       └── zipp v3.20.1
+├── opentelemetry-exporter-otlp v1.27.0
+│   ├── opentelemetry-exporter-otlp-proto-grpc v1.27.0
+│   │   ├── deprecated v1.2.14
+│   │   │   └── wrapt v1.16.0
+│   │   ├── googleapis-common-protos v1.65.0
+│   │   │   └── protobuf v4.25.4
+│   │   ├── grpcio v1.66.1
+│   │   ├── opentelemetry-api v1.27.0
+│   │   │   ├── deprecated v1.2.14
+│   │   │   │   └── wrapt v1.16.0
+│   │   │   └── importlib-metadata v8.4.0
+│   │   │       └── zipp v3.20.1
+│   │   ├── opentelemetry-exporter-otlp-proto-common v1.27.0
+│   │   │   └── opentelemetry-proto v1.27.0
+│   │   │       └── protobuf v4.25.4
+│   │   ├── opentelemetry-proto v1.27.0
+│   │   │   └── protobuf v4.25.4
+│   │   └── opentelemetry-sdk v1.27.0
+│   │       ├── opentelemetry-api v1.27.0
+│   │       │   ├── deprecated v1.2.14
+│   │       │   │   └── wrapt v1.16.0
+│   │       │   └── importlib-metadata v8.4.0
+│   │       │       └── zipp v3.20.1
+│   │       ├── opentelemetry-semantic-conventions v0.48b0
+│   │       │   ├── deprecated v1.2.14
+│   │       │   │   └── wrapt v1.16.0
+│   │       │   └── opentelemetry-api v1.27.0
+│   │       │       ├── deprecated v1.2.14
+│   │       │       │   └── wrapt v1.16.0
+│   │       │       └── importlib-metadata v8.4.0
+│   │       │           └── zipp v3.20.1
+│   │       └── typing-extensions v4.12.2
+│   └── opentelemetry-exporter-otlp-proto-http v1.27.0
+│       ├── deprecated v1.2.14
+│       │   └── wrapt v1.16.0
+│       ├── googleapis-common-protos v1.65.0
+│       │   └── protobuf v4.25.4
+│       ├── opentelemetry-api v1.27.0
+│       │   ├── deprecated v1.2.14
+│       │   │   └── wrapt v1.16.0
+│       │   └── importlib-metadata v8.4.0
+│       │       └── zipp v3.20.1
+│       ├── opentelemetry-exporter-otlp-proto-common v1.27.0
+│       │   └── opentelemetry-proto v1.27.0
+│       │       └── protobuf v4.25.4
+│       ├── opentelemetry-proto v1.27.0
+│       │   └── protobuf v4.25.4
+│       ├── opentelemetry-sdk v1.27.0
+│       │   ├── opentelemetry-api v1.27.0
+│       │   │   ├── deprecated v1.2.14
+│       │   │   │   └── wrapt v1.16.0
+│       │   │   └── importlib-metadata v8.4.0
+│       │   │       └── zipp v3.20.1
+│       │   ├── opentelemetry-semantic-conventions v0.48b0
+│       │   │   ├── deprecated v1.2.14
+│       │   │   │   └── wrapt v1.16.0
+│       │   │   └── opentelemetry-api v1.27.0
+│       │   │       ├── deprecated v1.2.14
+│       │   │       │   └── wrapt v1.16.0
+│       │   │       └── importlib-metadata v8.4.0
+│       │   │           └── zipp v3.20.1
+│       │   └── typing-extensions v4.12.2
+│       └── requests v2.32.3
+│           ├── certifi v2024.8.30
+│           ├── charset-normalizer v3.3.2
+│           ├── idna v3.8
+│           └── urllib3 v2.2.2
+├── packaging v24.1
+├── pathspec v0.12.1
+├── pendulum v3.0.0
+│   ├── backports-zoneinfo v0.2.1
+│   ├── importlib-resources v6.4.4
+│   │   └── zipp v3.20.1
+│   ├── python-dateutil v2.9.0.post0
+│   │   └── six v1.16.0
+│   ├── time-machine v2.15.0
+│   │   └── python-dateutil v2.9.0.post0
+│   │       └── six v1.16.0
+│   └── tzdata v2024.1
+├── pluggy v1.5.0
+├── psutil v6.0.0
+├── pydantic v2.8.2
+│   ├── annotated-types v0.7.0
+│   │   └── typing-extensions v4.12.2
+│   ├── pydantic-core v2.20.1
+│   │   └── typing-extensions v4.12.2
+│   └── typing-extensions v4.12.2
+├── pygments v2.18.0
+├── pyjwt v2.9.0
+├── python-daemon v3.0.1
+│   ├── docutils v0.20.1
+│   ├── lockfile v0.12.2
+│   └── setuptools v74.0.0
+├── python-dateutil v2.9.0.post0
+│   └── six v1.16.0
+├── python-nvd3 v0.16.0
+│   ├── jinja2 v3.1.4
+│   │   └── markupsafe v2.1.5
+│   └── python-slugify v8.0.4
+│       └── text-unidecode v1.3
+├── python-slugify v8.0.4
+│   └── text-unidecode v1.3
+├── requests v2.32.3
+│   ├── certifi v2024.8.30
+│   ├── charset-normalizer v3.3.2
+│   ├── idna v3.8
+│   └── urllib3 v2.2.2
+├── requests-toolbelt v1.0.0
+│   └── requests v2.32.3
+│       ├── certifi v2024.8.30
+│       ├── charset-normalizer v3.3.2
+│       ├── idna v3.8
+│       └── urllib3 v2.2.2
+├── rfc3339-validator v0.1.4
+│   └── six v1.16.0
+├── rich v13.8.0
+│   ├── markdown-it-py v3.0.0
+│   │   └── mdurl v0.1.2
+│   ├── pygments v2.18.0
+│   └── typing-extensions v4.12.2
+├── rich-argparse v1.5.2
+│   └── rich v13.8.0
+│       ├── markdown-it-py v3.0.0
+│       │   └── mdurl v0.1.2
+│       ├── pygments v2.18.0
+│       └── typing-extensions v4.12.2
+├── setproctitle v1.3.3
+├── sqlalchemy v1.4.53
+│   └── greenlet v3.0.3
+├── sqlalchemy-jsonfield v1.0.2
+│   └── sqlalchemy v1.4.53
+│       └── greenlet v3.0.3
+├── sqlparse v0.5.1
+├── tabulate v0.9.0
+├── tenacity v9.0.0
+├── termcolor v2.4.0
+├── unicodecsv v0.14.1
+├── universal-pathlib v0.2.2
+│   └── fsspec v2024.6.1
+└── werkzeug v2.2.3
+    └── markupsafe v2.1.5

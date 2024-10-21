@@ -34,7 +34,7 @@ import { RiFocus3Line } from "react-icons/ri";
 
 import Edge from "src/components/Graph/Edge";
 import { useContainerRef } from "src/context/containerRef";
-import { useDatasetGraphs } from "src/api/useDatasetDependencies";
+import { useAssetGraphs } from "src/api/useAssetDependencies";
 
 import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
@@ -53,7 +53,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
   const { setCenter } = useReactFlow();
   const containerRef = useContainerRef();
 
-  const { data: graph } = useDatasetGraphs();
+  const { data: graph } = useAssetGraphs();
 
   const nodeColor = ({
     data: { isSelected },
@@ -87,7 +87,7 @@ const Graph = ({ selectedNodeId, onSelect }: Props) => {
         height: c.height,
         onSelect: () => {
           if (onSelect) {
-            if (c.value.class === "dataset") onSelect({ uri: c.value.label });
+            if (c.value.class === "asset") onSelect({ uri: c.value.label });
             else if (c.value.class === "dag")
               onSelect({ dagId: c.value.label });
           }

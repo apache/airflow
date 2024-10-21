@@ -47,7 +47,9 @@ metadata:
   annotations: {{- toYaml .Values.webserver.annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.webserver.hpa.enabled }}
   replicas: {{ .Values.webserver.replicas }}
+  {{- end}}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}

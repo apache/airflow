@@ -23,8 +23,8 @@ For more information about the Google Analytics 360 API check
 `official documentation <https://developers.google.com/analytics/devguides/config/mgmt/v3>`__.
 
 Please note that the Google Analytics 360 API is replaced by
-`Google Analytics 4 <https://developers.google.com/analytics/devguides/config/admin/v1>`__ and
-`will be turned down on July 1, 2024 <https://support.google.com/analytics/answer/11583528>`__.
+`Google Analytics 4 <https://developers.google.com/analytics/devguides/config/admin/v1>`__ and is
+`turned down on July 1, 2024 <https://support.google.com/analytics/answer/11583528>`__.
 Thus consider using new :doc:`Google Analytics (GA4) Admin Operators </operators/marketing_platform/analytics_admin>`.
 
 Prerequisite Tasks
@@ -32,24 +32,11 @@ Prerequisite Tasks
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleAnalyticsListAccountsOperator:
-
 List the Accounts
 ^^^^^^^^^^^^^^^^^
 
 To list accounts from Analytics you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator`.
-
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_marketing_platform_list_accounts_operator]
-    :end-before: [END howto_marketing_platform_list_accounts_operator]
-
-You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator`
-
-.. _howto/operator:GoogleAnalyticsGetAdsLinkOperator:
 
 Get Ad Words Link
 ^^^^^^^^^^^^^^^^^
@@ -58,29 +45,9 @@ Returns a web property-Google Ads link to which the user has access.
 To list web property-Google Ads link you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_marketing_platform_get_ads_link_operator]
-    :end-before: [END howto_marketing_platform_get_ads_link_operator]
-
-You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator`
-
-.. _howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator:
-
 List Google Ads Links
 ^^^^^^^^^^^^^^^^^^^^^
 
 Operator returns a list of entity Google Ads links.
 To list Google Ads links you can use the
 :class:`~airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`.
-
-.. exampleinclude:: /../../tests/system/providers/google/marketing_platform/example_analytics.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_marketing_platform_retrieve_ads_links_list_operator]
-    :end-before: [END howto_marketing_platform_retrieve_ads_links_list_operator]
-
-You can use :ref:`Jinja templating <concepts:jinja-templating>` with
-:template-fields:`airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator`

@@ -59,7 +59,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_run_job_group_operator]
@@ -77,7 +77,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_get_jobs_for_job_group_operator]
@@ -96,7 +96,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_get_job_group_operator]
@@ -112,7 +112,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_copy_flow_operator]
@@ -130,7 +130,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_dataprep_run_flow_operator]
@@ -148,7 +148,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_delete_flow_operator]
@@ -167,7 +167,7 @@ To get information about jobs within a Cloud Dataprep job use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataprep/example_dataprep.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataprep/example_dataprep.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_dataprep_job_group_finished_sensor]

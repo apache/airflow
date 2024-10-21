@@ -35,7 +35,7 @@ Airflow system tests are pretty special because they serve three purposes:
 Old System Tests
 ----------------
 
-The system tests derive from the ``tests.test_utils.system_test_class.SystemTests`` class.
+The system tests derive from the ``tests_common.test_utils.system_test_class.SystemTests`` class.
 
 Old versions of System tests should also be marked with ``@pytest.marker.system(SYSTEM)`` where ``system``
 designates the system to be tested (for example, ``google.cloud``). These tests are skipped by default.

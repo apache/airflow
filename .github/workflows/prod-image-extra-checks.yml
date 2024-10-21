@@ -63,6 +63,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
 jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -84,6 +88,7 @@ jobs:
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -107,3 +112,4 @@ jobs:
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}

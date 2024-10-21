@@ -212,9 +212,14 @@ def import_all_classes(
                 ...
             except Exception as e:
                 # skip the check as we are temporary vendoring in the google ads client with wrong package
-                if "No module named 'google.ads.googleads.v12'" not in str(e):
+                # skip alembic.context which is only available when alembic command is executed from a folder
+                # containing the alembic.ini file
+                if "No module named 'google.ads.googleads.v12'" not in str(
+                    e
+                ) and "module 'alembic.context' has no attribute 'config'" not in str(e):
                     exception_str = traceback.format_exc()
                     tracebacks.append((modinfo.name, exception_str))
+
     if tracebacks:
         if IS_AIRFLOW_VERSION_PROVIDED:
             console.print(
@@ -722,10 +727,6 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
 
 
 def run_provider_discovery():
-    import packaging.version
-
-    import airflow.version
-
     console.print("[bright_blue]List all providers[/]\n")
     subprocess.run(["airflow", "providers", "list"], check=True)
     console.print("[bright_blue]List all hooks[/]\n")
@@ -742,16 +743,10 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
-    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
-        # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the triggers command is not available till airflow 2.7.0
-        # TODO: Remove this condition once airflow dependency in providers are > 2.7.0
-        console.print("[bright_blue]List all triggers[/]\n")
-        subprocess.run(["airflow", "providers", "triggers"], check=True)
-        # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the executors command is not available till airflow 2.7.0
-        console.print("[bright_blue]List all executors[/]\n")
-        subprocess.run(["airflow", "providers", "executors"], check=True)
+    console.print("[bright_blue]List all triggers[/]\n")
+    subprocess.run(["airflow", "providers", "triggers"], check=True)
+    console.print("[bright_blue]List all executors[/]\n")
+    subprocess.run(["airflow", "providers", "executors"], check=True)
 
 
 AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"

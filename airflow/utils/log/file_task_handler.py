@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 from contextlib import suppress
@@ -132,12 +131,12 @@ def _interleave_logs(*logs):
     for log in logs:
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
-    for _, _, v in sorted(
+    for timestamp, _, line in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
-            yield v
-        last = v
+        if line != last or not timestamp:  # dedupe
+            yield line
+        last = line
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
@@ -237,10 +236,6 @@ class FileTaskHandler(logging.Handler):
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
-
-    @cached_property
-    def supports_task_context_logging(self) -> bool:
-        return "identifier" in inspect.signature(self.set_context).parameters
 
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
@@ -462,7 +457,7 @@ class FileTaskHandler(logging.Handler):
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
         if try_number is None:
-            next_try = task_instance.next_try_number
+            next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [

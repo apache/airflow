@@ -30,10 +30,19 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
-from tests.test_utils.api_connexion_utils import create_user_scope
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.permissions import _resource_name
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user_scope
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.permissions import _resource_name
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -132,13 +141,14 @@ def acl_app(app):
 
 
 @pytest.fixture(scope="module")
-def reset_dagruns():
+def _reset_dagruns():
     """Clean up stray garbage from other tests."""
     clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(acl_app, reset_dagruns):
+def _init_dagruns(acl_app, _reset_dagruns):
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
@@ -146,6 +156,7 @@ def init_dagruns(acl_app, reset_dagruns):
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
+        **triggered_by_kwargs,
     )
     acl_app.dag_bag.get_dag("example_python_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
@@ -153,6 +164,7 @@ def init_dagruns(acl_app, reset_dagruns):
         start_date=timezone.utcnow(),
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         state=State.RUNNING,
+        **triggered_by_kwargs,
     )
     yield
     clear_db_runs()
@@ -257,22 +269,22 @@ def test_dag_autocomplete_success(client_all_dags):
         {"name": "airflow", "type": "owner", "dag_display_name": None},
         {
             "dag_display_name": None,
-            "name": "dataset_alias_example_alias_consumer_with_no_taskflow",
+            "name": "asset_alias_example_alias_consumer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_alias_example_alias_producer_with_no_taskflow",
+            "name": "asset_alias_example_alias_producer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_s3_bucket_consumer_with_no_taskflow",
+            "name": "asset_s3_bucket_consumer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_s3_bucket_producer_with_no_taskflow",
+            "name": "asset_s3_bucket_producer_with_no_taskflow",
             "type": "dag",
         },
         {
@@ -315,7 +327,7 @@ def test_dag_autocomplete_dag_display_name(client_all_dags):
 
 
 @pytest.fixture
-def setup_paused_dag():
+def _setup_paused_dag():
     """Pause a DAG so we can test filtering."""
     dag_to_pause = "example_branch_operator"
     with create_session() as session:
@@ -332,7 +344,7 @@ def setup_paused_dag():
         ("paused", "example_branch_operator", "example_branch_labels"),
     ],
 )
-@pytest.mark.usefixtures("setup_paused_dag")
+@pytest.mark.usefixtures("_setup_paused_dag")
 def test_dag_autocomplete_status(client_all_dags, status, expected, unexpected):
     with client_all_dags.session_transaction() as flask_session:
         flask_session[FILTER_STATUS_COOKIE] = status
@@ -788,7 +800,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
         past="false",
     )
     resp = client_only_dags_tis.post("success", data=form)
-    check_content_not_in_response("Wait a minute", resp, resp_code=302)
+    check_content_not_in_response("Please confirm", resp, resp_code=302)
 
 
 GET_LOGS_WITH_METADATA_URL = (

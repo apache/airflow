@@ -34,6 +34,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
+from airflow.providers.fab import __version__ as fab_version
 from airflow.utils.db import _get_alembic_config
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
 console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
+fab_version = re.match(r"(\d+\.\d+\.\d+).*", fab_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
 
 
@@ -59,7 +61,7 @@ def wrap_backticks(val):
     return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
 
 
-def update_doc(file, data):
+def update_doc(file, data, app):
     replace_text_between(
         file=file,
         start=" .. Beginning of auto-generated table\n",
@@ -69,7 +71,7 @@ def update_doc(file, data):
             headers={
                 "revision": "Revision ID",
                 "down_revision": "Revises ID",
-                "version": "Airflow Version",
+                "version": f"{app.title()} Version",
                 "description": "Description",
             },
             tabular_data=data,
@@ -81,17 +83,27 @@ def update_doc(file, data):
     )
 
 
-def has_version(content):
-    return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+def has_version(content, app):
+    if app == "airflow":
+        return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+    return re.search(r"^fab_version\s*=.*", content, flags=re.MULTILINE) is not None
 
 
-def insert_version(old_content, file):
-    new_content = re.sub(
-        r"(^depends_on.*)",
-        lambda x: f'{x.group(1)}\nairflow_version = "{airflow_version}"',
-        old_content,
-        flags=re.MULTILINE,
-    )
+def insert_version(old_content, file, app):
+    if app == "airflow":
+        new_content = re.sub(
+            r"(^depends_on.*)",
+            lambda x: f'{x.group(1)}\nairflow_version = "{airflow_version}"',
+            old_content,
+            flags=re.MULTILINE,
+        )
+    else:
+        new_content = re.sub(
+            r"(^depends_on.*)",
+            lambda x: f'{x.group(1)}\nfab_version = "{fab_version}"',
+            old_content,
+            flags=re.MULTILINE,
+        )
     file.write_text(new_content)
 
 
@@ -107,37 +119,49 @@ def revision_suffix(rev: Script):
     return ""
 
 
-def ensure_airflow_version(revisions: Iterable[Script]):
+def ensure_version(revisions: Iterable[Script], app):
     for rev in revisions:
         if TYPE_CHECKING:  # For mypy
             assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
-        if not has_version(content):
-            insert_version(content, file)
+        if not has_version(content, app=app):
+            insert_version(content, file, app=app)
 
 
-def get_revisions() -> Iterable[Script]:
-    config = _get_alembic_config()
-    script = ScriptDirectory.from_config(config)
-    yield from script.walk_revisions()
+def get_revisions(app="airflow") -> Iterable[Script]:
+    if app == "airflow":
+        config = _get_alembic_config()
+        script = ScriptDirectory.from_config(config)
+        yield from script.walk_revisions()
+    else:
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+
+        script = FABDBManager(session="").get_script_object()
+        yield from script.walk_revisions()
 
 
-def update_docs(revisions: Iterable[Script]):
+def update_docs(revisions: Iterable[Script], app="airflow"):
     doc_data = []
     for rev in revisions:
+        app_revision = rev.module.airflow_version if app == "airflow" else rev.module.fab_version
         doc_data.append(
             dict(
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
                 down_revision=wrap_backticks(rev.down_revision),
-                version=wrap_backticks(rev.module.airflow_version),  # type: ignore
+                version=wrap_backticks(app_revision),  # type: ignore
                 description="\n".join(textwrap.wrap(rev.doc, width=60)),
             )
         )
+    if app == "fab":
+        filepath = project_root / "docs" / "apache-airflow-providers-fab" / "migrations-ref.rst"
+    else:
+        filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
 
     update_doc(
-        file=project_root / "docs" / "apache-airflow" / "migrations-ref.rst",
+        file=filepath,
         data=doc_data,
+        app=app,
     )
 
 
@@ -155,13 +179,16 @@ def ensure_mod_prefix(mod_name, idx, version):
     return "_".join(parts)
 
 
-def ensure_filenames_are_sorted(revisions):
+def ensure_filenames_are_sorted(revisions, app):
     renames = []
     is_branched = False
     unmerged_heads = []
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
-        version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
+        if app == "airflow":
+            version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
+        else:
+            version = rev.module.fab_version.split(".")[0:3]  # only first 3 tokens
         correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
             renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
@@ -209,16 +236,18 @@ def correct_mismatching_revision_nums(revisions: Iterable[Script]):
 
 
 if __name__ == "__main__":
-    console.print("[bright_blue]Updating migration reference")
-    revisions = list(reversed(list(get_revisions())))
-    console.print("[bright_blue]Making sure airflow version updated")
-    ensure_airflow_version(revisions=revisions)
-    console.print("[bright_blue]Making sure there's no mismatching revision numbers")
-    correct_mismatching_revision_nums(revisions=revisions)
-    revisions = list(reversed(list(get_revisions())))
-    console.print("[bright_blue]Making sure filenames are sorted")
-    ensure_filenames_are_sorted(revisions=revisions)
-    revisions = list(get_revisions())
-    console.print("[bright_blue]Updating documentation")
-    update_docs(revisions=revisions)
-    console.print("[green]Migrations OK")
+    apps = ["airflow", "fab"]
+    for app in apps:
+        console.print(f"[bright_blue]Updating migration reference for {app}")
+        revisions = list(reversed(list(get_revisions(app))))
+        console.print(f"[bright_blue]Making sure {app} version updated")
+        ensure_version(revisions=revisions, app=app)
+        console.print("[bright_blue]Making sure there's no mismatching revision numbers")
+        correct_mismatching_revision_nums(revisions=revisions)
+        revisions = list(reversed(list(get_revisions(app=app))))
+        console.print("[bright_blue]Making sure filenames are sorted")
+        ensure_filenames_are_sorted(revisions=revisions, app=app)
+        revisions = list(get_revisions(app=app))
+        console.print("[bright_blue]Updating documentation")
+        update_docs(revisions=revisions, app=app)
+        console.print("[green]Migrations OK")

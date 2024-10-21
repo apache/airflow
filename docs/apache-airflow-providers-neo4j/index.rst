@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/neo4j/index>
+    System Tests <_api/tests/system/neo4j/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/|version|/tests/system/providers/neo4j>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/|version|/providers/tests/system/neo4j>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-neo4j/>
     Installing from sources <installing-providers-from-sources>
 

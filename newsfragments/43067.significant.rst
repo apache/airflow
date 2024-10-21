@@ -1,0 +1,4 @@
+Remove DAG.get_num_active_runs
+
+We don't need this function. There's already an almost-identical function on DagRun that we can use, namely DagRun.active_runs_of_dags.
+Also, make DagRun.active_runs_of_dags private.

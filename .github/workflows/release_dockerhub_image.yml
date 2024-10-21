@@ -71,7 +71,7 @@ jobs:
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    runs-on: ["self-hosted", "Linux", "X64"]
+    runs-on: ["ubuntu-22.04"]
     needs: [build-info]
     strategy:
       fail-fast: false
@@ -102,15 +102,39 @@ jobs:
         run: breeze ci free-space --answer yes
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: github.repository == 'apache/airflow'
       - name: "Login to hub.docker.com"
         run: >
           echo ${{ secrets.DOCKERHUB_TOKEN }} |
           docker login --password-stdin --username ${{ secrets.DOCKERHUB_USER }}
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: "Install buildx plugin"
+        # yamllint disable rule:line-length
+        run: |
+          sudo apt-get update
+          sudo apt-get install ca-certificates curl
+          sudo install -m 0755 -d /etc/apt/keyrings
+          sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+          # Add the repository to Apt sources:
+          echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          sudo apt install docker-buildx-plugin
+      - name: "Install regctl"
+        # yamllint disable rule:line-length
+        run: |
+          mkdir -p ~/bin
+          curl -L https://github.com/regclient/regclient/releases/latest/download/regctl-linux-amd64 >${HOME}/bin/regctl
+          chmod 755 ${HOME}/bin/regctl
+          echo "${HOME}/bin" >>${GITHUB_PATH}
+      - name: "Install emulation support"
+        run: docker run --privileged --rm tonistiigi/binfmt --install all
+      - name: "Create airflow_cache builder"
+        run: docker buildx create --name airflow_cache
       - name: "Prepare chicken-eggs provider packages"
         # In case of provider packages which use latest dev0 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
@@ -148,9 +172,6 @@ jobs:
           --limit-python ${{ matrix.python-version }} --slim-images
         env:
           COMMIT_SHA: ${{ github.sha }}
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && github.repository == 'apache/airflow'
       - name: >
           Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >

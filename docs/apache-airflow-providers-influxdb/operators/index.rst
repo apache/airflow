@@ -27,7 +27,7 @@ SQL commands in a `InfluxDB <https://www.influxdata.com/>`__ database.
 
 An example of running the query using the operator:
 
-.. exampleinclude:: /../../tests/system/providers/influxdb/example_influxdb_query.py
+.. exampleinclude:: /../../providers/tests/system/influxdb/example_influxdb_query.py
     :language: python
     :start-after: [START howto_operator_influxdb]
     :end-before: [END howto_operator_influxdb]

@@ -16,11 +16,15 @@
 # under the License.
 #
 ---
-name: "Build Images"
+name: Build Images
 run-name: >
   Build images for ${{ github.event.pull_request.title }} ${{ github.event.pull_request._links.html.href }}
 on:  # yamllint disable-line rule:truthy
   pull_request_target:
+    branches:
+      - main
+      - v2-10-stable
+      - v2-10-test
 permissions:
   # all other permissions are set to none
   contents: read
@@ -50,7 +54,7 @@ concurrency:
 jobs:
   build-info:
     timeout-minutes: 10
-    name: "Build Info"
+    name: Build Info
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     env:
@@ -67,6 +71,7 @@ jobs:
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
       constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
       runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
@@ -85,7 +90,7 @@ jobs:
         }}"
     if: github.repository == 'apache/airflow'
     steps:
-      - name: "Cleanup repo"
+      - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: Discover PR merge commit
@@ -150,13 +155,13 @@ jobs:
       #  COMPOSITE ACTIONS. WE CAN RUN ANYTHING THAT IS IN THE TARGET BRANCH AND THERE IS NO RISK THAT
       #  CODE WILL BE RUN FROM THE PR.
       ####################################################################################################
-      - name: "Cleanup docker"
+      - name: Cleanup docker
         run: ./scripts/ci/cleanup_docker.sh
-      - name: "Setup python"
+      - name: Setup python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
-      - name: "Install Breeze"
+          python-version: "3.9"
+      - name: Install Breeze
         uses: ./.github/actions/breeze
       ####################################################################################################
       #  WE RUN SELECTIVE CHECKS HERE USING THE TARGET COMMIT AND ITS PARENT TO BE ABLE TO COMPARE THEM
@@ -206,9 +211,11 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+
 
   generate-constraints:
-    name: "Generate constraints"
+    name: Generate constraints
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
     with:
@@ -243,7 +250,7 @@ jobs:
       push-image: "true"
       use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      platform: "linux/amd64"
+      platform: linux/amd64
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -252,3 +259,4 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}

@@ -82,7 +82,8 @@ export const parseLogs = (
   const ansiUp = new AnsiUp();
   ansiUp.url_allowlist = {};
 
-  const urlRegex = /((https?:\/\/|http:\/\/)(?:(?!&#x27;|&quot;)[^\s])+)/g;
+  const urlRegex =
+    /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
   // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
   const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
@@ -137,7 +138,8 @@ export const parseLogs = (
       const lineWithHyperlinks = coloredLine
         .replace(
           urlRegex,
-          '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+          (url) =>
+            `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`
         )
         .replace(logGroupStart, (textLine) => {
           const unfoldIdSuffix = "_unfold";

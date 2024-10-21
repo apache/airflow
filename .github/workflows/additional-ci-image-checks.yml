@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
       canary-run:
         description: "Whether this is a canary run (true/false)"
         required: true
@@ -112,6 +116,7 @@ jobs:
       use-uv: "true"
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
     if: inputs.branch == 'main'
 
   # Check that after earlier cache push, breeze command will build quickly
@@ -168,3 +173,5 @@ jobs:
 #      use-uv: "true"
 #      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
 #      docker-cache: ${{ inputs.docker-cache }}
+#      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}
+#

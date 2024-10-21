@@ -45,17 +45,12 @@ def get_python_version_list(python_versions: str) -> list[str]:
     return python_version_list
 
 
-def check_python_version():
-    error = False
-    if not sys.version_info >= (3, 9):
-        get_console().print("[error]At least Python 3.9 is required to prepare reproducible archives.\n")
-        error = True
-    elif not sys.version_info < (3, 12):
+def check_python_version(release_provider_packages: bool = False):
+    if not sys.version_info < (3, 12) and release_provider_packages:
         get_console().print("[error]Python 3.12 is not supported.\n")
-        error = True
-    if error:
         get_console().print(
-            "[warning]Please reinstall Breeze using Python 3.9 - 3.11 environment.[/]\n\n"
+            "[warning]Please reinstall Breeze using Python 3.9 - 3.11 environment because not all "
+            "provider packages support Python 3.12 yet.[/]\n\n"
             "For example:\n\n"
             "pipx uninstall apache-airflow-breeze\n"
             "pipx install --python $(which python3.9) -e ./dev/breeze --force\n"

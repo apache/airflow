@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.1
+.....
+
+Latest change: 2024-09-04
+
+=================================================================================================  ===========  =====================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================
+`c5aeeff412 <https://github.com/apache/airflow/commit/c5aeeff412a7b10951e46ba9aaefe10980cbb30e>`_  2024-09-04   ``bugfix/livy-set-base-url (#41658)``
+=================================================================================================  ===========  =====================================
+
 3.9.0
 .....
 
-Latest change: 2024-08-12
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 `d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``

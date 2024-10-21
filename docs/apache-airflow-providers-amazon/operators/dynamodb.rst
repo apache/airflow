@@ -51,7 +51,7 @@ Wait for a Single Attribute Value Match:
 
 This example shows how to use ``DynamoDBValueSensor`` to wait for a specific attribute/value pair in a DynamoDB item.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_dynamodb.py
     :language: python
     :start-after: [START howto_sensor_dynamodb_value]
     :dedent: 4
@@ -62,7 +62,7 @@ Wait for Any Value from a List of Attribute Values:
 
 In this example, the sensor waits for the DynamoDB item to have an attribute that matches any value from a provided list.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_dynamodb.py
     :language: python
     :start-after: [START howto_sensor_dynamodb_any_value]
     :dedent: 4

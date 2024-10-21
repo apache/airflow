@@ -21,11 +21,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [Debugging CI Jobs in Github Actions](#debugging-ci-jobs-in-github-actions)
+- [Debugging CI Jobs in Github Actions and changing their behaviour](#debugging-ci-jobs-in-github-actions-and-changing-their-behaviour)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Debugging CI Jobs in Github Actions
+# Debugging CI Jobs in Github Actions and changing their behaviour
 
 The CI jobs are notoriously difficult to test, because you can only
 really see results of it when you run them in CI environment, and the
@@ -39,49 +39,28 @@ difficulty is that `Build Images` workflow is `pull-request-target`
 type, which means that it will always run using the `main` version - no
 matter what is in your Pull Request.
 
-There are several ways how you can debug the CI jobs when you are
-maintainer.
+There are several ways how you can debug the CI jobs and modify their
+behaviour when you are maintainer.
 
-- When you want to tests the build with all combinations of all python,
-  backends etc on regular PR, add `full tests needed` label to the PR.
-- When you want to test maintainer PR using public runners, add
-  `public runners` label to the PR
-- When you want to see resources used by the run, add
-  `debug ci resources` label to the PR
-- When you want to test changes to breeze that include changes to how
-  images are build you should push your PR to `apache` repository not to
-  your fork. This will run the images as part of the `CI` workflow
-  rather than using `Build images` workflow and use the same breeze
-  version for building image and testing
-- When you want to test changes to workflows and CI scripts you can set
-  `all versions` label to the PR or `latest versions only`.
-  This will make the PR run using "all" versions of
-  Python, Kubernetes and the DBS. By default - unless you also change
-  dependencies in `pyproject.toml` or `generated/provider_dependencies.json`
-  such PRs will only use "default" versions of Python, Kubernetes and
-  DBs. This is useful when you want to test changes to the CI scripts
-  are not affected by the versions of Python, Kubernetes and DBs.
-- Even if you change dependencies in `pyproject.toml`, or
-  `generated/provider_dependencies.json`, when you want to test changes to workflows
-  and CI scripts you can set `default versions only` label to the
-  This will make the PR run using the default (or latest) versions of
-  Python and Kubernetes and DBs. This is useful when you want to test
-  changes to the CI scripts and workflows and you want to use far
-  less resources than the full tests.
-- When you want to test changes to `build-images.yml` workflow you
-  should push your branch as `main` branch in your local fork. This will
-  run changed `build-images.yml` workflow as it will be in `main` branch
-  of your fork
-- When you are a committer and you change build images workflow, together
-  with build scripts, your build might fail because your scripts are used
-  in `build-images.yml` workflow, but the workflow is run using the `main`
-  version. Setting `non committer build` label will make your PR run using
-  the main version of the scripts and the workflow
-- When you are a committer want to test how changes in your workflow affect
-  `canary` run, as maintainer, you should push your PR to `apache` repository
-  not to your fork and set `canary` label to the PR
-- When you are a committer and want to test if the tests are passing if the
-  image is freshly built without cache, you can set `disable image cache` label.
+When you create the PR you can set one of the labels below, also
+in some cases, you need to run the PR as coming from the "apache"
+repository rather than from your fork.
+
+You can also apply the label later and rebase the PR or close/reopen
+the PR to apply the label to the PR.
+
+| Action to perform                                                                                                                                                | Label to set          | PR from "apache" repo |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|:---------------------:|
+| Run the build with all combinations of all<br>python, backends, kubernetes etc on PR, <br>and run all types of tests for all test<br>groups.                     | full tests needed     |                       |
+| Force to use public runners for the build                                                                                                                        | use public runners    |                       |
+| Debug resources used during the build for <br>parallel jobs                                                                                                      | debug ci resources    |                       |
+| Force running PR on latest versions of<br>python, backends, kubernetes etc. when you<br>want to save resources and test only latest<br>versions                  | latest versions only  |                       |
+| Force running PR on minimal (default) <br>versions of python, backends, kubernetes etc.<br>in order to save resources and run tests only<br>for minimum versions | default versions only |                       |
+| Make sure to clean dependency cache<br>usually when removing dependencies<br>You also need to increase<br> `DEPENDENCIES_EPOCH_NUMBER` in `Dockerfile.ci`        | disable image cache   |                       |
+| Change build images workflows, breeze code or<br>scripts that are used during image build<br>so that the scripts can be modified by PR<br>                       |                       |          Yes          |
+| Treat your build as "canary" build - including<br>updating constraints and pushing "main"<br>documentation.                                                      |                       |          Yes          |
+| Remove any behaviour specific for the committers<br>such as using different runners by default.                                                                  | non committer build   |                       |
+
 
 -----
 

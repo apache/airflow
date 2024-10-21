@@ -38,7 +38,7 @@ Extract data from Salesforce to Amazon S3 transfer operator
 The following example demonstrates a use case of extracting account data from a Salesforce
 instance and upload to an Amazon S3 bucket.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_salesforce_to_s3.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_salesforce_to_s3.py
     :language: python
     :dedent: 4
     :start-after: [START howto_transfer_salesforce_to_s3]

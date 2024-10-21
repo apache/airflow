@@ -34,6 +34,7 @@ import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
+from threading import local
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -44,13 +45,11 @@ from typing import (
     NoReturn,
     Sequence,
     TypeVar,
-    Union,
     cast,
 )
 
 import attr
 import pendulum
-from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -58,7 +57,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     FailStopDagInvalidTriggerRule,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
 )
@@ -101,7 +99,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, AttributeRemoved
+from airflow.utils.types import NOTSET, AttributeRemoved, DagRunTriggeredByType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -120,8 +118,6 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.types import ArgNotSet
 
-ScheduleInterval = Union[str, timedelta, relativedelta]
-
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
 
@@ -131,7 +127,9 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or type(retries) == int:  # noqa: E721
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -362,6 +360,11 @@ def partial(
     partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+    if partial_kwargs["pool_slots"] < 1:
+        dag_str = ""
+        if dag:
+            dag_str = f" in dag {dag.dag_id}"
+        raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
@@ -389,6 +392,8 @@ class ExecutorSafeguard:
     """
 
     test_mode = conf.getboolean("core", "unit_test_mode")
+    _sentinel = local()
+    _sentinel.callers = {}
 
     @classmethod
     def decorator(cls, func):
@@ -396,7 +401,13 @@ class ExecutorSafeguard:
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
 
-            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            if sentinel:
+                cls._sentinel.callers[sentinel_key] = sentinel
+            else:
+                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
@@ -612,10 +623,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
-        to your DAG's ``schedule_interval``. Daily jobs have their start_date
+        to your DAG's schedule. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the ``schedule_interval`` to determine
+        ``execution_date`` and adds the schedule to determine
         the next ``execution_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
@@ -681,17 +692,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         way to limit concurrency for certain tasks
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
-    :param sla: time by which the job is expected to succeed. Note that
-        this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send an email
-        soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeeded yet.
-        The scheduler pays special attention for jobs with an SLA and
-        sends alert
-        emails for SLA misses. SLA misses are also recorded in the database
-        for future reference. All tasks that share the same SLA time
-        get bundled in a single email, sent soon after that time. SLA
-        notification are sent once and only once for each task instance.
+    :param sla: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :param on_failure_callback: a function or list of functions to be called when a task instance
@@ -900,7 +901,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
-        task_concurrency: int | None = None,
         map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
@@ -930,17 +930,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
-            if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
-                raise AirflowException(
-                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                    f"Invalid arguments were:\n**kwargs: {kwargs}",
-                )
-            warnings.warn(
+            raise AirflowException(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                "Support for passing such arguments will be dropped in future. "
                 f"Invalid arguments were:\n**kwargs: {kwargs}",
-                category=RemovedInAirflow3Warning,
-                stacklevel=3,
             )
         validate_key(task_id)
 
@@ -988,24 +980,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
-        self.sla = sla
 
-        if trigger_rule == "dummy":
-            warnings.warn(
-                "dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+        if sla:
+            self.log.warning(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1"
             )
-            trigger_rule = TriggerRule.ALWAYS
-
-        if trigger_rule == "none_failed_or_skipped":
-            warnings.warn(
-                "none_failed_or_skipped Trigger Rule is deprecated. "
-                "Please use `none_failed_min_one_success`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
@@ -1041,14 +1020,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.priority_weight = priority_weight
         self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
-        if task_concurrency and not max_active_tis_per_dag:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
@@ -1510,6 +1481,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     run_type=DagRunType.MANUAL,
                     execution_date=info.logical_date,
                     data_interval=info.data_interval,
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)
                 ti.dag_run = dr
@@ -1630,7 +1602,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Any,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
     ) -> None:
         """
         Make an XCom available for tasks to pull.
@@ -1639,11 +1610,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :param key: A key for the XCom
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
-        :param execution_date: if provided, the XCom will not be visible until
-            this date. This can be used, for example, to send a message to a
-            task on a future date without it being immediately visible.
         """
-        context["ti"].xcom_push(key=key, value=value, execution_date=execution_date)
+        context["ti"].xcom_push(key=key, value=value)
 
     @staticmethod
     @provide_session
@@ -1818,10 +1786,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :meta private:
         """
         return self.start_trigger_args
-
-
-# TODO: Deprecate for Airflow 3.0
-Chainable = Union[DependencyMixin, Sequence[DependencyMixin]]
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
@@ -2084,32 +2048,3 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
         prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
     if not deps_set:
         raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
-
-
-def __getattr__(name):
-    """
-    PEP-562: Lazy loaded attributes on python modules.
-
-    :meta private:
-    """
-    path = __deprecated_imports.get(name)
-    if not path:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-    from airflow.utils.module_loading import import_string
-
-    warnings.warn(
-        f"Import `{__name__}.{name}` is deprecated. Please use `{path}.{name}`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    val = import_string(f"{path}.{name}")
-
-    # Store for next time
-    globals()[name] = val
-    return val
-
-
-__deprecated_imports = {
-    "BaseOperatorLink": "airflow.models.baseoperatorlink",
-}

@@ -32,14 +32,16 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
-    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
+    CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    EDGE_EXECUTOR,
+    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -147,6 +149,7 @@ class ShellParams:
     downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
+    excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
@@ -183,7 +186,6 @@ class ShellParams:
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
     providers_skip_constraints: bool = False
-    pydantic: str = ALLOWED_PYDANTIC_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
@@ -324,7 +326,7 @@ class ShellParams:
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
 
-        if self.executor == "CeleryExecutor":
+        if self.executor == CELERY_EXECUTOR:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
             if self.use_airflow_version:
                 current_extras = self.airflow_extras
@@ -332,7 +334,9 @@ class ShellParams:
                     get_console().print(
                         "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
                     )
-                    self.airflow_extras = ",".join(current_extras.split(",") + ["celery"])
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
@@ -490,6 +494,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        if self.executor == EDGE_EXECUTOR:
+            _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+            _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
@@ -520,6 +527,7 @@ class ShellParams:
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -566,7 +574,6 @@ class ShellParams:
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
-        _set_var(_env, "PYDANTIC", self.pydantic)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
@@ -575,6 +582,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
+        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/microsoft/winrm/index>
+    System Tests <_api/tests/system/microsoft/winrm/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/|version|/tests/system/providers/microsoft/winrm>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/|version|/providers/tests/system/microsoft/winrm>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-winrm/>
     Installing from sources <installing-providers-from-sources>
 

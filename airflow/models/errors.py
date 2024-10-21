@@ -17,11 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
-
 from sqlalchemy import Column, Integer, String, Text
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -35,17 +32,3 @@ class ParseImportError(Base):
     filename = Column(String(1024))
     stacktrace = Column(Text)
     processor_subdir = Column(String(2000), nullable=True)
-
-
-def __getattr__(name: str):
-    # PEP-562: Lazy loaded attributes on python modules
-    if name == "ImportError":
-        warnings.warn(
-            f"Model class '{__name__}.ImportError' is deprecated due to shadowing with builtin exception "
-            f"ImportError and will be removed in the future. "
-            f"Please consider to use '{__name__}.ParseImportError' instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return ParseImportError
-    raise AttributeError(f"module {__name__} has no attribute {name}")

@@ -43,7 +43,7 @@ command as in the example below.
 .. code-block:: console
 
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Kerberos authentication
 '''''''''''''''''''''''
@@ -55,7 +55,7 @@ To enable Kerberos authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.kerberos_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth
 
     [kerberos]
     keytab = <KEYTAB>
@@ -78,7 +78,7 @@ To enable basic authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.basic_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Username and password needs to be base64 encoded and send through the
 ``Authorization`` HTTP header in the following format:

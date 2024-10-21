@@ -1,0 +1,1 @@
+Removed auth backend ``airflow.api.auth.backend.default``

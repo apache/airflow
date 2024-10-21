@@ -28,9 +28,10 @@ import signal
 import stat
 import subprocess
 import sys
-from functools import lru_cache
+from collections.abc import Mapping
+from functools import cache
 from pathlib import Path
-from typing import Mapping, Union
+from typing import Union
 
 from rich.markup import escape
 
@@ -38,6 +39,12 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
+    UI_ASSET_COMPILE_LOCK,
+    UI_ASSET_HASH_FILE,
+    UI_ASSET_OUT_DEV_MODE_FILE,
+    UI_ASSET_OUT_FILE,
+    UI_DIST_DIR,
+    UI_NODE_MODULES_DIR,
     WWW_ASSET_COMPILE_LOCK,
     WWW_ASSET_HASH_FILE,
     WWW_ASSET_OUT_DEV_MODE_FILE,
@@ -356,7 +363,7 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
@@ -376,7 +383,9 @@ def check_if_image_exists(image: str) -> bool:
     return cmd_result.returncode == 0
 
 
-def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunCommandResult:
+def _run_compile_internally(
+    command_to_execute: list[str], dev: bool, compile_lock: Path, asset_out: Path
+) -> RunCommandResult:
     from filelock import SoftFileLock, Timeout
 
     env = os.environ.copy()
@@ -389,11 +398,11 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             env=env,
         )
     else:
-        WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
+        compile_lock.parent.mkdir(parents=True, exist_ok=True)
+        compile_lock.unlink(missing_ok=True)
         try:
-            with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
-                with open(WWW_ASSET_OUT_FILE, "w") as output_file:
+            with SoftFileLock(compile_lock, timeout=5):
+                with open(asset_out, "w") as output_file:
                     result = run_command(
                         command_to_execute,
                         check=False,
@@ -404,13 +413,13 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
                         stdout=output_file,
                     )
                 if result.returncode == 0:
-                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
+                    asset_out.unlink(missing_ok=True)
                 return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
             get_console().print("[warning]If you are sure there is no other compilation,[/]")
             get_console().print("[warning]Remove the lock file and re-run compilation:[/]")
-            get_console().print(WWW_ASSET_COMPILE_LOCK)
+            get_console().print(compile_lock)
             get_console().print()
             sys.exit(1)
 
@@ -474,7 +483,60 @@ def run_compile_www_assets(
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
-            _run_compile_internally(command_to_execute, dev)
+            _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
             sys.exit(0)
     else:
-        return _run_compile_internally(command_to_execute, dev)
+        return _run_compile_internally(command_to_execute, dev, WWW_ASSET_COMPILE_LOCK, WWW_ASSET_OUT_FILE)
+
+
+def clean_ui_assets():
+    get_console().print("[info]Cleaning ui assets[/]")
+    UI_ASSET_HASH_FILE.unlink(missing_ok=True)
+    shutil.rmtree(UI_NODE_MODULES_DIR, ignore_errors=True)
+    shutil.rmtree(UI_DIST_DIR, ignore_errors=True)
+    get_console().print("[success]Cleaned ui assets[/]")
+
+
+def run_compile_ui_assets(
+    dev: bool,
+    run_in_background: bool,
+    force_clean: bool,
+):
+    if force_clean:
+        clean_ui_assets()
+    if dev:
+        get_console().print("\n[warning] The command below will run forever until you press Ctrl-C[/]\n")
+        get_console().print(
+            "\n[info]If you want to see output of the compilation command,\n"
+            "[info]cancel it, go to airflow/ui folder and run 'pnpm dev'.\n"
+            "[info]However, it requires you to have local pnpm installation.\n"
+        )
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        "run",
+        "--hook-stage",
+        "manual",
+        "compile-ui-assets-dev" if dev else "compile-ui-assets",
+        "--all-files",
+        "--verbose",
+    ]
+    get_console().print(
+        "[info]The output of the asset compilation is stored in: [/]"
+        f"{UI_ASSET_OUT_DEV_MODE_FILE if dev else UI_ASSET_OUT_FILE}\n"
+    )
+    if run_in_background:
+        pid = os.fork()
+        if pid:
+            # Parent process - send signal to process group of the child process
+            atexit.register(kill_process_group, pid)
+        else:
+            # Check if we are not a group leader already (We should not be)
+            if os.getpid() != os.getsid(0):
+                # and create a new process group where we are the leader
+                os.setpgid(0, 0)
+            _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)
+            sys.exit(0)
+    else:
+        return _run_compile_internally(command_to_execute, dev, UI_ASSET_COMPILE_LOCK, UI_ASSET_OUT_FILE)

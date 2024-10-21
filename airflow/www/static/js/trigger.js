@@ -97,6 +97,33 @@ function updateJSONconf() {
 }
 
 /**
+ * If the user hits ENTER key inside an input, ensure JSON data is updated.
+ */
+function handleEnter() {
+  updateJSONconf();
+  // somehow following is needed to enforce form is submitted correctly from CodeMirror
+  document.getElementById("json").value = jsonForm.getValue();
+}
+
+/**
+ * Track user changes in input fields, ensure JSON is updated when user presses enter
+ * See https://github.com/apache/airflow/issues/42157
+ */
+function enterInputField() {
+  const form = document.getElementById("trigger_form");
+  form.addEventListener("submit", handleEnter);
+}
+
+/**
+ * Stop tracking user changes in input fields
+ */
+function leaveInputField() {
+  const form = document.getElementById("trigger_form");
+  form.removeEventListener("submit", handleEnter);
+  updateJSONconf();
+}
+
+/**
  * Initialize the form during load of the web page
  */
 function initForm() {
@@ -148,7 +175,8 @@ function initForm() {
         } else if (elements[i].type === "checkbox") {
           elements[i].addEventListener("change", updateJSONconf);
         } else {
-          elements[i].addEventListener("blur", updateJSONconf);
+          elements[i].addEventListener("focus", enterInputField);
+          elements[i].addEventListener("blur", leaveInputField);
         }
       }
     }

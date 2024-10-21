@@ -17,52 +17,20 @@
 from __future__ import annotations
 
 import pathlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, List, Optional
 
-from dateutil import relativedelta
-from typing_extensions import Annotated
-
-from airflow import DAG, settings
-from airflow.configuration import conf as airflow_conf
-from airflow.utils.pydantic import (
+from pydantic import (
     BaseModel as BaseModelPydantic,
     ConfigDict,
     PlainSerializer,
     PlainValidator,
     ValidationInfo,
 )
-from airflow.utils.sqlalchemy import Interval
+from typing_extensions import Annotated
 
-
-def serialize_interval(value: Interval) -> Interval:
-    interval = Interval()
-    return interval.process_bind_param(value, None)
-
-
-def validate_interval(value: Interval | Any, _info: ValidationInfo) -> Any:
-    if (
-        isinstance(value, Interval)
-        or isinstance(value, timedelta)
-        or isinstance(value, relativedelta.relativedelta)
-    ):
-        return value
-    interval = Interval()
-    try:
-        return interval.process_result_value(value, None)
-    except ValueError as e:
-        # Interval may be provided in string format (cron),
-        # so it must be returned as valid value.
-        if isinstance(value, str):
-            return value
-        raise e
-
-
-PydanticInterval = Annotated[
-    Interval,
-    PlainValidator(validate_interval),
-    PlainSerializer(serialize_interval, return_type=Interval),
-]
+from airflow import DAG, settings
+from airflow.configuration import conf as airflow_conf
 
 
 def serialize_operator(x: DAG) -> dict:
@@ -121,7 +89,7 @@ class DagModelPydantic(BaseModelPydantic):
     owners: Optional[str]
     description: Optional[str]
     default_view: Optional[str]
-    schedule_interval: Optional[PydanticInterval]
+    timetable_summary: Optional[str]
     timetable_description: Optional[str]
     tags: List[DagTagPydantic]  # noqa: UP006
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006

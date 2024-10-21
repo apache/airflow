@@ -59,14 +59,14 @@ Here's an example of using the above notifier:
     from datetime import datetime
 
     from airflow.models.dag import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     from myprovider.notifier import MyNotifier
 
     with DAG(
         dag_id="example_notifier",
         start_date=datetime(2022, 1, 1),
-        schedule_interval=None,
+        schedule=None,
         on_success_callback=MyNotifier(message="Success!"),
         on_failure_callback=MyNotifier(message="Failure!"),
     ):

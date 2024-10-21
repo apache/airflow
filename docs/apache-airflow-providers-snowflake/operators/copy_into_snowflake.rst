@@ -43,7 +43,7 @@ a file format (see `docs <https://docs.snowflake.com/en/sql-reference/sql/create
 
 An example usage of the CopyFromExternalStageToSnowflakeOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_copy_into_snowflake.py
+.. exampleinclude:: /../../providers/tests/system/snowflake/example_copy_into_snowflake.py
     :language: python
     :start-after: [START howto_operator_s3_copy_into_snowflake]
     :end-before: [END howto_operator_s3_copy_into_snowflake]

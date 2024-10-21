@@ -42,12 +42,3 @@ RUNNABLE_STATES = {
 QUEUEABLE_STATES = {
     TaskInstanceState.SCHEDULED,
 }
-
-BACKFILL_QUEUEABLE_STATES = {
-    # For cases like unit tests and run manually
-    None,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.UP_FOR_RETRY,
-    # For normal backfill cases
-    TaskInstanceState.SCHEDULED,
-}

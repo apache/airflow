@@ -114,9 +114,16 @@ spec:
       volumes:
         - name: redis-db
           emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
+  {{- else if .Values.redis.persistence.existingClaim }}
+      volumes:
+        - name: redis-db
+          persistentVolumeClaim:
+            claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: redis-db
         {{- if .Values.redis.persistence.annotations }}
         annotations: {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}

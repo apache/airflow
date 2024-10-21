@@ -24,9 +24,22 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www.views import DagRunModelView
-from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -85,7 +98,7 @@ def client_dr_without_dag_run_create(app):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_dagrun():
+def _init_blank_dagrun():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -96,7 +109,7 @@ def init_blank_dagrun():
 
 
 @pytest.fixture(autouse=True)
-def reset_dagrun():
+def _reset_dagrun():
     yield
     with create_session() as session:
         session.query(DagRun).delete()
@@ -127,12 +140,14 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
         execution_date=execution_date,
         data_interval=(execution_date, execution_date),
         run_id="test_dag_runs_action",
         session=session,
+        **triggered_by_kwargs,
     )
     session.add(dr)
     tis = [
@@ -148,12 +163,14 @@ def running_dag_run(session):
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="success",
         execution_date=execution_date,
         data_interval=(execution_date, execution_date),
         run_id="test_dag_runs_action",
         session=session,
+        **triggered_by_kwargs,
     )
     session.add(dr)
     tis = [
