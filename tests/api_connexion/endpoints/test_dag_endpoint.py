@@ -342,6 +342,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         assert response.json == expected
 
@@ -405,6 +406,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         assert response.json == expected
 
@@ -456,6 +458,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         assert response.json == expected
 
@@ -507,6 +510,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         assert response.json == expected
 
@@ -567,6 +571,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -628,6 +633,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "template_searchpath": None,
             "timetable_description": None,
             "timezone": UTC_JSON_REPR,
+            "call_on_kill_on_dagrun_timeout": True,
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected
