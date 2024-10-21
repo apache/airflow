@@ -325,6 +325,9 @@ require Breeze Docker image to be built locally.
 | mypy-providers                                            | * Run mypy for providers                               | *       |
 |                                                           | * Run mypy for providers (manual)                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-task-sdk                                             | * Run mypy for Task SDK                                | *       |
+|                                                           | * Run mypy for Task SDK (manual)                       |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pylint                                                    | pylint                                                 |         |

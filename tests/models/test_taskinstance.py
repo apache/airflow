@@ -2297,15 +2297,15 @@ class TestTaskInstance:
         # check that no other asset events recorded
         event = (
             session.query(AssetEvent)
-            .join(AssetEvent.dataset)
+            .join(AssetEvent.asset)
             .filter(AssetEvent.source_task_instance == ti)
             .one()
         )
         assert event
-        assert event.dataset
+        assert event.asset
 
         # check that one queue record created for each dag that depends on asset 1
-        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.asset.id).order_by(
             AssetDagRunQueue.target_dag_id
         ).all() == [
             ("asset_consumes_1",),
@@ -2318,14 +2318,12 @@ class TestTaskInstance:
         ]
 
         # check that one event record created for asset1 and this TI
-        assert session.query(AssetModel.uri).join(AssetEvent.dataset).filter(
+        assert session.query(AssetModel.uri).join(AssetEvent.asset).filter(
             AssetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
         # check that the asset event has an earlier timestamp than the ADRQ's
-        adrq_timestamps = (
-            session.query(AssetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
-        )
+        adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
         assert all(
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
         ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
@@ -2450,13 +2448,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2522,13 +2520,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2567,7 +2565,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert len(producer_event.source_aliases) == 1
         assert producer_event.extra == {}
         assert producer_event.source_aliases[0].name == alias_name_1
@@ -2577,8 +2575,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == alias_name_1
 
         asset_alias_obj = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == alias_name_1))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_asset_alias(self, dag_maker, session):
@@ -2626,7 +2624,7 @@ class TestTaskInstance:
             assert producer_event.source_dag_id == "producer_dag"
             assert producer_event.source_run_id == "test"
             assert producer_event.source_map_index == -1
-            assert producer_event.dataset.uri == asset_uri
+            assert producer_event.asset.uri == asset_uri
 
             if not producer_event.extra:
                 assert producer_event.extra == {}
@@ -2651,8 +2649,8 @@ class TestTaskInstance:
         asset_alias_objs = session.scalars(select(AssetAliasModel)).all()
         assert len(asset_alias_objs) == 3
         for asset_alias_obj in asset_alias_objs:
-            assert len(asset_alias_obj.datasets) == 1
-            assert asset_alias_obj.datasets[0].uri == asset_uri
+            assert len(asset_alias_obj.assets) == 1
+            assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
@@ -2686,7 +2684,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
@@ -2696,8 +2694,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
@@ -2726,7 +2724,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
@@ -2736,8 +2734,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_asset_extra(self, dag_maker, session):
@@ -2800,7 +2798,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -2953,7 +2951,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -3196,19 +3194,19 @@ class TestTaskInstance:
         )
         dr = dag.create_dagrun(
             run_id="test2",
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             execution_date=execution_date,
             state=None,
             session=session,
             data_interval=(execution_date, execution_date),
             **triggered_by_kwargs,
         )
-        ds1_event = AssetEvent(dataset_id=1)
-        ds2_event_1 = AssetEvent(dataset_id=2)
-        ds2_event_2 = AssetEvent(dataset_id=2)
-        dr.consumed_dataset_events.append(ds1_event)
-        dr.consumed_dataset_events.append(ds2_event_1)
-        dr.consumed_dataset_events.append(ds2_event_2)
+        ds1_event = AssetEvent(asset_id=1)
+        ds2_event_1 = AssetEvent(asset_id=2)
+        ds2_event_2 = AssetEvent(asset_id=2)
+        dr.consumed_asset_events.append(ds1_event)
+        dr.consumed_asset_events.append(ds2_event_1)
+        dr.consumed_asset_events.append(ds2_event_2)
         session.commit()
 
         ti = dr.get_task_instance(task1.task_id, session=session)
