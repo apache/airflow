@@ -4012,6 +4012,7 @@ class TestSchedulerJob:
         - That the run created is on QUEUED State
         - That dag_model has next_dagrun
         """
+        clear_db_dags()
 
         asset1 = Asset(uri="ds1")
         asset2 = Asset(uri="ds2")
