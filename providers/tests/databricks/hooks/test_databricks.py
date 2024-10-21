@@ -1390,7 +1390,7 @@ class TestDatabricksHookAadToken:
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = None # HOST
+        conn.host = None
         conn.schema = None
         conn.port = None
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
@@ -1434,7 +1434,7 @@ class TestDatabricksHookAadTokenOtherClouds:
         self.ad_endpoint = "https://login.microsoftonline.de"
         self.client_id = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = None # HOST
+        conn.host = None
         conn.schema = None
         conn.port = None
         conn.login = self.client_id
