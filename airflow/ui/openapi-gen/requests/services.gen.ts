@@ -116,7 +116,7 @@ export class DagsService {
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
-   * @returns RecentDAGRunsCollectionResponse Successful Response
+   * @returns RecentDAGCollectionResponse Successful Response
    * @throws ApiError
    */
   public static recentDagRuns(

@@ -17,27 +17,19 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from typing import Any
 
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGCollectionResponse, DAGResponse
-from airflow.api_fastapi.core_api.serializers.optional import OptionalModel
+from pydantic import BaseModel
 
 
-class RecentDAGRunResponse(DAGRunResponse, OptionalModel):
-    """Recent DAG Run response serializer."""
+class OptionalModel(BaseModel):
+    """A Pydantic model that makes all fields optional."""
 
-    execution_date: datetime
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
 
+        for field in cls.model_fields.values():
+            field.default = None
 
-class RecentDAGResponse(DAGResponse, OptionalModel):
-    """Recent DAG Runs response serializer."""
-
-    latest_dag_runs: list[RecentDAGRunResponse]
-
-
-class RecentDAGCollectionResponse(DAGCollectionResponse):
-    """Recent DAG Runs collection response serializer."""
-
-    # override parent's fields to use RecentDAGResponse instead of DAGResponse
-    dags: list[RecentDAGResponse]  # type: ignore
+        cls.model_rebuild(force=True)

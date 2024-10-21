@@ -73,7 +73,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
- * @returns RecentDAGRunsCollectionResponse Successful Response
+ * @returns RecentDAGCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseDagsServiceRecentDagRuns = (
