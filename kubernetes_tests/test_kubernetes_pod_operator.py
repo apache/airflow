@@ -56,7 +56,7 @@ def create_context(task) -> Context:
     )
     dag_run = DagRun(
         dag_id=dag.dag_id,
-        execution_date=execution_date,
+        logical_date=execution_date,
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
     )
     task_instance = TaskInstance(task=task)

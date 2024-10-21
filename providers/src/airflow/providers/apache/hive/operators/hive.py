@@ -111,7 +111,7 @@ class HiveOperator(BaseOperator):
         job_name_template = conf.get_mandatory_value(
             "hive",
             "mapred_job_name_template",
-            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{execution_date}",
+            fallback="Airflow HiveOperator task for {hostname}.{dag_id}.{task_id}.{logical_date}",
         )
         self.mapred_job_name_template: str = job_name_template
 
@@ -140,12 +140,12 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
-            if ti.execution_date is None:
-                raise RuntimeError("execution_date is None")
+            if ti.logical_date is None:
+                raise RuntimeError("logical_date is None")
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
-                execution_date=ti.execution_date.isoformat(),
+                logical_date=ti.logical_date.isoformat(),
                 hostname=ti.hostname.split(".")[0],
             )
 
