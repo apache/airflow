@@ -30,10 +30,11 @@ from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_d
 
 pytestmark = pytest.mark.db_test
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+API_PREFIX = "/public/dagSources"
+
+# Example bash operator located here: airflow/example_dags/example_bash_operator.py
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
 TEST_DAG_ID = "latest_only"
-API_PREFIX = "/public/dagSources"
 
 
 class TestGetDAGSource:
