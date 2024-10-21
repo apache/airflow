@@ -54,7 +54,7 @@ interface Dag {
 
 interface DagRun {
   runId: string;
-  runType: "manual" | "backfill" | "scheduled" | "dataset_triggered";
+  runType: "manual" | "backfill" | "scheduled" | "asset_triggered";
   state: RunState;
   executionDate: string;
   dataIntervalStart: string;

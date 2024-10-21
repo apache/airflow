@@ -68,7 +68,7 @@ export type DAGDetailsResponse = {
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
-  dataset_expression: {
+  asset_expression: {
     [key: string]: unknown;
   } | null;
   doc_md: string | null;
@@ -174,7 +174,15 @@ export type DAGRunTypes = {
   backfill: number;
   scheduled: number;
   manual: number;
-  dataset_triggered: number;
+  asset_triggered: number;
+};
+
+/**
+ * DAG Tags Collection serializer for responses.
+ */
+export type DAGTagCollectionResponse = {
+  tags: Array<string>;
+  total_entries: number;
 };
 
 /**
@@ -214,7 +222,7 @@ export type DagRunType =
   | "backfill"
   | "scheduled"
   | "manual"
-  | "dataset_triggered";
+  | "asset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
@@ -256,6 +264,23 @@ export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
   task_instance_states: TaskInstanceState;
+};
+
+/**
+ * Provider Collection serializer for responses.
+ */
+export type ProviderCollectionResponse = {
+  providers: Array<ProviderResponse>;
+  total_entries: number;
+};
+
+/**
+ * Provider serializer for responses.
+ */
+export type ProviderResponse = {
+  package_name: string;
+  description: string;
+  version: string;
 };
 
 /**
@@ -370,6 +395,15 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
+export type GetDagTagsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
+};
+
+export type GetDagTagsResponse = DAGTagCollectionResponse;
+
 export type GetDagData = {
   dagId: string;
 };
@@ -466,6 +500,19 @@ export type DeleteDagRunResponse = void;
 
 export type GetHealthResponse = HealthInfoSchema;
 
+export type DeletePoolData = {
+  poolName: string;
+};
+
+export type DeletePoolResponse = void;
+
+export type GetProvidersData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetProvidersResponse = ProviderCollectionResponse;
+
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
@@ -540,6 +587,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/tags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGTagCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -934,6 +1004,52 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/pools/{pool_name}": {
+    delete: {
+      req: DeletePoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/providers/": {
+    get: {
+      req: GetProvidersData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ProviderCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

@@ -1,0 +1,5 @@
+Remove TaskContextLogger
+
+We introduced this as a way to inject messages into task logs from places
+other than the task execution context.  We later realized that we were better off
+just using the Log table.
