@@ -48,28 +48,37 @@ def test_get_sysinfo():
     assert "airflow_version" in sysinfo
     assert "edge_provider_version" in sysinfo
 
-# Mock functions
-def mock_read_pid_from_pidfile(pid_file_path):
-    return 1234
+def test_write_pid_to_pidfile_success(caplog, tmp_path):
+    pid_file_path = tmp_path / "file.pid"
+    _write_pid_to_pidfile(pid_file_path)
+    assert pid_file_path.exists()
+    assert "An existing PID file has been found" not in caplog.text
+    assert "PID file written to" in caplog.text
 
-def mock_write_pid_to_pidfile(pid_file_path):
-    pass
+def test_write_pid_to_pidfile_called_twice(tmp_path):
+    pid_file_path = tmp_path / "file.pid"
+    _write_pid_to_pidfile(pid_file_path)
+    with pytest.raises(SystemExit, match=r"A PID file has already been written"):
+        _write_pid_to_pidfile(pid_file_path)
+    assert pid_file_path.exists()
 
-@pytest.fixture
-def mock_pid_file_path(tmp_path):
-    pid_file = tmp_path / "pidfile"
-    pid_file.write_text("1234")
-    return pid_file
+def test_write_pid_to_pidfile_created_by_other_instance(caplog, tmp_path):
+    # write a PID file with the PID of this process
+    pid_file_path = tmp_path / "file.pid"
+    _write_pid_to_pidfile(pid_file_path)
+    # write a PID file, but set the current PID to 0
+    with patch("os.getpid", return_value=0):
+        with pytest.raises(SystemExit, match=r"contains the PID of another running process"):
+            _write_pid_to_pidfile(pid_file_path)
 
-
-@patch('edge_command.read_pid_from_pidfile', side_effect=mock_read_pid_from_pidfile)
-@patch('edge_command.write_pid_to_pidfile', side_effect=mock_write_pid_to_pidfile)
-@patch('edge_command.process_exists', return_value=True)
-def test_pid_file_exists_process_running(mock_process_exists, mock_write_pid, mock_read_pid, mock_pid_file_path):
-    _write_pid_to_pidfile(mock_pid_file_path)
-    mock_process_exists.assert_called_once_with(1234)
-    mock_write_pid.assert_not_called()
-
+def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
+    # write a PID file with process ID 0
+    with patch("os.getpid", return_value=0):
+        pid_file_path = tmp_path / "file.pid"
+        _write_pid_to_pidfile(pid_file_path)
+    # write a PID file with the current process ID
+    _write_pid_to_pidfile(pid_file_path)
+    assert "PID file is orphaned." in caplog.text
 
 class TestEdgeWorkerCli:
     @pytest.fixture
