@@ -173,6 +173,7 @@ class TestGenericTransfer:
             source_conn_id="{{ source_conn_id }}",
             destination_conn_id="{{ destination_conn_id }}",
             preoperator="{{ preoperator }}",
+            insert_args="{{ insert_args }}",
             dag=dag,
         )
         operator.render_template_fields(
@@ -182,6 +183,7 @@ class TestGenericTransfer:
                 "source_conn_id": "my_source_conn_id",
                 "destination_conn_id": "my_destination_conn_id",
                 "preoperator": "my_preoperator",
+                "insert_args": {"commit_every": 5000, "executemany": True, "replace": True},
             }
         )
         assert operator.sql == "my_sql"
@@ -189,6 +191,7 @@ class TestGenericTransfer:
         assert operator.source_conn_id == "my_source_conn_id"
         assert operator.destination_conn_id == "my_destination_conn_id"
         assert operator.preoperator == "my_preoperator"
+        assert operator.insert_args == {"commit_every": 5000, "executemany": True, "replace": True}
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """

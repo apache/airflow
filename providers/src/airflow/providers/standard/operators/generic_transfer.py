@@ -51,6 +51,7 @@ class GenericTransfer(BaseOperator):
         "sql",
         "destination_table",
         "preoperator",
+        "insert_args",
     )
     template_ext: Sequence[str] = (
         ".sql",
