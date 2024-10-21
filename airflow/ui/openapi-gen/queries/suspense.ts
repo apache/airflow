@@ -454,6 +454,41 @@ export const usePoolServiceGetPoolSuspense = <
     ...options,
   });
 /**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPoolsSuspense = <
+  TData = Common.PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Providers
  * Get providers.
  * @param data The data for the request.

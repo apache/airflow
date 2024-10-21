@@ -34,7 +34,7 @@ def _call_function(function: Callable[[], int]) -> int:
 class PoolResponse(BaseModel):
     """Pool serializer for responses."""
 
-    pool: str = Field(serialization_alias="name")
+    pool: str = Field(serialization_alias="name", validation_alias="pool")
     slots: int
     description: str | None
     include_deferred: bool
@@ -45,3 +45,10 @@ class PoolResponse(BaseModel):
     scheduled_slots: Annotated[int, BeforeValidator(_call_function)]
     open_slots: Annotated[int, BeforeValidator(_call_function)]
     deferred_slots: Annotated[int, BeforeValidator(_call_function)]
+
+
+class PoolCollectionResponse(BaseModel):
+    """Pool Collection serializer for responses."""
+
+    pools: list[PoolResponse]
+    total_entries: int

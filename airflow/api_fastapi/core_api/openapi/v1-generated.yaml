@@ -1163,6 +1163,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/pools/:
+    get:
+      tags:
+      - Pool
+      summary: Get Pools
+      description: Get all pools entries.
+      operationId: get_pools
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/providers/:
     get:
       tags:
@@ -1227,7 +1287,7 @@ components:
       - connections
       - total_entries
       title: ConnectionCollectionResponse
-      description: DAG Collection serializer for responses.
+      description: Connection Collection serializer for responses.
     ConnectionResponse:
       properties:
         connection_id:
@@ -1960,6 +2020,22 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    PoolCollectionResponse:
+      properties:
+        pools:
+          items:
+            $ref: '#/components/schemas/PoolResponse'
+          type: array
+          title: Pools
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - pools
+      - total_entries
+      title: PoolCollectionResponse
+      description: Pool Collection serializer for responses.
     PoolResponse:
       properties:
         name:

@@ -37,7 +37,7 @@ export const $ConnectionCollectionResponse = {
   type: "object",
   required: ["connections", "total_entries"],
   title: "ConnectionCollectionResponse",
-  description: "DAG Collection serializer for responses.",
+  description: "Connection Collection serializer for responses.",
 } as const;
 
 export const $ConnectionResponse = {
@@ -1187,6 +1187,26 @@ export const $HistoricalMetricDataResponse = {
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $PoolCollectionResponse = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolResponse",
+      },
+      type: "array",
+      title: "Pools",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["pools", "total_entries"],
+  title: "PoolCollectionResponse",
+  description: "Pool Collection serializer for responses.",
 } as const;
 
 export const $PoolResponse = {
