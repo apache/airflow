@@ -1229,7 +1229,7 @@ class TestDatabricksHookTokenInPassword:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
-        conn.schem = None
+        conn.schema = None
         conn.port = None
         conn.login = None
         conn.password = TOKEN
