@@ -379,6 +379,8 @@ DEPENDENCIES = [
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
+    # WTForms 3.2.0+3.2.1 broke the tests and build, see https://github.com/apache/airflow/issues/43228 - pinning until fixed
+    "WTForms<=3.2.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
