@@ -81,18 +81,18 @@ const DatasetEventCard = ({
           <Time dateTime={assetEvent.timestamp} />
           <Flex alignItems="center">
             <HiDatabase size="16px" />
-            {assetEvent.datasetUri && assetEvent.datasetUri !== selectedUri ? (
+            {assetEvent.assetUri && assetEvent.assetUri !== selectedUri ? (
               <Link
                 color="blue.600"
                 ml={2}
                 href={`${datasetsUrl}?uri=${encodeURIComponent(
-                  assetEvent.datasetUri
+                  assetEvent.assetUri
                 )}`}
               >
-                {assetEvent.datasetUri}
+                {assetEvent.assetUri}
               </Link>
             ) : (
-              <Text ml={2}>{assetEvent.datasetUri}</Text>
+              <Text ml={2}>{assetEvent.assetUri}</Text>
             )}
           </Flex>
         </GridItem>

@@ -1,64 +1,9 @@
-**Breaking Change**
+**Breaking Changes**
 
-* Rename table ``dataset_alias_dataset`` as ``asset_alias_asset``
-    * Rename column ``dataset_id`` as ``dataset_id``
-    * Rename index ``idx_dataset_alias_dataset_alias_id`` as ``idx_asset_alias_asset_alias_id``
-    * Rename index ``idx_dataset_alias_dataset_alias_dataset_id`` as ``idx_asset_alias_asset_asset_id``
-    * Rename foreign key ``dataset_alias_dataset_alias_id_fkey`` as ``asset_alias_asset_alias_id_fk_key``
-    * Rename foreign key ``dataset_alias_dataset_dataset_id_fkey`` as ``asset_alias_asset_asset_id_fk_key``
+* Rename property run_type value ``dataset_triggered`` as ``asset_triggered`` in DAGRun endpoint
 
-* Rename table ``dataset_alias_dataset_event`` as ``asset_alias_asset_event``
-    * Rename index ``idx_dataset_alias_dataset_event_alias_id`` as ``idx_asset_alias_asset_event_alias_id``
-    * Rename index ``idx_dataset_alias_dataset_event_alias_id`` as ``idx_asset_alias_asset_event_event_id``
-    * Rename foreign key ``dataset_alias_dataset_event_alias_id_fkey`` as ``asset_alias_asset_event_asset_id_fkey``
-    * Rename foreign key ``dataset_alias_dataset_event_event_id_fkey`` as ``asset_alias_asset_event_event_id_fk_key``
-
-* Rename table ``dataset_alias`` as ``asset_alias``
-    * Rename index ``idx_dataset_alias_name_unique`` as ``idx_asset_alias_name_unique``
-
-* Rename table ``dataset`` as ``asset``
-
-    * Rename index ``idx_dataset_name_uri_unique`` as ``idx_asset_name_uri_unique``
-
-* Rename table ``dag_schedule_dataset_alias_reference`` as ``dag_schedule_asset_alias_reference``
-    * Rename index ``idx_dag_schedule_dataset_alias_reference_dag_id`` as ``idx_dag_schedule_asset_alias_reference_dag_id``
-    * Rename primary key ``dsdar_pkey`` as ``asaar_pkey``
-    * Rename foreign key ``dsdar_dataset_fkey`` as ``dsaar_asset_alias_fkey``
-    * Rename foreign key ``dsdar_dag_id_fkey`` as ``dsaar_dag_fkey``
-
-* Rename table ``dag_schedule_dataset_reference`` as ``dag_schedule_asset_reference``
-    * Rename column ``dataset_id`` as ``dataset_id``
-    * Rename index ``idx_dag_schedule_dataset_reference_dag_id`` as ``idx_dag_schedule_asset_reference_dag_id``
-    * Rename primary key ``dsdr_pkey`` as ``dsar_pkey``
-    * Rename foreign key ``dsdr_dag_id_fkey`` as ``dsar_dag_id_fkey``
-    * Rename foreign key ``dsdr_dataset_fkey`` as ``dsar_asset_fkey``
-
-* Rename table ``task_outlet_dataset_reference`` as ``task_outlet_asset_reference``
-    * Rename column ``dataset_id`` as ``dataset_id``
-    * Rename index ``idx_task_outlet_dataset_reference_dag_id`` as ``idx_task_outlet_asset_reference_dag_id``
-    * Rename primary key ``todr_pkey`` as ``toar_pkey``
-    * Rename foreign key ``todr_dag_id_fkey`` as ``toar_dag_id_fkey``
-    * Rename foreign key ``todr_dataset_fkey`` as ``toar_asset_fkey``
-
-* Rename table ``dataset_dag_run_queue`` as ``asset_dag_run_queue``
-    * Rename column ``dataset_id`` as ``dataset_id``
-    * Rename index ``idx_dataset_dag_run_queue_target_dag_id`` as ``idx_asset_dag_run_queue_target_dag_id``
-    * Rename primary key ``datasetdagrunqueue_pkey`` as ``assetdagrunqueue_pkey``
-    * Rename foreign key ``ddrq_dag_fkey`` as ``adrq_dag_fkey``
-    * Rename foreign key ``ddrq_dataset_fkey`` as ``adrq_dag_fkey``
-
-* Rename table ``dagrun_dataset_event`` as ``dagrun_asset_event``
-    * Rename index ``idx_dagrun_dataset_events_dag_run_id`` as ``idx_dagrun_asset_events_dag_run_id``
-    * Rename index ``idx_dagrun_dataset_events_event_id`` as ``idx_dagrun_asset_events_event_id``
-    * Rename foreign key ``dagrun_dataset_event_event_id_fkey`` as ``dagrun_asset_event_dag_run_id_fkey``
-    * Rename foreign key ``dagrun_dataset_event_dag_run_id_fkey`` as ``dagrun_asset_event_event_id_fkey``
-
-* Rename table ``dataset_event`` as ``asset_event``
-    * Rename column ``dataset_id`` as ``dataset_id``
-    * Rename index ``idx_dataset_id_timestamp`` as ``idx_asset_id_timestamp``
-
-* Rename column ``dataset_expression`` in ``dag`` table as ``asset_expression``
-
-* Rename property run_type ``dataset_triggered`` as ``asset_triggered`` in DAGRun endpoint
+* Rename property ``dataset_expression`` as ``asset_expression`` in DAGDetail endpoint
 
 * Change the string ``dataset_triggered`` in RUN_ID_REGEX as ``asset_triggered`` which affects the valid run id that an user can provide
+
+* Rename ``dataset`` as ``asset`` in all the database tables

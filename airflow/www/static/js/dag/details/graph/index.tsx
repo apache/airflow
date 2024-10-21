@@ -212,17 +212,17 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
     // Check if there is a dataset event even though we did not find a dataset
     downstreamAssetEvents.forEach((de) => {
-      const hasNode = datasetNodes.find((node) => node.id === de.datasetUri);
-      if (!hasNode && de.sourceTaskId && de.datasetUri) {
+      const hasNode = datasetNodes.find((node) => node.id === de.assetUri);
+      if (!hasNode && de.sourceTaskId && de.assetUri) {
         datasetEdges.push({
           sourceId: de.sourceTaskId,
-          targetId: de.datasetUri,
+          targetId: de.assetUri,
         });
         datasetNodes.push({
-          id: de.datasetUri,
+          id: de.assetUri,
           value: {
             class: "asset",
-            label: de.datasetUri,
+            label: de.assetUri,
           },
         });
       }
