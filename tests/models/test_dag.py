@@ -764,7 +764,7 @@ class TestDag:
         assert dagrun is not None
 
     def test_fail_dag_when_schedule_is_non_none_and_empty_start_date(self):
-        # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
+        # We should get a ValueError 'start_date' for self.start_date when schedule is CronDataIntervalTimetable
         with pytest.raises(ValueError, match="start_date is required when catchup=True"):
             DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly", catchup=True)
 
