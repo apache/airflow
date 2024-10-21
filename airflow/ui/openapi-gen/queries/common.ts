@@ -102,6 +102,31 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type DagServiceGetDagTagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagTags>
+>;
+export type DagServiceGetDagTagsQueryResult<
+  TData = DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
+export const UseDagServiceGetDagTagsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagTagsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
+];
 export type DagServiceGetDagDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDag>
 >;
