@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
@@ -23,9 +24,12 @@ import pytest
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge.models.edge_job import EdgeJobModel
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -150,3 +154,38 @@ class TestEdgeExecutor:
         mock_running_state.assert_not_called()
         mock_success.assert_not_called()
         mock_fail.assert_not_called()
+
+    def test_sync_active_worker(self):
+        executor = EdgeExecutor()
+
+        # Prepare some data
+        with create_session() as session:
+            for worker_name, last_heartbeat in [
+                ("inactive_timed_out_worker", datetime(2023, 1, 1, 0, 59, 0, tzinfo=timezone.utc)),
+                ("inactive_not_connected_worker", None),
+                ("active_worker", datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc)),
+            ]:
+                session.add(
+                    EdgeWorkerModel(
+                        worker_name=worker_name,
+                        state=EdgeWorkerState.IDLE,
+                        last_update=last_heartbeat,
+                        queues="",
+                        first_online=timezone.utcnow(),
+                    )
+                )
+                session.commit()
+
+        with patch(
+            "airflow.utils.timezone.utcnow", return_value=datetime(2023, 1, 1, 1, 0, 0, tzinfo=timezone.utc)
+        ):
+            with conf_vars({("edge", "heartbeat_interval"): "10"}):
+                executor.sync()
+
+        with create_session() as session:
+            for worker in session.query(EdgeWorkerModel).all():
+                print(worker.worker_name)
+                if "inactive_" in worker.worker_name:
+                    assert worker.state == EdgeWorkerState.UNKNOWN
+                else:
+                    assert worker.state == EdgeWorkerState.IDLE

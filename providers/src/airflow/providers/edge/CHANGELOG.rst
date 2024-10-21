@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.3.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker state is set ot unkown if worker heartbeat timed out.``
+
 0.2.0pre0
 .........
 
