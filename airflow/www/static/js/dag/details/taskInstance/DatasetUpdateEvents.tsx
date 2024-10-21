@@ -55,7 +55,7 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
       },
       {
         Header: "Dataset",
-        accessor: "datasetUri",
+        accessor: "assetUri",
       },
       {
         Header: "Triggered Runs",

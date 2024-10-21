@@ -65,7 +65,7 @@ const Events = ({ assetId, showLabel }: Props) => {
       },
       {
         Header: "Dataset",
-        accessor: "datasetUri",
+        accessor: "assetUri",
       },
       {
         Header: "Source Task Instance",

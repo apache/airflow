@@ -69,7 +69,7 @@ const DatasetEventCard = ({
     <Box>
       <Grid
         templateColumns="repeat(4, 1fr)"
-        key={`${assetEvent.datasetId}-${assetEvent.timestamp}`}
+        key={`${assetEvent.assetId}-${assetEvent.timestamp}`}
         _hover={{ bg: "gray.50" }}
         transition="background-color 0.2s"
         p={2}
@@ -81,18 +81,18 @@ const DatasetEventCard = ({
           <Time dateTime={assetEvent.timestamp} />
           <Flex alignItems="center">
             <HiDatabase size="16px" />
-            {assetEvent.datasetUri && assetEvent.datasetUri !== selectedUri ? (
+            {assetEvent.assetUri && assetEvent.assetUri !== selectedUri ? (
               <Link
                 color="blue.600"
                 ml={2}
                 href={`${datasetsUrl}?uri=${encodeURIComponent(
-                  assetEvent.datasetUri
+                  assetEvent.assetUri
                 )}`}
               >
-                {assetEvent.datasetUri}
+                {assetEvent.assetUri}
               </Link>
             ) : (
-              <Text ml={2}>{assetEvent.datasetUri}</Text>
+              <Text ml={2}>{assetEvent.assetUri}</Text>
             )}
           </Flex>
         </GridItem>

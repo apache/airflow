@@ -86,7 +86,7 @@ class DagRunType(str, enum.Enum):
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
-    DATASET_TRIGGERED = "dataset_triggered"
+    ASSET_TRIGGERED = "asset_triggered"
 
     def __str__(self) -> str:
         return self.value
@@ -118,5 +118,5 @@ class DagRunTriggeredByType(enum.Enum):
     UI = "ui"  # for clicking the `Trigger DAG` button
     TEST = "test"  # for dag.test()
     TIMETABLE = "timetable"  # for timetable based triggering
-    DATASET = "dataset"  # for dataset_triggered run type
+    DATASET = "dataset"  # for asset_triggered run type
     BACKFILL = "backfill"

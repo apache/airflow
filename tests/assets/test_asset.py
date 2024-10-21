@@ -343,14 +343,14 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
 
     # Add AssetDagRunQueue entries to simulate asset event processing
     for am in asset_models:
-        session.add(AssetDagRunQueue(dataset_id=am.id, target_dag_id=dag.dag_id))
+        session.add(AssetDagRunQueue(asset_id=am.id, target_dag_id=dag.dag_id))
     session.commit()
 
     # Fetch and evaluate asset triggers for all DAGs affected by asset events
     records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:
-        dag_statuses[record.target_dag_id][record.dataset.uri] = True
+        dag_statuses[record.target_dag_id][record.asset.uri] = True
 
     serialized_dags = session.execute(
         select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
@@ -587,7 +587,7 @@ class Test_AssetAliasCondition:
         """Example asset alias links to asset asset_alias_1."""
         asset_name = "test_name_2"
         asset_alias_2 = AssetAliasModel(name=asset_name)
-        asset_alias_2.datasets.append(asset_1)
+        asset_alias_2.assets.append(asset_1)
 
         session.add(asset_alias_2)
         session.commit()

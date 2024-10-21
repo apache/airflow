@@ -222,7 +222,7 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
 # This test should not be run in DB isolation mode as it accesses the database directly - deliberately
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
+def test_serializing_pydantic_asset_event(session, create_task_instance, create_dummy_dag):
     ds1 = AssetModel(id=1, uri="one", extra={"foo": "bar"})
     ds2 = AssetModel(id=2, uri="two")
 
@@ -244,31 +244,31 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
-        run_type=DagRunType.DATASET_TRIGGERED,
+        run_type=DagRunType.ASSET_TRIGGERED,
         execution_date=execution_date,
         state=None,
         session=session,
         data_interval=(execution_date, execution_date),
         **triggered_by_kwargs,
     )
-    asset1_event = AssetEvent(dataset_id=1)
-    asset2_event_1 = AssetEvent(dataset_id=2)
-    asset2_event_2 = AssetEvent(dataset_id=2)
+    asset1_event = AssetEvent(asset_id=1)
+    asset2_event_1 = AssetEvent(asset_id=2)
+    asset2_event_2 = AssetEvent(asset_id=2)
 
     dag_asset_ref = DagScheduleAssetReference(dag_id=dag.dag_id)
     session.add(dag_asset_ref)
-    dag_asset_ref.dataset = ds1
+    dag_asset_ref.asset = ds1
     task_ds_ref = TaskOutletAssetReference(task_id=task1.task_id, dag_id=dag.dag_id)
     session.add(task_ds_ref)
-    task_ds_ref.dataset = ds1
+    task_ds_ref.asset = ds1
 
-    dr.consumed_dataset_events.append(asset1_event)
-    dr.consumed_dataset_events.append(asset2_event_1)
-    dr.consumed_dataset_events.append(asset2_event_2)
+    dr.consumed_asset_events.append(asset1_event)
+    dr.consumed_asset_events.append(asset2_event_1)
+    dr.consumed_asset_events.append(asset2_event_2)
     session.commit()
     TracebackSessionForTests.set_allow_db_access(session, False)
 
-    print(asset2_event_2.dataset.consuming_dags)
+    print(asset2_event_2.asset.consuming_dags)
     pydantic_dse1 = AssetEventPydantic.model_validate(asset1_event)
     json_string1 = pydantic_dse1.model_dump_json()
     print(json_string1)
@@ -282,16 +282,16 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     print(json_string_dr)
 
     deserialized_model1 = AssetEventPydantic.model_validate_json(json_string1)
-    assert deserialized_model1.dataset.id == 1
-    assert deserialized_model1.dataset.uri == "one"
-    assert len(deserialized_model1.dataset.consuming_dags) == 1
-    assert len(deserialized_model1.dataset.producing_tasks) == 1
+    assert deserialized_model1.asset.id == 1
+    assert deserialized_model1.asset.uri == "one"
+    assert len(deserialized_model1.asset.consuming_dags) == 1
+    assert len(deserialized_model1.asset.producing_tasks) == 1
 
     deserialized_model2 = AssetEventPydantic.model_validate_json(json_string2)
-    assert deserialized_model2.dataset.id == 2
-    assert deserialized_model2.dataset.uri == "two"
-    assert len(deserialized_model2.dataset.consuming_dags) == 0
-    assert len(deserialized_model2.dataset.producing_tasks) == 0
+    assert deserialized_model2.asset.id == 2
+    assert deserialized_model2.asset.uri == "two"
+    assert len(deserialized_model2.asset.consuming_dags) == 0
+    assert len(deserialized_model2.asset.producing_tasks) == 0
 
     deserialized_dr = DagRunPydantic.model_validate_json(json_string_dr)
-    assert len(deserialized_dr.consumed_dataset_events) == 3
+    assert len(deserialized_dr.consumed_asset_events) == 3

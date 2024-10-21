@@ -383,7 +383,7 @@ export const $DAGDetailsResponse = {
       ],
       title: "Dag Run Timeout",
     },
-    dataset_expression: {
+    asset_expression: {
       anyOf: [
         {
           type: "object",
@@ -392,7 +392,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Dataset Expression",
+      title: "Asset Expression",
     },
     doc_md: {
       anyOf: [
@@ -538,7 +538,7 @@ export const $DAGDetailsResponse = {
     "owners",
     "catchup",
     "dag_run_timeout",
-    "dataset_expression",
+    "asset_expression",
     "doc_md",
     "start_date",
     "end_date",
@@ -1002,13 +1002,13 @@ export const $DAGRunTypes = {
       type: "integer",
       title: "Manual",
     },
-    dataset_triggered: {
+    asset_triggered: {
       type: "integer",
-      title: "Dataset Triggered",
+      title: "Asset Triggered",
     },
   },
   type: "object",
-  required: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  required: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DAGRunTypes",
   description: "DAG Run Types for responses.",
 } as const;
@@ -1093,7 +1093,7 @@ export const $DagRunTriggeredByType = {
 
 export const $DagRunType = {
   type: "string",
-  enum: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  enum: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DagRunType",
   description: "Class with DagRun types.",
 } as const;

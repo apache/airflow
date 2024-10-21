@@ -52,7 +52,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
       },
       {
         Header: "Dataset",
-        accessor: "datasetUri",
+        accessor: "assetUri",
       },
       {
         Header: "Source Task Instance",

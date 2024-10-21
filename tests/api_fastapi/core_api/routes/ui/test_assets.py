@@ -46,6 +46,6 @@ def test_next_run_assets(test_client, dag_maker):
 
     assert response.status_code == 200
     assert response.json() == {
-        "dataset_expression": {"all": ["s3://bucket/key/1"]},
+        "asset_expression": {"all": ["s3://bucket/key/1"]},
         "events": [{"id": 17, "uri": "s3://bucket/key/1", "lastUpdate": None}],
     }

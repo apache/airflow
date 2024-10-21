@@ -68,7 +68,7 @@ export type DAGDetailsResponse = {
   owners: Array<string>;
   catchup: boolean;
   dag_run_timeout: string | null;
-  dataset_expression: {
+  asset_expression: {
     [key: string]: unknown;
   } | null;
   doc_md: string | null;
@@ -174,7 +174,7 @@ export type DAGRunTypes = {
   backfill: number;
   scheduled: number;
   manual: number;
-  dataset_triggered: number;
+  asset_triggered: number;
 };
 
 /**
@@ -222,7 +222,7 @@ export type DagRunType =
   | "backfill"
   | "scheduled"
   | "manual"
-  | "dataset_triggered";
+  | "asset_triggered";
 
 /**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.

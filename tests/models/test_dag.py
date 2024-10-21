@@ -1035,7 +1035,7 @@ class TestDag:
             session.query(
                 TaskOutletAssetReference.task_id,
                 TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.dataset_id,
+                TaskOutletAssetReference.asset_id,
             )
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
@@ -1064,7 +1064,7 @@ class TestDag:
             session.query(
                 TaskOutletAssetReference.task_id,
                 TaskOutletAssetReference.dag_id,
-                TaskOutletAssetReference.dataset_id,
+                TaskOutletAssetReference.asset_id,
             )
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
@@ -2451,8 +2451,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        asset_model: AssetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2460,7 +2460,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -2479,7 +2479,7 @@ class TestDagModel:
         # link asset_alias hello_alias to asset hello
         asset_model = AssetModel(uri="hello")
         asset_alias_model = AssetAliasModel(name="hello_alias")
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -2499,8 +2499,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        asset_model: AssetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_assets[0]
+        session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2508,7 +2508,7 @@ class TestDagModel:
 
         # create run so we don't need a run anymore (due to max active runs)
         dag_maker.create_dagrun(
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
             execution_date=pendulum.now("UTC"),
         )
@@ -2677,7 +2677,7 @@ class TestDagModel:
 
             session.add(
                 AssetEvent(
-                    dataset_id=asset_id,
+                    asset_id=asset_id,
                     source_task_id="task",
                     source_dag_id=dr.dag_id,
                     source_run_id=dr.run_id,
@@ -2694,9 +2694,9 @@ class TestDagModel:
         session.flush()
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
                 AssetDagRunQueue(
-                    dataset_id=asset2_id,
+                    asset_id=asset2_id,
                     target_dag_id=dag.dag_id,
                     created_at=DEFAULT_DATE + timedelta(hours=1),
                 ),
@@ -2704,10 +2704,10 @@ class TestDagModel:
         )
         session.flush()
 
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert 1 == len(dataset_triggered_dag_info)
-        assert dag.dag_id in dataset_triggered_dag_info
-        first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        assert 1 == len(asset_triggered_dag_info)
+        assert dag.dag_id in asset_triggered_dag_info
+        first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
@@ -2726,7 +2726,7 @@ class TestDagModel:
         )
         DAG.bulk_write_to_db([dag], session=session)
 
-        expression = session.scalars(select(DagModel.dataset_expression).filter_by(dag_id=dag.dag_id)).one()
+        expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
             "any": [
                 "s3://dag1/output_1.txt",
@@ -3433,8 +3433,8 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
     session.bulk_save_objects(
         [
-            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
-            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+            AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
         ]
     )
     session.flush()
@@ -3463,9 +3463,9 @@ def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
 
 
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_assets):
-    dataset_alias1 = AssetAlias(name="alias")
-    with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
+def test_get_asset_triggered_next_run_info_with_unresolved_asset_alias(dag_maker, clear_assets):
+    asset_alias1 = AssetAlias(name="alias")
+    with dag_maker(dag_id="dag-1", schedule=[asset_alias1]):
         pass
     dag1 = dag_maker.dag
     session = dag_maker.session
@@ -3499,7 +3499,7 @@ def test_dag_uses_timetable_for_run_id(session):
 
 @pytest.mark.parametrize(
     "run_id_type",
-    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.DATASET_TRIGGERED],
+    [DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED, DagRunType.ASSET_TRIGGERED],
 )
 def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagRunType) -> None:
     dag = DAG(dag_id="test", start_date=DEFAULT_DATE, schedule="@daily")

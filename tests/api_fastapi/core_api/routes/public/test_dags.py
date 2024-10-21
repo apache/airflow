@@ -290,12 +290,12 @@ class TestDagDetails(TestDagEndpoint):
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
         expected = {
+            "asset_expression": None,
             "catchup": True,
             "concurrency": 16,
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
-            "dataset_expression": None,
             "default_view": "grid",
             "description": None,
             "doc_md": "details",
