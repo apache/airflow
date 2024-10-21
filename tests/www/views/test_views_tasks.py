@@ -500,7 +500,7 @@ def test_code(admin_client):
 
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+    DagCode.write_dag(dag.fileloc)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -510,7 +510,7 @@ def test_code_from_db(admin_client):
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
-        DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        DagCode.write_dag(dag.fileloc)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
