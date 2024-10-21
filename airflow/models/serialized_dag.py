@@ -204,44 +204,28 @@ class SerializedDagModel(Base):
         ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
+        try:
+            log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+            session.add(new_serialized_dag)
+            log.debug("DAG: %s written to the DB", dag.dag_id)
 
-        log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
-        session.add(new_serialized_dag)
-        log.debug("DAG: %s written to the DB", dag.dag_id)
-
-        dag_code = DagCode.write_dag(dag.fileloc, session=session)
-        # Write DagVersion
-        DagVersion.write_dag(
-            version_name=dag.version_name,
-            dag_id=dag.dag_id,
-            dag_code=dag_code,
-            serialized_dag=new_serialized_dag,
-            session=session,
-        )
+            dag_code = DagCode.write_dag(dag.fileloc, session=session)
+            # Write DagVersion
+            DagVersion.write_dag(
+                version_name=dag.version_name,
+                dag_id=dag.dag_id,
+                dag_code=dag_code,
+                serialized_dag=new_serialized_dag,
+                session=session,
+            )
+        except Exception:
+            session.rollback()
+            raise
         return True
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
-
-    @classmethod
-    @provide_session
-    def get_latest_serdags_of_given_dags(cls, dag_ids: list[str], session: Session = NEW_SESSION):
-        latest_serialized_dag_subquery = (
-            session.query(cls.dag_id, func.max(cls.last_updated).label("max_updated"))
-            .filter(cls.dag_id.in_(dag_ids))
-            .group_by(cls.dag_id)
-            .subquery()
-        )
-        serialized_dags = session.scalars(
-            select(cls)
-            .join(
-                latest_serialized_dag_subquery,
-                (cls.last_updated == latest_serialized_dag_subquery.c.max_updated),
-            )
-            .where(cls.dag_id.in_(dag_ids))
-        ).all()
-        return serialized_dags
 
     @classmethod
     @provide_session
