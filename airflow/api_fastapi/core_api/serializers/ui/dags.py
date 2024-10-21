@@ -14,15 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
+from datetime import datetime
 
-ui_router = AirflowRouter(prefix="/ui")
+from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.serializers.dags import DAGCollectionResponse, DAGResponse
+from airflow.api_fastapi.core_api.serializers.optional import OptionalModel
 
-ui_router.include_router(assets_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(dags_router)
+
+class RecentDAGRunResponse(DAGRunResponse, OptionalModel):
+    """Recent DAG Run response serializer."""
+
+    execution_date: datetime
+
+
+class RecentDAGResponse(DAGResponse, OptionalModel):
+    """Recent DAG Runs response serializer."""
+
+    latest_dag_runs: list[RecentDAGRunResponse]
+
+
+class RecentDAGCollectionResponse(DAGCollectionResponse):
+    """Recent DAG Runs collection response serializer."""
+
+    # override parent's fields to use RecentDAGResponse instead of DAGResponse
+    dags: list[RecentDAGResponse]  # type: ignore
