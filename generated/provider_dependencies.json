@@ -26,7 +26,7 @@
   "amazon": {
     "deps": [
       "PyAthena>=3.0.10",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
@@ -38,6 +38,7 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
+      "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -242,7 +243,7 @@
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
-      "asgiref"
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -352,7 +353,8 @@
   "cloudant": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "ibmcloudant>=0.9.1"
+      "ibmcloudant==0.7.0 ; python_version < \"3.10\"",
+      "ibmcloudant==0.9.1 ; python_version >= \"3.10\""
     ],
     "devel-deps": [],
     "plugins": [],
@@ -369,8 +371,8 @@
       "asgiref>=3.5.2",
       "cryptography>=41.0.0",
       "google-re2>=1.0",
-      "kubernetes>=29.0.0,<=30.1.0",
-      "kubernetes_asyncio>=29.0.0,<=30.1.0"
+      "kubernetes>=29.0.0,<=31.0.0",
+      "kubernetes_asyncio>=29.0.0,<=31.0.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -471,7 +473,7 @@
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
-      "asgiref"
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -568,7 +570,7 @@
   },
   "fab": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.2.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
       "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
@@ -639,7 +641,7 @@
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=2.29.0",
-      "google-cloud-aiplatform>=1.63.0",
+      "google-cloud-aiplatform>=1.70.0",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
@@ -680,11 +682,12 @@
       "httpx>=0.25.0",
       "immutabledict>=4.2.0",
       "json-merge-patch>=0.2",
-      "looker-sdk>=22.4.0",
+      "looker-sdk>=22.4.0,!=24.18.0",
       "pandas-gbq>=0.7.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "proto-plus>=1.19.6",
+      "pyarrow>=14.0.1",
       "python-slugify>=7.0.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2",
@@ -745,9 +748,9 @@
     "deps": [
       "aiohttp>=3.9.2",
       "apache-airflow>=2.8.0",
-      "asgiref",
-      "requests>=2.27.0,<3",
-      "requests_toolbelt"
+      "asgiref>=2.3.0",
+      "requests-toolbelt>=0.4.0",
+      "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -826,6 +829,10 @@
       "azure-storage-file-share>=12.7.0",
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
+      "microsoft-kiota-abstractions<1.4.0",
+      "microsoft-kiota-http>=1.3.0,!=1.3.4",
+      "microsoft-kiota-serialization-json==1.0.0",
+      "microsoft-kiota-serialization-text==1.0.0",
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
@@ -960,7 +967,7 @@
   },
   "openlineage": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.2.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",

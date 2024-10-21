@@ -42,10 +42,11 @@ from airflow.www.views import (
     get_task_stats_from_query,
     get_value_from_path,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_plugins import mock_plugin_manager
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -329,7 +330,8 @@ def test_mark_task_instance_state(test_app):
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
     from airflow.www.views import Airflow
-    from tests.test_utils.db import clear_db_runs
+
+    from tests_common.test_utils.db import clear_db_runs
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
@@ -422,7 +424,8 @@ def test_mark_task_group_state(test_app):
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
     from airflow.www.views import Airflow
-    from tests.test_utils.db import clear_db_runs
+
+    from tests_common.test_utils.db import clear_db_runs
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)

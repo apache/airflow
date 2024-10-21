@@ -27,8 +27,9 @@ from cryptography.fernet import Fernet
 from airflow.models import Variable, crypto, variable
 from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
-from tests.test_utils import db
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 

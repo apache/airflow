@@ -1,0 +1,128 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+
+- providers/tests/amazon/aws/deferrable/hooks/test_base_aws.py::TestAwsBaseAsyncHook::test_get_client_async
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_cluster_status
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_get_cluster_status
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_get_cluster_status_exception
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_pause_cluster
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster
+- providers/tests/amazon/aws/deferrable/hooks/test_redshift_cluster.py::TestRedshiftAsyncHook::test_resume_cluster_exception
+- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_exception
+- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_resuming_status
+- providers/tests/amazon/aws/triggers/test_redshift_cluster.py::TestRedshiftClusterTrigger::test_redshift_cluster_sensor_trigger_success
+- providers/tests/google/common/auth_backend/test_google_openid.py::TestGoogleOpenID::test_success
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_api_resource_configs_duplication_warning
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_cancel_queries
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_cancel_query_cancel_completed
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_cancel_query_cancel_timeout
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_cancel_query_jobs_to_cancel
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_get_dataset_tables_list
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_invalid_schema_update_and_write_disposition
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_invalid_schema_update_options
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_invalid_source_format
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_extract
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_load_with_non_csv_as_src_fmt
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_schema_update_options
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_schema_update_options_incorrect
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_sql_dialect
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_sql_dialect_default
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_sql_dialect_legacy_with_query_params
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_sql_dialect_legacy_with_query_params_fails
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_with_arg
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_query_without_sql_fails
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookMethods::test_run_table_delete
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryHookRunWithConfiguration::test_run_with_configuration_location
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithKMS::test_create_external_table_with_kms
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithKMS::test_run_copy_with_kms
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithKMS::test_run_load_with_kms
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithKMS::test_run_query_with_kms
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithLabelsAndDescription::test_create_external_table_description
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithLabelsAndDescription::test_create_external_table_labels
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithLabelsAndDescription::test_run_load_description
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestBigQueryWithLabelsAndDescription::test_run_load_labels
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestClusteringInRunJob::test_run_load_default
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestClusteringInRunJob::test_run_load_with_arg
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestClusteringInRunJob::test_run_query_default
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestClusteringInRunJob::test_run_query_with_arg
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestDatasetsOperations::test_patch_dataset
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestTableOperations::test_patch_table
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_load_default
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_load_with_arg
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_query_with_arg
+- providers/tests/google/cloud/hooks/test_bigquery.py::TestTimePartitioningInRunJob::test_run_with_auto_detect
+- providers/tests/google/cloud/hooks/test_gcs.py::TestGCSHook::test_list__error_match_glob_and_invalid_delimiter
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_error_operation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_life_science_client_creation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_run_pipeline_immediately_complete
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithDefaultProjectIdFromConnection::test_waiting_operation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_delegate_to_runtime_error
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_error_operation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_life_science_client_creation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_location_path
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_run_pipeline_immediately_complete
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithPassedProjectId::test_waiting_operation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithoutProjectId::test_life_science_client_creation
+- providers/tests/google/cloud/hooks/test_life_sciences.py::TestLifeSciencesHookWithoutProjectId::test_run_pipeline
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithDefaultProjectIdHook::test_cancel_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithDefaultProjectIdHook::test_create_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithDefaultProjectIdHook::test_delete_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithDefaultProjectIdHook::test_get_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithDefaultProjectIdHook::test_list_pipeline_jobs
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_cancel_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_create_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_delete_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_get_pipeline_job
+- providers/tests/google/cloud/hooks/vertex_ai/test_custom_job.py::TestCustomJobWithoutDefaultProjectIdHook::test_list_pipeline_jobs
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcHadoopOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_builder
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcHiveOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcPigOperator::test_builder
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcPigOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcPySparkOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcSparkOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcSparkSqlOperator::test_builder
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcSparkSqlOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataProcSparkSqlOperator::test_execute_override_project_id
+- providers/tests/google/cloud/operators/test_dataproc.py::TestDataprocClusterScaleOperator::test_execute
+- providers/tests/google/cloud/operators/test_dataproc.py::test_create_cluster_operator_extra_links
+- providers/tests/google/cloud/operators/test_dataproc.py::test_scale_cluster_operator_extra_links
+- providers/tests/google/cloud/operators/test_dataproc.py::test_submit_spark_job_operator_extra_links
+- providers/tests/google/cloud/operators/test_gcs.py::TestGoogleCloudStorageListOperator::test_execute__delimiter
+- providers/tests/google/cloud/operators/test_kubernetes_engine.py::TestGoogleCloudPlatformContainerOperator::test_create_execute_error_body
+- providers/tests/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes
+- providers/tests/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes_without_project_id
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_copy_files_into_a_folder
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_last_modified_time
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_more_than_1_wildcard
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_no_prefix
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_no_suffix
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_prefix_and_suffix
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_empty_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_destination_object_retained_prefix
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_replace_flag_false
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_with_replace_flag_false_with_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_execute_wildcard_without_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_executes_with_a_delimiter
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_executes_with_delimiter_and_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_executes_with_different_delimiter_and_destination_object
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_all_true_cond
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_last_modified_time_with_one_true_cond
+- providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_wc_with_no_last_modified_time

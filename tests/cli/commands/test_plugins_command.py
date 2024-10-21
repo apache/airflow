@@ -28,8 +28,9 @@ from airflow.cli.commands import plugins_command
 from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
+
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
-from tests.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -88,15 +89,15 @@ class TestPluginsCommand:
                     }
                 ],
                 "global_operator_extra_links": [
-                    "<tests.test_utils.mock_operators.AirflowLink object>",
-                    "<tests.test_utils.mock_operators.GithubLink object>",
+                    "<tests_common.test_utils.mock_operators.AirflowLink object>",
+                    "<tests_common.test_utils.mock_operators.GithubLink object>",
                 ],
                 "timetables": ["tests.plugins.test_plugin.CustomCronDataIntervalTimetable"],
                 "operator_extra_links": [
-                    "<tests.test_utils.mock_operators.GoogleLink object>",
-                    "<tests.test_utils.mock_operators.AirflowLink2 object>",
-                    "<tests.test_utils.mock_operators.CustomOpLink object>",
-                    "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
+                    "<tests_common.test_utils.mock_operators.GoogleLink object>",
+                    "<tests_common.test_utils.mock_operators.AirflowLink2 object>",
+                    "<tests_common.test_utils.mock_operators.CustomOpLink object>",
+                    "<tests_common.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
                 "hooks": ["tests.plugins.test_plugin.PluginHook"],
                 "listeners": [

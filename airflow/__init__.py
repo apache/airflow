@@ -15,7 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
+
+# We do not use "from __future__ import annotations" here because it is not supported
+# by Pycharm when we want to make sure all imports in airflow work from namespace packages
+# Adding it automatically is excluded in pyproject.toml via I002 ruff rule exclusion
+
+# Make `airflow` a namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)  This is required by some IDEs to resolve the import paths.
+__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 __version__ = "3.0.0.dev0"
 
@@ -58,12 +66,6 @@ __all__ = [
     "Asset",
     "XComArg",
 ]
-
-# Make `airflow` a namespace package, supporting installing
-# airflow.providers.* in different locations (i.e. one in site, and one in user
-# lib.)
-__path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
-
 
 # Perform side-effects unless someone has explicitly opted out before import
 # WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.

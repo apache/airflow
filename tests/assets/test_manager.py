@@ -38,6 +38,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
 from tests.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 @pytest.fixture
 def clear_assets():
-    from tests.test_utils.db import clear_db_assets
+    from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield
@@ -143,7 +144,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
     @pytest.mark.usefixtures("clear_assets")
@@ -177,7 +178,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
         assert session.query(DagPriorityParsingRequest).count() == 2
 
@@ -194,7 +195,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode

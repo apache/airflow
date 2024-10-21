@@ -42,6 +42,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -59,7 +60,7 @@ from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     AIRFLOW_SOURCES_ROOT,
     DOCS_DIR,
     SYSTEM_TESTS_PROVIDERS_ROOT,
@@ -112,6 +113,7 @@ class FileGroupForCi(Enum):
     LEGACY_WWW_FILES = "legacy_www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
+    TASK_SDK_FILES = "task_sdk_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
     ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
@@ -177,7 +179,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
-            r"^providers",
+            r"^providers/src/",
+            r"^task_sdk/src/",
             r"^tests/system",
             r"^CHANGELOG\.txt",
             r"^airflow/config_templates/config\.yml",
@@ -200,9 +203,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.KUBERNETES_FILES: [
             r"^chart",
             r"^kubernetes_tests",
-            r"^airflow/providers/cncf/kubernetes/",
-            r"^tests/providers/cncf/kubernetes/",
-            r"^tests/system/providers/cncf/kubernetes/",
+            r"^providers/src/airflow/providers/cncf/kubernetes/",
+            r"^providers/tests/cncf/kubernetes/",
+            r"^providers/tests/system/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
             r".*\.py$",
@@ -211,9 +214,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r".*\.py$",
         ],
         FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
-            r"^airflow/providers/.*\.py$",
-            r"^tests/providers/.*\.py$",
-            r"^tests/system/providers/.*\.py$",
+            r"^providers/src/airflow/providers/.*\.py$",
+            r"^providers/tests/.*\.py$",
+            r"^providers/tests/system/.*\.py$",
         ],
         FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
             r"^docs/.*\.py$",
@@ -225,7 +228,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^.pre-commit-config.yaml$",
             r"^airflow",
             r"^chart",
+            r"^providers/src/",
+            r"^providers/tests/",
+            r"^task_sdk/src/",
+            r"^task_sdk/tests/",
             r"^tests",
+            r"^tests_common",
             r"^kubernetes_tests",
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
@@ -239,7 +247,11 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^tests/utils/",
-            r"^tests/test_utils/",
+            r"^tests_common/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_FILES: [
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ],
     }
 )
@@ -249,13 +261,15 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
         FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
             r"^.*/.*_vendor/.*",
             r"^airflow/migrations/.*",
-            r"^airflow/providers/.*",
+            r"^providers/src/airflow/providers/.*",
             r"^dev/.*",
             r"^docs/.*",
             r"^provider_packages/.*",
-            r"^tests/providers/.*",
-            r"^tests/system/providers/.*",
+            r"^providers/tests/.*",
+            r"^providers/tests/system/.*",
             r"^tests/dags/test_imports.py",
+            r"^task_sdk/src/airflow/sdk/.*\.py$",
+            r"^task_sdk/tests/.*\.py$",
         ]
     }
 )
@@ -286,9 +300,9 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/operators/",
         ],
         SelectiveUnitTestTypes.PROVIDERS: [
-            r"^airflow/providers/",
-            r"^tests/system/providers/",
-            r"^tests/providers/",
+            r"^providers/src/airflow/providers/",
+            r"^providers/tests/system/",
+            r"^providers/tests/",
         ],
         SelectiveUnitTestTypes.SERIALIZATION: [
             r"^airflow/serialization/",
@@ -308,7 +322,7 @@ TEST_TYPE_EXCLUDES = HashableDict({})
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
-    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
+    for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_NS_PACKAGE):
         try:
             file_path.relative_to(provider_root)
             relative_base_path = provider_root
@@ -329,7 +343,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
         if parent_dir_path == relative_base_path:
             break
         relative_path = parent_dir_path.relative_to(relative_base_path)
-        if (AIRFLOW_PROVIDERS_ROOT / relative_path / "provider.yaml").exists():
+        if (AIRFLOW_PROVIDERS_NS_PACKAGE / relative_path / "provider.yaml").exists():
             return str(parent_dir_path.relative_to(relative_base_path)).replace(os.sep, ".")
     # If we got here it means that some "common" files were modified. so we need to test all Providers
     return "Providers"
@@ -629,41 +643,46 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def mypy_folders(self) -> list[str]:
-        folders_to_check: list[str] = []
+    def mypy_checks(self) -> list[str]:
+        checks_to_run: list[str] = []
         if (
             self._matching_files(
                 FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("airflow")
+            checks_to_run.append("mypy-airflow")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
-            folders_to_check.append("providers")
+            checks_to_run.append("mypy-providers")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("docs")
+            checks_to_run.append("mypy-docs")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("dev")
-        return folders_to_check
+            checks_to_run.append("mypy-dev")
+        if (
+            self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            or self.full_tests_needed
+        ):
+            checks_to_run.append("mypy-task-sdk")
+        return checks_to_run
 
     @cached_property
     def needs_mypy(self) -> bool:
-        return self.mypy_folders != []
+        return self.mypy_checks != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
@@ -699,6 +718,10 @@ class SelectiveChecks:
         )
 
     @cached_property
+    def run_task_sdk_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
+
+    @cached_property
     def run_kubernetes_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
@@ -712,11 +735,21 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        # we should run all test
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
     def ci_image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+        # in case pyproject.toml changed, CI image should be built - even if no build dependencies
+        # changes because some of our tests - those that need CI image might need to be run depending on
+        # changed rules for static checks that are part of the pyproject.toml file
+        return (
+            self.run_tests
+            or self.docs_build
+            or self.run_kubernetes_tests
+            or self.needs_helm_tests
+            or self.pyproject_toml_changed
+        )
 
     @cached_property
     def prod_image_build(self) -> bool:
@@ -789,6 +822,8 @@ class SelectiveChecks:
                 f"into Core/Other category[/]"
             )
             get_console().print(remaining_files)
+            if self.run_task_sdk_tests:
+                candidate_test_types.add("PythonVenv")
             candidate_test_types.update(all_selective_test_types_except_providers())
         else:
             if "Providers" in candidate_test_types or "API" in candidate_test_types:
@@ -916,6 +951,8 @@ class SelectiveChecks:
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
+            return False
+        if "pyproject.toml" not in self._files:
             return False
         new_result = run_command(
             ["git", "show", f"{self._commit_ref}:pyproject.toml"],
@@ -1045,7 +1082,9 @@ class SelectiveChecks:
         # whole package rather than for individual files. That's why we skip those checks in CI
         # and run them via `mypy-all` command instead and dedicated CI job in matrix
         # This will also speed up static-checks job usually as the jobs will be running in parallel
-        pre_commits_to_skip.update({"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev"})
+        pre_commits_to_skip.update(
+            {"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev", "mypy-task-sdk"}
+        )
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
@@ -1112,6 +1151,10 @@ class SelectiveChecks:
     @cached_property
     def debug_resources(self) -> bool:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
+
+    @cached_property
+    def disable_airflow_repo_cache(self) -> bool:
+        return self.docker_cache == "disabled"
 
     @cached_property
     def helm_test_packages(self) -> str:
@@ -1295,7 +1338,11 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return TESTABLE_INTEGRATIONS
+        return [
+            integration
+            for integration in TESTABLE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):
@@ -1368,6 +1415,12 @@ class SelectiveChecks:
     def is_legacy_ui_api_labeled(self) -> bool:
         # Selective check for legacy UI/API updates.
         # It is to ping the maintainer to add the label and make them aware of the changes.
+        if self._is_canary_run() or self._github_event not in (
+            GithubEvents.PULL_REQUEST,
+            GithubEvents.PULL_REQUEST_TARGET,
+        ):
+            return False
+
         if (
             self._matching_files(
                 FileGroupForCi.LEGACY_API_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES

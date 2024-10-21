@@ -29,7 +29,8 @@ from airflow.api_connexion.parameters import (
     validate_istimezone,
 )
 from airflow.utils import timezone
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestValidateIsTimezone:

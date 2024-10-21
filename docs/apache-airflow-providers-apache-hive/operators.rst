@@ -27,7 +27,7 @@ HiveOperator
 
 This operator executes hql code or hive script in a specific Hive database.
 
-.. exampleinclude:: /../../tests/system/providers/apache/hive/example_twitter_dag.py
+.. exampleinclude:: /../../providers/tests/system/apache/hive/example_twitter_dag.py
     :language: python
     :dedent: 4
     :start-after: [START create_hive]

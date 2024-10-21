@@ -51,7 +51,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/opensearch/index>
+    System Tests <_api/tests/system/opensearch/index>
 
 .. toctree::
     :hidden:
@@ -78,7 +78,7 @@ apache-airflow-providers-opensearch package
 `OpenSearch <https://opensearch.org/>`__
 
 
-Release: 1.4.0
+Release: 1.5.0
 
 Provider package
 ----------------

@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest import mock
 from unittest.mock import patch
 
 import pendulum
@@ -41,9 +42,14 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
+
 from tests.models import DEFAULT_DATE
-from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
+from tests_common.test_utils.mapping import expand_mapped_task
+from tests_common.test_utils.mock_operators import (
+    MockOperator,
+    MockOperatorWithNestedFields,
+    NestedFields,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -723,6 +729,30 @@ def test_expand_mapped_task_instance_with_named_index(
     ).all()
 
     assert indices == expected_rendered_names
+
+
+@pytest.mark.parametrize(
+    "create_mapped_task",
+    [
+        pytest.param(_create_mapped_with_name_template_classic, id="classic"),
+        pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+    ],
+)
+def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, create_mapped_task) -> None:
+    """Test that the tast_instance_mutation_hook is called."""
+    expected_map_index = [0, 1, 2]
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    dr = dag_maker.create_dagrun()
+
+    with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_hook:
+        expand_mapped_task(mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session)
+
+        for index, call in enumerate(mock_hook.call_args_list):
+            assert call.args[0].map_index == expected_map_index[index]
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

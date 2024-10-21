@@ -17,6 +17,11 @@
 
 from __future__ import annotations
 
+import os
+
 from airflow.api_fastapi.app import cached_app
 
-app = cached_app()
+# There is no way to pass the apps to this file from Airflow CLI
+# because fastapi dev command does not accept any additional arguments
+# so environment variable is being used to pass it
+app = cached_app(apps=os.environ.get("AIRFLOW_API_APPS", "all"))

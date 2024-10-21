@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag(
@@ -215,6 +216,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("DELETE")
 @action_logging
 @provide_session

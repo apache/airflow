@@ -1,1 +1,4 @@
--e .[devel-devscripts,devel-tests,cncf.kubernetes] --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt"
+--constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt
+-e .[devel-devscripts,devel-tests,cncf.kubernetes]
+-e ./providers
+-e ./task_sdk

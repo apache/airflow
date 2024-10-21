@@ -19,8 +19,6 @@
 import { tableAnatomy } from "@chakra-ui/anatomy";
 import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 
-// Chakra has bad types for this util, so is registered as unbound
-// eslint-disable-next-line @typescript-eslint/unbound-method
 const { defineMultiStyleConfig, definePartsStyle } =
   createMultiStyleConfigHelpers(tableAnatomy.keys);
 
@@ -64,6 +62,7 @@ const theme = extendTheme({
     },
   },
   config: {
+    initialColorMode: "system",
     useSystemColorMode: true,
   },
   semanticTokens: {

@@ -63,6 +63,7 @@ from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -77,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("DELETE", DagAccessEntity.RUN)
 @provide_session
 @action_logging
@@ -90,6 +92,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
     return NoContent, HTTPStatus.NO_CONTENT
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_run(
@@ -127,7 +130,7 @@ def get_upstream_asset_events(*, dag_id: str, dag_run_id: str, session: Session 
             "DAGRun not found",
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
-    events = dag_run.consumed_dataset_events
+    events = dag_run.consumed_asset_events
     return asset_event_collection_schema.dump(
         AssetEventCollection(asset_events=events, total_entries=len(events))
     )

@@ -22,11 +22,11 @@ from datetime import datetime
 from airflow.assets import Asset
 from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
-skip_task_dag_dataset = Asset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
-fail_task_dag_dataset = Asset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
+skip_task_dag_asset = Asset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
+fail_task_dag_asset = Asset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
 
 
 def raise_skip_exc():
@@ -42,7 +42,7 @@ dag_with_skip_task = DAG(
 )
 PythonOperator(
     task_id="skip_task",
-    outlets=[skip_task_dag_dataset],
+    outlets=[skip_task_dag_asset],
     python_callable=raise_skip_exc,
     dag=dag_with_skip_task,
 )
@@ -51,7 +51,7 @@ with DAG(
     dag_id="dag_that_follows_dag_with_skip",
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule=[skip_task_dag_dataset],
+    schedule=[skip_task_dag_asset],
     tags=["downstream-skipped"],
 ) as dag_that_follows_dag_with_skip:
     BashOperator(
@@ -73,7 +73,7 @@ dag_with_fail_task = DAG(
 )
 PythonOperator(
     task_id="fail_task",
-    outlets=[fail_task_dag_dataset],
+    outlets=[fail_task_dag_asset],
     python_callable=raise_fail_exc,
     dag=dag_with_fail_task,
 )
@@ -82,7 +82,7 @@ with DAG(
     dag_id="dag_that_follows_dag_with_fail",
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule=[fail_task_dag_dataset],
+    schedule=[fail_task_dag_asset],
     tags=["downstream-failed"],
 ) as dag_that_follows_dag_with_fail:
     BashOperator(
