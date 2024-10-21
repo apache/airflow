@@ -48,7 +48,9 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - ibmcloudant>=0.9.1
+  # Even though 3.9 is excluded below, we need to make this python_version aware so that `uv` can generate a
+  # full lock file when building lock file from provider sources
+  - 'ibmcloudant==0.9.1 ; python_version >= "3.10"'
 
 excluded-python-versions:
   # ibmcloudant transitively brings in urllib3 2.x, but the snowflake provider has a dependency that pins
