@@ -112,7 +112,7 @@ class DAGDetailsResponse(DAGResponse):
 
     catchup: bool
     dag_run_timeout: timedelta | None
-    dataset_expression: dict | None
+    asset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None

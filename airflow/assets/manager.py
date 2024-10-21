@@ -138,7 +138,7 @@ class AssetManager(LoggingMixin):
         cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
 
         event_kwargs = {
-            "dataset_id": asset_model.id,
+            "asset_id": asset_model.id,
             "extra": extra,
         }
         if task_instance:
@@ -167,7 +167,7 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.dataset_events.append(asset_event)
+                asset_alias_model.asset_events.append(asset_event)
                 session.add(asset_alias_model)
 
                 dags_to_queue_from_asset_alias |= {
@@ -224,7 +224,7 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=asset_id)
+            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -243,7 +243,7 @@ class AssetManager(LoggingMixin):
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(dataset_id=asset_id).on_conflict_do_nothing()
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
     @classmethod
