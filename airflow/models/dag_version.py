@@ -28,7 +28,7 @@ from sqlalchemy_utils import UUIDType
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -85,7 +85,9 @@ class DagVersion(Base):
         session: Session = NEW_SESSION,
     ):
         """Write a new DagVersion into database."""
-        existing_dag_version = cls.get_latest_version(dag_id, session=session)
+        existing_dag_version = session.scalar(
+            with_row_locks(cls._latest_version_select(dag_id), of=DagVersion, session=session)
+        )
         if existing_dag_version:
             version_number = existing_dag_version.version_number + 1
         if existing_dag_version and not version_name:
@@ -105,11 +107,13 @@ class DagVersion(Base):
         return dag_version
 
     @classmethod
+    def _latest_version_select(cls, dag_id: str):
+        return select(cls).where(cls.dag_id == dag_id).order_by(cls.version_number.desc()).limit(1)
+
+    @classmethod
     @provide_session
     def get_latest_version(cls, dag_id: str, session: Session = NEW_SESSION):
-        return session.scalar(
-            select(cls).where(cls.dag_id == dag_id).order_by(cls.version_number.desc()).limit(1)
-        )
+        return session.scalar(cls._latest_version_select(dag_id))
 
     @classmethod
     @provide_session
