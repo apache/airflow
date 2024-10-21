@@ -70,7 +70,7 @@ class SqlSensor(BaseSensorOperator):
         parameters: Mapping[str, Any] | None = None,
         success: Callable[[Any], bool] | None = None,
         failure: Callable[[Any], bool] | None = None,
-        selector: Callable[[tuple[Any]], Any] | None = itemgetter(0),
+        selector: Callable[[tuple[Any]], Any] = itemgetter(0),
         fail_on_empty: bool = False,
         hook_params: Mapping[str, Any] | None = None,
         **kwargs,
