@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.3.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker state is updated if worker disconnect.``
+
 0.2.2re0
 .........
 

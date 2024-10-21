@@ -26,7 +26,7 @@ state: not-ready
 source-date-epoch: 1729683247
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.2.2pre0
+  - 0.3.0pre0
 
 dependencies:
   - apache-airflow>=2.10.0
