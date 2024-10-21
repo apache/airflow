@@ -208,16 +208,24 @@ export const DagsList = () => {
             variant="flushed"
             width="200px"
           >
-            <option value="dag_id">Sort by DAG ID (A-Z)</option>
-            <option value="-dag_id">Sort by DAG ID (Z-A)</option>
             <option value="dag_display_name">Sort by Display Name (A-Z)</option>
-            <option value="-dag_display_name">Sort by Display Name (A-Z)</option>
+            <option value="-dag_display_name">
+              Sort by Display Name (A-Z)
+            </option>
             <option value="next_dagrun">Sort by Next DAG Run (A-Z)</option>
             <option value="-next_dagrun">Sort by Next DAG Run (Z-A)</option>
-            <option value="last_dagrun_state">Sort by Last Run State (A-Z)</option>
-            <option value="-last_dagrun_state">Sort by Last Run State (Z-A)</option>
-            <option value="last_dagrun_start">Sort by Last Run Start Date (A-Z)</option>
-            <option value="-last_dagrun_start">Sort by Last Run Start Date (Z-A)</option>
+            <option value="last_dagrun_state">
+              Sort by Last Run State (A-Z)
+            </option>
+            <option value="-last_dagrun_state">
+              Sort by Last Run State (Z-A)
+            </option>
+            <option value="last_dagrun_start">
+              Sort by Last Run Start Date (A-Z)
+            </option>
+            <option value="-last_dagrun_start">
+              Sort by Last Run Start Date (Z-A)
+            </option>
           </Select>
         </HStack>
       </VStack>
