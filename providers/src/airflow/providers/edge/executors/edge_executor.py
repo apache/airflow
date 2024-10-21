@@ -30,7 +30,9 @@ from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
-from airflow.providers.edge.models.edge_worker import EdgeWorkerModel
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.stats import Stats
+from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -86,9 +88,32 @@ class EdgeExecutor(BaseExecutor):
             )
         )
 
-    @provide_session
-    def sync(self, session: Session = NEW_SESSION) -> None:
-        """Sync will get called periodically by the heartbeat method."""
+    def _check_alive_worker(self, session: Session) -> bool:
+        """Reset worker state if heartbeat timed out."""
+        changed = False
+        heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
+        workers: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+
+        for worker in workers:
+            connected = 1
+            if not worker.last_update or worker.last_update < (
+                timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)
+            ):
+                changed = True
+                connected = 0
+                worker.state = EdgeWorkerState.UNKNOWN
+                session.add(worker)
+
+            Stats.gauge(
+                "edge_worker.state",
+                connected,
+                tags={"worker_name": worker.worker_name, "state": worker.state},
+            )
+
+        return changed
+
+    def _purge_jobs(self, session: Session) -> bool:
+        """Clean finished jobs."""
         purged_marker = False
         job_success_purge = conf.getint("edge", "job_success_purge")
         job_fail_purge = conf.getint("edge", "job_fail_purge")
@@ -140,7 +165,13 @@ class EdgeExecutor(BaseExecutor):
                         EdgeLogsModel.try_number == job.try_number,
                     )
                 )
-        if purged_marker:
+
+        return purged_marker
+
+    @provide_session
+    def sync(self, session: Session = NEW_SESSION) -> None:
+        """Sync will get called periodically by the heartbeat method."""
+        if self._purge_jobs(session) or self._check_alive_worker(session):
             session.commit()
 
     def end(self) -> None:
