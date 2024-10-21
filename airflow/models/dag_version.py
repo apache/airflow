@@ -18,8 +18,6 @@
 from __future__ import annotations
 
 import logging
-import random
-import string
 import uuid
 from typing import TYPE_CHECKING
 
@@ -47,7 +45,7 @@ class DagVersion(Base):
     __tablename__ = "dag_version"
     id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
     version_number = Column(Integer)
-    version_name = Column(StringID())
+    version_name = Column(StringID(), default=uuid.uuid4())
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
     dag_model = relationship("DagModel", back_populates="dag_versions")
     dag_code = relationship("DagCode", back_populates="dag_version", uselist=False)
@@ -75,20 +73,6 @@ class DagVersion(Base):
         return f"<DagVersion {self.dag_id} - {self.version_name}>"
 
     @classmethod
-    def _generate_random_string(cls):
-        letters = string.ascii_letters + string.digits
-        return "dag-" + "".join(random.choice(letters) for i in range(10))
-
-    @classmethod
-    @provide_session
-    def _generate_unique_random_string(cls, session: Session = NEW_SESSION):
-        while True:
-            random_str = cls._generate_random_string()
-            # Check if the generated string exists
-            if not session.scalar(select(cls).where(cls.version_name == random_str)):
-                return random_str
-
-    @classmethod
     @provide_session
     def write_dag(
         cls,
@@ -97,18 +81,22 @@ class DagVersion(Base):
         dag_code: DagCode,
         serialized_dag: SerializedDagModel,
         version_name: str | None = None,
+        version_number: int = 1,
         session: Session = NEW_SESSION,
     ):
         """Write a new DagVersion into database."""
-        dag_version_count = session.scalar(select(func.count()).select_from(cls).where(cls.dag_id == dag_id))
-        version_number = dag_version_count + 1
+        existing_dag_version = cls.get_latest_version(dag_id, session=session)
+        if existing_dag_version:
+            version_number = existing_dag_version.version_number + 1
+        if existing_dag_version and not version_name:
+            version_name = existing_dag_version.version_name
 
         dag_version = DagVersion(
             dag_id=dag_id,
             version_number=version_number,
             dag_code=dag_code,
             serialized_dag=serialized_dag,
-            version_name=version_name or cls._generate_unique_random_string(session),
+            version_name=version_name,
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
@@ -145,7 +133,7 @@ class DagVersion(Base):
         if not self.version_name and not self.version_number:
             return None
         sep = "-"
-        return self.version_name + sep + str(self.version_number)
+        return str(self.version_name) + sep + str(self.version_number)
 
     @classmethod
     @provide_session
