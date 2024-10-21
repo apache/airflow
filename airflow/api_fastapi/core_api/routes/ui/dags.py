@@ -39,16 +39,16 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.serializers.ui.dags import (
-    RecentDAGRun,
-    RecentDAGRunsCollectionResponse,
-    RecentDAGRunsResponse,
+    RecentDAGCollectionResponse,
+    RecentDAGResponse,
+    RecentDAGRunResponse,
 )
 from airflow.models import DagModel, DagRun
 
 dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
-@dags_router.get("/recent_dag_runs", include_in_schema=False)
+@dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
 async def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -61,7 +61,7 @@ async def recent_dag_runs(
     last_dag_run_state: QueryLastDagRunStateFilter,
     dag_runs_limit: QueryLimit,
     session: Annotated[Session, Depends(get_session)],
-) -> RecentDAGRunsCollectionResponse:
+) -> RecentDAGCollectionResponse:
     """Get recent DAG runs."""
     recent_runs_subquery = (
         select(
@@ -91,8 +91,6 @@ async def recent_dag_runs(
             DagRun.data_interval_end,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
-        # `last_run_state` and `last_run_start_date` query params of`get_dags` endpoint
-        # needs `DagRun` to order_by
         .join(
             DagRun,
             and_(
@@ -110,8 +108,9 @@ async def recent_dag_runs(
             DagRun.data_interval_start,
             DagRun.data_interval_end,
         )
+        .order_by(recent_runs_subquery.c.execution_date.desc())
     )
-    dags_with_recent_dag_runs_select_filter, total_entries = paginated_select(
+    dags_with_recent_dag_runs_select_filter, _ = paginated_select(
         dags_with_recent_dag_runs_select,
         [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
         None,
@@ -127,14 +126,13 @@ async def recent_dag_runs(
             dag_runs_by_dag_id[dag_id] = []
         dag_runs_by_dag_id[dag_id].append(row)
 
-    return RecentDAGRunsCollectionResponse(
-        total_dag_runs=total_entries,
-        total_dag_ids=len(dag_runs_by_dag_id),
-        recent_dag_runs=[
-            RecentDAGRunsResponse(
+    return RecentDAGCollectionResponse(
+        total_entries=len(dag_runs_by_dag_id),
+        dags=[
+            RecentDAGResponse(
                 dag_id=dag_id,
-                dag_runs=[
-                    RecentDAGRun(
+                latest_dag_runs=[
+                    RecentDAGRunResponse(  # type: ignore
                         start_date=dag_run.start_date,
                         end_date=dag_run.end_date,
                         state=dag_run.state,

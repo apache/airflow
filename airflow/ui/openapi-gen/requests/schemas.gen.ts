@@ -1633,8 +1633,290 @@ export const $ProviderResponse = {
   description: "Provider serializer for responses.",
 } as const;
 
-export const $RecentDAGRun = {
+export const $RecentDAGCollectionResponse = {
   properties: {
+    dags: {
+      items: {
+        $ref: "#/components/schemas/RecentDAGResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dags", "total_entries"],
+  title: "RecentDAGCollectionResponse",
+  description: "Recent DAG Runs collection response serializer.",
+} as const;
+
+export const $RecentDAGResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    dag_display_name: {
+      type: "string",
+      title: "Dag Display Name",
+    },
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+    is_active: {
+      type: "boolean",
+      title: "Is Active",
+    },
+    last_parsed_time: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Parsed Time",
+    },
+    last_pickled: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Pickled",
+    },
+    last_expired: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Expired",
+    },
+    scheduler_lock: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Scheduler Lock",
+    },
+    pickle_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pickle Id",
+    },
+    default_view: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Default View",
+    },
+    fileloc: {
+      type: "string",
+      title: "Fileloc",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    timetable_summary: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timetable Summary",
+    },
+    timetable_description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Timetable Description",
+    },
+    tags: {
+      items: {
+        $ref: "#/components/schemas/DagTagPydantic",
+      },
+      type: "array",
+      title: "Tags",
+    },
+    max_active_tasks: {
+      type: "integer",
+      title: "Max Active Tasks",
+    },
+    max_active_runs: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Active Runs",
+    },
+    max_consecutive_failed_dag_runs: {
+      type: "integer",
+      title: "Max Consecutive Failed Dag Runs",
+    },
+    has_task_concurrency_limits: {
+      type: "boolean",
+      title: "Has Task Concurrency Limits",
+    },
+    has_import_errors: {
+      type: "boolean",
+      title: "Has Import Errors",
+    },
+    next_dagrun: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun",
+    },
+    next_dagrun_data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Data Interval Start",
+    },
+    next_dagrun_data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Data Interval End",
+    },
+    next_dagrun_create_after: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Next Dagrun Create After",
+    },
+    owners: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Owners",
+    },
+    latest_dag_runs: {
+      items: {
+        $ref: "#/components/schemas/RecentDAGRunResponse",
+      },
+      type: "array",
+      title: "Latest Dag Runs",
+    },
+    file_token: {
+      type: "string",
+      title: "File Token",
+      description: "Return file token.",
+      readOnly: true,
+    },
+  },
+  type: "object",
+  required: ["file_token"],
+  title: "RecentDAGResponse",
+  description: "Recent DAG Runs response serializer.",
+} as const;
+
+export const $RecentDAGRunResponse = {
+  properties: {
+    run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Run Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
     start_date: {
       anyOf: [
         {
@@ -1658,21 +1940,6 @@ export const $RecentDAGRun = {
         },
       ],
       title: "End Date",
-    },
-    state: {
-      $ref: "#/components/schemas/DagRunState",
-    },
-    execution_date: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Execution Date",
     },
     data_interval_start: {
       anyOf: [
@@ -1698,62 +1965,55 @@ export const $RecentDAGRun = {
       ],
       title: "Data Interval End",
     },
-  },
-  type: "object",
-  required: [
-    "start_date",
-    "end_date",
-    "state",
-    "execution_date",
-    "data_interval_start",
-    "data_interval_end",
-  ],
-  title: "RecentDAGRun",
-  description: "Run serializer for Recent DAG Runs.",
-} as const;
-
-export const $RecentDAGRunsCollectionResponse = {
-  properties: {
-    recent_dag_runs: {
-      items: {
-        $ref: "#/components/schemas/RecentDAGRunsResponse",
-      },
-      type: "array",
-      title: "Recent Dag Runs",
+    last_scheduling_decision: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Scheduling Decision",
     },
-    total_dag_ids: {
-      type: "integer",
-      title: "Total Dag Ids",
+    run_type: {
+      $ref: "#/components/schemas/DagRunType",
     },
-    total_dag_runs: {
-      type: "integer",
-      title: "Total Dag Runs",
+    state: {
+      $ref: "#/components/schemas/DagRunState",
     },
-  },
-  type: "object",
-  required: ["recent_dag_runs", "total_dag_ids", "total_dag_runs"],
-  title: "RecentDAGRunsCollectionResponse",
-  description: "Recent DAG Runs collection response serializer.",
-} as const;
-
-export const $RecentDAGRunsResponse = {
-  properties: {
-    dag_id: {
+    external_trigger: {
+      type: "boolean",
+      title: "External Trigger",
+    },
+    triggered_by: {
+      $ref: "#/components/schemas/DagRunTriggeredByType",
+    },
+    conf: {
+      type: "object",
+      title: "Conf",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    execution_date: {
       type: "string",
-      title: "Dag Id",
-    },
-    dag_runs: {
-      items: {
-        $ref: "#/components/schemas/RecentDAGRun",
-      },
-      type: "array",
-      title: "Dag Runs",
+      format: "date-time",
+      title: "Execution Date",
     },
   },
   type: "object",
-  required: ["dag_id", "dag_runs"],
-  title: "RecentDAGRunsResponse",
-  description: "Recent DAG Runs response serializer.",
+  title: "RecentDAGRunResponse",
+  description: "Recent DAG Run response serializer.",
 } as const;
 
 export const $SchedulerInfoSchema = {

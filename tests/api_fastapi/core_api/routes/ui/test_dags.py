@@ -72,15 +72,6 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
             ({"owners": ["test_owner"], "only_active": False}, [DAG3_ID], 4),
             ({"last_dag_run_state": "success", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 6),
             ({"last_dag_run_state": "failed", "only_active": False}, [DAG1_ID, DAG2_ID, DAG3_ID], 9),
-            # # Sort
-            ({"order_by": "-dag_id"}, [DAG2_ID, DAG1_ID], 11),
-            ({"order_by": "-dag_display_name"}, [DAG2_ID, DAG1_ID], 11),
-            ({"order_by": "dag_display_name"}, [DAG1_ID, DAG2_ID], 11),
-            ({"order_by": "next_dagrun", "only_active": False}, [DAG3_ID, DAG1_ID, DAG2_ID], 15),
-            ({"order_by": "last_run_state", "only_active": False}, [DAG1_ID, DAG3_ID, DAG2_ID], 15),
-            ({"order_by": "-last_run_state", "only_active": False}, [DAG3_ID, DAG1_ID, DAG2_ID], 15),
-            ({"order_by": "last_run_start_date", "only_active": False}, [DAG1_ID, DAG3_ID, DAG2_ID], 15),
-            ({"order_by": "-last_run_start_date", "only_active": False}, [DAG3_ID, DAG1_ID, DAG2_ID], 15),
             # Search
             ({"dag_id_pattern": "1"}, [DAG1_ID], 6),
             ({"dag_display_name_pattern": "test_dag2"}, [DAG2_ID], 5),
@@ -90,22 +81,23 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         response = test_client.get("/ui/dags/recent_dag_runs", params=query_params)
         assert response.status_code == 200
         body = response.json()
-        assert body["total_dag_runs"] == expected_total_dag_runs
-        assert body["total_dag_ids"] == len(expected_ids)
-
-        for recent_dag_runs in body["recent_dag_runs"]:
-            dag_runs = recent_dag_runs["dag_runs"]
+        assert body["total_entries"] == len(expected_ids)
+        dag_run_keys_with_interval = [
+            "data_interval_end",
+            "data_interval_start",
+            "end_date",
+            "execution_date",
+            "start_date",
+            "state",
+        ]
+        dag_run_keys = ["end_date", "execution_date", "start_date", "state"]
+        for recent_dag_runs in body["dags"]:
+            dag_runs = recent_dag_runs["latest_dag_runs"]
             # check date ordering
             previous_execution_date = None
             for dag_run in dag_runs:
-                assert [
-                    "start_date",
-                    "end_date",
-                    "state",
-                    "execution_date",
-                    "data_interval_start",
-                    "data_interval_end",
-                ] == list(dag_run.keys())
+                cur_sorted_keys = sorted(dag_run.keys())
+                assert cur_sorted_keys == dag_run_keys_with_interval or cur_sorted_keys == dag_run_keys
                 if previous_execution_date:
-                    assert previous_execution_date < dag_run["execution_date"]
+                    assert previous_execution_date > dag_run["execution_date"]
                 previous_execution_date = dag_run["execution_date"]
