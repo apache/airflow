@@ -27,17 +27,16 @@ class FinancialServicesHook(GoogleBaseHook):
     """
     Hook for interacting with the Google Financial Services API.
 
-    Args:
-        gcp_conn_id (str, optional): Identifier of connection to Google Cloud Platform.
-            Defaults to "google_cloud_default".
-        api_version (str, optional): API version for the Financial Services API.
-            Defaults to "v1".
-        dev_key_var (str, optional): Airflow variable name for accessing/saving the
-            developer key. If key is not provided, secret value will be stored in a
-            variable with the default name. Defaults to "AMLAI_API_KEY".
-        dev_key_secret_uri (str | None, optional): URI for the GCP secret (Secrets
-            Manager) containing the developer key. Secret will only be accessed if
-            dev_key_var does not exist. Defaults to None.
+    :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
+        Defaults to "google_cloud_default".
+    :param api_version: API version for the Financial Services API.
+        Defaults to "v1".
+    :param dev_key_var: Airflow variable name for accessing/saving the
+        developer key. If key is not provided, secret value will be stored in a
+        variable with the default name. Defaults to "AMLAI_API_KEY".
+    :param dev_key_secret_uri: URI for the GCP secret (Secrets
+        Manager) containing the developer key. Secret will only be accessed if
+        dev_key_var does not exist. Defaults to None.
     """
 
     connection: build | None = None
@@ -64,7 +63,14 @@ class FinancialServicesHook(GoogleBaseHook):
         self.dev_key_secret_uri = dev_key_secret_uri
         self.api_version = api_version
 
-    def get_developer_key(self):
+    def get_developer_key(self) -> str:
+        """
+        Get the developer API key for accessing the Financial Services discovery API.
+
+        :raises ValueError: If dev_key_secret_uri = None and the developer key is not
+            saved in an Airflow variable named dev_key_var
+        :return str: API key for accessing the Financial Services discovery API
+        """
         if Variable.get(key=self.dev_key_var, default_var=None):
             developer_key = Variable.get(key=self.dev_key_var)
         elif self.dev_key_secret_uri:
@@ -100,13 +106,10 @@ class FinancialServicesHook(GoogleBaseHook):
         """
         Get an AML AI instance.
 
-        Args:
-            instance_id (str): The instance identifier
-            project_id (str): Google Cloud Platform project_id containing the AML AI
-                instance resource
+        :param instance_resource_uri: URI of the instance to get (format:
+            'projects/<Project ID>/locations/<Location>/instances/<Instance>)
 
-        Returns:
-            dict: A dictionary containing the instance metadata
+        :returns: A dictionary containing the instance metadata
         """
         conn = self.get_conn()
         response = conn.projects().locations().instances().get(name=instance_resource_uri).execute()
@@ -116,15 +119,12 @@ class FinancialServicesHook(GoogleBaseHook):
         """
         Create an AML AI instance.
 
-        Args:
-            instance_id (str): The ID of the instance
-            kms_key (str): The KMS key name used for CMEK (encryption-at-rest)
-            project_id (str): Google Cloud Platform project_id containing the AML AI
-                instance resource
+        :param instance_id: Identifier for the instance to create
+        :param kms_key: URI of the KMS key to that will be used for instance encryption
+            (format: 'projects/<Project ID>/locations/<Location>/keyRings/<Key Ring>/
+            cryptoKeys/<Key>')
 
-        Returns:
-            dict: A dictionary containing metadata for the create instance
-                operation
+        :returns: A dictionary containing metadata for the create instance operation
         """
         conn = self.get_conn()
         response = (
@@ -144,11 +144,10 @@ class FinancialServicesHook(GoogleBaseHook):
         """
         Delete an AML AI instance.
 
-        Args:
-            instance_resource_uri (str): The ID of the instance
+        :param instance_resource_uri: URI of the instance to delete (format:
+                'projects/<Project ID>/locations/<Location>/instances/<Instance>)
 
-        Returns:
-            dict: A dictionary containing metadata for the delete instance
+        :returns: A dictionary containing metadata for the delete instance
                 operation
         """
         conn = self.get_conn()
