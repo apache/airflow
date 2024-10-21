@@ -14,50 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from pydantic import BaseModel
 
 
-class DAGRunTypes(BaseModel):
-    """DAG Run Types for responses."""
+class ProviderResponse(BaseModel):
+    """Provider serializer for responses."""
 
-    backfill: int
-    scheduled: int
-    manual: int
-    asset_triggered: int
-
-
-class DAGRunStates(BaseModel):
-    """DAG Run States for responses."""
-
-    queued: int
-    running: int
-    success: int
-    failed: int
+    package_name: str
+    description: str
+    version: str
 
 
-class TaskInstanceState(BaseModel):
-    """TaskInstance serializer for responses."""
+class ProviderCollectionResponse(BaseModel):
+    """Provider Collection serializer for responses."""
 
-    no_status: int
-    removed: int
-    scheduled: int
-    queued: int
-    running: int
-    success: int
-    restarting: int
-    failed: int
-    up_for_retry: int
-    up_for_reschedule: int
-    upstream_failed: int
-    skipped: int
-    deferred: int
-
-
-class HistoricalMetricDataResponse(BaseModel):
-    """Historical Metric Data serializer for responses."""
-
-    dag_run_types: DAGRunTypes
-    dag_run_states: DAGRunStates
-    task_instance_states: TaskInstanceState
+    providers: list[ProviderResponse]
+    total_entries: int

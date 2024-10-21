@@ -13,6 +13,8 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PoolService,
+  ProviderService,
   VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
@@ -152,6 +154,50 @@ export const useDagServiceGetDags = <
         owners,
         paused,
         tags,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagTags = <
+  TData = Common.DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn(
+      { limit, offset, orderBy, tagNamePattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagTags({
+        limit,
+        offset,
+        orderBy,
+        tagNamePattern,
       }) as TData,
     ...options,
   });
@@ -384,6 +430,38 @@ export const useMonitorServiceGetHealth = <
   useQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useProviderServiceGetProviders = <
+  TData = Common.ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
     ...options,
   });
 /**
@@ -761,5 +839,42 @@ export const useDagRunServiceDeleteDagRun = <
         dagId,
         dagRunId,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Pool
+ * Delete a pool entry.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceDeletePool = <
+  TData = Common.PoolServiceDeletePoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        poolName: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      poolName: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ poolName }) =>
+      PoolService.deletePool({ poolName }) as unknown as Promise<TData>,
     ...options,
   });

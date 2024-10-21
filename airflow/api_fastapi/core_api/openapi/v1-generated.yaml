@@ -291,6 +291,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/tags:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Tags
+      description: Get all DAG tags.
+      operationId: get_dag_tags
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: name
+          title: Order By
+      - name: tag_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag Name Pattern
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGTagCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}:
     get:
       tags:
@@ -1010,6 +1072,88 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
+  /public/pools/{pool_name}:
+    delete:
+      tags:
+      - Pool
+      summary: Delete Pool
+      description: Delete a pool entry.
+      operationId: delete_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/providers/:
+    get:
+      tags:
+      - Provider
+      summary: Get Providers
+      description: Get providers.
+      operationId: get_providers
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BaseInfoSchema:
@@ -1233,11 +1377,11 @@ components:
             format: duration
           - type: 'null'
           title: Dag Run Timeout
-        dataset_expression:
+        asset_expression:
           anyOf:
           - type: object
           - type: 'null'
-          title: Dataset Expression
+          title: Asset Expression
         doc_md:
           anyOf:
           - type: string
@@ -1328,7 +1472,7 @@ components:
       - owners
       - catchup
       - dag_run_timeout
-      - dataset_expression
+      - asset_expression
       - doc_md
       - start_date
       - end_date
@@ -1620,17 +1764,33 @@ components:
         manual:
           type: integer
           title: Manual
-        dataset_triggered:
+        asset_triggered:
           type: integer
-          title: Dataset Triggered
+          title: Asset Triggered
       type: object
       required:
       - backfill
       - scheduled
       - manual
-      - dataset_triggered
+      - asset_triggered
       title: DAGRunTypes
       description: DAG Run Types for responses.
+    DAGTagCollectionResponse:
+      properties:
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - tags
+      - total_entries
+      title: DAGTagCollectionResponse
+      description: DAG Tags Collection serializer for responses.
     DagProcessorInfoSchema:
       properties:
         status:
@@ -1684,7 +1844,7 @@ components:
       - backfill
       - scheduled
       - manual
-      - dataset_triggered
+      - asset_triggered
       title: DagRunType
       description: Class with DagRun types.
     DagTagPydantic:
@@ -1756,6 +1916,40 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    ProviderCollectionResponse:
+      properties:
+        providers:
+          items:
+            $ref: '#/components/schemas/ProviderResponse'
+          type: array
+          title: Providers
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - providers
+      - total_entries
+      title: ProviderCollectionResponse
+      description: Provider Collection serializer for responses.
+    ProviderResponse:
+      properties:
+        package_name:
+          type: string
+          title: Package Name
+        description:
+          type: string
+          title: Description
+        version:
+          type: string
+          title: Version
+      type: object
+      required:
+      - package_name
+      - description
+      - version
+      title: ProviderResponse
+      description: Provider serializer for responses.
     SchedulerInfoSchema:
       properties:
         status:

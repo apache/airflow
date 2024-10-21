@@ -16,9 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest
 
 pytest_plugins = "tests_common.pytest_plugin"
+
+# Task SDK does not need access to the Airflow database
+os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
 
 
 @pytest.hookimpl(tryfirst=True)

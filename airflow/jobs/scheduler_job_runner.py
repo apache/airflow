@@ -1272,15 +1272,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        dataset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in dataset_triggered_dag_info
+        asset_triggered_dags = [
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in asset_triggered_dag_info
         ]
-        non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
-        self._create_dag_runs(non_dataset_dags, session)
-        if dataset_triggered_dags:
-            self._create_dag_runs_asset_triggered(dataset_triggered_dags, dataset_triggered_dag_info, session)
+        non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
+        self._create_dag_runs(non_asset_dags, session)
+        if asset_triggered_dags:
+            self._create_dag_runs_asset_triggered(asset_triggered_dags, asset_triggered_dag_info, session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
@@ -1391,7 +1391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
@@ -1401,7 +1401,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # duplicate dag runs
         exec_dates = {
             dag_id: timezone.coerce_datetime(last_time)
-            for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
+            for dag_id, (_, last_time) in asset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
@@ -1441,7 +1441,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(
                         DagRun.dag_id == dag.dag_id,
                         DagRun.execution_date < exec_date,
-                        DagRun.run_type == DagRunType.DATASET_TRIGGERED,
+                        DagRun.run_type == DagRunType.ASSET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
                     .limit(1)
@@ -1457,14 +1457,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetEvent)
                     .join(
                         DagScheduleAssetReference,
-                        AssetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
+                        AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                     )
                     .where(*asset_event_filters)
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     logical_date=exec_date,
                     data_interval=data_interval,
                     session=session,
@@ -1473,7 +1473,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     execution_date=exec_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
@@ -1484,7 +1484,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     triggered_by=DagRunTriggeredByType.DATASET,
                 )
                 Stats.incr("asset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(asset_events)
+                dag_run.consumed_asset_events.extend(asset_events)
                 session.execute(
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
