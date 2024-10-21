@@ -62,6 +62,8 @@ The following integrations are available:
 +--------------+----------------------------------------------------+
 | kerberos     | Integration that provides Kerberos authentication. |
 +--------------+----------------------------------------------------+
+| keycloak     | Integration for manual testing multi-team Airflow. |
++--------------+----------------------------------------------------+
 | mongo        | Integration required for MongoDB hooks.            |
 +--------------+----------------------------------------------------+
 | mssql        | Integration required for mssql hooks.              |
