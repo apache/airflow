@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Asset", "AssetAll", "AssetAny"]
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
 
 
 log = logging.getLogger(__name__)
@@ -275,13 +275,14 @@ def _set_extra_default(extra: dict | None) -> dict:
 
 @attr.define(init=False, unsafe_hash=False)
 class Asset(os.PathLike, BaseAsset):
-    """A representation of data dependencies between workflows."""
+    """A representation of data asset dependencies between workflows."""
 
     name: str
     uri: str
     group: str
     extra: dict[str, Any]
 
+    asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
     @overload
@@ -370,6 +371,24 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             dependency_id=self.uri,
         )
+
+
+class Dataset(Asset):
+    """A representation of dataset dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "dataset"
+
+    def __init__(self, *args, group="dataset", **kwargs) -> None:
+        super().__init__(*args, group=group, **kwargs)
+
+
+class Model(Asset):
+    """A representation of model dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "model"
+
+    def __init__(self, *args, group="model", **kwargs) -> None:
+        super().__init__(*args, group=group, **kwargs)
 
 
 class _AssetBooleanCondition(BaseAsset):
