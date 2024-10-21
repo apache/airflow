@@ -64,10 +64,10 @@ def db_clean_up():
 
 
 class TestDagBag:
-    def setup_class(self):
+    def setup_method(self):
         db_clean_up()
 
-    def teardown_class(self):
+    def teardown_method(self):
         db_clean_up()
 
     def test_get_existing_dag(self, tmp_path):
@@ -854,12 +854,11 @@ with airflow.DAG(
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self):
+    def test_get_dag_refresh_race_condition(self, session):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
         """
-
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")

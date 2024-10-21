@@ -163,7 +163,7 @@ class DagCode(Base):
         dag_code = session.scalar(
             select(cls)
             .where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc))
-            .order_by(cls.id.desc())
+            .order_by(cls.last_updated.desc())
             .limit(1)
         )
         if not dag_code:
