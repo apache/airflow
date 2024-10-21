@@ -44,6 +44,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.timetables.base import DagRunInfo
+
 
 log = logging.getLogger(__name__)
 
@@ -183,7 +185,8 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
-) -> Backfill | None:
+    dry_run: bool = False,
+) -> Backfill | None | list[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
     with create_session() as session:
@@ -200,16 +203,6 @@ def _create_backfill(
                 f"There can be only one running backfill per dag."
             )
 
-        br = Backfill(
-            dag_id=dag_id,
-            from_date=from_date,
-            to_date=to_date,
-            max_active_runs=max_active_runs,
-            dag_run_conf=dag_run_conf,
-        )
-        session.add(br)
-        session.commit()
-
         dag = serdag.dag
         depends_on_past = any(x.depends_on_past for x in dag.tasks)
         if depends_on_past:
@@ -222,6 +215,20 @@ def _create_backfill(
         dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
         if reverse:
             dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+
+        if dry_run:
+            return list(dagrun_info_list)
+
+        br = Backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=max_active_runs,
+            dag_run_conf=dag_run_conf,
+        )
+        session.add(br)
+        session.commit()
+
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
