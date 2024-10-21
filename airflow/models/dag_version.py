@@ -141,18 +141,18 @@ class DagVersion(Base):
         """Get the latest version of DAGs."""
         # Subquery to get the latest version number per dag_id
         latest_version_subquery = (
-            session.query(DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version_number"))
-            .filter(DagVersion.dag_id.in_(dag_ids))
-            .group_by(DagVersion.dag_id)
+            session.query(cls.dag_id, func.max(cls.version_number).label("max_version_number"))
+            .filter(cls.dag_id.in_(dag_ids))
+            .group_by(cls.dag_id)
             .subquery()
         )
         latest_versions = session.scalars(
-            select(DagVersion)
+            select(cls)
             .join(
                 latest_version_subquery,
-                (DagVersion.dag_id == latest_version_subquery.c.dag_id)
-                and (DagVersion.version_number == latest_version_subquery.c.max_version_number),
+                (cls.dag_id == latest_version_subquery.c.dag_id)
+                and (cls.version_number == latest_version_subquery.c.max_version_number),
             )
-            .where(DagVersion.dag_id.in_(dag_ids))
+            .where(cls.dag_id.in_(dag_ids))
         ).all()
         return latest_versions
