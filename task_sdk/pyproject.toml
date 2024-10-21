@@ -44,6 +44,8 @@ namespace-packages = ["src/airflow"]
 # Ignore Doc rules et al for anything outside of tests
 "!src/*" = ["D", "TID253", "S101", "TRY002"]
 
+"src/airflow/sdk/__init__.py" = ["TCH004"]
+
 [tool.uv]
 dev-dependencies = [
     "kgb>=7.1.1",

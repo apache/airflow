@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import weakref
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import pytest
 
@@ -246,6 +247,73 @@ class TestDag:
 
         # Make sure we don't affect the original!
         assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
+
+
+# Test some of the arg valiadtion. This is not all the validations we perform, just some of them.
+@pytest.mark.parametrize(
+    ["attr", "value"],
+    [
+        pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
+        pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
+    ],
+)
+def test_invalid_type_for_args(attr: str, value: Any):
+    with pytest.raises(TypeError):
+        DAG("invalid-default-args", **{attr: value})
+
+
+@pytest.mark.parametrize(
+    "tags, should_pass",
+    [
+        pytest.param([], True, id="empty tags"),
+        pytest.param(["a normal tag"], True, id="one tag"),
+        pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
+        pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
+        pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
+    ],
+)
+def test__tags_length(tags: list[str], should_pass: bool):
+    if should_pass:
+        DAG("test-dag", schedule=None, tags=tags)
+    else:
+        with pytest.raises(ValueError):
+            DAG("test-dag", schedule=None, tags=tags)
+
+
+@pytest.mark.parametrize(
+    "input_tags, expected_result",
+    [
+        pytest.param([], set(), id="empty tags"),
+        pytest.param(
+            ["a normal tag"],
+            {"a normal tag"},
+            id="one tag",
+        ),
+        pytest.param(
+            ["a normal tag", "another normal tag"],
+            {"a normal tag", "another normal tag"},
+            id="two different tags",
+        ),
+        pytest.param(
+            ["a", "a"],
+            {"a"},
+            id="two same tags",
+        ),
+    ],
+)
+def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
+    result = DAG("test-dag", tags=input_tags)
+    assert result.tags == expected_result
+
+
+def test__tags_mutable():
+    expected_tags = {"6", "7"}
+    test_dag = DAG("test-dag")
+    test_dag.tags.add("6")
+    test_dag.tags.add("7")
+    test_dag.tags.add("8")
+    test_dag.tags.remove("8")
+    assert test_dag.tags == expected_tags
 
 
 class TestDagDecorator:

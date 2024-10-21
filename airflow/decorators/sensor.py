@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import TYPE_CHECKING, Callable, ClassVar, Sequence
 
 from airflow.decorators.base import get_unique_task_id, task_decorator_factory
 from airflow.sensors.python import PythonSensor
@@ -48,7 +48,7 @@ class DecoratedSensorOperator(PythonSensor):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ("python_callable",)
+    shallow_copy_attrs: ClassVar[Sequence[str]] = ("python_callable",)
 
     def __init__(
         self,

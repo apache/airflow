@@ -46,7 +46,6 @@ from dateutil.relativedelta import relativedelta
 
 from airflow import settings
 from airflow.assets import Asset, AssetAlias, BaseAsset
-from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
@@ -119,29 +118,6 @@ _DAG_HASH_ATTRS = frozenset(
     }
 )
 
-# TODO: The following mapping is used to validate that the arguments passed to the DAG are of the correct
-#  type. This is a temporary solution until we find a more sophisticated method for argument validation.
-#  One potential method is to use `get_type_hints` from the typing module. However, this is not fully
-#  compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
-#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
-#  manual type-checking method.
-DAG_ARGS_EXPECTED_TYPES = {
-    "dag_id": str,
-    "description": str,
-    "max_active_tasks": int,
-    "max_active_runs": int,
-    "max_consecutive_failed_dag_runs": int,
-    "dagrun_timeout": timedelta,
-    "catchup": bool,
-    "doc_md": str,
-    "is_paused_upon_creation": bool,
-    "render_template_as_native_obj": bool,
-    "tags": Collection,
-    "auto_register": bool,
-    "fail_stop": bool,
-    "dag_display_name": str,
-}
-
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a plain ``schedule`` value."""
@@ -167,7 +143,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
 
 def _convert_params(val: abc.MutableMapping | None, self_: DAG) -> ParamsDict:
     """
-    Convert the plain dict into a ParamsDict
+    Convert the plain dict into a ParamsDict.
 
     This will also merge in params from default_args
     """
@@ -336,8 +312,11 @@ class DAG:
 
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
-    dag_id: str = attrs.field(kw_only=False)
-    description: str | None = None
+    dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
+    description: str | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
+    )
     default_args: dict[str, Any] = attrs.field(
         factory=dict, validator=attrs.validators.instance_of(dict), converter=dict_copy
     )
@@ -355,12 +334,17 @@ class DAG:
     user_defined_macros: dict | None = None
     user_defined_filters: dict | None = None
     concurrency: int | None = None
-    max_active_tasks: int = 16
-    max_active_runs: int = 16
-    max_consecutive_failed_dag_runs: int = -1
-    dagrun_timeout: timedelta | None = None
+    max_active_tasks: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
+    max_active_runs: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
+    max_consecutive_failed_dag_runs: int = attrs.field(
+        default=-1, validator=attrs.validators.instance_of(int)
+    )
+    dagrun_timeout: timedelta | None = attrs.field(
+        default=None,
+        validator=attrs.validators.optional(attrs.validators.instance_of(timedelta)),
+    )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
-    catchup: bool = attrs.field(default=True)
+    catchup: bool = attrs.field(default=True, converter=bool)
     # on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     # on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     doc_md: str | None = None
@@ -372,12 +356,12 @@ class DAG:
     access_control: dict | None = None
     is_paused_upon_creation: bool | None = None
     jinja_environment_kwargs: dict | None = None
-    render_template_as_native_obj: bool = False
+    render_template_as_native_obj: bool = attrs.field(default=False, converter=bool)
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
     owner_links: dict[str, str] = attrs.field(factory=dict)
-    auto_register: bool = True
-    fail_stop: bool = False
-    dag_display_name: str = attrs.field()
+    auto_register: bool = attrs.field(default=True, converter=bool)
+    fail_stop: bool = attrs.field(default=True, converter=bool)
+    dag_display_name: str = attrs.field(validator=attrs.validators.instance_of(str))
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
 
@@ -453,7 +437,7 @@ class DAG:
 
         from airflow.utils import timezone
 
-        # TODO: Task-SDK: get default dag tz from settins
+        # TODO: Task-SDK: get default dag tz from settings
         tz = timezone.utc
         if self.start_date and (tzinfo := self.start_date.tzinfo):
             tzinfo = None if tzinfo else tz
@@ -483,6 +467,11 @@ class DAG:
         requires_automatic_backfilling = self.timetable.can_be_scheduled and catchup
         if requires_automatic_backfilling and not ("start_date" in self.default_args or self.start_date):
             raise ValueError("start_date is required when catchup=True")
+
+    @tags.validator
+    def _validate_tags(self, _, tags: Collection[str]):
+        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
+            raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -521,7 +510,7 @@ class DAG:
         return self
 
     def __exit__(self, _type, _value, _tb):
-        from .contextmanager import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         _ = DagContext.pop()
 
@@ -692,7 +681,7 @@ class DAG:
         result.user_defined_macros = self.user_defined_macros
         result.user_defined_filters = self.user_defined_filters
         if hasattr(self, "_log"):
-            result._log = self._log
+            result._log = self._log  # type: ignore[attr-defined]
         return result
 
     def partial_subset(
@@ -1000,14 +989,12 @@ if TYPE_CHECKING:
         user_defined_macros: dict | None = None,
         user_defined_filters: dict | None = None,
         default_args: dict | None = None,
-        max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
-        max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-        max_consecutive_failed_dag_runs: int = airflow_conf.getint(
-            "core", "max_consecutive_failed_dag_runs_per_dag"
-        ),
+        max_active_tasks: int = ...,
+        max_active_runs: int = ...,
+        max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: Any = None,
-        catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
+        catchup: bool = ...,
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,

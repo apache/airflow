@@ -20,7 +20,7 @@ import enum
 from typing import TYPE_CHECKING
 
 import airflow.sdk.types
-from airflow.typing_compat import TypedDict, TypeAlias
+from airflow.typing_compat import TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from datetime import datetime
