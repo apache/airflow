@@ -866,11 +866,22 @@ def test_access_control_is_set_on_init(
             )
 
 
+@pytest.mark.parametrize(
+        "access_control_before, access_control_after",
+        [
+            (READ_WRITE, READ_ONLY),
+            # old access control format
+            ({permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}, {permissions.ACTION_CAN_READ}),
+        ],
+        ids=["new_access_control_format", "old_access_control_format"]
+    )
 def test_access_control_stale_perms_are_revoked(
     app,
     security_manager,
     assert_user_has_dag_perms,
     assert_user_does_not_have_dag_perms,
+    access_control_before,
+    access_control_after
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"
@@ -883,12 +894,12 @@ def test_access_control_stale_perms_are_revoked(
         ) as user:
             set_user_single_role(app, user, role_name="team-a")
             security_manager._sync_dag_view_permissions(
-                "access_control_test", access_control={"team-a": READ_WRITE}
+                "access_control_test", access_control={"team-a": access_control_before}
             )
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id="access_control_test", user=user)
 
             security_manager._sync_dag_view_permissions(
-                "access_control_test", access_control={"team-a": READ_ONLY}
+                "access_control_test", access_control={"team-a": access_control_after}
             )
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
