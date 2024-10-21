@@ -178,6 +178,14 @@ export type DAGRunTypes = {
 };
 
 /**
+ * DAG Tags Collection serializer for responses.
+ */
+export type DAGTagCollectionResponse = {
+  tags: Array<string>;
+  total_entries: number;
+};
+
+/**
  * Schema for DagProcessor info.
  */
 export type DagProcessorInfoSchema = {
@@ -387,6 +395,15 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
+export type GetDagTagsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
+};
+
+export type GetDagTagsResponse = DAGTagCollectionResponse;
+
 export type GetDagData = {
   dagId: string;
 };
@@ -570,6 +587,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/tags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGTagCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
