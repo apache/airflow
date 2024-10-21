@@ -9,6 +9,7 @@ import {
   DashboardService,
   MonitorService,
   PoolService,
+  ProviderService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -246,6 +247,24 @@ export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
   useMonitorServiceGetHealthKey,
   ...(queryKey ?? []),
 ];
+export type ProviderServiceGetProvidersDefaultResponse = Awaited<
+  ReturnType<typeof ProviderService.getProviders>
+>;
+export type ProviderServiceGetProvidersQueryResult<
+  TData = ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
+export const UseProviderServiceGetProvidersKeyFn = (
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;

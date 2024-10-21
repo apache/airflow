@@ -14,6 +14,7 @@ import {
   DashboardService,
   MonitorService,
   PoolService,
+  ProviderService,
   VariableService,
 } from "../requests/services.gen";
 import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
@@ -385,6 +386,38 @@ export const useMonitorServiceGetHealth = <
   useQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useProviderServiceGetProviders = <
+  TData = Common.ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
     ...options,
   });
 /**
