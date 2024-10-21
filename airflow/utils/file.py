@@ -328,7 +328,9 @@ def might_contain_dag_via_default_heuristic(file_path: str, zip_file: zipfile.Zi
         with open(file_path, "rb") as dag_file:
             content = dag_file.read()
     content = content.lower()
-    return all(s in content for s in (b"dag", b"airflow"))
+    if b"airflow" not in content:
+        return False
+    return any(s in content for s in (b"dag", b"asset"))
 
 
 def _find_imported_modules(module: ast.Module) -> Generator[str, None, None]:
