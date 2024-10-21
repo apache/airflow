@@ -14,45 +14,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from __future__ import annotations
 
 import re2
 
-from airflow.api_connexion import security
-from airflow.api_connexion.schemas.provider_schema import (
-    Provider,
-    ProviderCollection,
-    provider_collection_schema,
-)
-from airflow.auth.managers.models.resource_details import AccessView
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.api_migration import mark_fastapi_migration_done
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.serializers.providers import ProviderCollectionResponse, ProviderResponse
+from airflow.providers_manager import ProviderInfo, ProvidersManager
 
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
-    from airflow.providers_manager import ProviderInfo
+providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
 
 
 def _remove_rst_syntax(value: str) -> str:
     return re2.sub("[`_<>]", "", value.strip(" \n."))
 
 
-def _provider_mapper(provider: ProviderInfo) -> Provider:
-    return Provider(
+def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
+    return ProviderResponse(
         package_name=provider.data["package-name"],
         description=_remove_rst_syntax(provider.data["description"]),
         version=provider.version,
     )
 
 
-@mark_fastapi_migration_done
-@security.requires_access_view(AccessView.PROVIDERS)
-def get_providers() -> APIResponse:
+@providers_router.get("/")
+async def get_providers(
+    limit: QueryLimit,
+    offset: QueryOffset,
+) -> ProviderCollectionResponse:
     """Get providers."""
-    providers = [_provider_mapper(d) for d in ProvidersManager().providers.values()]
-    total_entries = len(providers)
-    return provider_collection_schema.dump(
-        ProviderCollection(providers=providers, total_entries=total_entries)
+    providers = sorted(
+        [_provider_mapper(d) for d in ProvidersManager().providers.values()], key=lambda x: x.package_name
     )
+    total_entries = len(providers)
+
+    if limit.value is not None and offset.value is not None:
+        providers = providers[offset.value : offset.value + limit.value]
+    return ProviderCollectionResponse(providers=providers, total_entries=total_entries)

@@ -259,6 +259,23 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Provider Collection serializer for responses.
+ */
+export type ProviderCollectionResponse = {
+  providers: Array<ProviderResponse>;
+  total_entries: number;
+};
+
+/**
+ * Provider serializer for responses.
+ */
+export type ProviderResponse = {
+  package_name: string;
+  description: string;
+  version: string;
+};
+
+/**
  * Schema for Scheduler info.
  */
 export type SchedulerInfoSchema = {
@@ -471,6 +488,13 @@ export type DeletePoolData = {
 };
 
 export type DeletePoolResponse = void;
+
+export type GetProvidersData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetProvidersResponse = ProviderCollectionResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -967,6 +991,21 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/providers/": {
+    get: {
+      req: GetProvidersData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ProviderCollectionResponse;
         /**
          * Validation Error
          */

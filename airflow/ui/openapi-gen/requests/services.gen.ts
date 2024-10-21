@@ -42,6 +42,8 @@ import type {
   GetHealthResponse,
   DeletePoolData,
   DeletePoolResponse,
+  GetProvidersData,
+  GetProvidersResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -618,6 +620,33 @@ export class PoolService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ProviderService {
+  /**
+   * Get Providers
+   * Get providers.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns ProviderCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getProviders(
+    data: GetProvidersData = {},
+  ): CancelablePromise<GetProvidersResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/providers/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
         422: "Validation Error",
       },
     });

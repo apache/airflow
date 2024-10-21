@@ -1057,6 +1057,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/providers/:
+    get:
+      tags:
+      - Provider
+      summary: Get Providers
+      description: Get providers.
+      operationId: get_providers
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     BaseInfoSchema:
@@ -1803,6 +1838,40 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    ProviderCollectionResponse:
+      properties:
+        providers:
+          items:
+            $ref: '#/components/schemas/ProviderResponse'
+          type: array
+          title: Providers
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - providers
+      - total_entries
+      title: ProviderCollectionResponse
+      description: Provider Collection serializer for responses.
+    ProviderResponse:
+      properties:
+        package_name:
+          type: string
+          title: Package Name
+        description:
+          type: string
+          title: Description
+        version:
+          type: string
+          title: Version
+      type: object
+      required:
+      - package_name
+      - description
+      - version
+      title: ProviderResponse
+      description: Provider serializer for responses.
     SchedulerInfoSchema:
       properties:
         status:
