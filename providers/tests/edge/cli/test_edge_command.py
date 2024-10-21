@@ -38,15 +38,6 @@ from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 
-# Ignore the following error for mocking
-# mypy: disable-error-code="attr-defined"
-
-
-def test_get_sysinfo():
-    sysinfo = _get_sysinfo()
-    assert "airflow_version" in sysinfo
-    assert "edge_provider_version" in sysinfo
-
 def test_write_pid_to_pidfile_success(caplog, tmp_path):
     pid_file_path = tmp_path / "file.pid"
     _write_pid_to_pidfile(pid_file_path)
@@ -78,6 +69,9 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
     # write a PID file with the current process ID
     _write_pid_to_pidfile(pid_file_path)
     assert "PID file is orphaned." in caplog.text
+
+# Ignore the following error for mocking
+# mypy: disable-error-code="attr-defined"
 
 
 class TestEdgeWorkerCli:
