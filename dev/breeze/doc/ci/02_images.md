@@ -453,8 +453,6 @@ can be used for CI images:
 | `PIP_PROGRESS_BAR`                | `on`                       | Progress bar for PIP installation                                                                                                                          |
 
 
-The"
-
 Here are some examples of how CI images can built manually. CI is always
 built from local sources.
 
