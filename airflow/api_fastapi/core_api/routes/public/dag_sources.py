@@ -66,7 +66,6 @@ async def get_dag_source(
         return Response(dag_source, media_type=return_type)
 
     if return_type == mime_type_json:
-        content = DAGSourceModel(content=dag_source).model_dump_json()
-        return Response(content, media_type=return_type)
+        return DAGSourceModel(content=dag_source)
 
     raise HTTPException(406, "Content not available for Accept header")

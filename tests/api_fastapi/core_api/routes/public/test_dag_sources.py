@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import os
 
 import pytest
@@ -74,6 +75,8 @@ class TestGetDAGSource:
         assert 200 == response.status_code
         assert len(self.dag_docstring) > 0
         assert self.dag_docstring in response.content.decode()
+        with pytest.raises(json.JSONDecodeError):
+            json.loads(response.content.decode())
         assert response.headers["Content-Type"].startswith("text/plain")
 
     def test_should_respond_200_json(self, test_client):
@@ -86,7 +89,9 @@ class TestGetDAGSource:
         assert len(self.dag_docstring) > 0
         res_json = response.json()
         assert isinstance(res_json, dict)
+        assert len(res_json.keys()) == 1
         assert len(res_json["content"]) > 0
+        assert isinstance(res_json["content"], str)
         assert self.dag_docstring in res_json["content"]
         assert response.headers["Content-Type"].startswith("application/json")
 
