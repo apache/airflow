@@ -21,8 +21,11 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import pytest
+import sqlalchemy
 
+from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from providers.tests.microsoft.conftest import load_file
 
@@ -57,7 +60,46 @@ PYMSSQL_CONN_ALT_2 = Connection(
 )
 
 
-def get_primary_keys(self, table: str) -> list[str]:
+def get_target_fields(self, table: str) -> list[str] | None:
+    return [
+        "ReportRefreshDate",
+        "UserId",
+        "UserPrincipalName",
+        "LastActivityDate",
+        "IsDeleted",
+        "DeletedDate",
+        "AssignedProducts",
+        "TeamChatMessageCount",
+        "PrivateChatMessageCount",
+        "CallCount",
+        "MeetingCount",
+        "MeetingsOrganizedCount",
+        "MeetingsAttendedCount",
+        "AdHocMeetingsOrganizedCount",
+        "AdHocMeetingsAttendedCount",
+        "ScheduledOne-timeMeetingsOrganizedCount",
+        "ScheduledOne-timeMeetingsAttendedCount",
+        "ScheduledRecurringMeetingsOrganizedCount",
+        "ScheduledRecurringMeetingsAttendedCount",
+        "AudioDuration",
+        "VideoDuration",
+        "ScreenShareDuration",
+        "AudioDurationInSeconds",
+        "VideoDurationInSeconds",
+        "ScreenShareDurationInSeconds",
+        "HasOtherAction",
+        "UrgentMessages",
+        "PostMessages",
+        "TenantDisplayName",
+        "SharedChannelTenantDisplayNames",
+        "ReplyMessages",
+        "IsLicensed",
+        "ReportPeriod",
+        "LoadDate",
+    ]
+
+
+def get_primary_keys(self, table: str) -> list[str] | None:
     return [
         "GroupDisplayName",
         "OwnerPrincipalName",
@@ -67,6 +109,14 @@ def get_primary_keys(self, table: str) -> list[str]:
 
 
 class TestMsSqlHook:
+    def setup_method(self):
+        MsSqlHook._resolve_target_fields = True
+
+    def teardown_method(self, method):
+        MsSqlHook._resolve_target_fields = conf.getboolean(
+            "core", "dbapihook_resolve_target_fields", fallback=False
+        )
+
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
     def test_get_conn_should_return_connection(self, get_connection, mssql_get_conn):
@@ -183,7 +233,14 @@ class TestMsSqlHook:
         hook.get_sqlalchemy_engine()
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
-    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_primary_keys", get_primary_keys)
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_target_fields",
+        get_target_fields,
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect.get_primary_keys",
+        get_primary_keys,
+    )
     def test_generate_insert_sql(self, get_connection):
         get_connection.return_value = PYMSSQL_CONN
 
@@ -226,42 +283,18 @@ class TestMsSqlHook:
                 1,
                 "2024-07-17T00:00:00+00:00",
             ],
-            target_fields=[
-                "ReportRefreshDate",
-                "UserId",
-                "UserPrincipalName",
-                "LastActivityDate",
-                "IsDeleted",
-                "DeletedDate",
-                "AssignedProducts",
-                "TeamChatMessageCount",
-                "PrivateChatMessageCount",
-                "CallCount",
-                "MeetingCount",
-                "MeetingsOrganizedCount",
-                "MeetingsAttendedCount",
-                "AdHocMeetingsOrganizedCount",
-                "AdHocMeetingsAttendedCount",
-                "ScheduledOne-timeMeetingsOrganizedCount",
-                "ScheduledOne-timeMeetingsAttendedCount",
-                "ScheduledRecurringMeetingsOrganizedCount",
-                "ScheduledRecurringMeetingsAttendedCount",
-                "AudioDuration",
-                "VideoDuration",
-                "ScreenShareDuration",
-                "AudioDurationInSeconds",
-                "VideoDurationInSeconds",
-                "ScreenShareDurationInSeconds",
-                "HasOtherAction",
-                "UrgentMessages",
-                "PostMessages",
-                "TenantDisplayName",
-                "SharedChannelTenantDisplayNames",
-                "ReplyMessages",
-                "IsLicensed",
-                "ReportPeriod",
-                "LoadDate",
-            ],
             replace=True,
         )
         assert sql == load_file("resources", "replace.sql")
+
+    def test_dialect_name(self):
+        hook = MsSqlHook()
+        assert hook.dialect_name == "mssql"
+
+    def test_dialect(self):
+        hook = MsSqlHook()
+        assert isinstance(hook.dialect, MsSqlDialect)
+
+    def test_reserved_words(self):
+        hook = MsSqlHook()
+        assert hook.reserved_words == sqlalchemy.dialects.mssql.base.RESERVED_WORDS
