@@ -684,6 +684,68 @@ def command_for_non_db_tests(**kwargs):
     )
 
 
+@group_for_testing.command(
+    name="task-sdk-tests",
+    help="Run task-sdk tests. This is a dedicated command that only "
+    "runs Task SDk tests & don't need DB and it runs them in parallel via pytest-xdist in single container, "
+    "with `none` backend set.",
+    context_settings=dict(
+        ignore_unknown_options=False,
+        allow_extra_args=False,
+    ),
+)
+@option_airflow_constraints_reference
+@option_clean_airflow_installation
+@option_collect_only
+@option_debug_resources
+@option_downgrade_pendulum
+@option_downgrade_sqlalchemy
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_include_success_outputs
+@option_keep_env_variables
+@option_mount_sources
+@option_package_format
+@option_parallelism
+@option_python
+@option_remove_arm_packages
+@option_skip_cleanup
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+def command_for_task_sdk_tests(**kwargs):
+    _run_test_command(
+        backend="none",
+        database_isolation=False,
+        db_reset=False,
+        integration=(),
+        run_db_tests_only=False,
+        run_in_parallel=False,
+        skip_db_tests=True,
+        test_type="TaskSDK",
+        use_xdist=True,
+        excluded_parallel_test_types="",
+        excluded_providers="",
+        force_lowest_dependencies=False,
+        install_airflow_with_constraints=False,
+        no_db_cleanup=True,
+        parallel_test_types="",
+        providers_constraints_location="",
+        providers_skip_constraints=False,
+        skip_provider_tests=True,
+        skip_providers="",
+        upgrade_boto=False,
+        use_airflow_version=None,
+        use_packages_from_dist=False,
+        **kwargs,
+    )
+
+
 def _run_test_command(
     *,
     airflow_constraints_reference: str,
