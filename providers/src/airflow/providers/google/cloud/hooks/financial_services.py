@@ -28,8 +28,6 @@ class FinancialServicesHook(GoogleBaseHook):
     Hook for interacting with the Google Financial Services API.
 
     Args:
-        location (str | None, optional): Location of the Google Cloud Platform
-            project. Defaults to None.
         gcp_conn_id (str, optional): Identifier of connection to Google Cloud Platform.
             Defaults to "google_cloud_default".
         api_version (str, optional): API version for the Financial Services API.
@@ -46,7 +44,6 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def __init__(
         self,
-        location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         dev_key_var: str = "AMLAI_API_KEY",
@@ -66,7 +63,6 @@ class FinancialServicesHook(GoogleBaseHook):
         self.dev_key_var = dev_key_var
         self.dev_key_secret_uri = dev_key_secret_uri
         self.api_version = api_version
-        self.location = location
 
     def get_developer_key(self):
         if Variable.get(key=self.dev_key_var, default_var=None):
@@ -116,7 +112,7 @@ class FinancialServicesHook(GoogleBaseHook):
         response = conn.projects().locations().instances().get(name=instance_resource_uri).execute()
         return response
 
-    def create_instance(self, instance_id: str, kms_key: str, location_resource_uri: str) -> dict:
+    def create_instance(self, instance_id: str, kms_key_uri: str, location_resource_uri: str) -> dict:
         """
         Create an AML AI instance.
 
@@ -138,7 +134,7 @@ class FinancialServicesHook(GoogleBaseHook):
             .create(
                 parent=location_resource_uri,
                 instanceId=instance_id,
-                body={"kmsKey": kms_key},
+                body={"kmsKey": kms_key_uri},
             )
             .execute()
         )
