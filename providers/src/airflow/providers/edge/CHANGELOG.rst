@@ -33,7 +33,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Edge Worker state is updated if worker disconnect.``
+* ``Edge Worker state is set ot unkown if worker heartbeat timed out.``
 
 0.2.2re0
 .........
