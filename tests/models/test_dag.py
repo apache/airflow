@@ -1496,10 +1496,10 @@ class TestDag:
         fail_stop_dag.add_task(task_with_default_trigger_rule)
 
         # a fail stop dag should not allow a non-default trigger rule
+        task_with_non_default_trigger_rule = EmptyOperator(
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
+        )
         with pytest.raises(FailStopDagInvalidTriggerRule):
-            task_with_non_default_trigger_rule = EmptyOperator(
-                task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
-            )
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
@@ -3033,60 +3033,6 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
     assert dag._time_restriction == restrict
 
 
-@pytest.mark.parametrize(
-    "tags, should_pass",
-    [
-        pytest.param([], True, id="empty tags"),
-        pytest.param(["a normal tag"], True, id="one tag"),
-        pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
-        pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
-        pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
-    ],
-)
-def test__tags_length(tags: list[str], should_pass: bool):
-    if should_pass:
-        DAG("test-dag", schedule=None, tags=tags)
-    else:
-        with pytest.raises(AirflowException):
-            DAG("test-dag", schedule=None, tags=tags)
-
-
-@pytest.mark.parametrize(
-    "input_tags, expected_result",
-    [
-        pytest.param([], set(), id="empty tags"),
-        pytest.param(
-            ["a normal tag"],
-            {"a normal tag"},
-            id="one tag",
-        ),
-        pytest.param(
-            ["a normal tag", "another normal tag"],
-            {"a normal tag", "another normal tag"},
-            id="two different tags",
-        ),
-        pytest.param(
-            ["a", "a"],
-            {"a"},
-            id="two same tags",
-        ),
-    ],
-)
-def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
-    result = DAG("test-dag", tags=input_tags)
-    assert result.tags == expected_result
-
-
-def test__tags_mutable():
-    expected_tags = {"6", "7"}
-    test_dag = DAG("test-dag")
-    test_dag.tags.add("6")
-    test_dag.tags.add("7")
-    test_dag.tags.add("8")
-    test_dag.tags.remove("8")
-    assert test_dag.tags == expected_tags
-
-
 @pytest.mark.need_serialized_dag
 def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     asset1 = Asset(uri="ds1")
@@ -3193,11 +3139,6 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
-
-
-def test_invalid_type_for_args():
-    with pytest.raises(TypeError):
-        DAG("invalid-default-args", schedule=None, max_consecutive_failed_dag_runs="not_an_int")
 
 
 class TestTaskClearingSetupTeardownBehavior:

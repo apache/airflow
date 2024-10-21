@@ -21,9 +21,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Iterator
-
-import methodtools
+from typing import TYPE_CHECKING, Iterator
 
 import airflow.sdk.definitions.contextmanager
 import airflow.sdk.definitions.taskgroup
@@ -32,7 +30,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dag import DAG
-    from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
     from airflow.typing_compat import TypeAlias
 

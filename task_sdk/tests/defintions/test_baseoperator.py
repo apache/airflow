@@ -222,7 +222,7 @@ class TestBaseOperator:
 
         spy_agency.spy_on(XComArg.apply_upstream_relationship, call_original=False)
         op_copy.arg1 = "b"
-        assert XComArg.apply_upstream_relationship.called == False
+        assert XComArg.apply_upstream_relationship.called is False
 
     def test_upstream_is_set_when_template_field_is_xcomarg(self):
         with DAG("xcomargs_test", schedule=None):
@@ -273,7 +273,7 @@ class TestBaseOperator:
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
-        class_arg: Any
+        class_arg = None
 
         def __init_subclass__(cls, class_arg=None, **kwargs) -> None:
             cls.class_arg = class_arg

@@ -19,10 +19,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from .mixins import DependencyMixin
+from airflow.sdk.definitions.mixins import DependencyMixin
 
 if TYPE_CHECKING:
-    from .dag import DAG
+    from airflow.sdk.definitions.dag import DAG
 
 
 class EdgeModifier(DependencyMixin):

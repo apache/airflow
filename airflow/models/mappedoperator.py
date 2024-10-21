@@ -201,8 +201,8 @@ class OperatorPartial:
         task_id = partial_kwargs.pop("task_id")
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
-        start_date = partial_kwargs.pop("start_date")
-        end_date = partial_kwargs.pop("end_date")
+        start_date = partial_kwargs.pop("start_date", None)
+        end_date = partial_kwargs.pop("end_date", None)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore

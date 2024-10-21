@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule
+from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -47,9 +47,8 @@ from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.mock_operators import MockOperator
-
 from tests.models import DEFAULT_DATE
+from tests_common.test_utils.mock_operators import MockOperator
 
 
 class ClassWithCustomAttributes:

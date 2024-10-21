@@ -21,11 +21,11 @@ from abc import abstractmethod
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from ..types import NOTSET, ArgNotSet
+from airflow.sdk.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from .baseoperator import BaseOperator
-    from .edges import EdgeModifier
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.edges import EdgeModifier
 
 # TODO: Should this all just live on DAGNode?
 

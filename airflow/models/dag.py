@@ -83,7 +83,6 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.models.abstractoperator import TaskStateChangeCallback
 from airflow.models.asset import (
     AssetDagRunQueue,
     AssetModel,
@@ -125,6 +124,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
+    from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
@@ -2433,9 +2433,7 @@ if STATICA_HACK:  # pragma: no cover
 
 
 class DagContext(airflow.sdk.definitions.contextmanager.DagContext, share_parent_context=True):
-    """
-    :meta private:
-    """
+    """:meta private:"""  # noqa: D400
 
     @classmethod
     def push_context_managed_dag(cls, dag: DAG):

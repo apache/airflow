@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     Logger = logging.Logger
 else:
 
-    class Logger: ...
+    class Logger: ...  # noqa: D101
 
 
 def validate_instance_args(instance: DAGNode, expected_arg_types: dict[str, Any]) -> None:

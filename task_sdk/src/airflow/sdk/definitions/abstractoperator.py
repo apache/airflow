@@ -22,7 +22,6 @@ from abc import abstractmethod
 from collections.abc import (
     Collection,
     Iterable,
-    Mapping,
 )
 from typing import (
     TYPE_CHECKING,
@@ -30,17 +29,14 @@ from typing import (
     ClassVar,
 )
 
-from airflow.sdk.definitions.node import DAGNode
 from airflow.sdk.definitions.mixins import DependencyMixin
-from airflow.utils.log.secrets_masker import redact
+from airflow.sdk.definitions.node import DAGNode
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
 # TaskStateChangeCallback = Callable[[Context], None]
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
-
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator

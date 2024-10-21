@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Sequence
 
 import attr
@@ -66,7 +67,7 @@ class MockOperatorWithNestedFields(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:

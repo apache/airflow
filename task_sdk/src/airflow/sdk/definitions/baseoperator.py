@@ -719,7 +719,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                + f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {kwargs}",
             )
         validate_key(task_id)
 
@@ -762,6 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # self.retries = parse_retries(retries)
         self.retries = retries
         self.queue = queue
+        # TODO: Task-SDK: pull this default name from Pool constant?
         self.pool = "default" if pool is None else pool
         self.pool_slots = pool_slots
         if self.pool_slots < 1:
@@ -1070,8 +1071,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def _set_xcomargs_dependencies(self) -> None:
         from airflow.models.xcom_arg import XComArg
 
-        for field in self.template_fields:
-            arg = getattr(self, field, NOTSET)
+        for f in self.template_fields:
+            arg = getattr(self, f, NOTSET)
             if arg is not NOTSET:
                 XComArg.apply_upstream_relationship(self, arg)
 

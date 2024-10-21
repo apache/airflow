@@ -43,7 +43,6 @@ if TYPE_CHECKING:
 
     # from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
     from airflow.sdk import DAG, BaseOperator
     from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier

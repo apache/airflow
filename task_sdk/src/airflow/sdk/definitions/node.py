@@ -53,7 +53,7 @@ def validate_key(k: str, max_length: int = 250):
     if not KEY_REGEX.match(k):
         raise ValueError(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
-            + "dots and underscores exclusively"
+            "dots and underscores exclusively"
         )
 
 
@@ -152,7 +152,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         else:
             raise ValueError(
                 "Tried to create relationships between tasks that don't have DAGs yet. "
-                + f"Set the DAG for at least one task and try again: {[self, *task_list]}"
+                f"Set the DAG for at least one task and try again: {[self, *task_list]}"
             )
 
         if not self.has_dag():
