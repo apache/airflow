@@ -45,7 +45,7 @@ class DagVersion(Base):
     __tablename__ = "dag_version"
     id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
     version_number = Column(Integer)
-    version_name = Column(StringID(), default=uuid.uuid4())
+    version_name = Column(StringID(), default=uuid.uuid4)
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"))
     dag_model = relationship("DagModel", back_populates="dag_versions")
     dag_code = relationship("DagCode", back_populates="dag_version", uselist=False)
@@ -86,7 +86,7 @@ class DagVersion(Base):
     ):
         """Write a new DagVersion into database."""
         existing_dag_version = session.scalar(
-            with_row_locks(cls._latest_version_select(dag_id), of=DagVersion, session=session)
+            with_row_locks(cls._latest_version_select(dag_id), of=DagVersion, session=session, nowait=True)
         )
         if existing_dag_version:
             version_number = existing_dag_version.version_number + 1
