@@ -350,7 +350,6 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 session=session,
                 triggered_by=DagRunTriggeredByType.REST_API,
             )
