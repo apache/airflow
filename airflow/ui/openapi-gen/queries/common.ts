@@ -293,6 +293,9 @@ export const UseProviderServiceGetProvidersKeyFn = (
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
+export type DagRunServiceUpdateDagRunStateMutationResult = Awaited<
+  ReturnType<typeof DagRunService.updateDagRunState>
+>;
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;
