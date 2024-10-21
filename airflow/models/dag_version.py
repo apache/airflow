@@ -146,3 +146,25 @@ class DagVersion(Base):
             return None
         sep = "-"
         return self.version_name + sep + str(self.version_number)
+
+    @classmethod
+    @provide_session
+    def get_latest_dag_versions(cls, dag_ids: list[str], session: Session = NEW_SESSION):
+        """Get the latest version of DAGs."""
+        # Subquery to get the latest version number per dag_id
+        latest_version_subquery = (
+            session.query(DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version_number"))
+            .filter(DagVersion.dag_id.in_(dag_ids))
+            .group_by(DagVersion.dag_id)
+            .subquery()
+        )
+        latest_versions = session.scalars(
+            select(DagVersion)
+            .join(
+                latest_version_subquery,
+                (DagVersion.dag_id == latest_version_subquery.c.dag_id)
+                and (DagVersion.version_number == latest_version_subquery.c.max_version_number),
+            )
+            .where(DagVersion.dag_id.in_(dag_ids))
+        ).all()
+        return latest_versions
