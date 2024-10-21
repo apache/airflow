@@ -27,7 +27,6 @@ import time_machine
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import (
     _EdgeWorkerCli,
-    _get_sysinfo,
     _Job,
     _write_pid_to_pidfile
 )
@@ -79,6 +78,7 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
     # write a PID file with the current process ID
     _write_pid_to_pidfile(pid_file_path)
     assert "PID file is orphaned." in caplog.text
+
 
 class TestEdgeWorkerCli:
     @pytest.fixture
@@ -240,9 +240,14 @@ class TestEdgeWorkerCli:
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
+        mock_set_state.return_value = ["queue1", "queue2"]
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
+        queue_list = worker_with_job.queues or []
+        assert len(queue_list) == 2
+        assert "queue1" in (queue_list)
+        assert "queue2" in (queue_list)
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
@@ -290,3 +295,12 @@ class TestEdgeWorkerCli:
         mock_register_worker.assert_called_once()
         mock_loop.assert_called_once()
         mock_set_state.assert_called_once()
+
+    def test_get_sysinfo(self, worker_with_job: _EdgeWorkerCli):
+        concurrency = 8
+        worker_with_job.concurrency = concurrency
+        sysinfo = worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert sysinfo["concurrency"] == concurrency

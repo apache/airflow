@@ -383,7 +383,7 @@ export const $DAGDetailsResponse = {
       ],
       title: "Dag Run Timeout",
     },
-    dataset_expression: {
+    asset_expression: {
       anyOf: [
         {
           type: "object",
@@ -392,7 +392,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Dataset Expression",
+      title: "Asset Expression",
     },
     doc_md: {
       anyOf: [
@@ -538,7 +538,7 @@ export const $DAGDetailsResponse = {
     "owners",
     "catchup",
     "dag_run_timeout",
-    "dataset_expression",
+    "asset_expression",
     "doc_md",
     "start_date",
     "end_date",
@@ -1002,15 +1002,35 @@ export const $DAGRunTypes = {
       type: "integer",
       title: "Manual",
     },
-    dataset_triggered: {
+    asset_triggered: {
       type: "integer",
-      title: "Dataset Triggered",
+      title: "Asset Triggered",
     },
   },
   type: "object",
-  required: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  required: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DAGRunTypes",
   description: "DAG Run Types for responses.",
+} as const;
+
+export const $DAGTagCollectionResponse = {
+  properties: {
+    tags: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Tags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["tags", "total_entries"],
+  title: "DAGTagCollectionResponse",
+  description: "DAG Tags Collection serializer for responses.",
 } as const;
 
 export const $DagProcessorInfoSchema = {
@@ -1073,7 +1093,7 @@ export const $DagRunTriggeredByType = {
 
 export const $DagRunType = {
   type: "string",
-  enum: ["backfill", "scheduled", "manual", "dataset_triggered"],
+  enum: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DagRunType",
   description: "Class with DagRun types.",
 } as const;
@@ -1167,6 +1187,47 @@ export const $HistoricalMetricDataResponse = {
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $ProviderCollectionResponse = {
+  properties: {
+    providers: {
+      items: {
+        $ref: "#/components/schemas/ProviderResponse",
+      },
+      type: "array",
+      title: "Providers",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["providers", "total_entries"],
+  title: "ProviderCollectionResponse",
+  description: "Provider Collection serializer for responses.",
+} as const;
+
+export const $ProviderResponse = {
+  properties: {
+    package_name: {
+      type: "string",
+      title: "Package Name",
+    },
+    description: {
+      type: "string",
+      title: "Description",
+    },
+    version: {
+      type: "string",
+      title: "Version",
+    },
+  },
+  type: "object",
+  required: ["package_name", "description", "version"],
+  title: "ProviderResponse",
+  description: "Provider serializer for responses.",
 } as const;
 
 export const $SchedulerInfoSchema = {
@@ -1369,6 +1430,26 @@ export const $VariableBody = {
   required: ["key", "description", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
+} as const;
+
+export const $VariableCollectionResponse = {
+  properties: {
+    variables: {
+      items: {
+        $ref: "#/components/schemas/VariableResponse",
+      },
+      type: "array",
+      title: "Variables",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["variables", "total_entries"],
+  title: "VariableCollectionResponse",
+  description: "Variable Collection serializer for responses.",
 } as const;
 
 export const $VariableResponse = {

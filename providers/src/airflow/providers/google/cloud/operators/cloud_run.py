@@ -243,18 +243,16 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
 
 class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     """
-    Executes a job and wait for the operation to be completed. Pushes the executed job to xcom.
+    Executes a job and waits for the operation to be completed. Pushes the executed job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param job_name: Required. The name of the job to update.
-    :param job: Required. The job descriptor containing the new configuration of the job to update.
-        The name field will be replaced by job_name
     :param overrides: Optional map of override values.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :param polling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
+    :param polling_period_seconds: Optional. Control the rate of the poll for the result of deferrable run.
         By default, the trigger will poll every 10 seconds.
-    :param timeout: The timeout for this request.
+    :param timeout_seconds: Optional. The timeout for this request, in seconds.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -263,7 +261,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param deferrable: Run operator in the deferrable mode
+    :param deferrable: Run the operator in deferrable mode.
     """
 
     template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
