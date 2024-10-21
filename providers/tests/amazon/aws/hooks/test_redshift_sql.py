@@ -50,7 +50,7 @@ class TestRedshiftSQLHookConn:
         self.db_hook.get_connection.return_value = self.connection
 
     def test_get_uri(self):
-        expected = "redshift+redshift_connector://login:password@host:5439/dev"
+        expected = "postgresql://login:password@host:5439/dev"
         x = self.db_hook.get_uri()
         assert x == expected
 
