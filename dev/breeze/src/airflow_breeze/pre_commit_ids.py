@@ -117,6 +117,7 @@ PRE_COMMIT_LIST = [
     "mypy-dev",
     "mypy-docs",
     "mypy-providers",
+    "mypy-task-sdk",
     "pretty-format-json",
     "pylint",
     "python-no-log-warn",

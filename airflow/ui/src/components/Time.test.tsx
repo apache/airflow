@@ -54,11 +54,12 @@ describe("Test Time and TimezoneProvider", () => {
       },
     );
 
-    const samoaTime = screen.getByText(dayjs(now).tz(tz).format(defaultFormat));
+    const nowTime = dayjs(now);
+    const samoaTime = screen.getByText(nowTime.tz(tz).format(defaultFormat));
 
     expect(samoaTime).toBeDefined();
     expect(samoaTime.title).toEqual(
-      dayjs().tz("UTC").format(defaultFormatWithTZ),
+      nowTime.tz("UTC").format(defaultFormatWithTZ),
     );
   });
 });

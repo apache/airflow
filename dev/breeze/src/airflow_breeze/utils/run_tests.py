@@ -300,13 +300,10 @@ def generate_args_for_pytest(
     no_db_cleanup: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
-    if skip_db_tests:
-        if parallel_test_types_list:
-            args = convert_parallel_types_to_folders(
-                parallel_test_types_list, skip_provider_tests, python_version=python_version
-            )
-        else:
-            args = ["tests"] if test_type != "None" else []
+    if skip_db_tests and parallel_test_types_list:
+        args = convert_parallel_types_to_folders(
+            parallel_test_types_list, skip_provider_tests, python_version=python_version
+        )
     else:
         args = convert_test_type_to_pytest_args(
             test_type=test_type,
