@@ -85,7 +85,7 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage", "keyclok"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
