@@ -138,7 +138,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv>=20.26.0",
     ],
 }
 
