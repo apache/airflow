@@ -42,11 +42,7 @@ For a list of all core operators, see: :doc:`Core Operators and Hooks Reference 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
 - :class:`~airflow.providers.http.operators.http.HttpOperator`
-- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
-- :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
-- :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`
-- :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
 - :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
