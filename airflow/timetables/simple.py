@@ -174,7 +174,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         if not next(self.asset_condition.iter_assets(), False):
             self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
         else:
-            self._summary = "Asset"
+            self._summary = self.asset_condition.summary()
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:

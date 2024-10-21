@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pendulum import DateTime
 
-from airflow.assets import Asset, AssetAlias
+from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -270,4 +270,39 @@ def test_summary(session: Session) -> None:
     session.commit()
 
     table = AssetTriggeredTimetable(asset_alias)
-    assert table.summary == "Asset"
+    assert table.summary == "test_asset"
+
+
+@pytest.mark.db_test
+def test_summary_complex(session: Session) -> None:
+    asset = AssetAny(
+        Asset("2"),
+        AssetAlias("example-alias"),
+        Asset("3"),
+        AssetAll(AssetAlias("example-alias-2"), Asset("4")),
+    )
+
+    table = AssetTriggeredTimetable(asset)
+    assert table.summary == "(2 and example-alias and 3 and (example-alias-2 or 4))"
+
+
+@pytest.mark.db_test
+def test_summary_resolve_alias(session: Session) -> None:
+    asset_model = AssetModel(uri="this-should-be-seen")
+    asset_alias_model = AssetAliasModel(name="this-should-not-be-seen")
+    session.add_all([asset_model, asset_alias_model])
+    session.commit()
+
+    asset_alias_model.assets.append(asset_model)
+    session.add(asset_alias_model)
+    session.commit()
+
+    asset = AssetAny(
+        Asset("2"),
+        AssetAlias("example-alias"),
+        Asset("3"),
+        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+    )
+
+    table = AssetTriggeredTimetable(asset)
+    assert table.summary == "(2 and example-alias and 3 and (this-should-be-seen or 4))"

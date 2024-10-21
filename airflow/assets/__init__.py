@@ -207,6 +207,9 @@ class BaseAsset:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
+    def summary(self) -> str:
+        raise NotImplementedError
+
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         raise NotImplementedError
 
@@ -232,6 +235,9 @@ class AssetAlias(BaseAsset):
         default="",
         validator=[attr.validators.max_len(1500), _validate_identifier],
     )
+
+    def summary(self) -> str:
+        return self.name
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
@@ -349,14 +355,17 @@ class Asset(os.PathLike, BaseAsset):
         """
         return self.uri
 
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return statuses.get(self.uri, False)
+
+    def summary(self) -> str:
+        return self.uri
+
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         yield self.uri, self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return statuses.get(self.uri, False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -426,6 +435,11 @@ class AssetAny(_AssetBooleanCondition):
     def __repr__(self) -> str:
         return f"AssetAny({', '.join(map(str, self.objects))})"
 
+    def summary(self) -> str:
+        if len(self.objects) == 1:
+            return self.objects[0].summary()
+        return "(" + " and ".join([o.summary() for o in self.objects]) + ")"
+
     def as_expression(self) -> dict[str, Any]:
         """
         Serialize the asset into its scheduling expression.
@@ -456,6 +470,13 @@ class _AssetAliasCondition(AssetAny):
         :meta private:
         """
         return {"alias": self.name}
+
+    def summary(self) -> str:
+        if self.objects:
+            if len(self.objects) == 1:
+                return cast(Asset, self.objects[0]).summary()
+            return "(" + " or ".join([cast(Asset, obj).summary() for obj in self.objects]) + ")"
+        return self.name
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, AssetAlias(self.name)
@@ -506,6 +527,11 @@ class AssetAll(_AssetBooleanCondition):
 
     def __repr__(self) -> str:
         return f"AssetAll({', '.join(map(str, self.objects))})"
+
+    def summary(self) -> str:
+        if len(self.objects) == 1:
+            return self.objects[0].summary()
+        return "(" + " or ".join([o.summary() for o in self.objects]) + ")"
 
     def as_expression(self) -> Any:
         """
