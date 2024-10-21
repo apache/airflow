@@ -23,11 +23,13 @@ from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.plugins_manager import get_plugin_info
+from airflow.utils.api_migration import mark_fastapi_migration_done
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_view(AccessView.PLUGINS)
 @format_parameters({"limit": check_limit})
 def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
