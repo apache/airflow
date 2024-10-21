@@ -1110,7 +1110,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]] | None = None,
+        access_control: dict[str, dict[str, Collection[str]] | Collection[str]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1152,7 +1152,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _sync_dag_view_permissions(
         self,
         dag_id: str,
-        access_control: dict[str, dict[str, Collection[str]]],
+        access_control: dict[str, dict[str, Collection[str]] | Collection[str]],
     ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
@@ -1184,7 +1184,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                             if isinstance(access_control_role, set):
                                 target_perms_for_role = access_control_role
                             elif isinstance(access_control_role, dict):
-                                target_perms_for_role = access_control.get(role.name, {}).get(
+                                target_perms_for_role = access_control_role.get(
                                     resource_name, set()
                                 )
                         if perm.action.name not in target_perms_for_role:
