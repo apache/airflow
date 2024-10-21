@@ -77,7 +77,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
@@ -5256,6 +5256,80 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
         middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
         assert middle_ti.state == State.SCHEDULED
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+@pytest.mark.skip_if_database_isolation_mode
+def test_one_success_task_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
+    """Test that mini scheduler with one_success task"""
+    with dag_maker() as dag:
+        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "task_run")
+        task_run = BashOperator(task_id="task_run", bash_command="echo 0")
+        task_skip = BashOperator(task_id="task_skip", bash_command="echo 0")
+        task_1 = BashOperator(task_id="task_1", bash_command="echo 0")
+        task_one_success = BashOperator(
+            task_id="task_one_success", bash_command="echo 0", trigger_rule="one_success"
+        )
+        task_2 = BashOperator(task_id="task_2", bash_command="echo 0")
+
+        task_1 >> task_2
+        branch >> task_skip
+        branch >> task_run
+        task_run >> task_one_success
+        task_skip >> task_one_success
+        task_one_success >> task_2
+        task_skip >> task_2
+
+    dr = dag_maker.create_dagrun()
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    branch.state = State.SUCCESS
+    task_1.state = State.SUCCESS
+    task_skip.state = State.SKIPPED
+    session.merge(branch)
+    session.merge(task_1)
+    session.merge(task_skip)
+    session.commit()
+    task_1.refresh_from_task(dag.get_task("task_1"))
+    task_1.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.NONE
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.NONE
+    assert task_2.state == State.SKIPPED
+    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_run.state = State.SUCCESS
+    session.merge(task_run)
+    session.commit()
+    task_run.refresh_from_task(dag.get_task("task_run"))
+    task_run.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.SUCCESS
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.SCHEDULED
+    assert task_2.state == State.SKIPPED
+    assert "1 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
