@@ -145,13 +145,25 @@ class BaseSQLOperator(BaseOperator):
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
+    @classmethod
+    # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
+        """
+        Return default hook for this connection id.
+
+        :param conn_id: connection id
+        :param hook_params: hook parameters
+        :return: default hook for this connection
+        """
+        connection = BaseHook.get_connection(conn_id)
+        return connection.get_hook(hook_params=hook_params)
+
     @cached_property
     def _hook(self):
         """Get DB Hook based on connection type."""
         conn_id = getattr(self, self.conn_id_field)
         self.log.debug("Get connection for %s", conn_id)
-        conn = BaseHook.get_connection(conn_id)
-        hook = conn.get_hook(hook_params=self.hook_params)
+        hook = self.get_hook(conn_id=conn_id, hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
                 f"You are trying to use `common-sql` with {hook.__class__.__name__},"
