@@ -1273,8 +1273,9 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
 @pytest.mark.db_test
 class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     """
-    Tests that setting the `schema` and/or `port` does have effect on requested API url.
+    Tests that `schema` and/or `port` get reflected in the requested API URLs.
     """
+
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
