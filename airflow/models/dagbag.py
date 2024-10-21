@@ -123,11 +123,8 @@ class DagBag(LoggingMixin):
         self.is_tars = "tars" in os.environ.get("SERVICE", "")
         self.is_kyte = "kyte" in os.environ.get("SERVICE", "")
 
-        if self.service_instance == "production" and not self.is_tars and not self.is_kyte:
-
-            from airflowinfra.multi_cluster_utils import get_cluster_id_from_env
-            
-            self.cluster_id = get_cluster_id_from_env()
+        if self.service_instance == "production" and not self.is_tars and not self.is_kyte:            
+            self.cluster_id = 999  # Default Airflow 2 cluster_id
 
         self.dags: Dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
