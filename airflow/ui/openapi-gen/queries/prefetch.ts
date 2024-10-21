@@ -8,6 +8,7 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PoolService,
   ProviderService,
   VariableService,
 } from "../requests/services.gen";
@@ -335,6 +336,26 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPool = (
+  queryClient: QueryClient,
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
+    queryFn: () => PoolService.getPool({ poolName }),
   });
 /**
  * Get Providers

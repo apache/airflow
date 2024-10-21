@@ -8,6 +8,7 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PoolService,
   ProviderService,
   VariableService,
 } from "../requests/services.gen";
@@ -424,6 +425,32 @@ export const useMonitorServiceGetHealthSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPoolSuspense = <
+  TData = Common.PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
+    queryFn: () => PoolService.getPool({ poolName }) as TData,
     ...options,
   });
 /**

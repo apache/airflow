@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.serializers.pools import PoolResponse
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -46,3 +47,19 @@ async def delete_pool(
 
     if affected_count == 0:
         raise HTTPException(404, f"The Pool with name: `{pool_name}` was not found")
+
+
+@pools_router.get(
+    "/{pool_name}",
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+async def get_pool(
+    pool_name: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolResponse:
+    """Get a pool."""
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name))
+    if pool is None:
+        raise HTTPException(404, f"The Pool with name: `{pool_name}` was not found")
+
+    return PoolResponse.model_validate(pool, from_attributes=True)
