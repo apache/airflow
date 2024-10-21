@@ -19,30 +19,33 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
-import { useUpstreamAssetEvents } from "src/api";
+import { useAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
+import { getMetaValue } from "src/utils";
 import { CardDef, CardList } from "src/components/Table";
 import type { AssetEvent } from "src/types/api-generated";
-import DatasetEventCard from "src/components/DatasetEventCard";
-import { getMetaValue } from "src/utils";
+import AssetEventCard from "src/components/AssetEventCard";
 
 interface Props {
   runId: DagRunType["runId"];
+  taskId: string;
 }
 
-const dagId = getMetaValue("dag_id");
-
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => (
-    <DatasetEventCard assetEvent={row} showTriggeredDagRuns={false} />
-  ),
+  card: ({ row }) => <AssetEventCard assetEvent={row} showSource={false} />,
 };
 
-const DatasetTriggerEvents = ({ runId }: Props) => {
+const dagId = getMetaValue("dag_id") || undefined;
+
+const AssetUpdateEvents = ({ runId, taskId }: Props) => {
   const {
     data: { assetEvents = [] },
     isLoading,
-  } = useUpstreamAssetEvents({ dagRunId: runId, dagId });
+  } = useAssetEvents({
+    sourceDagId: dagId,
+    sourceRunId: runId,
+    sourceTaskId: taskId,
+  });
 
   const columns = useMemo(
     () => [
@@ -51,12 +54,12 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
         accessor: "timestamp",
       },
       {
-        Header: "Dataset",
+        Header: "Asset",
         accessor: "assetUri",
       },
       {
-        Header: "Source Task Instance",
-        accessor: "sourceTaskId",
+        Header: "Triggered Runs",
+        accessor: "createdDagruns",
       },
       {
         Header: "Extra",
@@ -69,11 +72,11 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
-    <Box mt={3} flexGrow={1}>
+    <Box my={3} flexGrow={1}>
       <Text as="strong" mb={3}>
-        Dataset Events
+        Asset Events
       </Text>
-      <Text>Dataset updates that triggered this DAG run.</Text>
+      <Text>Asset updates caused by this task instance</Text>
       <CardList
         data={data}
         columns={columns}
@@ -84,4 +87,4 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   );
 };
 
-export default DatasetTriggerEvents;
+export default AssetUpdateEvents;

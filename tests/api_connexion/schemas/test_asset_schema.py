@@ -173,7 +173,7 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         }
 
 
-class TestDatasetEventCreateSchema(TestAssetSchemaBase):
+class TestAssetEventCreateSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         asset = AssetModel("s3://abc")
         session.add(asset)

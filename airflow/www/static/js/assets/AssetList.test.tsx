@@ -26,62 +26,62 @@ import * as useAssetsModule from "src/api/useAssetsSummary";
 import { Wrapper } from "src/utils/testUtils";
 
 import type { UseQueryResult } from "react-query";
-import type { DatasetListItem } from "src/types";
+import type { AssetListItem } from "src/types";
 import AssetsList from "./AssetsList";
 
-const datasets = [
+const assets = [
   {
     id: 0,
-    uri: "this_dataset",
+    uri: "this_asset",
     extra: null,
-    lastDatasetUpdate: null,
+    lastAssetUpdate: null,
     totalUpdates: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 1,
-    uri: "that_dataset",
+    uri: "that_asset",
     extra: null,
-    lastDatasetUpdate: new Date().toISOString(),
+    lastAssetUpdate: new Date().toISOString(),
     totalUpdates: 10,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
     id: 1,
-    uri: "extra_dataset",
+    uri: "extra_asset",
     extra: null,
-    lastDatasetUpdate: new Date().toISOString(),
+    lastAssetUpdate: new Date().toISOString(),
     totalUpdates: 1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
 ];
 
-type UseAssetsReturn = UseQueryResult<useAssetsModule.DatasetsData> & {
-  data: useAssetsModule.DatasetsData;
+type UseAssetsReturn = UseQueryResult<useAssetsModule.AssetsData> & {
+  data: useAssetsModule.AssetsData;
 };
 
 const returnValue = {
   data: {
-    datasets,
-    totalEntries: datasets.length,
+    assets,
+    totalEntries: assets.length,
   },
   isSuccess: true,
 } as UseAssetsReturn;
 
 const emptyReturnValue = {
   data: {
-    datasets: [] as DatasetListItem[],
+    assets: [] as AssetListItem[],
     totalEntries: 0,
   },
   isSuccess: true,
   isLoading: false,
 } as UseAssetsReturn;
 
-describe("Test Datasets List", () => {
-  test("Displays a list of datasets", () => {
+describe("Test Assets List", () => {
+  test("Displays a list of assets", () => {
     jest
       .spyOn(useAssetsModule, "default")
       .mockImplementation(() => returnValue);
@@ -91,21 +91,21 @@ describe("Test Datasets List", () => {
       { wrapper: Wrapper }
     );
 
-    const listItems = queryAllByTestId("dataset-list-item");
+    const listItems = queryAllByTestId("asset-list-item");
 
     expect(listItems).toHaveLength(3);
 
-    expect(getByText(datasets[0].uri)).toBeDefined();
+    expect(getByText(assets[0].uri)).toBeDefined();
     expect(getByText("Total Updates: 0")).toBeDefined();
 
-    expect(getByText(datasets[1].uri)).toBeDefined();
+    expect(getByText(assets[1].uri)).toBeDefined();
     expect(getByText("Total Updates: 10")).toBeDefined();
 
-    expect(getByText(datasets[2].uri)).toBeDefined();
+    expect(getByText(assets[2].uri)).toBeDefined();
     expect(getByText("Total Updates: 1")).toBeDefined();
   });
 
-  test("Empty state displays when there are no datasets", () => {
+  test("Empty state displays when there are no assets", () => {
     jest
       .spyOn(useAssetsModule, "default")
       .mockImplementation(() => emptyReturnValue);
@@ -115,11 +115,11 @@ describe("Test Datasets List", () => {
       { wrapper: Wrapper }
     );
 
-    const listItems = queryAllByTestId("dataset-list-item");
+    const listItems = queryAllByTestId("asset-list-item");
 
     expect(listItems).toHaveLength(0);
 
-    expect(getByTestId("no-datasets-msg")).toBeInTheDocument();
+    expect(getByTestId("no-assets-msg")).toBeInTheDocument();
     expect(getByText("No Data found.")).toBeInTheDocument();
   });
 });

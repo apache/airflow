@@ -44,9 +44,9 @@ import TriggeredDagRuns from "src/components/TriggeredDagRuns";
 
 import type { CustomNodeProps } from "./Node";
 
-const datasetsUrl = getMetaValue("datasets_url");
+const assetsUrl = getMetaValue("assets_url");
 
-const DatasetNode = ({
+const AssetNode = ({
   data: { label, height, width, latestDagRunId, isZoomedOut, assetEvent },
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
@@ -97,7 +97,7 @@ const DatasetNode = ({
                     marginRight: "3px",
                   }}
                 />
-                Dataset
+                Asset
               </Text>
               {!!assetEvent && (
                 <Text
@@ -147,9 +147,9 @@ const DatasetNode = ({
           <PopoverFooter>
             <Link
               color="blue"
-              href={`${datasetsUrl}?uri=${encodeURIComponent(label)}`}
+              href={`${assetsUrl}?uri=${encodeURIComponent(label)}`}
             >
-              View Dataset
+              View Asset
             </Link>
           </PopoverFooter>
         </PopoverContent>
@@ -158,4 +158,4 @@ const DatasetNode = ({
   );
 };
 
-export default DatasetNode;
+export default AssetNode;
