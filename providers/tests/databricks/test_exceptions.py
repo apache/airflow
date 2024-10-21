@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import pytest
+
+from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
+
+
+def test_databricks_sql_execution_error():
+    """Test if AirflowTaskExecutionError can be raised correctly."""
+    with pytest.raises(DatabricksSqlExecutionError, match="Task execution failed"):
+        raise DatabricksSqlExecutionError("Task execution failed")
+
+
+def test_databricks_sql_execution_timeout():
+    """Test if AirflowTaskExecutionTimeout can be raised correctly."""
+    with pytest.raises(DatabricksSqlExecutionTimeout, match="Task execution timed out"):
+        raise DatabricksSqlExecutionTimeout("Task execution timed out")

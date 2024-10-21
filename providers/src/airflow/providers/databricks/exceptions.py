@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,3 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# Note: Any AirflowException raised is expected to cause the TaskInstance
+#       to be marked in an ERROR state
+"""Exceptions used by Databricks Provider."""
+
+from __future__ import annotations
+
+from airflow.exceptions import AirflowException
+
+
+class DatabricksSqlExecutionError(AirflowException):
+    """Raised when there is an error in sql execution."""
+
+
+class DatabricksSqlExecutionTimeout(DatabricksSqlExecutionError):
+    """Raised when a sql execution times out."""
