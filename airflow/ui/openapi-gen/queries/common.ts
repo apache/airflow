@@ -272,6 +272,42 @@ export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
   useMonitorServiceGetHealthKey,
   ...(queryKey ?? []),
 ];
+export type PoolServiceGetPoolDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPool>
+>;
+export type PoolServiceGetPoolQueryResult<
+  TData = PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolKey = "PoolServiceGetPool";
+export const UsePoolServiceGetPoolKeyFn = (
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolKey, ...(queryKey ?? [{ poolName }])];
+export type PoolServiceGetPoolsDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPools>
+>;
+export type PoolServiceGetPoolsQueryResult<
+  TData = PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
+export const UsePoolServiceGetPoolsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<
   ReturnType<typeof ProviderService.getProviders>
 >;

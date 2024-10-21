@@ -51,7 +51,7 @@ class ConnectionResponse(BaseModel):
 
 
 class ConnectionCollectionResponse(BaseModel):
-    """DAG Collection serializer for responses."""
+    """Connection Collection serializer for responses."""
 
     connections: list[ConnectionResponse]
     total_entries: int

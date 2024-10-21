@@ -8,7 +8,7 @@ export type BaseInfoSchema = {
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Connection Collection serializer for responses.
  */
 export type ConnectionCollectionResponse = {
   connections: Array<ConnectionResponse>;
@@ -267,6 +267,30 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Pool Collection serializer for responses.
+ */
+export type PoolCollectionResponse = {
+  pools: Array<PoolResponse>;
+  total_entries: number;
+};
+
+/**
+ * Pool serializer for responses.
+ */
+export type PoolResponse = {
+  name: string;
+  slots: number;
+  description: string | null;
+  include_deferred: boolean;
+  occupied_slots: number;
+  running_slots: number;
+  queued_slots: number;
+  scheduled_slots: number;
+  open_slots: number;
+  deferred_slots: number;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
@@ -505,6 +529,20 @@ export type DeletePoolData = {
 };
 
 export type DeletePoolResponse = void;
+
+export type GetPoolData = {
+  poolName: string;
+};
+
+export type GetPoolResponse = PoolResponse;
+
+export type GetPoolsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -1019,6 +1057,58 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/": {
+    get: {
+      req: GetPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolCollectionResponse;
         /**
          * Unauthorized
          */

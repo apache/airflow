@@ -44,6 +44,10 @@ import type {
   GetHealthResponse,
   DeletePoolData,
   DeletePoolResponse,
+  GetPoolData,
+  GetPoolResponse,
+  GetPoolsData,
+  GetPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
 } from "./types.gen";
@@ -650,6 +654,60 @@ export class PoolService {
       },
       errors: {
         400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pool
+   * Get a pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPool(data: GetPoolData): CancelablePromise<GetPoolResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pools
+   * Get all pools entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns PoolCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPools(
+    data: GetPoolsData = {},
+  ): CancelablePromise<GetPoolsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

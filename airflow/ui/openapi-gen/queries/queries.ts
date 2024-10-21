@@ -433,6 +433,67 @@ export const useMonitorServiceGetHealth = <
     ...options,
   });
 /**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPool = <
+  TData = Common.PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
+    queryFn: () => PoolService.getPool({ poolName }) as TData,
+    ...options,
+  });
+/**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPools = <
+  TData = Common.PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Providers
  * Get providers.
  * @param data The data for the request.

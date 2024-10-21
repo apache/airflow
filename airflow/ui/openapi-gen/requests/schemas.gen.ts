@@ -37,7 +37,7 @@ export const $ConnectionCollectionResponse = {
   type: "object",
   required: ["connections", "total_entries"],
   title: "ConnectionCollectionResponse",
-  description: "DAG Collection serializer for responses.",
+  description: "Connection Collection serializer for responses.",
 } as const;
 
 export const $ConnectionResponse = {
@@ -1187,6 +1187,93 @@ export const $HistoricalMetricDataResponse = {
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $PoolCollectionResponse = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolResponse",
+      },
+      type: "array",
+      title: "Pools",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["pools", "total_entries"],
+  title: "PoolCollectionResponse",
+  description: "Pool Collection serializer for responses.",
+} as const;
+
+export const $PoolResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    slots: {
+      type: "integer",
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      type: "boolean",
+      title: "Include Deferred",
+    },
+    occupied_slots: {
+      type: "integer",
+      title: "Occupied Slots",
+    },
+    running_slots: {
+      type: "integer",
+      title: "Running Slots",
+    },
+    queued_slots: {
+      type: "integer",
+      title: "Queued Slots",
+    },
+    scheduled_slots: {
+      type: "integer",
+      title: "Scheduled Slots",
+    },
+    open_slots: {
+      type: "integer",
+      title: "Open Slots",
+    },
+    deferred_slots: {
+      type: "integer",
+      title: "Deferred Slots",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "slots",
+    "description",
+    "include_deferred",
+    "occupied_slots",
+    "running_slots",
+    "queued_slots",
+    "scheduled_slots",
+    "open_slots",
+    "deferred_slots",
+  ],
+  title: "PoolResponse",
+  description: "Pool serializer for responses.",
 } as const;
 
 export const $ProviderCollectionResponse = {
