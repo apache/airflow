@@ -92,7 +92,7 @@ class TestDagCode:
                     session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
                     .filter(DagCode.fileloc == dag.fileloc)
                     .filter(DagCode.fileloc_hash == dag_fileloc_hash)
-                    .order_by(DagCode.id.desc())
+                    .order_by(DagCode.last_updated.desc())
                     .limit(1)
                     .one()
                 )
@@ -119,14 +119,14 @@ class TestDagCode:
                 assert test_string in dag_code
 
     def test_db_code_created_on_dag_file_change(self, file_updater, session):
-        """Test DagCode is updated in DB when DAG file is changed"""
+        """Test new DagCode is created in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag)
 
         result = (
             session.query(DagCode)
             .filter(DagCode.fileloc == example_dag.fileloc)
-            .order_by(DagCode.id.desc())
+            .order_by(DagCode.last_updated.desc())
             .limit(1)
             .one()
         )
@@ -144,7 +144,7 @@ class TestDagCode:
                 new_result = (
                     session.query(DagCode)
                     .filter(DagCode.fileloc == example_dag.fileloc)
-                    .order_by(DagCode.id.desc())
+                    .order_by(DagCode.last_updated.desc())
                     .limit(1)
                     .one()
                 )
