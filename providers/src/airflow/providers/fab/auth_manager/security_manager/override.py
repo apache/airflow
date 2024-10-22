@@ -1200,7 +1200,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if isinstance(resource_actions, (set, list)):
+            if not isinstance(resource_actions, dict):
                 # Support for old-style access_control where only the actions are specified
                 resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 
