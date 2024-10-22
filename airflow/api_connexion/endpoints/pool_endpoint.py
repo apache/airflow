@@ -66,6 +66,7 @@ def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     return pool_schema.dump(obj)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @format_parameters({"limit": check_limit})
 @provide_session

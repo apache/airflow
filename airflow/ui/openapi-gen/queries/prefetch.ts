@@ -358,6 +358,32 @@ export const prefetchUsePoolServiceGetPool = (
     queryFn: () => PoolService.getPool({ poolName }),
   });
 /**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPools = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
+  });
+/**
  * Get Providers
  * Get providers.
  * @param data The data for the request.

@@ -21,10 +21,11 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.pools import PoolResponse
+from airflow.api_fastapi.core_api.serializers.pools import PoolCollectionResponse, PoolResponse
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -63,3 +64,34 @@ async def get_pool(
         raise HTTPException(404, f"The Pool with name: `{pool_name}` was not found")
 
     return PoolResponse.model_validate(pool, from_attributes=True)
+
+
+@pools_router.get(
+    "/",
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+async def get_pools(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(SortParam(["id", "name"], Pool).dynamic_depends()),
+    ],
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolCollectionResponse:
+    """Get all pools entries."""
+    pools_select, total_entries = paginated_select(
+        select(Pool),
+        [],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    pools = session.scalars(pools_select).all()
+
+    return PoolCollectionResponse(
+        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        total_entries=total_entries,
+    )
