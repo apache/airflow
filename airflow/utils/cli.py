@@ -140,18 +140,18 @@ def _build_metrics(func_name, namespace):
     :param namespace: Namespace instance from argparse
     :return: dict with metrics
     """
-    sub_commands_to_check = {"users", "connections"}
-    sub_commands_to_check_based_upon_key = {"variables"}
+    sub_commands_to_check_for_sensitive_fields = {"users", "connections"}
+    sub_commands_to_check_for_sensitive_key = {"variables"}
     sensitive_fields = {"-p", "--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
     # For cases when value in variables have sensitive value
-    if sub_command in sub_commands_to_check_based_upon_key:
+    if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
         if key and should_hide_value_for_key(key):
             # Mask the sensitive value since key contain sensitive keyword
             full_command[-1] = "*" * 8
-    elif sub_command in sub_commands_to_check:
+    elif sub_command in sub_commands_to_check_for_sensitive_fields:
         for idx, command in enumerate(full_command):
             if command in sensitive_fields:
                 # For cases when password is passed as "--password xyz" (with space between key and value)
