@@ -66,7 +66,7 @@ const Header = ({ mapIndex }: Props) => {
       runId.includes("manual__") ||
       runId.includes("scheduled__") ||
       runId.includes("backfill__") ||
-      runId.includes("dataset_triggered__") ? (
+      runId.includes("asset_triggered__") ? (
         <Time dateTime={getDagRunLabel({ dagRun })} />
       ) : (
         runId

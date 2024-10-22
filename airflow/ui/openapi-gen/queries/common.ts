@@ -8,6 +8,9 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PluginService,
+  PoolService,
+  ProviderService,
   VariableService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
@@ -99,6 +102,31 @@ export const UseDagServiceGetDagsKeyFn = (
       tags,
     },
   ]),
+];
+export type DagServiceGetDagTagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagTags>
+>;
+export type DagServiceGetDagTagsQueryResult<
+  TData = DagServiceGetDagTagsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagTagsKey = "DagServiceGetDagTags";
+export const UseDagServiceGetDagTagsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagTagsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy, tagNamePattern }]),
 ];
 export type DagServiceGetDagDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDag>
@@ -245,6 +273,78 @@ export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
   useMonitorServiceGetHealthKey,
   ...(queryKey ?? []),
 ];
+export type PoolServiceGetPoolDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPool>
+>;
+export type PoolServiceGetPoolQueryResult<
+  TData = PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolKey = "PoolServiceGetPool";
+export const UsePoolServiceGetPoolKeyFn = (
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolKey, ...(queryKey ?? [{ poolName }])];
+export type PoolServiceGetPoolsDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPools>
+>;
+export type PoolServiceGetPoolsQueryResult<
+  TData = PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
+export const UsePoolServiceGetPoolsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+export type ProviderServiceGetProvidersDefaultResponse = Awaited<
+  ReturnType<typeof ProviderService.getProviders>
+>;
+export type ProviderServiceGetProvidersQueryResult<
+  TData = ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
+export const UseProviderServiceGetProvidersKeyFn = (
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
+export type PluginServiceGetPluginsDefaultResponse = Awaited<
+  ReturnType<typeof PluginService.getPlugins>
+>;
+export type PluginServiceGetPluginsQueryResult<
+  TData = PluginServiceGetPluginsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceGetPluginsKey = "PluginServiceGetPlugins";
+export const UsePluginServiceGetPluginsKeyFn = (
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
@@ -268,4 +368,7 @@ export type VariableServiceDeleteVariableMutationResult = Awaited<
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.deleteDagRun>
+>;
+export type PoolServiceDeletePoolMutationResult = Awaited<
+  ReturnType<typeof PoolService.deletePool>
 >;

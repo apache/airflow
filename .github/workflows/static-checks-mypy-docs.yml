@@ -36,7 +36,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run mypy checks (true/false)"
         required: true
         type: string
-      mypy-folders:
+      mypy-checks:
         description: "List of folders to run mypy checks on"
         required: false
         type: string
@@ -148,7 +148,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mypy-folder: ${{ fromJSON(inputs.mypy-folders) }}
+        mypy-check: ${{ fromJSON(inputs.mypy-checks) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
@@ -166,10 +166,10 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
-      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
+      - name: "MyPy checks for ${{ matrix.mypy-check }}"
         run: |
           pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
+          pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"

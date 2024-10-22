@@ -213,8 +213,8 @@ def ensure_filenames_are_sorted(revisions, app):
 
 
 def correct_mismatching_revision_nums(revisions: Iterable[Script]):
-    revision_pattern = r'revision = "([a-fA-F0-9]+)"'
-    down_revision_pattern = r'down_revision = "([a-fA-F0-9]+)"'
+    revision_pattern = r'revision = ["\']([a-fA-F0-9]+)["\']'
+    down_revision_pattern = r'down_revision = ["\']([a-fA-F0-9]+)["\']'
     revision_id_pattern = r"Revision ID: ([a-fA-F0-9]+)"
     revises_id_pattern = r"Revises: ([a-fA-F0-9]+)"
     for rev in revisions:

@@ -219,7 +219,7 @@ Those are - in the order of most common ways people install Airflow:
 - [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
 - [Docker Images](https://hub.docker.com/r/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm`, etc. You can
-  read more about using, customising, and extending the images in the
+  read more about using, customizing, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/docker-stack/index.html), and
   learn details on the internals in the [images](https://airflow.apache.org/docs/docker-stack/index.html) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that

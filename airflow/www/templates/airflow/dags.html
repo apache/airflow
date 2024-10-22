@@ -19,7 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
-{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
+{% from 'airflow/asset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(dag_display_name, attribute_name) -%}
@@ -69,9 +69,9 @@
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
-  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
-  <meta name="next_run_datasets_summary_url" content="{{ url_for('Airflow.next_run_datasets_summary') }}">
-  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
+  <meta name="datasets_url" content="{{ url_for('Airflow.assets') }}">
+  <meta name="next_run_datasets_summary_url" content="{{ url_for('Airflow.next_run_assets_summary') }}">
+  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_assets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block head_css %}

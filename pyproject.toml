@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.2; python_version < '3.11'",
-    "trove-classifiers==2024.10.16",
+    "trove-classifiers==2024.10.21.16",
 ]
 build-backend = "hatchling.build"
 
@@ -346,9 +346,10 @@ section-order = [
 testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"airflow/__init__.py" = ["F401", "TCH004"]
+"airflow/__init__.py" = ["F401", "TCH004", "I002"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
+"providers/src/airflow/providers/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -591,6 +592,7 @@ explicit_package_bases = true
 mypy_path = [
   "$MYPY_CONFIG_FILE_DIR",
   "$MYPY_CONFIG_FILE_DIR/providers/src",
+  "$MYPY_CONFIG_FILE_DIR/task_sdk/src",
 ]
 
 [[tool.mypy.overrides]]

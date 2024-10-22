@@ -156,7 +156,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.0"
+PIP_VERSION = "24.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -194,7 +194,6 @@ class SelectiveUnitTestTypes(Enum):
     PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
     PYTHON_VENV = "PythonVenv"
-    TASK_SDK = "TaskSDK"
     WWW = "WWW"
 
 
