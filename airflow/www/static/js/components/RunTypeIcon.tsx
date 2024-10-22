@@ -42,7 +42,7 @@ const DagRunTypeIcon = ({ runType, ...rest }: Props) => {
       return <RiArrowGoBackFill style={iconStyle} {...rest} />;
     case "scheduled":
       return <MdOutlineSchedule style={iconStyle} {...rest} />;
-    case "dataset_triggered":
+    case "asset_triggered":
       return <HiDatabase style={iconStyle} {...rest} />;
     default:
       return null;

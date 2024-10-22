@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,28 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Default authentication backend - everything is allowed."""
 
 from __future__ import annotations
 
-from functools import wraps
-from typing import Any, Callable, TypeVar, cast
-
-CLIENT_AUTH: tuple[str, str] | Any | None = None
+from pydantic import BaseModel
 
 
-def init_app(_):
-    """Initialize authentication backend."""
+class ProviderResponse(BaseModel):
+    """Provider serializer for responses."""
+
+    package_name: str
+    description: str
+    version: str
 
 
-T = TypeVar("T", bound=Callable)
+class ProviderCollectionResponse(BaseModel):
+    """Provider Collection serializer for responses."""
 
-
-def requires_authentication(function: T):
-    """Decorate functions that require authentication."""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        return function(*args, **kwargs)
-
-    return cast(T, decorated)
+    providers: list[ProviderResponse]
+    total_entries: int
