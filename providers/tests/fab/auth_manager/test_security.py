@@ -866,21 +866,21 @@ def test_access_control_is_set_on_init(
 
 
 @pytest.mark.parametrize(
-        "access_control_before, access_control_after",
-        [
-            (READ_WRITE, READ_ONLY),
-            # old access control format
-            ({permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}, {permissions.ACTION_CAN_READ}),
-        ],
-        ids=["new_access_control_format", "old_access_control_format"]
-    )
+    "access_control_before, access_control_after",
+    [
+        (READ_WRITE, READ_ONLY),
+        # old access control format
+        ({permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}, {permissions.ACTION_CAN_READ}),
+    ],
+    ids=["new_access_control_format", "old_access_control_format"],
+)
 def test_access_control_stale_perms_are_revoked(
     app,
     security_manager,
     assert_user_has_dag_perms,
     assert_user_does_not_have_dag_perms,
     access_control_before,
-    access_control_after
+    access_control_after,
 ):
     username = "access_control_stale_perms_are_revoked"
     role_name = "team-a"

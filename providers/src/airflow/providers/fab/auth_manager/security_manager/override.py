@@ -1181,9 +1181,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                             if isinstance(access_control_role, set):
                                 target_perms_for_role = access_control_role
                             elif isinstance(access_control_role, dict):
-                                target_perms_for_role = access_control_role.get(
-                                    resource_name, set()
-                                )
+                                target_perms_for_role = access_control_role.get(resource_name, set())
                         if perm.action.name not in target_perms_for_role:
                             self.log.info(
                                 "Revoking '%s' on DAG '%s' for role '%s'",
