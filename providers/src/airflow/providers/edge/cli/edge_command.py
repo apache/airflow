@@ -107,7 +107,6 @@ def _write_pid_to_pidfile(pid_file_path):
             raise SystemExit("A PID file has already been written")
         else:
             # PID file was written by dead or already running instance
-            logger.info("PID file does not belong to this process.")
             if psutil.pid_exists(pid_stored_in_pid_file):
                 # case 1: another instance uses the same path for its PID file
                 raise SystemExit(
