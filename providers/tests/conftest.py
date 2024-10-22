@@ -22,8 +22,6 @@ from unittest import mock
 
 import pytest
 
-pytest_plugins = "tests_common.pytest_plugin"
-
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
