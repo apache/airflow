@@ -22,6 +22,7 @@ import collections.abc
 import datetime
 import enum
 import inspect
+import itertools
 import logging
 import weakref
 from functools import cache
@@ -59,6 +60,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -1080,7 +1082,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _CONSTRUCTOR_PARAMS = {
         k: v.default
-        for k, v in signature(BaseOperator.__init__).parameters.items()
+        for k, v in itertools.chain(
+            signature(BaseOperator.__init__).parameters.items(),
+            signature(TaskSDKBaseOperator.__init__).parameters.items(),
+        )
         if v.default is not v.empty
     }
 
