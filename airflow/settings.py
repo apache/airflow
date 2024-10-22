@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowConfigException, AirflowInternalRuntimeError
+from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -722,22 +722,6 @@ def import_local_settings():
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
 
 
-def mask_conf_values():
-    from airflow.utils.log.secrets_masker import mask_secret
-
-    for section, key in conf.sensitive_config_values:
-        try:
-            value = conf.get(section, key)
-        except AirflowConfigException:
-            log.warning(
-                "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
-                section,
-                key,
-            )
-            continue
-        mask_secret(value)
-
-
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
@@ -758,7 +742,7 @@ def initialize():
     configure_action_logging()
 
     # mask the sensitive_config_values
-    mask_conf_values()
+    conf.mask_secrets()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

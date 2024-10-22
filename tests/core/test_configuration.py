@@ -42,8 +42,6 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 
 from tests.utils.test_config import (
     remove_all_configurations,
@@ -51,6 +49,8 @@ from tests.utils.test_config import (
     set_sensitive_config_values,
     use_config,
 )
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -1763,3 +1763,22 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
             write_default_airflow_configuration_if_needed()
+
+    @patch.object(
+        conf,
+        "sensitive_config_values",
+        new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
+    )
+    @patch("airflow.utils.log.secrets_masker.mask_secret")
+    @patch("airflow.configuration.conf.get")
+    def test_mask_conf_values(self, mock_get, mock_mask_secret, mock_sensitive_config_values):
+        mock_get.side_effect = ["supersecret1", "supersecret2"]
+        conf.mask_secrets()
+
+        mock_get.assert_any_call("mysection1", "mykey1")
+        mock_get.assert_any_call("mysection2", "mykey2")
+        mock_mask_secret.assert_any_call("supersecret1")
+        mock_mask_secret.assert_any_call("supersecret2")
+
+        assert mock_get.call_count == 2
+        assert mock_mask_secret.call_count == 2
