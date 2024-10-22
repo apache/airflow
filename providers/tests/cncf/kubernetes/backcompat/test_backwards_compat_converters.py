@@ -246,7 +246,6 @@ def test_convert_toleration_normal_value(mock_convert_from_dict):
     }
     expected_result = Mock(spec=k8s.V1Toleration)
     mock_convert_from_dict.return_value = expected_result
-
     result = convert_toleration(toleration)
 
     mock_convert_from_dict.assert_called_once_with(toleration, k8s.V1Toleration)
