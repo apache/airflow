@@ -193,6 +193,7 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-installers
         name: Update installers to latest (manual)
         entry: ./scripts/ci/pre_commit/update_installers.py
