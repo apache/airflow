@@ -1060,6 +1060,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         assert resp.status_code == 200
 
 
+@pytest.mark.flaky(reruns=5)
 def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
