@@ -32,8 +32,10 @@ try:
 except ImportError:
     # Row is used in the parametrize so it's parsed during collection and we need to have a viable
     # replacement for the collection time when databricks is not installed (Python 3.12 for now)
-    def Row(*args, **kwargs):
+    def MockRow(*args, **kwargs):
         return MagicMock()
+
+    Row = MockRow
 
 
 from airflow.models.connection import Connection
