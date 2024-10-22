@@ -44,8 +44,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.timetables.base import DagRunInfo
-
 
 log = logging.getLogger(__name__)
 
@@ -192,7 +190,7 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
-) -> Backfill | None | list[DagRunInfo]:
+) -> Backfill | None:
     from airflow.models.serialized_dag import SerializedDagModel
 
     with create_session() as session:
