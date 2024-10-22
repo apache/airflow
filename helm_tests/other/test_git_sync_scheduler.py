@@ -292,6 +292,13 @@ class TestGitSyncSchedulerTest:
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
+        assert {
+            "name": "GITSYNC_USERNAME",
+        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GITSYNC_PASSWORD",
+        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
@@ -320,6 +327,13 @@ class TestGitSyncSchedulerTest:
             "name": "GITSYNC_PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+
+        assert {
+            "name": "GIT_SYNC_USERNAME",
+        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        assert {
+            "name": "GIT_SYNC_PASSWORD",
+        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
