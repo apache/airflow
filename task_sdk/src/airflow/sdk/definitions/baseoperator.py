@@ -574,6 +574,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _dag: DAG | None = field(init=False, default=None)
 
+    # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
+    __serialized_fields: ClassVar[frozenset[str] | None] = None
+
     _comps: ClassVar[set[str]] = {
         "task_id",
         "dag_id",
