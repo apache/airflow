@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from collections import deque
 from types import ModuleType
 from typing import Any, Generic, TypeVar
@@ -102,8 +103,8 @@ class DagContext(ContextStack[DAG]):
         dag = super().pop()
         # In a few cases around serialization we explicitly push None in to the stack
         if cls.current_autoregister_module_name is not None and dag and getattr(dag, "auto_register", True):
-            # mod = sys.modules[cls.current_autoregister_module_name]
-            cls.autoregistered_dags.add((dag, None))
+            mod = sys.modules[cls.current_autoregister_module_name]
+            cls.autoregistered_dags.add((dag, mod))
         return dag
 
 
