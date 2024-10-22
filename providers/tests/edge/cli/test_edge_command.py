@@ -21,6 +21,7 @@ from pathlib import Path
 from subprocess import Popen
 from unittest.mock import patch
 
+import logging
 import pytest
 import time_machine
 
@@ -39,6 +40,7 @@ from tests_common.test_utils.config import conf_vars
 pytest.importorskip("pydantic", minversion="2.0.0")
 
 def test_write_pid_to_pidfile_success(caplog, tmp_path):
+    caplog.set_level(logging.DEBUG)
     pid_file_path = tmp_path / "file.pid"
     _write_pid_to_pidfile(pid_file_path)
     assert pid_file_path.exists()

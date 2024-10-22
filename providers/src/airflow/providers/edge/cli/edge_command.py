@@ -116,7 +116,7 @@ def _write_pid_to_pidfile(pid_file_path):
             else:
                 # case 2: previous instance crashed without cleaning up its PID file
                 logger.info("PID file is orphaned. Cleaning up.")
-                pid_file_path.unlink()
+                remove_existing_pidfile(pid_file_path)
     logger.debug("PID file written to %s.", pid_file_path)
     write_pid_to_pidfile(pid_file_path)
 
