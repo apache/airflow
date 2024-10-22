@@ -177,6 +177,13 @@ def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort
     )
 
 
+def _get_info_list(*, dag, from_date, to_date, reverse):
+    dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
+    if reverse:
+        dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+    return dagrun_info_list
+
+
 def _create_backfill(
     *,
     dag_id: str,
@@ -185,7 +192,6 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
-    dry_run: bool = False,
 ) -> Backfill | None | list[DagRunInfo]:
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -211,14 +217,6 @@ def _create_backfill(
                     "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
                 )
 
-        backfill_sort_ordinal = 0
-        dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
-        if reverse:
-            dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
-
-        if dry_run:
-            return list(dagrun_info_list)
-
         br = Backfill(
             dag_id=dag_id,
             from_date=from_date,
@@ -229,6 +227,8 @@ def _create_backfill(
         session.add(br)
         session.commit()
 
+        backfill_sort_ordinal = 0
+        dagrun_info_list = _get_info_list(dag=dag, from_date=from_date, to_date=to_date, reverse=reverse)
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
