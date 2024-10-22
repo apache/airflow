@@ -58,7 +58,7 @@ def upgrade():
         sa.ForeignKeyConstraint(
             columns=("dag_id",),
             refcolumns=["dag.dag_id"],
-            name="dsdar_dag_id_fkey",
+            name="dsdar_dag_fkey",
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
