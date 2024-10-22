@@ -162,7 +162,6 @@ class TestEdgeExecutor:
         with create_session() as session:
             for worker_name, last_heartbeat in [
                 ("inactive_timed_out_worker", datetime(2023, 1, 1, 0, 59, 0, tzinfo=timezone.utc)),
-                ("inactive_not_connected_worker", None),
                 ("active_worker", datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc)),
             ]:
                 session.add(

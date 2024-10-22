@@ -34,6 +34,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -144,6 +145,53 @@ class EdgeWorker(BaseModel, LoggingMixin):
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @staticmethod
+    def set_metrics(
+        worker_name: str,
+        state: EdgeWorkerState,
+        connected: bool,
+        jobs_active: int,
+        concurrency: int,
+        queues: Optional[List[str]],  # noqa: UP006,UP007 - prevent Sphinx failing
+    ) -> None:
+        """Set metric of edge worker."""
+        queues = queues if queues else []
+
+        Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
+        Stats.gauge(
+            "edge_worker.state",
+            int(connected),
+            tags={"name": worker_name, "state": state},
+        )
+
+        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+        Stats.gauge("edge_worker.jobs_active", jobs_active, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+        Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+
+        Stats.gauge(
+            f"edge_worker.num_queues.{worker_name}",
+            len(queues),
+        )
+        Stats.gauge(
+            "edge_worker.num_queues",
+            len(queues),
+            tags={"worker_name": worker_name, "queues": ",".join(queues)},
+        )
+
+    @staticmethod
+    def reset_metrics(worker_name: str) -> None:
+        """Reset metrics of worker."""
+        EdgeWorker.set_metrics(
+            worker_name=worker_name,
+            state=EdgeWorkerState.UNKNOWN,
+            connected=False,
+            jobs_active=0,
+            concurrency=0,
+            queues=None,
+        )
+
+    @staticmethod
     def assert_version(sysinfo: dict[str, str]) -> None:
         """Check if the Edge Worker version matches the central API site."""
         from airflow import __version__ as airflow_version
@@ -225,6 +273,15 @@ class EdgeWorker(BaseModel, LoggingMixin):
         worker.sysinfo = json.dumps(sysinfo)
         worker.last_update = timezone.utcnow()
         session.commit()
+        Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
+        EdgeWorker.set_metrics(
+            worker_name=worker_name,
+            state=EdgeWorkerState.UNKNOWN,
+            connected=False,
+            jobs_active=jobs_active,
+            concurrency=sysinfo["concurrency"],
+            queues=worker.queues,
+        )
         return worker.queues
 
     @staticmethod

@@ -30,7 +30,7 @@ from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
-from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerModel, EdgeWorkerState
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
@@ -88,27 +88,25 @@ class EdgeExecutor(BaseExecutor):
             )
         )
 
-    def _check_alive_worker(self, session: Session) -> bool:
+    def _check_worker_liveness(self, session: Session) -> bool:
         """Reset worker state if heartbeat timed out."""
         changed = False
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
-        workers: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
-
-        for worker in workers:
-            connected = 1
-            if not worker.last_update or worker.last_update < (
-                timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5)
-            ):
-                changed = True
-                connected = 0
-                worker.state = EdgeWorkerState.UNKNOWN
-                session.add(worker)
-
-            Stats.gauge(
-                "edge_worker.state",
-                connected,
-                tags={"worker_name": worker.worker_name, "state": worker.state},
+        lifeless_workers: list[EdgeWorkerModel] = (
+            session.query(EdgeWorkerModel)
+            .filter(
+                EdgeWorkerModel.state != EdgeWorkerState.UNKNOWN
+                and EdgeWorkerModel.last_update
+                < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5))
             )
+            .all()
+        )
+
+        for worker in lifeless_workers:
+            changed = True
+            worker.state = EdgeWorkerState.UNKNOWN
+            session.add(worker)
+            EdgeWorker.reset_metrics(worker.worker_name)
 
         return changed
 
@@ -171,8 +169,9 @@ class EdgeExecutor(BaseExecutor):
     @provide_session
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        if self._purge_jobs(session) or self._check_alive_worker(session):
-            session.commit()
+        with Stats.timer("edge_executor.sync.duration"):
+            if self._purge_jobs(session) or self._check_worker_liveness(session):
+                session.commit()
 
     def end(self) -> None:
         """End the executor."""

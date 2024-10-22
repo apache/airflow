@@ -33,7 +33,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Edge Worker state is set ot unkown if worker heartbeat timed out.``
+* ``Edge Worker exports metrics and state is set to unkown if worker heartbeat timed out.``
 
 0.2.2re0
 .........
