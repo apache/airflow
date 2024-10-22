@@ -8,6 +8,7 @@ import {
   DagService,
   DashboardService,
   MonitorService,
+  PluginService,
   PoolService,
   ProviderService,
   VariableService,
@@ -405,4 +406,26 @@ export const prefetchUseProviderServiceGetProviders = (
   queryClient.prefetchQuery({
     queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
     queryFn: () => ProviderService.getProviders({ limit, offset }),
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceGetPlugins = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
+    queryFn: () => PluginService.getPlugins({ limit, offset }),
   });
