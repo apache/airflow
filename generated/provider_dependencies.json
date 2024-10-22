@@ -626,7 +626,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",

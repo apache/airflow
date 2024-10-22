@@ -21,7 +21,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.google.datasets.bigquery import sanitize_uri
+from airflow.providers.google.assets.bigquery import sanitize_uri
 
 
 def test_sanitize_uri_pass() -> None:
