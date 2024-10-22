@@ -145,7 +145,7 @@ def _build_metrics(func_name, namespace):
     sensitive_fields = {"-p", "--password", "--conn-password"}
     full_command = list(sys.argv)
     sub_command = full_command[1] if len(full_command) > 1 else None
-    # For cases when value in variables have sensitive value
+    # For cases when value under sub_commands_to_check_for_sensitive_key have sensitive info
     if sub_command in sub_commands_to_check_for_sensitive_key:
         key = full_command[-2] if len(full_command) > 3 else None
         if key and should_hide_value_for_key(key):
