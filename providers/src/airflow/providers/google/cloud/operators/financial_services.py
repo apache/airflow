@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.financial_services import FinancialServicesHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -46,6 +46,8 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         Manager) containing the developer key. Secret will only be accessed if
         dev_key_var does not exist. Defaults to None.
     """
+
+    template_fields: Sequence[str] = ("instance_id", "location_resource_uri", "kms_key_uri")
 
     def __init__(
         self,
@@ -101,6 +103,8 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         dev_key_var does not exist. Defaults to None.
     """
 
+    template_fields: Sequence[str] = "instance_resource_uri"
+
     def __init__(
         self,
         instance_resource_uri: str,
@@ -148,6 +152,8 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
         Manager) containing the developer key. Secret will only be accessed if
         dev_key_var does not exist. Defaults to None.
     """
+
+    template_fields: Sequence[str] = "instance_resource_uri"
 
     def __init__(
         self,
