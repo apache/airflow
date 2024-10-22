@@ -43,7 +43,7 @@ console = Console(
 env = os.environ.copy()
 env["PYTHONPATH"] = str(DEV_BREEZE_SRC_PATH)
 try:
-    check_call(["python", DEV_BREEZE_SRC_PATH / "airflow_breeze" / "breeze.py", "--help"], env=env)
+    check_call([sys.executable[0], DEV_BREEZE_SRC_PATH / "airflow_breeze" / "breeze.py", "--help"], env=env)
 except CalledProcessError:
     console.print("[red]Breeze should only use limited dependencies when imported (see errors above).[/]\n")
     console.print(
