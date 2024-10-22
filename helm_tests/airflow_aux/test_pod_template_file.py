@@ -257,6 +257,36 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
+    def test_should_set_username_and_pass_env_variables_v3(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "credentialsSecret": "user-pass-secret",
+                        "sshKeySecret": None,
+                    }
+                },
+                "images": {
+                    "gitSync": {
+                        "tag": "v3.1.0"
+                    }
+                }
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        # Testing git-sync v3
+        assert {
+            "name": "GIT_SYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "GIT_SYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+
     def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
@@ -266,20 +296,16 @@ class TestPodTemplateFile:
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
                     }
+                },
+                "images": {
+                    "gitSync": {
+                        "tag": "v4.1.0"
+                    }
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
 
         # Testing git-sync v4
         assert {
