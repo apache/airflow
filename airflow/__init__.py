@@ -91,7 +91,7 @@ if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
-    from airflow.models.asset import Asset, Dataset
+    from airflow.assets import Asset, Dataset
     from airflow.models.dag import DAG
     from airflow.models.xcom_arg import XComArg
 
