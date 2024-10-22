@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagSourceService,
   DashboardService,
   MonitorService,
   PoolService,
@@ -51,6 +52,50 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
 ) => [
   useDashboardServiceHistoricalMetricsKey,
   ...(queryKey ?? [{ endDate, startDate }]),
+];
+export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnection>
+>;
+export type ConnectionServiceGetConnectionQueryResult<
+  TData = ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionKey =
+  "ConnectionServiceGetConnection";
+export const UseConnectionServiceGetConnectionKeyFn = (
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionKey,
+  ...(queryKey ?? [{ connectionId }]),
+];
+export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnections>
+>;
+export type ConnectionServiceGetConnectionsQueryResult<
+  TData = ConnectionServiceGetConnectionsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionsKey =
+  "ConnectionServiceGetConnections";
+export const UseConnectionServiceGetConnectionsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
 ];
 export type DagServiceGetDagsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDags>
@@ -159,89 +204,6 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
-export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnection>
->;
-export type ConnectionServiceGetConnectionQueryResult<
-  TData = ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionKey =
-  "ConnectionServiceGetConnection";
-export const UseConnectionServiceGetConnectionKeyFn = (
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionKey,
-  ...(queryKey ?? [{ connectionId }]),
-];
-export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnections>
->;
-export type ConnectionServiceGetConnectionsQueryResult<
-  TData = ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionsKey =
-  "ConnectionServiceGetConnections";
-export const UseConnectionServiceGetConnectionsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
-];
-export type VariableServiceGetVariableDefaultResponse = Awaited<
-  ReturnType<typeof VariableService.getVariable>
->;
-export type VariableServiceGetVariableQueryResult<
-  TData = VariableServiceGetVariableDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
-export const UseVariableServiceGetVariableKeyFn = (
-  {
-    variableKey,
-  }: {
-    variableKey: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
-export type VariableServiceGetVariablesDefaultResponse = Awaited<
-  ReturnType<typeof VariableService.getVariables>
->;
-export type VariableServiceGetVariablesQueryResult<
-  TData = VariableServiceGetVariablesDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useVariableServiceGetVariablesKey = "VariableServiceGetVariables";
-export const UseVariableServiceGetVariablesKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useVariableServiceGetVariablesKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
-];
 export type DagRunServiceGetDagRunDefaultResponse = Awaited<
   ReturnType<typeof DagRunService.getDagRun>
 >;
@@ -260,6 +222,23 @@ export const UseDagRunServiceGetDagRunKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
+export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
+  ReturnType<typeof DagSourceService.getDagSource>
+>;
+export type DagSourceServiceGetDagSourceQueryResult<
+  TData = DagSourceServiceGetDagSourceDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagSourceServiceGetDagSourceKey =
+  "DagSourceServiceGetDagSource";
+export const UseDagSourceServiceGetDagSourceKeyFn = (
+  {
+    fileToken,
+  }: {
+    fileToken: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useDagSourceServiceGetDagSourceKey, ...(queryKey ?? [{ fileToken }])];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>
 >;
@@ -306,6 +285,45 @@ export const UseProviderServiceGetProvidersKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
+export type VariableServiceGetVariableDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariable>
+>;
+export type VariableServiceGetVariableQueryResult<
+  TData = VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVariableServiceGetVariableKey = "VariableServiceGetVariable";
+export const UseVariableServiceGetVariableKeyFn = (
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
+export type VariableServiceGetVariablesDefaultResponse = Awaited<
+  ReturnType<typeof VariableService.getVariables>
+>;
+export type VariableServiceGetVariablesQueryResult<
+  TData = VariableServiceGetVariablesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVariableServiceGetVariablesKey = "VariableServiceGetVariables";
+export const UseVariableServiceGetVariablesKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useVariableServiceGetVariablesKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
@@ -318,18 +336,18 @@ export type DagServicePatchDagMutationResult = Awaited<
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
-export type DagServiceDeleteDagMutationResult = Awaited<
-  ReturnType<typeof DagService.deleteDag>
->;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
 >;
-export type VariableServiceDeleteVariableMutationResult = Awaited<
-  ReturnType<typeof VariableService.deleteVariable>
+export type DagServiceDeleteDagMutationResult = Awaited<
+  ReturnType<typeof DagService.deleteDag>
 >;
 export type DagRunServiceDeleteDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.deleteDagRun>
 >;
 export type PoolServiceDeletePoolMutationResult = Awaited<
   ReturnType<typeof PoolService.deletePool>
+>;
+export type VariableServiceDeleteVariableMutationResult = Awaited<
+  ReturnType<typeof VariableService.deleteVariable>
 >;

@@ -73,6 +73,151 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/{connection_id}:
+    delete:
+      tags:
+      - Connection
+      summary: Delete Connection
+      description: Delete a connection entry.
+      operationId: delete_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Connection
+      summary: Get Connection
+      description: Get a connection entry.
+      operationId: get_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/:
+    get:
+      tags:
+      - Connection
+      summary: Get Connections
+      description: Get all connection entries.
+      operationId: get_connections
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/:
     get:
       tags:
@@ -570,67 +715,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unprocessable Entity
-  /public/connections/{connection_id}:
-    delete:
-      tags:
-      - Connection
-      summary: Delete Connection
-      description: Delete a connection entry.
-      operationId: delete_connection
-      parameters:
-      - name: connection_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Connection Id
-      responses:
-        '204':
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
-      - Connection
-      summary: Get Connection
-      description: Get a connection entry.
-      operationId: get_connection
+      - DagRun
+      summary: Get Dag Run
+      operationId: get_dag_run
       parameters:
-      - name: connection_id
+      - name: dag_id
         in: path
         required: true
         schema:
           type: string
-          title: Connection Id
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionResponse'
+                $ref: '#/components/schemas/DAGRunResponse'
         '401':
           content:
             application/json:
@@ -655,13 +765,219 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/:
+    delete:
+      tags:
+      - DagRun
+      summary: Delete Dag Run
+      description: Delete a DAG Run entry.
+      operationId: delete_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagSources/{file_token}:
     get:
       tags:
-      - Connection
-      summary: Get Connections
-      description: Get all connection entries.
-      operationId: get_connections
+      - DagSource
+      summary: Get Dag Source
+      description: Get source code using file token.
+      operationId: get_dag_source
+      parameters:
+      - name: file_token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+  /public/monitor/health:
+    get:
+      tags:
+      - Monitor
+      summary: Get Health
+      operationId: get_health
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthInfoSchema'
+  /public/pools/{pool_name}:
+    delete:
+      tags:
+      - Pool
+      summary: Delete Pool
+      description: Delete a pool entry.
+      operationId: delete_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Pool
+      summary: Get Pool
+      description: Get a pool.
+      operationId: get_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/providers/:
+    get:
+      tags:
+      - Provider
+      summary: Get Providers
+      description: Get providers.
+      operationId: get_providers
       parameters:
       - name: limit
         in: query
@@ -677,38 +993,13 @@ paths:
           type: integer
           default: 0
           title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConnectionCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
+                $ref: '#/components/schemas/ProviderCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -951,247 +1242,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}:
-    get:
-      tags:
-      - DagRun
-      summary: Get Dag Run
-      operationId: get_dag_run
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGRunResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    delete:
-      tags:
-      - DagRun
-      summary: Delete Dag Run
-      description: Delete a DAG Run entry.
-      operationId: delete_dag_run
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      responses:
-        '204':
-          description: Successful Response
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/monitor/health:
-    get:
-      tags:
-      - Monitor
-      summary: Get Health
-      operationId: get_health
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthInfoSchema'
-  /public/pools/{pool_name}:
-    delete:
-      tags:
-      - Pool
-      summary: Delete Pool
-      description: Delete a pool entry.
-      operationId: delete_pool
-      parameters:
-      - name: pool_name
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Pool Name
-      responses:
-        '204':
-          description: Successful Response
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    get:
-      tags:
-      - Pool
-      summary: Get Pool
-      description: Get a pool.
-      operationId: get_pool
-      parameters:
-      - name: pool_name
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Pool Name
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PoolResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/providers/:
-    get:
-      tags:
-      - Provider
-      summary: Get Providers
-      description: Get providers.
-      operationId: get_providers
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ProviderCollectionResponse'
         '422':
           description: Validation Error
           content:
