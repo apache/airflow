@@ -158,7 +158,7 @@
         },
         "orientation": { "type" : "string"},
         "dag_display_name": { "type" : "string"},
-        "_description": { "type" : "string"},
+        "description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},

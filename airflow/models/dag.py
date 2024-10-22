@@ -744,14 +744,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         self._max_active_tasks = value
 
     @property
-    def access_control(self):
-        return self._access_control
-
-    @access_control.setter
-    def access_control(self, value):
-        self._access_control = DAG._upgrade_outdated_dag_access_control(value)
-
-    @property
     def pickle_id(self) -> int | None:
         return self._pickle_id
 
