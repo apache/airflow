@@ -55,6 +55,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
