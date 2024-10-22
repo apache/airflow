@@ -214,16 +214,14 @@ export const DagsList = () => {
             </option>
             <option value="next_dagrun">Sort by Next DAG Run (A-Z)</option>
             <option value="-next_dagrun">Sort by Next DAG Run (Z-A)</option>
-            <option value="last_dagrun_state">
-              Sort by Last Run State (A-Z)
-            </option>
-            <option value="-last_dagrun_state">
+            <option value="last_run_state">Sort by Last Run State (A-Z)</option>
+            <option value="-last_run_state">
               Sort by Last Run State (Z-A)
             </option>
-            <option value="last_dagrun_start">
+            <option value="last_run_start_date">
               Sort by Last Run Start Date (A-Z)
             </option>
-            <option value="-last_dagrun_start">
+            <option value="-last_run_start_date">
               Sort by Last Run Start Date (Z-A)
             </option>
           </Select>
