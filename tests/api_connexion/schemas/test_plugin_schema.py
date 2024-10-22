@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.plugin_schema import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
+
 from tests_common.test_utils.compat import BaseOperatorLink
 
 

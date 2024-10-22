@@ -23,28 +23,22 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
-from tests_common.test_utils.config import conf_vars
 
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import (
     _EdgeWorkerCli,
-    _get_sysinfo,
     _Job,
 )
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.config import conf_vars
+
 pytest.importorskip("pydantic", minversion="2.0.0")
 
 # Ignore the following error for mocking
 # mypy: disable-error-code="attr-defined"
-
-
-def test_get_sysinfo():
-    sysinfo = _get_sysinfo()
-    assert "airflow_version" in sysinfo
-    assert "edge_provider_version" in sysinfo
 
 
 class TestEdgeWorkerCli:
@@ -207,9 +201,14 @@ class TestEdgeWorkerCli:
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
+        mock_set_state.return_value = ["queue1", "queue2"]
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
+        queue_list = worker_with_job.queues or []
+        assert len(queue_list) == 2
+        assert "queue1" in (queue_list)
+        assert "queue2" in (queue_list)
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
@@ -257,3 +256,12 @@ class TestEdgeWorkerCli:
         mock_register_worker.assert_called_once()
         mock_loop.assert_called_once()
         mock_set_state.assert_called_once()
+
+    def test_get_sysinfo(self, worker_with_job: _EdgeWorkerCli):
+        concurrency = 8
+        worker_with_job.concurrency = concurrency
+        sysinfo = worker_with_job._get_sysinfo()
+        assert "airflow_version" in sysinfo
+        assert "edge_provider_version" in sysinfo
+        assert "concurrency" in sysinfo
+        assert sysinfo["concurrency"] == concurrency

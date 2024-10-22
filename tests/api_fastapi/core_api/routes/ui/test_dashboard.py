@@ -26,6 +26,7 @@ from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -74,7 +75,7 @@ def make_dag_runs(dag_maker, session, time_machine):
     run2 = dag_maker.create_dagrun(
         run_id="run_2",
         state=DagRunState.FAILED,
-        run_type=DagRunType.DATASET_TRIGGERED,
+        run_type=DagRunType.ASSET_TRIGGERED,
         execution_date=date + timedelta(days=1),
         start_date=date + timedelta(days=1),
     )
@@ -107,7 +108,7 @@ class TestHistoricalMetricsDataEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 1},
-            "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 2},
+            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 2},
             "task_instance_states": {
                 "deferred": 0,
                 "failed": 2,
@@ -132,7 +133,7 @@ class TestHistoricalMetricsDataEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
-            "dag_run_types": {"backfill": 0, "dataset_triggered": 1, "manual": 0, "scheduled": 0},
+            "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
             "task_instance_states": {
                 "deferred": 0,
                 "failed": 2,

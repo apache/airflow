@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import importlib
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Generic, List, TypeVar
@@ -195,32 +194,27 @@ class SortParam(BaseParam[str]):
         # Reset default sorting
         select = select.order_by(None)
 
+        primary_key_column = self.get_primary_key_column()
+
         if self.value[0] == "-":
-            return select.order_by(nullscheck, column.desc(), column.desc())
+            return select.order_by(nullscheck, column.desc(), primary_key_column)
         else:
-            return select.order_by(nullscheck, column.asc(), column.asc())
+            return select.order_by(nullscheck, column.asc(), primary_key_column)
 
-    def get_primary_key(self) -> str:
-        """Get the primary key of the model of SortParam object."""
-        return inspect(self.model).primary_key[0].name
+    def get_primary_key_column(self) -> Column:
+        """Get the primary key column of the model of SortParam object."""
+        return inspect(self.model).primary_key[0]
 
-    @staticmethod
-    def get_primary_key_of_given_model_string(model_string: str) -> str:
-        """
-        Get the primary key of given 'airflow.models' class as a string. The class should have driven be from 'airflow.models.base'.
-
-        :param model_string: The string representation of the model class.
-        :return: The primary key of the model class.
-        """
-        dynamic_return_model = getattr(importlib.import_module("airflow.models"), model_string)
-        return inspect(dynamic_return_model).primary_key[0].name
+    def get_primary_key_string(self) -> str:
+        """Get the primary key string of the model of SortParam object."""
+        return self.get_primary_key_column().name
 
     def depends(self, *args: Any, **kwargs: Any) -> Self:
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self) -> Callable:
-        def inner(order_by: str = self.get_primary_key()) -> SortParam:
-            return self.set_value(self.get_primary_key() if order_by == "" else order_by)
+        def inner(order_by: str = self.get_primary_key_string()) -> SortParam:
+            return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
 
         return inner
 
@@ -271,6 +265,17 @@ class _LastDagRunStateFilter(BaseParam[DagRunState]):
         return self.set_value(last_dag_run_state)
 
 
+class _DagTagNamePatternSearch(_SearchParam):
+    """Search on dag_tag.name."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(DagTag.name, skip_none)
+
+    def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
+        tag_name_pattern = super().transform_aliases(tag_name_pattern)
+        return self.set_value(tag_name_pattern)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -305,3 +310,5 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+# DAGTags
+QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]

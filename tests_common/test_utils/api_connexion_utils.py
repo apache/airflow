@@ -20,6 +20,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+
 from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):

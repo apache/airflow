@@ -46,12 +46,12 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
+
+from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests_common.test_utils import db
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
-
-from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -2809,13 +2809,13 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
         # run_ids
         ["", "scheduled__2023-01-01T00:00:00+00:00", True],
         ["", "manual__2023-01-01T00:00:00+00:00", True],
-        ["", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["", "asset_triggered__2023-01-01T00:00:00+00:00", True],
         ["", "scheduled_2023-01-01T00", False],
         ["", "manual_2023-01-01T00", False],
-        ["", "dataset_triggered_2023-01-01T00", False],
+        ["", "asset_triggered_2023-01-01T00", False],
         ["^[0-9]", "scheduled__2023-01-01T00:00:00+00:00", True],
         ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
-        ["^[a-z]", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "asset_triggered__2023-01-01T00:00:00+00:00", True],
     ],
 )
 def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):

@@ -35,6 +35,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
+
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -109,7 +110,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "children": [
                 {
                     "extra_links": [],
-                    "has_outlet_datasets": False,
+                    "has_outlet_assets": False,
                     "id": "task1",
                     "instances": [],
                     "is_mapped": False,
@@ -121,7 +122,7 @@ def test_no_runs(admin_client, dag_without_runs):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "mapped_task_group.subtask2",
                             "instances": [],
                             "is_mapped": True,
@@ -140,7 +141,7 @@ def test_no_runs(admin_client, dag_without_runs):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "group.mapped",
                             "instances": [],
                             "is_mapped": True,
@@ -263,7 +264,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
             "children": [
                 {
                     "extra_links": [],
-                    "has_outlet_datasets": False,
+                    "has_outlet_assets": False,
                     "id": "task1",
                     "instances": [
                         {
@@ -296,7 +297,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "mapped_task_group.subtask2",
                             "instances": [
                                 {
@@ -353,7 +354,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "group.mapped",
                             "instances": [
                                 {
@@ -436,10 +437,10 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
         m.setattr(app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
-    def _expected_task_details(task_id, has_outlet_datasets):
+    def _expected_task_details(task_id, has_outlet_assets):
         return {
             "extra_links": [],
-            "has_outlet_datasets": has_outlet_datasets,
+            "has_outlet_assets": has_outlet_assets,
             "id": task_id,
             "instances": [],
             "is_mapped": False,
@@ -468,7 +469,7 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
 
 
 @pytest.mark.need_serialized_dag
-def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
+def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
         assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
 
@@ -480,22 +481,22 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
         asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
         adrq = AssetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID, asset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(adrq)
         asset_events = [
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
             ),
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
             ),
             AssetEvent(
-                dataset_id=asset1_id,
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
             ),
@@ -503,11 +504,11 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         session.add_all(asset_events)
         session.commit()
 
-        resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
+        resp = admin_client.get(f"/object/next_run_assets/{DAG_ID}", follow_redirects=True)
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
             {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
@@ -515,7 +516,7 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
     }
 
 
-def test_next_run_datasets_404(admin_client):
-    resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
+def test_next_run_assets_404(admin_client):
+    resp = admin_client.get("/object/next_run_assets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}

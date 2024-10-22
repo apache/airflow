@@ -21,12 +21,13 @@ from datetime import datetime, timezone
 import pendulum
 import pytest
 
-from airflow.models.dag import DagModel
+from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -87,6 +88,11 @@ class TestDagEndpoint:
         session.add(dagrun_failed)
         session.add(dagrun_success)
 
+    def _create_dag_tags(self, session=None):
+        session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
+        session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
+        session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
+
     @pytest.fixture(autouse=True)
     @provide_session
     def setup(self, dag_maker, session=None) -> None:
@@ -117,6 +123,7 @@ class TestDagEndpoint:
             EmptyOperator(task_id=TASK_ID)
 
         self._create_deactivated_paused_dag(session)
+        self._create_dag_tags(session)
 
         dag_maker.dagbag.sync_to_db()
         dag_maker.dag_model.has_task_concurrency_limits = True
@@ -283,12 +290,12 @@ class TestDagDetails(TestDagEndpoint):
         last_parsed_time = res_json["last_parsed_time"]
         file_token = res_json["file_token"]
         expected = {
+            "asset_expression": None,
             "catchup": True,
             "concurrency": 16,
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "dag_run_timeout": None,
-            "dataset_expression": None,
             "default_view": "grid",
             "description": None,
             "doc_md": "details",
@@ -381,6 +388,120 @@ class TestGetDag(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
             "pickle_id": None,
+        }
+        assert res_json == expected
+
+
+class TestGetDagTags(TestDagEndpoint):
+    """Unit tests for Get DAG Tags."""
+
+    @pytest.mark.parametrize(
+        "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
+        [
+            # test with offset, limit, and without any tag_name_pattern
+            (
+                {},
+                200,
+                [
+                    "example",
+                    "tag_1",
+                    "tag_2",
+                ],
+                3,
+            ),
+            (
+                {"offset": 1},
+                200,
+                [
+                    "tag_1",
+                    "tag_2",
+                ],
+                3,
+            ),
+            (
+                {"limit": 2},
+                200,
+                [
+                    "example",
+                    "tag_1",
+                ],
+                3,
+            ),
+            (
+                {"offset": 1, "limit": 2},
+                200,
+                [
+                    "tag_1",
+                    "tag_2",
+                ],
+                3,
+            ),
+            # test with tag_name_pattern
+            (
+                {"tag_name_pattern": "invalid"},
+                200,
+                [],
+                0,
+            ),
+            (
+                {"tag_name_pattern": "1"},
+                200,
+                ["tag_1"],
+                1,
+            ),
+            (
+                {"tag_name_pattern": "tag%"},
+                200,
+                ["tag_1", "tag_2"],
+                2,
+            ),
+            # test order_by
+            (
+                {"order_by": "-name"},
+                200,
+                ["tag_2", "tag_1", "example"],
+                3,
+            ),
+            # test all query params
+            (
+                {"tag_name_pattern": "t%", "order_by": "-name", "offset": 1, "limit": 1},
+                200,
+                ["tag_1"],
+                2,
+            ),
+            (
+                {"tag_name_pattern": "~", "offset": 1, "limit": 2},
+                200,
+                ["tag_1", "tag_2"],
+                3,
+            ),
+            # test invalid query params
+            (
+                {"order_by": "dag_id"},
+                400,
+                None,
+                None,
+            ),
+            (
+                {"order_by": "-dag_id"},
+                400,
+                None,
+                None,
+            ),
+        ],
+    )
+    def test_get_dag_tags(
+        self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
+    ):
+        response = test_client.get("/public/dags/tags", params=query_params)
+        assert response.status_code == expected_status_code
+        if expected_status_code != 200:
+            return
+
+        res_json = response.json()
+        expected = {
+            "tags": expected_dag_tags,
+            "total_entries": expected_total_entries,
         }
         assert res_json == expected
 

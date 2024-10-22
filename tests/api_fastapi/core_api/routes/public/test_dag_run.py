@@ -25,6 +25,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -42,7 +43,7 @@ DAG2_RUN2_STATE = DagRunState.SUCCESS
 DAG1_RUN1_RUN_TYPE = DagRunType.MANUAL
 DAG1_RUN2_RUN_TYPE = DagRunType.SCHEDULED
 DAG2_RUN1_RUN_TYPE = DagRunType.BACKFILL_JOB
-DAG2_RUN2_RUN_TYPE = DagRunType.DATASET_TRIGGERED
+DAG2_RUN2_RUN_TYPE = DagRunType.ASSET_TRIGGERED
 DAG1_RUN1_TRIGGERED_BY = DagRunTriggeredByType.UI
 DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.DATASET
 DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI

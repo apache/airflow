@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from tests_common.test_utils.watcher import watcher
-
 from airflow import settings
 from airflow.decorators import task
 from airflow.models import Connection
@@ -43,6 +41,7 @@ from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests_common.test_utils.watcher import watcher
 
 # Externally fetched variables:
 SECURITY_GROUP_KEY = "SECURITY_GROUP"

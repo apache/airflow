@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 
-from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor
+from airflow.providers.apache.hdfs.sensors.web_hdfs import MultipleFilesWebHdfsSensor, WebHdfsSensor
 
 TEST_HDFS_CONN = "webhdfs_default"
-TEST_HDFS_PATH = "hdfs://user/hive/warehouse/airflow.db/static_babynames"
+TEST_HDFS_DIRECTORY = "hdfs://user/hive/warehouse/airflow.db"
+TEST_HDFS_FILENAMES = ["static_babynames1", "static_babynames2", "static_babynames3"]
+TEST_HDFS_PATH = os.path.join(TEST_HDFS_DIRECTORY, TEST_HDFS_FILENAMES[0])
 
 
 class TestWebHdfsSensor:
@@ -54,4 +57,46 @@ class TestWebHdfsSensor:
         assert not exists
 
         mock_hook.return_value.check_for_path.assert_called_once_with(hdfs_path=TEST_HDFS_PATH)
+        mock_hook.assert_called_once_with(TEST_HDFS_CONN)
+
+
+class TestMultipleFilesWebHdfsSensor:
+    @mock.patch("airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook")
+    def test_poke(self, mock_hook, caplog):
+        mock_hook.return_value.get_conn.return_value.list.return_value = TEST_HDFS_FILENAMES
+
+        sensor = MultipleFilesWebHdfsSensor(
+            task_id="test_task",
+            webhdfs_conn_id=TEST_HDFS_CONN,
+            directory_path=TEST_HDFS_DIRECTORY,
+            expected_filenames=TEST_HDFS_FILENAMES,
+        )
+
+        with caplog.at_level("DEBUG", logger=sensor.log.name):
+            result = sensor.poke(dict())
+
+        assert result
+        assert "Files Found in directory: " in caplog.text
+
+        mock_hook.return_value.get_conn.return_value.list.assert_called_once_with(TEST_HDFS_DIRECTORY)
+        mock_hook.return_value.get_conn.assert_called_once()
+        mock_hook.assert_called_once_with(TEST_HDFS_CONN)
+
+    @mock.patch("airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook")
+    def test_poke_should_return_false_for_missing_file(self, mock_hook, caplog):
+        mock_hook.return_value.get_conn.return_value.list.return_value = TEST_HDFS_FILENAMES[0]
+
+        sensor = MultipleFilesWebHdfsSensor(
+            task_id="test_task",
+            webhdfs_conn_id=TEST_HDFS_CONN,
+            directory_path=TEST_HDFS_DIRECTORY,
+            expected_filenames=TEST_HDFS_FILENAMES,
+        )
+        exists = sensor.poke(dict())
+
+        assert not exists
+        assert "There are missing files: " in caplog.text
+
+        mock_hook.return_value.get_conn.return_value.list.assert_called_once_with(TEST_HDFS_DIRECTORY)
+        mock_hook.return_value.get_conn.assert_called_once()
         mock_hook.assert_called_once_with(TEST_HDFS_CONN)

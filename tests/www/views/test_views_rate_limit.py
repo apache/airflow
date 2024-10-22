@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.www.app import create_app
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests_common.test_utils.www import client_with_login

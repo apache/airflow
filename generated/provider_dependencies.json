@@ -26,7 +26,7 @@
   "amazon": {
     "deps": [
       "PyAthena>=3.0.10",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow-providers-http",
       "apache-airflow>=2.8.0",
@@ -353,7 +353,8 @@
   "cloudant": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "ibmcloudant>=0.9.1"
+      "ibmcloudant==0.7.0 ; python_version < \"3.10\"",
+      "ibmcloudant==0.9.1 ; python_version >= \"3.10\""
     ],
     "devel-deps": [],
     "plugins": [],
@@ -569,7 +570,7 @@
   },
   "fab": {
     "deps": [
-      "apache-airflow-providers-common-compat>=1.2.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
       "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
