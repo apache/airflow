@@ -248,17 +248,17 @@ If release name contains chart name it will be used as a full name.
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_USERNAME
-    - name: GITSYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_USERNAME
-    {{- else }}
     - name: GIT_SYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
+    {{- else }}
+    - name: GITSYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GITSYNC_USERNAME
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
