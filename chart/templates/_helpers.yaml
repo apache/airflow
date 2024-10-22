@@ -233,6 +233,7 @@ If release name contains chart name it will be used as a full name.
       value: "false"
     {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
+    {{ if .Values.gitSync.tag }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
