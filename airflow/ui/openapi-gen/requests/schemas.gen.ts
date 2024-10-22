@@ -1436,6 +1436,58 @@ export const $PluginResponse = {
   description: "Plugin serializer.",
 } as const;
 
+export const $PoolBody = {
+  properties: {
+    pool: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pool",
+    },
+    slots: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Include Deferred",
+    },
+  },
+  type: "object",
+  title: "PoolBody",
+  description: "Pool serializer for bodies.",
+} as const;
+
 export const $PoolCollectionResponse = {
   properties: {
     pools: {

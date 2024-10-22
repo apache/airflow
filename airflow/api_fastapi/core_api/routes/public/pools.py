@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -25,7 +27,12 @@ from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.pools import PoolCollectionResponse, PoolResponse
+from airflow.api_fastapi.core_api.serializers.pools import (
+    BasePool,
+    PoolBody,
+    PoolCollectionResponse,
+    PoolResponse,
+)
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -95,3 +102,37 @@ async def get_pools(
         pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
         total_entries=total_entries,
     )
+
+
+@pools_router.patch("/{pool_name}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+async def patch_pool(
+    pool_name: str,
+    patch_body: PoolBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> PoolResponse:
+    """Update a Pool."""
+    # Only slots and include_deferred can be modified in 'default_pool'
+    if pool_name == Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            pass
+        else:
+            raise HTTPException(400, "Only slots and included_deferred can be modified on Default Pool")
+
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
+    if not pool:
+        raise HTTPException(404, detail=f"The Pool with name: `{pool_name}` was not found")
+
+    if update_mask:
+        data = patch_body.model_dump(include=set(update_mask), by_alias=True)
+    else:
+        data = patch_body.model_dump(by_alias=True)
+        try:
+            BasePool.model_validate(data)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    for key, value in data.items():
+        setattr(pool, key, value)
+
+    return PoolResponse.model_validate(pool, from_attributes=True)
