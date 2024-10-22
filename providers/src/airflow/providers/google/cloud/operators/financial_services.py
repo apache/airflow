@@ -82,7 +82,7 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
             kms_key_uri=self.kms_key_uri,
             location_resource_uri=self.location_resource_uri,
         )
-        return response
+        return response["name"]
 
 
 class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
@@ -132,7 +132,7 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         response = hook.delete_instance(
             instance_resource_uri=self.instance_resource_uri,
         )
-        return response
+        return response["name"]
 
 
 class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
