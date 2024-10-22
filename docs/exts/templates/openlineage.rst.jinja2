@@ -19,7 +19,8 @@
 Core operators
 ==============
 At the moment, two core operators supports OpenLineage. These operators function as a 'black box,'
-capable of running any code, which might limit the extent of lineage extraction.
+capable of running any code, which might limit the extent of lineage extraction. To enhance the extraction
+of lineage information, operators can utilize the hooks listed below that support OpenLineage.
 
 - :class:`~airflow.operators.python.PythonOperator` (via :class:`airflow.providers.openlineage.extractors.python.PythonExtractor`)
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` (via :class:`airflow.providers.openlineage.extractors.bash.BashExtractor`)
@@ -36,16 +37,31 @@ a dedicated Hook implementing OpenLineage methods is required. Currently, the fo
 {% endfor %}
 
 
-Provider's operators
-====================
-The operators listed below from each provider are natively equipped with OpenLineage support.
+Providers
+=========
+The operators and hooks listed below from each provider are natively equipped with OpenLineage support.
 
 {%for provider_name, provider_dict in providers.items() %}
 {{ provider_name }}
 {{ '"' * (provider_name|length) }}
 
-{% for operator in provider_dict['operators'] %}
+{% if provider_dict['operators'] %}
+Operators
+^^^^^^^^^
+{% for operator, methods in provider_dict['operators'].items() %}
 - :class:`~{{ operator }}`
 {% endfor %}
+{% endif %}
+
+{% if provider_dict['hooks'] %}
+Hooks
+^^^^^
+{% for hook, methods in provider_dict['hooks'].items() %}
+- :class:`~{{ hook }}`
+  {% for method in methods %}
+  - :meth:`~{{ method }}`
+  {% endfor %}
+{% endfor %}
+{% endif %}
 
 {% endfor %}
