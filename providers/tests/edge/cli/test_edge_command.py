@@ -16,21 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from subprocess import Popen
 from unittest.mock import patch
 
-import logging
 import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException
-from airflow.providers.edge.cli.edge_command import (
-    _EdgeWorkerCli,
-    _Job,
-    _write_pid_to_pidfile
-)
+from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
 from airflow.utils.state import TaskInstanceState
@@ -38,6 +34,7 @@ from airflow.utils.state import TaskInstanceState
 from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
+
 
 def test_write_pid_to_pidfile_success(caplog, tmp_path):
     caplog.set_level(logging.DEBUG)
@@ -47,12 +44,14 @@ def test_write_pid_to_pidfile_success(caplog, tmp_path):
     assert "An existing PID file has been found" not in caplog.text
     assert "PID file written to" in caplog.text
 
+
 def test_write_pid_to_pidfile_called_twice(tmp_path):
     pid_file_path = tmp_path / "file.pid"
     _write_pid_to_pidfile(pid_file_path)
     with pytest.raises(SystemExit, match=r"A PID file has already been written"):
         _write_pid_to_pidfile(pid_file_path)
     assert pid_file_path.exists()
+
 
 def test_write_pid_to_pidfile_created_by_other_instance(caplog, tmp_path):
     # write a PID file with the PID of this process
@@ -63,6 +62,7 @@ def test_write_pid_to_pidfile_created_by_other_instance(caplog, tmp_path):
         with pytest.raises(SystemExit, match=r"contains the PID of another running process"):
             _write_pid_to_pidfile(pid_file_path)
 
+
 def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
     # write a PID file with process ID 0
     with patch("os.getpid", return_value=0):
@@ -71,6 +71,7 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
     # write a PID file with the current process ID
     _write_pid_to_pidfile(pid_file_path)
     assert "PID file is orphaned." in caplog.text
+
 
 # Ignore the following error for mocking
 # mypy: disable-error-code="attr-defined"

@@ -94,11 +94,9 @@ def _hostname() -> str:
 def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
 
+
 def _write_pid_to_pidfile(pid_file_path):
-    """
-    Write PIDs for Edge Workers to disk,
-    ensuring that orphanded PID files from crashed instance are handled.
-    """
+    """Write PIDs for Edge Workers to disk, handling existing PID files."""
     if pid_file_path.exists():
         # Handle existing PID files on disk
         logger.info("An existing PID file has been found: %s.", pid_file_path)
