@@ -115,6 +115,7 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/**/example_*.py"]
+
     suspended_providers_folders = get_suspended_providers_folders()
     current_python_excluded_providers_folders = get_python_excluded_providers_folders()
     suspended_providers_folders = [
@@ -129,7 +130,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
     ]
     providers_folders = tuple([AIRFLOW_SOURCES_ROOT.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
 
+    default_branch = os.environ.get("DEFAULT_BRANCH", "main")
+    include_providers = default_branch == "main"
+
     for example_dir in example_dirs:
+        if not include_providers and "providers/" in example_dir:
+            print(f"Skipping {example_dir} because providers are not included for {default_branch} branch.")
+            continue
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in sorted(candidates):
             param_marks = []
