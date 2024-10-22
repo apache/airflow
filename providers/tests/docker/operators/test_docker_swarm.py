@@ -136,6 +136,7 @@ class TestDockerSwarmOperator:
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
+        client_mock.service_logs.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.tasks.return_value = [
             {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
