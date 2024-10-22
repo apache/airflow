@@ -282,7 +282,7 @@ class Asset(os.PathLike, BaseAsset):
     group: str
     extra: dict[str, Any]
 
-    asset_type: ClassVar[str] = "asset"
+    asset_type: ClassVar[str] = ""
     __version__: ClassVar[int] = 1
 
     @overload
@@ -314,7 +314,7 @@ class Asset(os.PathLike, BaseAsset):
         fields = attr.fields_dict(Asset)
         self.name = _validate_non_empty_identifier(self, fields["name"], name)
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group)
+        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
         self.extra = _set_extra_default(extra)
 
     def __fspath__(self) -> str:
@@ -378,17 +378,11 @@ class Dataset(Asset):
 
     asset_type: ClassVar[str] = "dataset"
 
-    def __init__(self, *args, group="dataset", **kwargs) -> None:
-        super().__init__(*args, group=group, **kwargs)
-
 
 class Model(Asset):
     """A representation of model dependencies between workflows."""
 
     asset_type: ClassVar[str] = "model"
-
-    def __init__(self, *args, group="model", **kwargs) -> None:
-        super().__init__(*args, group=group, **kwargs)
 
 
 class _AssetBooleanCondition(BaseAsset):
