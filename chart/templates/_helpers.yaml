@@ -242,7 +242,6 @@ If release name contains chart name it will be used as a full name.
       value: "false"
     {{- end }}
     {{ else if .Values.dags.gitSync.credentialsSecret }}
-    {{- if hasPrefix .Values.images.gitSync.tag "v3" }}
     - name: GIT_SYNC_USERNAME
       valueFrom:
         secretKeyRef:
@@ -253,18 +252,16 @@ If release name contains chart name it will be used as a full name.
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GIT_SYNC_PASSWORD
-    {{- else }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_USERNAME
+          key: GIT_SYNC_USERNAME
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GITSYNC_PASSWORD
-    {{- end }}
+          key: GIT_SYNC_PASSWORD
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
