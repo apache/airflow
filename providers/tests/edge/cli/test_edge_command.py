@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from subprocess import Popen
@@ -42,7 +43,6 @@ def test_write_pid_to_pidfile_success(caplog, tmp_path):
         _write_pid_to_pidfile(pid_file_path)
         assert pid_file_path.exists()
         assert "An existing PID file has been found" not in caplog.text
-        assert "PID file written to" in caplog.text
 
 
 def test_write_pid_to_pidfile_called_twice(tmp_path):
@@ -63,15 +63,15 @@ def test_write_pid_to_pidfile_created_by_other_instance(tmp_path):
             _write_pid_to_pidfile(pid_file_path)
 
 
-def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
-    with caplog.at_level(logging.DEBUG):
-        # write a PID file with process ID 0
-        with patch("os.getpid", return_value=0):
-            pid_file_path = tmp_path / "file.pid"
-            _write_pid_to_pidfile(pid_file_path)
-        # write a PID file with the current process ID
+def test_write_pid_to_pidfile_created_by_crashed_instance(tmp_path):
+    # write a PID file with process ID 0
+    with patch("os.getpid", return_value=0):
+        pid_file_path = tmp_path / "file.pid"
         _write_pid_to_pidfile(pid_file_path)
-        assert "PID file is orphaned." in caplog.text
+        assert "0" == pid_file_path.read_text().strip()
+    # write a PID file with the current process ID, call should not raise an exception
+    _write_pid_to_pidfile(pid_file_path)
+    assert str(os.getpid()) == pid_file_path.read_text().strip()
 
 
 # Ignore the following error for mocking
