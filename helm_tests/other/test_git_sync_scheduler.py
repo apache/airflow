@@ -263,7 +263,7 @@ class TestGitSyncSchedulerTest:
         )
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
-    def test_should_set_username_and_pass_env_variables_v3(self):
+    def test_should_set_username_and_pass_env_variables(self):
         docs = render_chart(
             values={
                 "dags": {
@@ -271,11 +271,6 @@ class TestGitSyncSchedulerTest:
                         "enabled": True,
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
-                    }
-                },
-                "images": {
-                    "gitSync": {
-                        "tag": "v3.1.0"
                     }
                 }
             },
@@ -291,49 +286,15 @@ class TestGitSyncSchedulerTest:
             "name": "GIT_SYNC_PASSWORD",
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-
-        assert {
-            "name": "GITSYNC_USERNAME",
-        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-        assert {
-            "name": "GITSYNC_PASSWORD",
-        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-
-    def test_should_set_username_and_pass_env_variables(self):
-        docs = render_chart(
-            values={
-                "dags": {
-                    "gitSync": {
-                        "enabled": True,
-                        "credentialsSecret": "user-pass-secret",
-                        "sshKeySecret": None,
-                    }
-                },
-                "images": {
-                    "gitSync": {
-                        "tag": "v4.1.0"
-                    }
-                }
-            },
-            show_only=["templates/scheduler/scheduler-deployment.yaml"],
-        )
-
         # Testing git-sync v4
         assert {
             "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
         assert {
             "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-        } not in jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
