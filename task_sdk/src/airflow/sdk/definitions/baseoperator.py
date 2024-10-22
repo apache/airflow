@@ -563,7 +563,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_fields: Collection[str] = ()
     template_ext: Sequence[str] = ()
 
-    template_fields_renderers: dict[str, str] = field(default_factory=dict, init=False)
+    template_fields_renderers: ClassVar[dict[str, str]] = {}
 
     # Defines the color in the UI
     ui_color: str = "#fff"
