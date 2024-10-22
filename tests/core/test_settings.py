@@ -31,11 +31,7 @@ from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import (
-    _ENABLE_AIP_44,
-    TracebackSession,
-    is_usage_data_collection_enabled,
-)
+from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.config import conf_vars
