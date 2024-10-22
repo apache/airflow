@@ -98,7 +98,7 @@ class DagVersion(Base):
             version_number=version_number,
             dag_code=dag_code,
             serialized_dag=serialized_dag,
-            version_name=version_name,
+            version_name=str(version_name),
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
