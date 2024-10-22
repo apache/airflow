@@ -2044,7 +2044,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         In case one of DagProcessors is stopped (in case there are multiple of them
         for different dag folders), its dags are never marked as inactive.
-        Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """
         self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
@@ -2059,7 +2058,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
         for dag in stale_dags:
             dag.is_active = False
-            SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
     @provide_session
