@@ -105,7 +105,7 @@ class EdgeExecutor(BaseExecutor):
         for worker in lifeless_workers:
             changed = True
             worker.state = EdgeWorkerState.UNKNOWN
-            session.add(worker)
+            session.update(worker)
             EdgeWorker.reset_metrics(worker.worker_name)
 
         return changed
