@@ -267,6 +267,22 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Pool serializer for responses.
+ */
+export type PoolResponse = {
+  name: string;
+  slots: number;
+  description: string | null;
+  include_deferred: boolean;
+  occupied_slots: number;
+  running_slots: number;
+  queued_slots: number;
+  scheduled_slots: number;
+  open_slots: number;
+  deferred_slots: number;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
@@ -505,6 +521,12 @@ export type DeletePoolData = {
 };
 
 export type DeletePoolResponse = void;
+
+export type GetPoolData = {
+  poolName: string;
+};
+
+export type GetPoolResponse = PoolResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -1019,6 +1041,31 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
         /**
          * Unauthorized
          */
