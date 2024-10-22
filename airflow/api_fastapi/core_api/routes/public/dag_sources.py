@@ -30,16 +30,6 @@ from airflow.models.dagcode import DagCode
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
 mime_type_text = "text/plain"
 mime_type_json = "application/json"
-supported_mime_types = [mime_type_text, mime_type_json]
-
-
-def _get_matching_mime_type(request: Request) -> str | None:
-    """Return the matching MIME type in the request's ACCEPT header."""
-    accept_header = request.headers.get("Accept", "").lower()
-    for mime_type in supported_mime_types:
-        if mime_type in accept_header:
-            return mime_type
-    return None
 
 
 @dag_sources_router.get(
@@ -50,22 +40,21 @@ async def get_dag_source(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
-) -> Response:
+):
     """Get source code using file token."""
     auth_s = URLSafeSerializer(request.app.state.secret_key)
 
     try:
         path = auth_s.loads(file_token)
-        dag_source = DagCode.code(path, session=session)
+        dag_source_model = DAGSourceModel(
+            content=DagCode.code(path, session=session),
+        )
     except (BadSignature, FileNotFoundError):
         raise HTTPException(404, "DAG source not found")
 
-    return_type = _get_matching_mime_type(request)
-
-    if return_type == mime_type_text:
-        return Response(dag_source, media_type=return_type)
-
-    if return_type == mime_type_json:
-        return Response(DAGSourceModel(content=dag_source), media_type=return_type)
-
+    accept_header = request.headers.get("Accept", "").lower()
+    if accept_header.startswith(mime_type_text):
+        return Response(dag_source_model.content, media_type=mime_type_text)
+    if accept_header.startswith(mime_type_json):
+        return dag_source_model
     raise HTTPException(406, "Content not available for Accept header")

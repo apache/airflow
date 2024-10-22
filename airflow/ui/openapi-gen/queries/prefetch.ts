@@ -309,6 +309,49 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
     queryFn: () => MonitorService.getHealth(),
   });
 /**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPool = (
+  queryClient: QueryClient,
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
+    queryFn: () => PoolService.getPool({ poolName }),
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseProviderServiceGetProviders = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
+    queryFn: () => ProviderService.getProviders({ limit, offset }),
+  });
+/**
  * Get Variable
  * Get a variable entry.
  * @param data The data for the request.
@@ -357,47 +400,4 @@ export const prefetchUseVariableServiceGetVariables = (
       orderBy,
     }),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
-  });
-/**
- * Get Pool
- * Get a pool.
- * @param data The data for the request.
- * @param data.poolName
- * @returns PoolResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUsePoolServiceGetPool = (
-  queryClient: QueryClient,
-  {
-    poolName,
-  }: {
-    poolName: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
-    queryFn: () => PoolService.getPool({ poolName }),
-  });
-/**
- * Get Providers
- * Get providers.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns ProviderCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseProviderServiceGetProviders = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
-    queryFn: () => ProviderService.getProviders({ limit, offset }),
   });
