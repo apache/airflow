@@ -29,7 +29,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _do_dry_run(*, params, dag_id, from_date, to_date):
+def _do_dry_run(*, params, dag_id, from_date, to_date, reverse):
     print("Performing dry run of backfill.")
     print("Printing params:")
     for k, v in params.items():
@@ -41,6 +41,7 @@ def _do_dry_run(*, params, dag_id, from_date, to_date):
         dag=serdag.dag,
         from_date=from_date,
         to_date=to_date,
+        reverse=reverse,
     )
     print("Logical dates to be attempted:")
     for info in info_list:
@@ -54,6 +55,22 @@ def create_backfill(args) -> None:
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
 
+    if args.dry_run:
+        _do_dry_run(
+            params=dict(
+                dag_id=args.dag,
+                from_date=args.from_date,
+                to_date=args.to_date,
+                max_active_runs=args.max_active_runs,
+                reverse=args.run_backwards,
+                dag_run_conf=args.dag_run_conf,
+            ),
+            dag_id=args.dag,
+            from_date=args.from_date,
+            to_date=args.to_date,
+            reverse=args.run_backwards,
+        )
+        return
     _create_backfill(
         dag_id=args.dag,
         from_date=args.from_date,
