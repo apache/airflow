@@ -153,3 +153,14 @@ class FinancialServicesHook(GoogleBaseHook):
         conn = self.get_conn()
         response = conn.projects().locations().instances().delete(name=instance_resource_uri).execute()
         return response
+
+    def get_operation(self, operation_resource_uri: str) -> dict:
+        """
+        Get an operation.
+
+        :param operation_resource_uri: URI of the operation
+        :return: A dictionary containing metadata for the operation
+        """
+        conn = self.get_conn()
+        response = conn.projects().locations().operations().get(name=operation_resource_uri).execute()
+        return response
