@@ -95,20 +95,26 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
 ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
+
+LOCAL_EXECUTOR = "LocalExecutor"
+KUBERNETES_EXECUTOR = "KubernetesExecutor"
+CELERY_EXECUTOR = "CeleryExecutor"
+CELERY_K8S_EXECUTOR = "CeleryKubernetesExecutor"
+EDGE_EXECUTOR = "EdgeExecutor"
+SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 ALLOWED_EXECUTORS = [
-    "LocalExecutor",
-    "KubernetesExecutor",
-    "CeleryExecutor",
-    "CeleryKubernetesExecutor",
-    "SequentialExecutor",
+    LOCAL_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+    CELERY_EXECUTOR,
+    CELERY_K8S_EXECUTOR,
+    EDGE_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
 ]
 
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
-START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
+START_AIRFLOW_ALLOWED_EXECUTORS = [LOCAL_EXECUTOR, CELERY_EXECUTOR, EDGE_EXECUTOR, SEQUENTIAL_EXECUTOR]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
-ALLOWED_CELERY_EXECUTORS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
-
-SEQUENTIAL_EXECUTOR = "SequentialExecutor"
+ALLOWED_CELERY_EXECUTORS = [CELERY_EXECUTOR, CELERY_K8S_EXECUTOR]
 
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -150,7 +156,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.0"
+PIP_VERSION = "24.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -188,7 +194,6 @@ class SelectiveUnitTestTypes(Enum):
     PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
     PYTHON_VENV = "PythonVenv"
-    TASK_SDK = "TaskSDK"
     WWW = "WWW"
 
 
@@ -471,7 +476,7 @@ FILES_FOR_REBUILD_CHECK = [
 ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
-CURRENT_EXECUTORS = ["KubernetesExecutor"]
+CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]

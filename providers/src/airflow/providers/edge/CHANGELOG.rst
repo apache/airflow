@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+0.2.1re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed handling of PID files in Edge Worker (#43153)``
+
+0.2.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker can add or remove queues in the queue field in the DB (#43115)``
+
 0.1.0pre0
 .........
 

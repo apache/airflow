@@ -98,13 +98,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "python-ldap",
+        "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
-        "opentelemetry-exporter-prometheus",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
         # In pandas 2.2 minimal version of the sqlalchemy is 2.0
@@ -118,7 +118,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "flask-bcrypt>=0.7.1",
     ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
@@ -376,9 +376,16 @@ DEPENDENCIES = [
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
+    # WTForms are limited to 3.2.0 because of the error in tests. We technically do not need it directly
+    # as this is a dependency of Flask-WTF, but we need to specify it here to add the limitation
+    # The issue to track it is https://github.com/pallets-eco/wtforms/issues/863
+    # Note. 3.2.0 has been broken because of imports https://github.com/pallets-eco/wtforms/issues/861 which
+    # was fixed in 3.2.1, but after import was fixed, the tests started to work with 3.2.1
+    # when the issue 863 is fixed, we should likely leave the line below and specify !=3.2.0,!=3.2.1
+    "wtforms>=3.1.0,<3.2.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it

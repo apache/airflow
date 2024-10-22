@@ -22,7 +22,7 @@ import datetime
 import logging
 import os
 import sys
-from collections import deque
+from collections import Counter, deque
 from datetime import timedelta
 from importlib import reload
 from typing import Generator
@@ -33,6 +33,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
+from pytest import param
 from sqlalchemy import func, select, update
 
 import airflow.example_dags
@@ -1168,86 +1169,78 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti2.state == State.QUEUED
 
-    def test_find_executable_task_instances_concurrency(self, dag_maker):
-        dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency"
-        session = settings.Session()
+    @pytest.mark.parametrize("active_state", [TaskInstanceState.RUNNING, TaskInstanceState.QUEUED])
+    def test_find_executable_task_instances_concurrency(self, dag_maker, active_state, session):
+        """We verify here that, with varying amounts of queued / running / scheduled tasks,
+        the correct number of TIs are queued"""
+        dag_id = "check_MAT_dag"
         with dag_maker(dag_id=dag_id, max_active_tasks=2, session=session):
-            EmptyOperator(task_id="dummy")
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+            EmptyOperator(task_id="task_3")
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, run_id="run_1", session=session)
+        dr2 = dag_maker.create_dagrun_after(
+            dr1, run_type=DagRunType.SCHEDULED, run_id="run_2", session=session
+        )
+        dr3 = dag_maker.create_dagrun_after(
+            dr2, run_type=DagRunType.SCHEDULED, run_id="run_3", session=session
+        )
 
-        ti1 = dr1.task_instances[0]
-        ti2 = dr2.task_instances[0]
-        ti3 = dr3.task_instances[0]
-        ti1.state = State.RUNNING
-        ti2.state = State.SCHEDULED
-        ti3.state = State.SCHEDULED
-        session.merge(ti1)
-        session.merge(ti2)
-        session.merge(ti3)
-
-        session.flush()
-
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-
-        assert 1 == len(res)
-        res_keys = (x.key for x in res)
-        assert ti2.key in res_keys
-
-        ti2.state = State.RUNNING
-        session.merge(ti2)
-        session.flush()
-
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-
-        assert 0 == len(res)
-        session.rollback()
-
-    def test_find_executable_task_instances_concurrency_queued(self, dag_maker):
-        dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
-        with dag_maker(dag_id=dag_id, max_active_tasks=3):
-            task1 = EmptyOperator(task_id="dummy1")
-            task2 = EmptyOperator(task_id="dummy2")
-            task3 = EmptyOperator(task_id="dummy3")
-
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-        session = settings.Session()
-
-        dag_run = dag_maker.create_dagrun()
-
-        ti1 = dag_run.get_task_instance(task1.task_id)
-        ti2 = dag_run.get_task_instance(task2.task_id)
-        ti3 = dag_run.get_task_instance(task3.task_id)
-        ti1.state = State.RUNNING
-        ti2.state = State.QUEUED
-        ti3.state = State.SCHEDULED
-
-        session.merge(ti1)
-        session.merge(ti2)
-        session.merge(ti3)
+        # set 2 tis in dr1 to running
+        # no more can be queued
+        t1, t2, t3 = dr1.get_task_instances(session=session)
+        t1.state = active_state
+        t2.state = active_state
+        t3.state = State.SCHEDULED
+        session.merge(t1)
+        session.merge(t2)
+        session.merge(t3)
+        # set 1 ti from dr1 to running
+        # one can be queued
+        t1, t2, t3 = dr2.get_task_instances(session=session)
+        t1.state = active_state
+        t2.state = State.SCHEDULED
+        t3.state = State.SCHEDULED
+        session.merge(t1)
+        session.merge(t2)
+        session.merge(t3)
+        # set 0 tis from dr1 to running
+        # two can be queued
+        t1, t2, t3 = dr3.get_task_instances(session=session)
+        t1.state = State.SCHEDULED
+        t2.state = State.SCHEDULED
+        t3.state = State.SCHEDULED
+        session.merge(t1)
+        session.merge(t2)
+        session.merge(t3)
 
         session.flush()
 
-        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        queued_runs = Counter([x.run_id for x in queued_tis])
+        assert queued_runs["run_1"] == 0
+        assert queued_runs["run_2"] == 1
+        assert queued_runs["run_3"] == 2
 
-        assert 1 == len(res)
-        assert res[0].key == ti3.key
+        session.commit()
+        session.query(TaskInstance).all()
+
+        # now we still have max tis running so no more will be queued
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert queued_tis == []
+
         session.rollback()
 
     # TODO: This is a hack, I think I need to just remove the setting and have it on always
     def test_find_executable_task_instances_max_active_tis_per_dag(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_max_active_tis_per_dag"
-        task_id_1 = "dummy"
-        task_id_2 = "dummy2"
         with dag_maker(dag_id=dag_id, max_active_tasks=16):
-            task1 = EmptyOperator(task_id=task_id_1, max_active_tis_per_dag=2)
-            task2 = EmptyOperator(task_id=task_id_2)
+            task1 = EmptyOperator(task_id="dummy", max_active_tis_per_dag=2)
+            task2 = EmptyOperator(task_id="dummy2")
 
         executor = MockExecutor(do_update=True)
 
@@ -1652,65 +1645,88 @@ class TestSchedulerJob:
             ("secondary_exec", "secondary_exec"),
         ],
     )
-    def test_critical_section_enqueue_task_instances(self, task1_exec, task2_exec, dag_maker, mock_executors):
+    def test_critical_section_enqueue_task_instances(
+        self, task1_exec, task2_exec, dag_maker, mock_executors, session
+    ):
         dag_id = "SchedulerJobTest.test_execute_task_instances"
-        task_id_1 = "dummy_task"
-        task_id_2 = "dummy_task_nonexistent_queue"
-        session = settings.Session()
         # important that len(tasks) is less than max_active_tasks
         # because before scheduler._execute_task_instances would only
         # check the num tasks once so if max_active_tasks was 3,
         # we could execute arbitrarily many tasks in the second run
         with dag_maker(dag_id=dag_id, max_active_tasks=3, session=session) as dag:
-            task1 = EmptyOperator(task_id=task_id_1, executor=task1_exec)
-            task2 = EmptyOperator(task_id=task_id_2, executor=task2_exec)
+            task1 = EmptyOperator(task_id="t1", executor=task1_exec)
+            task2 = EmptyOperator(task_id="t2", executor=task2_exec)
+            task3 = EmptyOperator(task_id="t3", executor=task2_exec)
+            task4 = EmptyOperator(task_id="t4", executor=task2_exec)
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        # create first dag run with 2 running tasks
+        # create first dag run with 3 running tasks
 
-        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
 
-        ti1 = dr1.get_task_instance(task1.task_id, session)
-        ti2 = dr1.get_task_instance(task2.task_id, session)
-        ti1.state = State.RUNNING
-        ti2.state = State.RUNNING
+        dr1_ti1 = dr1.get_task_instance(task1.task_id, session)
+        dr1_ti2 = dr1.get_task_instance(task2.task_id, session)
+        dr1_ti3 = dr1.get_task_instance(task3.task_id, session)
+        dr1_ti4 = dr1.get_task_instance(task4.task_id, session)
+        dr1_ti1.state = State.RUNNING
+        dr1_ti2.state = State.RUNNING
+        dr1_ti3.state = State.RUNNING
+        dr1_ti4.state = State.SCHEDULED
         session.flush()
 
-        assert State.RUNNING == dr1.state
-        assert 2 == DAG.get_num_task_instances(
-            dag_id, task_ids=dag.task_ids, states=[State.RUNNING], session=session
+        assert dr1.state == State.RUNNING
+        num_tis = DAG.get_num_task_instances(
+            dag_id=dag_id,
+            task_ids=dag.task_ids,
+            states=[State.RUNNING],
+            session=session,
         )
+        assert num_tis == 3
 
         # create second dag run
-        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        ti3 = dr2.get_task_instance(task1.task_id, session)
-        ti4 = dr2.get_task_instance(task2.task_id, session)
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED, session=session)
+        dr2_ti1 = dr2.get_task_instance(task1.task_id, session)
+        dr2_ti2 = dr2.get_task_instance(task2.task_id, session)
+        dr2_ti3 = dr2.get_task_instance(task3.task_id, session)
+        dr2_ti4 = dr2.get_task_instance(task4.task_id, session)
         # manually set to scheduled so we can pick them up
-        ti3.state = State.SCHEDULED
-        ti4.state = State.SCHEDULED
+        dr2_ti1.state = State.SCHEDULED
+        dr2_ti2.state = State.SCHEDULED
+        dr2_ti3.state = State.SCHEDULED
+        dr2_ti4.state = State.SCHEDULED
         session.flush()
 
-        assert State.RUNNING == dr2.state
+        assert dr2.state == State.RUNNING
 
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
+        assert num_queued == 3
 
         # check that max_active_tasks is respected
-        ti1.refresh_from_db()
-        ti2.refresh_from_db()
-        ti3.refresh_from_db()
-        ti4.refresh_from_db()
-        assert 3 == DAG.get_num_task_instances(
-            dag_id, task_ids=dag.task_ids, states=[State.RUNNING, State.QUEUED], session=session
-        )
-        assert State.RUNNING == ti1.state
-        assert State.RUNNING == ti2.state
-        assert {State.QUEUED, State.SCHEDULED} == {ti3.state, ti4.state}
-        assert 1 == res
 
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 0 == res
+        num_tis = DAG.get_num_task_instances(
+            dag_id=dag_id,
+            task_ids=dag.task_ids,
+            states=[State.RUNNING, State.QUEUED],
+            session=session,
+        )
+        assert num_tis == 6
+
+        # this doesn't really tell us anything since we set these values manually, but hey
+        dr1_counter = Counter(x.state for x in dr1.get_task_instances(session=session))
+        assert dr1_counter[State.RUNNING] == 3
+        assert dr1_counter[State.SCHEDULED] == 1
+
+        # this is the more meaningful bit
+        # three of dr2's tasks should be queued since that's max active tasks
+        # and max active tasks is evaluated per-dag-run
+        dr2_counter = Counter(x.state for x in dr2.get_task_instances(session=session))
+        assert dr2_counter[State.QUEUED] == 3
+        assert dr2_counter[State.SCHEDULED] == 1
+
+        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
+        assert num_queued == 0
 
     def test_execute_task_instances_limit_second_executor(self, dag_maker, mock_executors):
         dag_id = "SchedulerJobTest.test_execute_task_instances_limit"
@@ -3818,62 +3834,125 @@ class TestSchedulerJob:
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
 
     @pytest.mark.parametrize(
-        "schedule, number_running, excepted",
+        "kwargs",
         [
-            (None, None, False),
-            ("*/1 * * * *", None, False),
-            ("*/1 * * * *", 1, True),
+            param(
+                dict(
+                    schedule=None,
+                    backfill_runs=0,
+                    other_runs=2,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="no_dag_schedule",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=2,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="dag_schedule_at_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=1,
+                    max_active_runs=2,
+                    should_update=True,
+                ),
+                id="dag_schedule_under_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    backfill_runs=0,
+                    other_runs=5,
+                    max_active_runs=2,
+                    should_update=False,
+                ),
+                id="dag_schedule_over_capacity",
+            ),
+            param(
+                dict(
+                    schedule="0 0 * * *",
+                    number_running=None,
+                    backfill_runs=5,
+                    other_runs=1,
+                    max_active_runs=2,
+                    should_update=True,
+                ),
+                id="dag_schedule_under_capacity_many_backfill",
+            ),
         ],
-        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
     )
-    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+    @pytest.mark.parametrize("provide_run_count", [True, False])
+    def test_should_update_dag_next_dagruns(self, provide_run_count: bool, kwargs: dict, session, dag_maker):
         """Test if really required to update next dagrun or possible to save run time"""
+        schedule: str | None = kwargs["schedule"]
+        backfill_runs: int = kwargs["backfill_runs"]
+        other_runs: int = kwargs["other_runs"]
+        max_active_runs: int = kwargs["max_active_runs"]
+        should_update: bool = kwargs["should_update"]
 
-        with dag_maker(
-            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
-        ) as dag:
+        with dag_maker(schedule=schedule, max_active_runs=max_active_runs) as dag:
             EmptyOperator(task_id="dummy")
 
-        dag_model = dag_maker.dag_model
-
-        for index in range(2):
+        index = 0
+        for index in range(other_runs):
             dag_maker.create_dagrun(
                 run_id=f"run_{index}",
                 execution_date=(DEFAULT_DATE + timedelta(days=index)),
                 start_date=timezone.utcnow(),
                 state=State.RUNNING,
+                run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-
-        session.flush()
+        for index in range(index + 1, index + 1 + backfill_runs):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                run_type=DagRunType.BACKFILL_JOB,
+                session=session,
+            )
+        assert index == other_runs + backfill_runs - 1  # sanity check
+        session.commit()
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, total_active_runs=number_running, session=session
+        actual = self.job_runner._should_update_dag_next_dagruns(
+            dag=dag,
+            dag_model=dag_maker.dag_model,
+            active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
+            session=session,
         )
+        assert actual == should_update
 
     @pytest.mark.parametrize(
-        "run_type, should_update",
+        "run_type, expected",
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, True),
-            (DagRunType.DATASET_TRIGGERED, False),
+            (DagRunType.ASSET_TRIGGERED, False),
         ],
         ids=[
             DagRunType.MANUAL.name,
             DagRunType.SCHEDULED.name,
             DagRunType.BACKFILL_JOB.name,
-            DagRunType.DATASET_TRIGGERED.name,
+            DagRunType.ASSET_TRIGGERED.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, should_update, session, dag_maker):
-        """Test that whether next dagrun is updated depends on run type"""
+    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
+        """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
-            dag_id="test_should_update_dag_next_dagruns_after_run_type",
             schedule="*/1 * * * *",
-            max_active_runs=10,
+            max_active_runs=3,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -3892,9 +3971,13 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        assert should_update is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, last_dag_run=run, total_active_runs=0, session=session
+        actual = self.job_runner._should_update_dag_next_dagruns(
+            dag=dag,
+            dag_model=dag_model,
+            last_dag_run=run,
+            session=session,
         )
+        assert actual == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -3948,7 +4031,7 @@ class TestSchedulerJob:
         asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
 
         event1 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -3964,7 +4047,7 @@ class TestSchedulerJob:
         )
 
         event2 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -3982,8 +4065,8 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
             ]
         )
         session.flush()
@@ -4007,7 +4090,7 @@ class TestSchedulerJob:
 
         # we don't have __eq__ defined on AssetEvent because... given the fact that in the future
         # we may register events from other systems, asset_id + timestamp might not be enough PK
-        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
+        assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
             map(dict_from_obj, [event1, event2])
         )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
@@ -4039,9 +4122,9 @@ class TestSchedulerJob:
 
         asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
 
-        ase_q = select(AssetEvent).where(AssetEvent.dataset_id == asset_id).order_by(AssetEvent.timestamp)
+        ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
-            AssetDagRunQueue.dataset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
+            AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
 
         # Simulate the consumer DAG being disabled.
@@ -4477,14 +4560,18 @@ class TestSchedulerJob:
         model: DagModel = session.get(DagModel, dag.dag_id)
 
         # Pre-condition
-        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], exclude_backfill=True, session=session) == {
+            "test_dag": 3
+        }
 
         assert model.next_dagrun == timezone.DateTime(2016, 1, 3, tzinfo=UTC)
         assert model.next_dagrun_create_after is None
 
         complete_one_dagrun()
 
-        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], session=session) == {"test_dag": 3}
+        assert DagRun.active_runs_of_dags(dag_ids=["test_dag"], exclude_backfill=True, session=session) == {
+            "test_dag": 3
+        }
 
         for _ in range(5):
             self.job_runner._do_scheduling(session)

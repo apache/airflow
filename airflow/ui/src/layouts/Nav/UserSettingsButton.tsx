@@ -23,13 +23,25 @@ import {
   useColorMode,
   MenuItem,
   MenuList,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { FiMoon, FiSun, FiUser } from "react-icons/fi";
+import dayjs from "dayjs";
+import timezone from "dayjs/plugin/timezone";
+import utc from "dayjs/plugin/utc";
+import { FiClock, FiMoon, FiSun, FiUser } from "react-icons/fi";
 
+import { useTimezone } from "src/context/timezone";
+
+import TimezoneModal from "./TimezoneModal";
 import { navButtonProps } from "./navButtonProps";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export const UserSettingsButton = () => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const { isOpen, onClose, onOpen } = useDisclosure();
+  const { selectedTimezone } = useTimezone();
 
   return (
     <Menu placement="right">
@@ -52,7 +64,12 @@ export const UserSettingsButton = () => {
             </>
           )}
         </MenuItem>
+        <MenuItem onClick={onOpen}>
+          <FiClock size="1.25rem" style={{ marginRight: "8px" }} />
+          {dayjs().tz(selectedTimezone).format("HH:mm z (Z)")}
+        </MenuItem>
       </MenuList>
+      <TimezoneModal isOpen={isOpen} onClose={onClose} />
     </Menu>
   );
 };

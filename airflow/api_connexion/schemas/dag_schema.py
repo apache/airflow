@@ -98,7 +98,7 @@ class DAGDetailSchema(DAGSchema):
     catchup = fields.Boolean(dump_only=True)
     orientation = fields.String(dump_only=True)
     max_active_tasks = fields.Integer(dump_only=True)
-    dataset_expression = fields.Dict(allow_none=True)
+    asset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime(dump_only=True)
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
     doc_md = fields.String(dump_only=True)

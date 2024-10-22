@@ -99,7 +99,7 @@ jobs:
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
-      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
+      mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
@@ -298,7 +298,7 @@ jobs:
       runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -643,6 +643,24 @@ jobs:
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true')
+
+  tests-task-sdk:
+    name: "Task SDK tests"
+    uses: ./.github/workflows/task-sdk-tests.yml
+    needs: [build-info, wait-for-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
+    if: >
+      ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true')
 
   finalize-tests:
     name: Finalize tests

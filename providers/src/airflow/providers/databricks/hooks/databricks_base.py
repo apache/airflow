@@ -28,6 +28,7 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from asyncio.exceptions import TimeoutError
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
@@ -516,6 +517,11 @@ class BaseDatabricksHook(BaseHook):
     def _log_request_error(self, attempt_num: int, error: str) -> None:
         self.log.error("Attempt %s API Request to Databricks failed with reason: %s", attempt_num, error)
 
+    def _endpoint_url(self, endpoint):
+        port = f":{self.databricks_conn.port}" if self.databricks_conn.port else ""
+        schema = self.databricks_conn.schema or "https"
+        return f"{schema}://{self.host}{port}/{endpoint}"
+
     def _do_api_call(
         self,
         endpoint_info: tuple[str, str],
@@ -534,7 +540,7 @@ class BaseDatabricksHook(BaseHook):
         method, endpoint = endpoint_info
 
         # TODO: get rid of explicit 'api/' in the endpoint specification
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = self._get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -600,7 +606,7 @@ class BaseDatabricksHook(BaseHook):
         """
         method, endpoint = endpoint_info
 
-        url = f"https://{self.host}/{endpoint}"
+        url = self._endpoint_url(endpoint)
 
         aad_headers = await self._a_get_aad_headers()
         headers = {**self.user_agent_header, **aad_headers}
@@ -679,7 +685,7 @@ class BaseDatabricksHook(BaseHook):
             if exception.status >= 500 or exception.status == 429:
                 return True
 
-        if isinstance(exception, ClientConnectorError):
+        if isinstance(exception, (ClientConnectorError, TimeoutError)):
             return True
 
         return False

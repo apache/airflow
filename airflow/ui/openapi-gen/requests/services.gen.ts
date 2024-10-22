@@ -11,6 +11,8 @@ import type {
   GetDagsResponse,
   PatchDagsData,
   PatchDagsResponse,
+  GetDagTagsData,
+  GetDagTagsResponse,
   GetDagData,
   GetDagResponse,
   PatchDagData,
@@ -31,6 +33,8 @@ import type {
   GetVariableResponse,
   PatchVariableData,
   PatchVariableResponse,
+  GetVariablesData,
+  GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
   GetDagRunData,
@@ -38,6 +42,16 @@ import type {
   DeleteDagRunData,
   DeleteDagRunResponse,
   GetHealthResponse,
+  DeletePoolData,
+  DeletePoolResponse,
+  GetPoolData,
+  GetPoolResponse,
+  GetPoolsData,
+  GetPoolsResponse,
+  GetProvidersData,
+  GetProvidersResponse,
+  GetPluginsData,
+  GetPluginsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -175,6 +189,37 @@ export class DagService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Tags
+   * Get all DAG tags.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.tagNamePattern
+   * @returns DAGTagCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagTags(
+    data: GetDagTagsData = {},
+  ): CancelablePromise<GetDagTagsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/tags",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        tag_name_pattern: data.tagNamePattern,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -466,6 +511,35 @@ export class VariableService {
   }
 
   /**
+   * Get Variables
+   * Get all Variables entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns VariableCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getVariables(
+    data: GetVariablesData = {},
+  ): CancelablePromise<GetVariablesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/variables/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Post Variable
    * Create a variable.
    * @param data The data for the request.
@@ -558,6 +632,142 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+    });
+  }
+}
+
+export class PoolService {
+  /**
+   * Delete Pool
+   * Delete a pool entry.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deletePool(
+    data: DeletePoolData,
+  ): CancelablePromise<DeletePoolResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pool
+   * Get a pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPool(data: GetPoolData): CancelablePromise<GetPoolResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Pools
+   * Get all pools entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns PoolCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPools(
+    data: GetPoolsData = {},
+  ): CancelablePromise<GetPoolsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/pools/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ProviderService {
+  /**
+   * Get Providers
+   * Get providers.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns ProviderCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getProviders(
+    data: GetProvidersData = {},
+  ): CancelablePromise<GetProvidersResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/providers/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class PluginService {
+  /**
+   * Get Plugins
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns PluginCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPlugins(
+    data: GetPluginsData = {},
+  ): CancelablePromise<GetPluginsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/plugins/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        422: "Validation Error",
+      },
     });
   }
 }

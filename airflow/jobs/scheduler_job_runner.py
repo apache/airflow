@@ -24,7 +24,6 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
@@ -83,7 +82,6 @@ if TYPE_CHECKING:
     from datetime import datetime
     from types import FrameType
 
-    from sqlalchemy.engine import Result
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -99,7 +97,6 @@ DR = DagRun
 DM = DagModel
 
 
-@dataclass
 class ConcurrencyMap:
     """
     Dataclass to represent concurrency maps.
@@ -109,17 +106,24 @@ class ConcurrencyMap:
     to # of task instances in the given state list in each DAG run.
     """
 
-    dag_active_tasks_map: dict[str, int]
-    task_concurrency_map: dict[tuple[str, str], int]
-    task_dagrun_concurrency_map: dict[tuple[str, str, str], int]
+    def __init__(self):
+        self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
+        self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
+        self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
 
-    @classmethod
-    def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
-        instance = cls(Counter(), Counter(), Counter(mapping))
-        for (d, _, t), c in mapping.items():
-            instance.dag_active_tasks_map[d] += c
-            instance.task_concurrency_map[(d, t)] += c
-        return instance
+    def load(self, session: Session) -> None:
+        self.dag_run_active_tasks_map.clear()
+        self.task_concurrency_map.clear()
+        self.task_dagrun_concurrency_map.clear()
+        query = session.execute(
+            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
+            .where(TI.state.in_(EXECUTION_STATES))
+            .group_by(TI.task_id, TI.run_id, TI.dag_id)
+        )
+        for dag_id, task_id, run_id, c in query:
+            self.dag_run_active_tasks_map[dag_id, run_id] += c
+            self.task_concurrency_map[(dag_id, task_id)] += c
+            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += c
 
 
 def _is_parent_process() -> bool:
@@ -258,22 +262,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor.debug_dump()
             self.log.info("-" * 80)
 
-    def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
-        """
-        Get the concurrency maps.
-
-        :param states: List of states to query for
-        :return: Concurrency map
-        """
-        ti_concurrency_query: Result = session.execute(
-            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .where(TI.state.in_(states))
-            .group_by(TI.task_id, TI.run_id, TI.dag_id)
-        )
-        return ConcurrencyMap.from_concurrency_map(
-            {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
-        )
-
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -326,7 +314,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        concurrency_map = self.__get_concurrency_maps(states=EXECUTION_STATES, session=session)
+        concurrency_map = ConcurrencyMap()
+        concurrency_map.load(session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
@@ -465,22 +454,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Check to make sure that the task max_active_tasks of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
-
-                current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
-                max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
+                dag_run_key = (dag_id, task_instance.run_id)
+                current_active_tasks_per_dag_run = concurrency_map.dag_run_active_tasks_map[dag_run_key]
+                dag_max_active_tasks = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
                     dag_id,
-                    current_active_tasks_per_dag,
-                    max_active_tasks_per_dag_limit,
+                    current_active_tasks_per_dag_run,
+                    dag_max_active_tasks,
                 )
-                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                if current_active_tasks_per_dag_run >= dag_max_active_tasks:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
                         "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
                         task_instance,
                         dag_id,
-                        max_active_tasks_per_dag_limit,
+                        dag_max_active_tasks,
                     )
                     starved_dags.add(dag_id)
                     continue
@@ -571,7 +560,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                concurrency_map.dag_active_tasks_map[dag_id] += 1
+                concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
                 concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
                 concurrency_map.task_dagrun_concurrency_map[
                     (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
@@ -1099,16 +1088,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span:
+            with Trace.start_span(
+                span_name="scheduler_job_loop", component="SchedulerJobRunner"
+            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
                 span.set_attribute("category", "scheduler")
                 span.set_attribute("loop_count", loop_count)
-                with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                    if self.using_sqlite and self.processor_agent:
-                        self.processor_agent.run_single_parsing_loop()
-                        # For the sqlite case w/ 1 thread, wait until the processor
-                        # is finished to avoid concurrent access to the DB.
-                        self.log.debug("Waiting for processors to finish since we're using sqlite")
-                        self.processor_agent.wait_until_finished()
+
+                if self.using_sqlite and self.processor_agent:
+                    self.processor_agent.run_single_parsing_loop()
+                    # For the sqlite case w/ 1 thread, wait until the processor
+                    # is finished to avoid concurrent access to the DB.
+                    self.log.debug("Waiting for processors to finish since we're using sqlite")
+                    self.processor_agent.wait_until_finished()
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
@@ -1281,15 +1272,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
+        query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        dataset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in dataset_triggered_dag_info
+        asset_triggered_dags = [
+            dag for dag in all_dags_needing_dag_runs if dag.dag_id in asset_triggered_dag_info
         ]
-        non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
-        self._create_dag_runs(non_dataset_dags, session)
-        if dataset_triggered_dags:
-            self._create_dag_runs_asset_triggered(dataset_triggered_dags, dataset_triggered_dag_info, session)
+        non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
+        self._create_dag_runs(non_asset_dags, session)
+        if asset_triggered_dags:
+            self._create_dag_runs_asset_triggered(asset_triggered_dags, asset_triggered_dag_info, session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
@@ -1337,8 +1328,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .all()
         )
 
+        # backfill runs are not created by scheduler and their concurrency is separate
+        # so we exclude them here
         dag_ids = (dm.dag_id for dm in dag_models)
-        active_runs_of_dags = Counter(DagRun.active_runs_of_dags(dag_ids=dag_ids, session=session))
+        active_runs_of_dags = Counter(
+            DagRun.active_runs_of_dags(
+                dag_ids=dag_ids,
+                exclude_backfill=True,
+                session=session,
+            )
+        )
 
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
@@ -1382,7 +1381,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag,
                 dag_model,
                 last_dag_run=None,
-                total_active_runs=active_runs_of_dags[dag.dag_id],
+                active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
                 session=session,
             ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
@@ -1392,7 +1391,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
-        dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
+        asset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
@@ -1402,7 +1401,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # duplicate dag runs
         exec_dates = {
             dag_id: timezone.coerce_datetime(last_time)
-            for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
+            for dag_id, (_, last_time) in asset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
@@ -1442,7 +1441,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(
                         DagRun.dag_id == dag.dag_id,
                         DagRun.execution_date < exec_date,
-                        DagRun.run_type == DagRunType.DATASET_TRIGGERED,
+                        DagRun.run_type == DagRunType.ASSET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
                     .limit(1)
@@ -1458,14 +1457,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetEvent)
                     .join(
                         DagScheduleAssetReference,
-                        AssetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
+                        AssetEvent.asset_id == DagScheduleAssetReference.asset_id,
                     )
                     .where(*asset_event_filters)
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     logical_date=exec_date,
                     data_interval=data_interval,
                     session=session,
@@ -1474,7 +1473,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
-                    run_type=DagRunType.DATASET_TRIGGERED,
+                    run_type=DagRunType.ASSET_TRIGGERED,
                     execution_date=exec_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
@@ -1485,7 +1484,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     triggered_by=DagRunTriggeredByType.DATASET,
                 )
                 Stats.incr("asset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(asset_events)
+                dag_run.consumed_asset_events.extend(asset_events)
                 session.execute(
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
@@ -1496,7 +1495,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_model: DagModel,
         *,
         last_dag_run: DagRun | None = None,
-        total_active_runs: int | None = None,
+        active_non_backfill_runs: int | None = None,
         session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
@@ -1511,15 +1510,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag.timetable.can_be_scheduled:
             return False
 
-        if total_active_runs is None:
-            runs_dict = DagRun.active_runs_of_dags(dag_ids=[dag.dag_id], session=session)
-            total_active_runs = runs_dict.get(dag.dag_id, 0)
+        if active_non_backfill_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(
+                dag_ids=[dag.dag_id],
+                exclude_backfill=True,
+                session=session,
+            )
+            active_non_backfill_runs = runs_dict.get(dag.dag_id, 0)
 
-        if total_active_runs >= dag.max_active_runs:
+        if active_non_backfill_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
-                total_active_runs,
+                active_non_backfill_runs,
                 dag.max_active_runs,
             )
             dag_model.next_dagrun_create_after = None
