@@ -2427,10 +2427,12 @@ if STATICA_HACK:  # pragma: no cover
 class DagContext(airflow.sdk.definitions.contextmanager.DagContext, share_parent_context=True):
     """:meta private:"""  # noqa: D400
 
+    # TODO: Method is not used anywhere. Remove them if not needed.
     @classmethod
     def push_context_managed_dag(cls, dag: DAG):
         cls.push(dag)
 
+    # TODO: Method is not used anywhere. Remove them if not needed.
     @classmethod
     def pop_context_managed_dag(cls) -> DAG | None:
         return cast(DAG, cls.pop())

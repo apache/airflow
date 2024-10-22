@@ -280,7 +280,7 @@ class DagBag(LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
@@ -328,7 +328,7 @@ class DagBag(LoggingMixin):
         return found_dags
 
     def _load_modules_from_file(self, filepath, safe_mode):
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
@@ -384,7 +384,7 @@ class DagBag(LoggingMixin):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
@@ -433,7 +433,8 @@ class DagBag(LoggingMixin):
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
-        from airflow.models.dag import DAG, DagContext  # Avoid circular import
+        from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
 
