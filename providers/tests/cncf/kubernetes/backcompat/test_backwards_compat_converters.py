@@ -95,7 +95,6 @@ def test_convert_from_dict_with_dict(mock_api_client):
 def test_convert_from_dict_with_invalid_type():
     obj = "not a dict"
     new_class = Mock()
-
     with pytest.raises(AirflowException) as exc_info:
         _convert_from_dict(obj, type(new_class))
 
@@ -227,7 +226,6 @@ def test_convert_affinity_normal_value(mock_convert_from_dict):
     affinity = {"some_key": "some_value"}
     expected_result = Mock(k8s.V1Affinity)
     mock_convert_from_dict.return_value = expected_result
-
     result = convert_affinity(affinity)
 
     mock_convert_from_dict.assert_called_once_with(affinity, k8s.V1Affinity)
