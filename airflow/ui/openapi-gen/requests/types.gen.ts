@@ -8,7 +8,7 @@ export type BaseInfoSchema = {
 };
 
 /**
- * DAG Collection serializer for responses.
+ * Connection Collection serializer for responses.
  */
 export type ConnectionCollectionResponse = {
   connections: Array<ConnectionResponse>;
@@ -264,6 +264,14 @@ export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
   task_instance_states: TaskInstanceState;
+};
+
+/**
+ * Pool Collection serializer for responses.
+ */
+export type PoolCollectionResponse = {
+  pools: Array<PoolResponse>;
+  total_entries: number;
 };
 
 /**
@@ -527,6 +535,14 @@ export type GetPoolData = {
 };
 
 export type GetPoolResponse = PoolResponse;
+
+export type GetPoolsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -1066,6 +1082,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/": {
+    get: {
+      req: GetPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolCollectionResponse;
         /**
          * Unauthorized
          */
