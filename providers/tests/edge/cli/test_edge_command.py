@@ -37,12 +37,12 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 
 def test_write_pid_to_pidfile_success(caplog, tmp_path):
-    caplog.set_level(logging.DEBUG)
-    pid_file_path = tmp_path / "file.pid"
-    _write_pid_to_pidfile(pid_file_path)
-    assert pid_file_path.exists()
-    assert "An existing PID file has been found" not in caplog.text
-    assert "PID file written to" in caplog.text
+    with caplog.at_level(logging.DEBUG):
+        pid_file_path = tmp_path / "file.pid"
+        _write_pid_to_pidfile(pid_file_path)
+        assert pid_file_path.exists()
+        assert "An existing PID file has been found" not in caplog.text
+        assert "PID file written to" in caplog.text
 
 
 def test_write_pid_to_pidfile_called_twice(tmp_path):
@@ -53,7 +53,7 @@ def test_write_pid_to_pidfile_called_twice(tmp_path):
     assert pid_file_path.exists()
 
 
-def test_write_pid_to_pidfile_created_by_other_instance(caplog, tmp_path):
+def test_write_pid_to_pidfile_created_by_other_instance(tmp_path):
     # write a PID file with the PID of this process
     pid_file_path = tmp_path / "file.pid"
     _write_pid_to_pidfile(pid_file_path)
@@ -64,13 +64,14 @@ def test_write_pid_to_pidfile_created_by_other_instance(caplog, tmp_path):
 
 
 def test_write_pid_to_pidfile_created_by_crashed_instance(caplog, tmp_path):
-    # write a PID file with process ID 0
-    with patch("os.getpid", return_value=0):
-        pid_file_path = tmp_path / "file.pid"
+    with caplog.at_level(logging.DEBUG):
+        # write a PID file with process ID 0
+        with patch("os.getpid", return_value=0):
+            pid_file_path = tmp_path / "file.pid"
+            _write_pid_to_pidfile(pid_file_path)
+        # write a PID file with the current process ID
         _write_pid_to_pidfile(pid_file_path)
-    # write a PID file with the current process ID
-    _write_pid_to_pidfile(pid_file_path)
-    assert "PID file is orphaned." in caplog.text
+        assert "PID file is orphaned." in caplog.text
 
 
 # Ignore the following error for mocking
