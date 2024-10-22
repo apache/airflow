@@ -482,7 +482,6 @@ def _get_task_groups_details(dag: DAG) -> dict:
     return {
         tg_id: {
             "parent_group": tg.parent_group.group_id,
-            "tooltip": tg.tooltip,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,

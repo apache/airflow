@@ -1,0 +1,9 @@
+**Breaking Changes**
+
+* Rename property run_type value ``dataset_triggered`` as ``asset_triggered`` in DAGRun endpoint
+
+* Rename property ``dataset_expression`` as ``asset_expression`` in DAGDetail endpoint
+
+* Change the string ``dataset_triggered`` in RUN_ID_REGEX as ``asset_triggered`` which affects the valid run id that an user can provide
+
+* Rename ``dataset`` as ``asset`` in all the database tables
