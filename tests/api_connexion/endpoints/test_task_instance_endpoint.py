@@ -1983,15 +1983,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},
@@ -2028,15 +2028,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},
