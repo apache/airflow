@@ -645,3 +645,35 @@ class TestAssetSubclasses:
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
+
+
+@pytest.mark.parametrize(
+    "module_path, attr_name, warning_message",
+    (
+        (
+            "airflow",
+            "Dataset",
+            (
+                "Import 'Dataset' directly from the airflow module is deprecated and will be removed in the future. "
+                "Please import it from 'airflow.assets.Dataset'."
+            ),
+        ),
+        (
+            "airflow.datasets",
+            "Dataset",
+            (
+                "Import from the airflow.dataset module is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from 'airflow.assets'."
+            ),
+        ),
+    ),
+)
+def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
+    with pytest.warns() as record:
+        import importlib
+
+        mod = importlib.import_module(module_path, __name__)
+        getattr(mod, attr_name)
+
+    assert record[0].category is DeprecationWarning
+    assert str(record[0].message) == warning_message
