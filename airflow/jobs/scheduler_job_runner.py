@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import itertools
 import multiprocessing
+import operator
 import os
 import signal
 import sys
@@ -55,6 +56,7 @@ from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
@@ -1078,7 +1080,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
-            self._orphan_unreferenced_assets,
+            self._update_asset_orphanage,
         )
 
         if self._standalone_dag_processor:
@@ -2068,44 +2070,104 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
-    def _get_orphaning_identifier(self, asset: AssetModel) -> tuple[str, str]:
-        self.log.info("Orphaning unreferenced %s", asset)
-        return asset.name, asset.uri
-
     @provide_session
-    def _orphan_unreferenced_assets(self, session: Session = NEW_SESSION) -> None:
+    def _update_asset_orphanage(self, session: Session = NEW_SESSION) -> None:
         """
-        Detect orphaned assets and remove their active entry.
+        Check assets orphanization and update their active entry.
 
-        An orphaned asset is no longer referenced in any DAG schedule parameters or task outlets.
+        An orphaned asset is no longer referenced in any DAG schedule parameters
+        or task outlets. Active assets (non-orphaned) have entries in AssetActive
+        and must have unique names and URIs.
         """
-        orphaned_asset_query = session.scalars(
-            select(AssetModel)
-            .join(
-                DagScheduleAssetReference,
-                isouter=True,
-            )
-            .join(
-                TaskOutletAssetReference,
-                isouter=True,
-            )
+        # Group assets into orphaned=True and orphaned=False groups.
+        orphaned = (
+            (func.count(DagScheduleAssetReference.dag_id) + func.count(TaskOutletAssetReference.dag_id)) == 0
+        ).label("orphaned")
+        asset_reference_query = session.execute(
+            select(orphaned, AssetModel)
+            .outerjoin(DagScheduleAssetReference)
+            .outerjoin(TaskOutletAssetReference)
             .group_by(AssetModel.id)
-            .where(AssetModel.active.has())
-            .having(
-                and_(
-                    func.count(DagScheduleAssetReference.dag_id) == 0,
-                    func.count(TaskOutletAssetReference.dag_id) == 0,
+            .order_by(orphaned)
+        )
+        asset_orphanation: dict[bool, Collection[AssetModel]] = {
+            orphaned: [asset for _, asset in group]
+            for orphaned, group in itertools.groupby(asset_reference_query, key=operator.itemgetter(0))
+        }
+        self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
+        self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
+
+    def _orphan_unreferenced_assets(self, assets: Collection[AssetModel], *, session: Session) -> None:
+        if assets:
+            session.execute(
+                delete(AssetActive).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
+                )
+            )
+        Stats.gauge("asset.orphaned", len(assets))
+
+    def _activate_referenced_assets(self, assets: Collection[AssetModel], *, session: Session) -> None:
+        if not assets:
+            return
+
+        active_assets = set(
+            session.execute(
+                select(AssetActive.name, AssetActive.uri).where(
+                    tuple_in_condition((AssetActive.name, AssetActive.uri), ((a.name, a.uri) for a in assets))
                 )
             )
         )
 
-        orphaning_identifiers = [self._get_orphaning_identifier(asset) for asset in orphaned_asset_query]
+        active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
+        active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
+
+        def _generate_dag_warnings(offending: AssetModel, attr: str, value: str) -> Iterator[DagWarning]:
+            for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
+                yield DagWarning(
+                    dag_id=ref.dag_id,
+                    error_type=DagWarningType.ASSET_CONFLICT,
+                    message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                )
+
+        def _activate_assets_generate_warnings() -> Iterator[DagWarning]:
+            incoming_name_to_uri: dict[str, str] = {}
+            incoming_uri_to_name: dict[str, str] = {}
+            for asset in assets:
+                if (asset.name, asset.uri) in active_assets:
+                    continue
+                existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
+                if existing_uri is not None and existing_uri != asset.uri:
+                    yield from _generate_dag_warnings(asset, "name", existing_uri)
+                    continue
+                existing_name = active_uri_to_name.get(asset.uri) or incoming_uri_to_name.get(asset.uri)
+                if existing_name is not None and existing_name != asset.name:
+                    yield from _generate_dag_warnings(asset, "uri", existing_name)
+                    continue
+                incoming_name_to_uri[asset.name] = asset.uri
+                incoming_uri_to_name[asset.uri] = asset.name
+                session.add(AssetActive.for_asset(asset))
+
+        warnings_to_have = {w.dag_id: w for w in _activate_assets_generate_warnings()}
         session.execute(
-            delete(AssetActive).where(
-                tuple_in_condition((AssetActive.name, AssetActive.uri), orphaning_identifiers)
+            delete(DagWarning).where(
+                DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                DagWarning.dag_id.not_in(warnings_to_have),
             )
         )
-        Stats.gauge("asset.orphaned", len(orphaning_identifiers))
+        existing_warned_dag_ids: set[str] = set(
+            session.scalars(
+                select(DagWarning.dag_id).where(
+                    DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
+                    DagWarning.dag_id.not_in(warnings_to_have),
+                )
+            )
+        )
+        for dag_id, warning in warnings_to_have.items():
+            if dag_id in existing_warned_dag_ids:
+                session.merge(warning)
+                continue
+            session.add(warning)
+            existing_warned_dag_ids.add(warning.dag_id)
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""

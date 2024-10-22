@@ -221,7 +221,7 @@ class AssetModel(Base):
         return hash((self.name, self.uri))
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
     def to_public(self) -> Asset:
         return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
