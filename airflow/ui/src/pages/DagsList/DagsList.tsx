@@ -164,7 +164,7 @@ export const DagsList = () => {
       orderBy,
       paused: showPaused === null ? undefined : showPaused === "true",
     },
-    [dagDisplayNamePattern, showPaused],
+    [dagDisplayNamePattern, showPaused, lastDagRunState, pagination, orderBy],
     {
       refetchOnMount: true,
       refetchOnReconnect: false,
