@@ -1119,6 +1119,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - Pool
+      summary: Get Pool
+      description: Get a pool.
+      operationId: get_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/providers/:
     get:
       tags:
@@ -1916,6 +1960,54 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    PoolResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        slots:
+          type: integer
+          title: Slots
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        include_deferred:
+          type: boolean
+          title: Include Deferred
+        occupied_slots:
+          type: integer
+          title: Occupied Slots
+        running_slots:
+          type: integer
+          title: Running Slots
+        queued_slots:
+          type: integer
+          title: Queued Slots
+        scheduled_slots:
+          type: integer
+          title: Scheduled Slots
+        open_slots:
+          type: integer
+          title: Open Slots
+        deferred_slots:
+          type: integer
+          title: Deferred Slots
+      type: object
+      required:
+      - name
+      - slots
+      - description
+      - include_deferred
+      - occupied_slots
+      - running_slots
+      - queued_slots
+      - scheduled_slots
+      - open_slots
+      - deferred_slots
+      title: PoolResponse
+      description: Pool serializer for responses.
     ProviderCollectionResponse:
       properties:
         providers:

@@ -76,3 +76,28 @@ class TestDeletePool(TestPools):
         assert response.status_code == 404
         body = response.json()
         assert f"The Pool with name: `{POOL1_NAME}` was not found" == body["detail"]
+
+
+class TestGetPool(TestPools):
+    def test_get_should_respond_200(self, test_client, session):
+        self.create_pools()
+        response = test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 200
+        assert response.json() == {
+            "deferred_slots": 0,
+            "description": None,
+            "include_deferred": True,
+            "name": "pool1",
+            "occupied_slots": 0,
+            "open_slots": 3,
+            "queued_slots": 0,
+            "running_slots": 0,
+            "scheduled_slots": 0,
+            "slots": 3,
+        }
+
+    def test_get_should_respond_404(self, test_client):
+        response = test_client.get(f"/public/pools/{POOL1_NAME}")
+        assert response.status_code == 404
+        body = response.json()
+        assert f"The Pool with name: `{POOL1_NAME}` was not found" == body["detail"]
