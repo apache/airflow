@@ -31,6 +31,8 @@ from airflow.assets import (
     AssetAll,
     AssetAny,
     BaseAsset,
+    Dataset,
+    Model,
     _AssetAliasCondition,
     _get_normalized_scheme,
     _sanitize_uri,
@@ -612,3 +614,66 @@ class Test_AssetAliasCondition:
 
         cond = _AssetAliasCondition(resolved_asset_alias_2.name)
         assert cond.evaluate({asset_1.uri: True}) is True
+
+
+class TestAssetSubclasses:
+    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    def test_only_name(self, subcls, group):
+        obj = subcls(name="foobar")
+        assert obj.name == "foobar"
+        assert obj.uri == "foobar"
+        assert obj.group == group
+
+    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    def test_only_uri(self, subcls, group):
+        obj = subcls(uri="s3://bucket/key/path")
+        assert obj.name == "s3://bucket/key/path"
+        assert obj.uri == "s3://bucket/key/path"
+        assert obj.group == group
+
+    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    def test_both_name_and_uri(self, subcls, group):
+        obj = subcls("foobar", "s3://bucket/key/path")
+        assert obj.name == "foobar"
+        assert obj.uri == "s3://bucket/key/path"
+        assert obj.group == group
+
+    @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
+    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    def test_only_posarg(self, subcls, group, arg):
+        obj = subcls(arg)
+        assert obj.name == arg
+        assert obj.uri == arg
+        assert obj.group == group
+
+
+@pytest.mark.parametrize(
+    "module_path, attr_name, warning_message",
+    (
+        (
+            "airflow",
+            "Dataset",
+            (
+                "Import 'Dataset' directly from the airflow module is deprecated and will be removed in the future. "
+                "Please import it from 'airflow.assets.Dataset'."
+            ),
+        ),
+        (
+            "airflow.datasets",
+            "Dataset",
+            (
+                "Import from the airflow.dataset module is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from 'airflow.assets'."
+            ),
+        ),
+    ),
+)
+def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
+    with pytest.warns() as record:
+        import importlib
+
+        mod = importlib.import_module(module_path, __name__)
+        getattr(mod, attr_name)
+
+    assert record[0].category is DeprecationWarning
+    assert str(record[0].message) == warning_message
