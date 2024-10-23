@@ -974,7 +974,7 @@ repos:
         files: .*\.schema\.json$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
         name: Lint NodePort Service
         entry: ./scripts/ci/pre_commit/json_schema.py
@@ -985,7 +985,7 @@ repos:
         pass_filenames: true
         files: ^scripts/ci/kubernetes/nodeport\.yaml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
         name: Lint Docker compose files
         entry: ./scripts/ci/pre_commit/json_schema.py
@@ -1000,7 +1000,7 @@ repos:
           ^scripts/ci/docker-compose/grafana/.|
           ^scripts/ci/docker-compose/.+-config\.ya?ml
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
         name: Lint chart/values.schema.json
         entry: ./scripts/ci/pre_commit/json_schema.py
@@ -1012,7 +1012,7 @@ repos:
         pass_filenames: false
         files: ^chart/values\.schema\.json$|^chart/values_schema\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: update-vendored-in-k8s-json-schema
         name: Vendor k8s definitions into values.schema.json
         entry: ./scripts/ci/pre_commit/vendor_k8s_json_schema.py
@@ -1031,7 +1031,7 @@ repos:
         pass_filenames: false
         files: ^chart/values\.yaml$|^chart/values\.schema\.json$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: lint-json-schema
         name: Lint config_templates/config.yml
         entry: ./scripts/ci/pre_commit/json_schema.py
@@ -1042,7 +1042,7 @@ repos:
         pass_filenames: true
         files: ^airflow/config_templates/config\.yml$
         require_serial: true
-        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.32.3']
+        additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==6.0.2', 'requests==2.32.3']
       - id: check-persist-credentials-disabled-in-github-workflows
         name: Check persistent creds in workflow files
         description: Check that workflow files have persist-credentials disabled
