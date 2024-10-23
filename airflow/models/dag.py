@@ -36,7 +36,6 @@ from typing import (
     Collection,
     Container,
     Iterable,
-    Optional,
     Pattern,
     Sequence,
     Union,
@@ -71,8 +70,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
 
-import airflow.sdk.definitions.contextmanager
-import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.assets import Asset, AssetAlias, BaseAsset
@@ -2422,24 +2419,6 @@ if STATICA_HACK:  # pragma: no cover
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
     """:sphinx-autoapi-skip:"""
-
-
-class DagContext(airflow.sdk.definitions.contextmanager.DagContext, share_parent_context=True):
-    """:meta private:"""  # noqa: D400
-
-    # TODO: Method is not used anywhere. Remove them if not needed.
-    @classmethod
-    def push_context_managed_dag(cls, dag: DAG):
-        cls.push(dag)
-
-    # TODO: Method is not used anywhere. Remove them if not needed.
-    @classmethod
-    def pop_context_managed_dag(cls) -> DAG | None:
-        return cast(DAG, cls.pop())
-
-    @classmethod
-    def get_current_dag(cls) -> DAG | None:
-        return cast(Optional[DAG], cls.get_current())
 
 
 def _run_inline_trigger(trigger):
