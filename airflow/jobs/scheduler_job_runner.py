@@ -1419,7 +1419,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if not isinstance(dag.timetable, AssetTriggeredTimetable):
                 self.log.error(
-                    "DAG '%s' was asset-scheduled, but didn't have a AssetTriggeredTimetable!",
+                    "DAG '%s' was asset-scheduled, but didn't have an AssetTriggeredTimetable!",
                     dag_model.dag_id,
                 )
                 continue
@@ -1481,7 +1481,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.job.id,
-                    triggered_by=DagRunTriggeredByType.DATASET,
+                    triggered_by=DagRunTriggeredByType.ASSET,
                 )
                 Stats.incr("asset.triggered_dagruns")
                 dag_run.consumed_asset_events.extend(asset_events)
