@@ -277,8 +277,8 @@ class EdgeWorker(BaseModel, LoggingMixin):
         Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
         EdgeWorker.set_metrics(
             worker_name=worker_name,
-            state=EdgeWorkerState.UNKNOWN,
-            connected=False,
+            state=state,
+            connected=True,
             jobs_active=jobs_active,
             concurrency=int(sysinfo["concurrency"]),
             queues=worker.queues,
