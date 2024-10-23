@@ -631,7 +631,7 @@ import time
 import airflow
 from airflow.operators.python import PythonOperator
 
-time.sleep(31)
+time.sleep(1)
 
 with airflow.DAG(
     "import_timeout",
@@ -639,7 +639,7 @@ with airflow.DAG(
     schedule=None) as dag:
     def f():
         print("Sleeping")
-        time.sleep(2)
+        time.sleep(1)
 
 
     for ind in range(10):
@@ -652,8 +652,9 @@ with airflow.DAG(
         with open("tmp_file.py", "w") as f:
             f.write(code_to_save)
 
-        dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-        dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+        with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
+            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
+            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
 
         assert dag is not None
         assert "tmp_file.py" in dagbag.import_errors
