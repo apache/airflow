@@ -28,6 +28,7 @@ from airflow.plugins_manager import AirflowPlugin
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
+
 from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.config import conf_vars
@@ -144,7 +145,6 @@ class TestGetPlugins(TestPluginsEndpoint):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": qualname(MockView)}],
-                    "executors": [],
                     "flask_blueprints": [
                         f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
                     ],

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 from contextlib import suppress
@@ -237,10 +236,6 @@ class FileTaskHandler(logging.Handler):
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
-
-    @cached_property
-    def supports_task_context_logging(self) -> bool:
-        return "identifier" in inspect.signature(self.set_context).parameters
 
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):

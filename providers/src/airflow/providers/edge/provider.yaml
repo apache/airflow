@@ -23,10 +23,10 @@ description: |
   Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
 state: not-ready
-source-date-epoch: 1720863625
+source-date-epoch: 1729683247
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.1.0pre0
+  - 0.2.2pre0
 
 dependencies:
   - apache-airflow>=2.10.0
@@ -35,6 +35,9 @@ dependencies:
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin
+
+executors:
+  - airflow.providers.edge.executors.EdgeExecutor
 
 config:
   edge:

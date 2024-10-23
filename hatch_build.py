@@ -78,7 +78,8 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cgroupspy>=0.2.2",
     ],
     "cloudpickle": [
-        "cloudpickle",
+        # Latest version of apache-beam requires cloudpickle~=2.2.1
+        "cloudpickle>=2.2.1",
     ],
     "github-enterprise": [
         "apache-airflow[fab]",
@@ -97,13 +98,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "python-ldap",
+        "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
-        "opentelemetry-exporter-prometheus",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
         # In pandas 2.2 minimal version of the sqlalchemy is 2.0
@@ -117,7 +118,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "flask-bcrypt>=0.7.1",
     ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
@@ -242,7 +243,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.5.5",
+        "ruff==0.7.0",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -375,7 +376,7 @@ DEPENDENCIES = [
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking

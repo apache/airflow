@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
@@ -36,7 +36,6 @@ class MockExecutor(BaseExecutor):
 
     def __init__(self, do_update=True, *args, **kwargs):
         self.do_update = do_update
-        self._running = []
         self.callback_sink = MagicMock()
 
         # A list of "batches" of tasks
@@ -52,8 +51,6 @@ class MockExecutor(BaseExecutor):
         self.mock_task_results = defaultdict(self.success)
 
         super().__init__(*args, **kwargs)
-
-        self.task_context_logger = Mock()
 
     def success(self):
         return State.SUCCESS
@@ -88,8 +85,8 @@ class MockExecutor(BaseExecutor):
     def end(self):
         self.sync()
 
-    def change_state(self, key, state, info=None):
-        super().change_state(key, state, info=info)
+    def change_state(self, key, state, info=None, remove_running=False):
+        super().change_state(key, state, info=info, remove_running=remove_running)
         # The normal event buffer is cleared after reading, we want to keep
         # a list of all events for testing
         self.sorted_tasks.append((key, (state, info)))

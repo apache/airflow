@@ -475,7 +475,7 @@ core:
       version_added: 3.0.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.AssetManager'
+      example: 'airflow.assets.manager.AssetManager'
     asset_manager_kwargs:
       description: Kwargs to supply to asset manager.
       version_added: 3.0.0
@@ -1032,18 +1032,6 @@ logging:
       type: boolean
       example: ~
       default: "False"
-    enable_task_context_logger:
-      description: |
-        If enabled, Airflow may ship messages to task logs from outside the task run context, e.g. from
-        the scheduler, executor, or callback execution context. This can help in circumstances such as
-        when there's something blocking the execution of the task and ordinarily there may be no task
-        logs at all.
-        This is set to ``True`` by default. If you encounter issues with this feature
-        (e.g. scheduler performance issues) it can be disabled.
-      version_added: 2.8.0
-      type: boolean
-      example: ~
-      default: "True"
     color_log_error_keywords:
       description: |
         A comma separated list of keywords related to errors whose presence should display the line in red
@@ -1377,12 +1365,11 @@ api:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
         `Security: API
-        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values.
-        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
+        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values
       version_added: 2.3.0
       type: string
       example: ~
-      default: "airflow.api.auth.backend.session"
+      default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -2279,7 +2266,7 @@ scheduler:
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated, as well as datasets that are no longer
+        the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned.
       version_added: 2.5.0
       type: integer

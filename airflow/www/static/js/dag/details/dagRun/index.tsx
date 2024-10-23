@@ -24,7 +24,7 @@ import { getMetaValue, useOffsetTop } from "src/utils";
 import type { DagRun as DagRunType } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
-import DatasetTriggerEvents from "./DatasetTriggerEvents";
+import AssetTriggerEvents from "./AssetTriggerEvents";
 import DagRunDetails from "./Details";
 
 const dagId = getMetaValue("dag_id");
@@ -58,9 +58,7 @@ const DagRun = ({ runId }: Props) => {
         initialValue={note}
         key={dagId + runId}
       />
-      {runType === "dataset_triggered" && (
-        <DatasetTriggerEvents runId={runId} />
-      )}
+      {runType === "asset_triggered" && <AssetTriggerEvents runId={runId} />}
       <DagRunDetails run={run} />
     </Box>
   );

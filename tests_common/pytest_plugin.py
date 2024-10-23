@@ -114,7 +114,7 @@ if run_db_tests_only:
 
 _airflow_sources = os.getenv("AIRFLOW_SOURCES", None)
 AIRFLOW_SOURCES_ROOT_DIR = (
-    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[2]
+    Path(_airflow_sources) if _airflow_sources else Path(__file__).parents[1]
 ).resolve()
 AIRFLOW_TESTS_DIR = AIRFLOW_SOURCES_ROOT_DIR / "tests"
 
@@ -371,19 +371,24 @@ def initialize_airflow_tests(request):
 def pytest_configure(config: pytest.Config) -> None:
     # Ensure that the airflow sources dir is at the end of the sys path if it's not already there. Needed to
     # run import from `providers/tests/`
-    desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
-    for path in sys.path:
-        if path == desired:
-            break
-    else:
-        sys.path.append(desired)
+    if os.environ.get("USE_AIRFLOW_VERSION") == "":
+        # if USE_AIRFLOW_VERSION is not empty, we are running tests against the installed version of Airflow
+        # and providers so there is no need to add the sources directory to the path
+        desired = AIRFLOW_SOURCES_ROOT_DIR.as_posix()
+        for path in sys.path:
+            if path == desired:
+                break
+        else:
+            # This "desired" path should be the Airflow source directory (repo root)
+            assert (AIRFLOW_SOURCES_ROOT_DIR / ".asf.yaml").exists(), f"Path {desired} is not Airflow root"
+            sys.path.append(desired)
 
-    if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
-        msg = (
-            f"Provided DB backend {backend!r} not supported, "
-            f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
-        )
-        pytest.exit(msg, returncode=6)
+        if (backend := config.getoption("backend", default=None)) and backend not in SUPPORTED_DB_BACKENDS:
+            msg = (
+                f"Provided DB backend {backend!r} not supported, "
+                f"expected one of: {', '.join(map(repr, SUPPORTED_DB_BACKENDS))}"
+            )
+            pytest.exit(msg, returncode=6)
 
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
@@ -825,6 +830,7 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+
             from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
             if AIRFLOW_V_3_0_PLUS:
@@ -922,6 +928,7 @@ def dag_maker(request):
             from airflow.models.serialized_dag import SerializedDagModel
             from airflow.models.taskmap import TaskMap
             from airflow.utils.retries import run_with_db_retries
+
             from tests_common.test_utils.compat import AssetEvent
 
             for attempt in run_with_db_retries(logger=self.log):

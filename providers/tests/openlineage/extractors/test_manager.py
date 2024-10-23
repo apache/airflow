@@ -23,8 +23,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-from openlineage.client.facet_v2 import documentation_dataset, ownership_dataset, schema_dataset
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from openlineage.client.facet_v2 import (
+    documentation_dataset,
+    ownership_dataset,
+    schema_dataset,
+)
 
 from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
@@ -36,6 +39,8 @@ from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -43,17 +48,10 @@ if AIRFLOW_V_2_10_PLUS:
 
     @pytest.fixture
     def hook_lineage_collector():
-        from importlib.util import find_spec
-
         from airflow.lineage import hook
-
-        if find_spec("airflow.assets"):
-            # Dataset has been renamed as Asset in 3.0
-            from airflow.lineage.hook import get_hook_lineage_collector
-        else:
-            from airflow.providers.openlineage.utils.asset_compat_lineage_collector import (
-                get_hook_lineage_collector,
-            )
+        from airflow.providers.common.compat.lineage.hook import (
+            get_hook_lineage_collector,
+        )
 
         hook._hook_lineage_collector = None
         hook._hook_lineage_collector = hook.HookLineageCollector()
@@ -66,16 +64,34 @@ if AIRFLOW_V_2_10_PLUS:
 @pytest.mark.parametrize(
     ("uri", "dataset"),
     (
-        ("s3://bucket1/dir1/file1", OpenLineageDataset(namespace="s3://bucket1", name="dir1/file1")),
-        ("gs://bucket2/dir2/file2", OpenLineageDataset(namespace="gs://bucket2", name="dir2/file2")),
-        ("gcs://bucket3/dir3/file3", OpenLineageDataset(namespace="gs://bucket3", name="dir3/file3")),
+        (
+            "s3://bucket1/dir1/file1",
+            OpenLineageDataset(namespace="s3://bucket1", name="dir1/file1"),
+        ),
+        (
+            "gs://bucket2/dir2/file2",
+            OpenLineageDataset(namespace="gs://bucket2", name="dir2/file2"),
+        ),
+        (
+            "gcs://bucket3/dir3/file3",
+            OpenLineageDataset(namespace="gs://bucket3", name="dir3/file3"),
+        ),
         (
             "hdfs://namenodehost:8020/file1",
             OpenLineageDataset(namespace="hdfs://namenodehost:8020", name="file1"),
         ),
-        ("hdfs://namenodehost/file2", OpenLineageDataset(namespace="hdfs://namenodehost", name="file2")),
-        ("file://localhost/etc/fstab", OpenLineageDataset(namespace="file://localhost", name="etc/fstab")),
-        ("file:///etc/fstab", OpenLineageDataset(namespace="file://", name="etc/fstab")),
+        (
+            "hdfs://namenodehost/file2",
+            OpenLineageDataset(namespace="hdfs://namenodehost", name="file2"),
+        ),
+        (
+            "file://localhost/etc/fstab",
+            OpenLineageDataset(namespace="file://localhost", name="etc/fstab"),
+        ),
+        (
+            "file:///etc/fstab",
+            OpenLineageDataset(namespace="file://", name="etc/fstab"),
+        ),
         ("https://test.com", OpenLineageDataset(namespace="https", name="test.com")),
         (
             "https://test.com?param1=test1&param2=test2",
@@ -121,9 +137,18 @@ def test_convert_to_ol_dataset_from_object_storage_uri(uri, dataset):
             File(url="file://localhost/etc/fstab"),
             OpenLineageDataset(namespace="file://localhost", name="etc/fstab"),
         ),
-        (File(url="file:///etc/fstab"), OpenLineageDataset(namespace="file://", name="etc/fstab")),
-        (File(url="https://test.com"), OpenLineageDataset(namespace="https", name="test.com")),
-        (Table(cluster="c1", database="d1", name="t1"), OpenLineageDataset(namespace="c1", name="d1.t1")),
+        (
+            File(url="file:///etc/fstab"),
+            OpenLineageDataset(namespace="file://", name="etc/fstab"),
+        ),
+        (
+            File(url="https://test.com"),
+            OpenLineageDataset(namespace="https", name="test.com"),
+        ),
+        (
+            Table(cluster="c1", database="d1", name="t1"),
+            OpenLineageDataset(namespace="c1", name="d1.t1"),
+        ),
         ("gs://bucket2/dir2/file2", None),
         ("not_an_url", None),
     ),
@@ -246,7 +271,9 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
 
 
 @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
-def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(hook_lineage_collector):
+def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
+    hook_lineage_collector,
+):
     class FakeSupportedOperator(BaseOperator):
         def execute(self, context: Context) -> Any:
             pass

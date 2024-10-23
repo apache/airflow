@@ -325,6 +325,11 @@ ARG_MAX_ACTIVE_RUNS = Arg(
     type=positive_int(allow_zero=False),
     help="Max active runs for this backfill.",
 )
+ARG_BACKFILL_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
 
 
 # misc
@@ -769,6 +774,11 @@ ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+ARG_FASTAPI_API_APPS = Arg(
+    ("--apps",),
+    help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
+    default="all",
+)
 
 
 # scheduler
@@ -1025,6 +1035,7 @@ BACKFILL_COMMANDS = (
             ARG_DAG_RUN_CONF,
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_DRY_RUN,
         ),
     ),
 )
@@ -1936,6 +1947,7 @@ core_commands: list[CLICommand] = [
             ARG_FASTAPI_API_ACCESS_LOGFILE,
             ARG_FASTAPI_API_ERROR_LOGFILE,
             ARG_FASTAPI_API_ACCESS_LOGFORMAT,
+            ARG_FASTAPI_API_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,

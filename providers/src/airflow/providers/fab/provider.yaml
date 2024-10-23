@@ -48,14 +48,14 @@ versions:
 
 dependencies:
   - apache-airflow>=2.9.0
-  - apache-airflow-providers-common-compat>=1.2.0
+  - apache-airflow-providers-common-compat>=1.2.1
   - flask>=2.2,<2.3
   # We are tightly coupled with FAB version as we vendored-in part of FAB code related to security manager
   # This is done as part of preparation to removing FAB as dependency, but we are not ready for it yet
   # Every time we update FAB version here, please make sure that you review the classes and models in
   # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
   # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-  - flask-appbuilder==4.5.0
+  - flask-appbuilder==4.5.2
   - flask-login>=0.6.2
   - google-re2>=1.0
   - jmespath>=0.7.0

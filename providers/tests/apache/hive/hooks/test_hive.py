@@ -25,7 +25,6 @@ from unittest import mock
 import pandas as pd
 import pytest
 from hmsclient import HMSClient
-from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -42,6 +41,7 @@ from providers.tests.apache.hive import (
     MockHiveServer2Hook,
     MockSubProcess,
 )
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

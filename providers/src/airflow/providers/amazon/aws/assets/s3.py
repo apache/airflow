@@ -19,16 +19,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
-try:
-    from airflow.assets import Asset
-except ModuleNotFoundError:
-    from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
+from airflow.providers.common.compat.assets import Asset
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
 
 def create_asset(*, bucket: str, key: str, extra=None) -> Asset:
@@ -43,7 +41,9 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
 
 def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
     """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
-    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+    from airflow.providers.common.compat.openlineage.facet import (
+        Dataset as OpenLineageDataset,
+    )
 
     bucket, key = S3Hook.parse_s3_url(asset.uri)
     return OpenLineageDataset(namespace=f"s3://{bucket}", name=key if key else "/")

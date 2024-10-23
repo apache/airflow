@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.plugin_schema import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
+
 from tests_common.test_utils.compat import BaseOperatorLink
 
 
@@ -85,7 +86,6 @@ class TestPluginSchema(TestPluginBase):
         assert deserialized_plugin == {
             "appbuilder_menu_items": [appbuilder_menu_items],
             "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-            "executors": [],
             "flask_blueprints": [str(bp)],
             "fastapi_apps": [
                 {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
@@ -112,7 +112,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
@@ -130,7 +129,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},

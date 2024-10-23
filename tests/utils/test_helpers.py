@@ -37,6 +37,7 @@ from airflow.utils.helpers import (
     validate_key,
 )
 from airflow.utils.types import NOTSET
+
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -202,7 +203,7 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
-            (" " * 251, "The key has to be less than 250 characters", AirflowException),
+            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
         ],
     )
     def test_validate_key(self, key_id, message, exception):

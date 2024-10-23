@@ -41,12 +41,13 @@ import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
+import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
-import { pluralize } from "src/utils/pluralize";
+import { pluralize } from "src/utils";
 
 import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
@@ -82,6 +83,10 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "next_dagrun",
+    cell: ({ row: { original } }) =>
+      Boolean(original.next_dagrun) ? (
+        <Time datetime={original.next_dagrun} />
+      ) : undefined,
     enableSorting: false,
     header: "Next DAG Run",
   },
@@ -159,7 +164,7 @@ export const DagsList = () => {
       orderBy,
       paused: showPaused === null ? undefined : showPaused === "true",
     },
-    [dagDisplayNamePattern, showPaused],
+    [dagDisplayNamePattern, showPaused, lastDagRunState, pagination, orderBy],
     {
       refetchOnMount: true,
       refetchOnReconnect: false,

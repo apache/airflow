@@ -21,9 +21,6 @@ import datetime
 import pathlib
 from unittest.mock import MagicMock, patch
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
-from tests_common.test_utils.mock_operators import MockOperator
-
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
@@ -46,6 +43,9 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
+from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 if not AIRFLOW_V_2_10_PLUS:
@@ -79,7 +79,6 @@ def test_get_airflow_job_facet():
             taskGroups={
                 "section_1": {
                     "parent_group": None,
-                    "tooltip": "",
                     "ui_color": "CornflowerBlue",
                     "ui_fgcolor": "#000",
                     "ui_label": "section_1",
@@ -516,21 +515,18 @@ def test_get_task_groups_details():
     expected = {
         "tg1": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
         },
         "tg2": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
         },
         "tg3": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
@@ -551,21 +547,18 @@ def test_get_task_groups_details_nested():
     expected = {
         "tg1": {
             "parent_group": None,
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg1",
         },
         "tg1.tg2": {
             "parent_group": "tg1",
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg2",
         },
         "tg1.tg2.tg3": {
             "parent_group": "tg1.tg2",
-            "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
             "ui_label": "tg3",
