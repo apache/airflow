@@ -55,7 +55,7 @@ dependencies:
   # Every time we update FAB version here, please make sure that you review the classes and models in
   # `airflow/providers/fab/auth_manager/security_manager/override.py` with their upstream counterparts.
   # In particular, make sure any breaking changes, for example any new methods, are accounted for.
-  - flask-appbuilder==4.5.1
+  - flask-appbuilder==4.5.2
   - flask-login>=0.6.2
   - google-re2>=1.0
   - jmespath>=0.7.0
