@@ -64,7 +64,7 @@ const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
-    case "datasets":
+    case "assets":
       return 2;
     case "details":
     case "events":
@@ -80,19 +80,19 @@ const indexToTab = (index: number, uri?: string) => {
     case 1:
       return "graph";
     case 2:
-      if (!uri) return "datasets";
+      if (!uri) return "assets";
       return undefined;
     default:
       return undefined;
   }
 };
 
-const Datasets = () => {
+const Assets = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(contentRef);
   const height = `calc(100vh - ${offsetTop + 100}px)`;
 
-  const { data: datasetDependencies, isLoading } = useAssetDependencies();
+  const { data: assetDependencies, isLoading } = useAssetDependencies();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { isOpen, onToggle, onClose } = useDisclosure();
@@ -131,7 +131,7 @@ const Datasets = () => {
       if (timestamp) searchParams.set(TIMESTAMP_PARAM, timestamp);
       else searchParams.delete(TIMESTAMP_PARAM);
       searchParams.delete(DAG_ID_PARAM);
-      if (tab === "datasets") searchParams.delete(TAB_PARAM);
+      if (tab === "assets") searchParams.delete(TAB_PARAM);
     } else {
       searchParams.delete(DATASET_URI_PARAM);
       searchParams.delete(TIMESTAMP_PARAM);
@@ -163,7 +163,7 @@ const Datasets = () => {
               isCurrentPage={!selectedUri}
             >
               <Heading as="h3" size="md">
-                Datasets
+                Assets
               </Heading>
             </BreadcrumbLink>
           </BreadcrumbItem>
@@ -189,14 +189,14 @@ const Datasets = () => {
         </Breadcrumb>
         {selectedUri && (
           <Tooltip
-            label="Manually create dataset event"
+            label="Manually create asset event"
             hasArrow
             portalProps={{ containerRef }}
           >
             <IconButton
               variant="outline"
               colorScheme="blue"
-              aria-label="Manually create dataset event"
+              aria-label="Manually create asset event"
               onClick={onToggle}
             >
               <MdPlayArrow />
@@ -210,7 +210,7 @@ const Datasets = () => {
             <Tab>
               <MdEvent size={16} />
               <Text as="strong" ml={1}>
-                Dataset Events
+                Asset Events
               </Text>
             </Tab>
           )}
@@ -232,7 +232,7 @@ const Datasets = () => {
             <Tab>
               <HiDatabase size={16} />
               <Text as="strong" ml={1}>
-                Datasets
+                Assets
               </Text>
             </Tab>
           )}
@@ -252,7 +252,7 @@ const Datasets = () => {
             {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
             {/* the graph needs a defined height to render properly */}
             <SearchBar
-              datasetDependencies={datasetDependencies}
+              assetDependencies={assetDependencies}
               selectedDagId={selectedDagId}
               selectedUri={selectedUri}
               onSelectNode={onSelect}
@@ -291,4 +291,4 @@ const Datasets = () => {
   );
 };
 
-export default Datasets;
+export default Assets;
