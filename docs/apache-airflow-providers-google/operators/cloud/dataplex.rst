@@ -284,12 +284,12 @@ To delete a zone you can use:
     :start-after: [START howto_dataplex_delete_zone_operator]
     :end-before: [END howto_dataplex_delete_zone_operator]
 
-Create a asset
---------------
+Create an asset
+---------------
 
 Before you create a Dataplex asset you need to define its body.
 
-For more information about the available fields to pass when creating a asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
+For more information about the available fields to pass when creating an asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
 
 A simple asset configuration can look as followed:
 
@@ -309,10 +309,10 @@ With this configuration we can create the asset:
     :start-after: [START howto_dataplex_create_asset_operator]
     :end-before: [END howto_dataplex_create_asset_operator]
 
-Delete a asset
---------------
+Delete an asset
+---------------
 
-To delete a asset you can use:
+To delete an asset you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteAssetOperator`
 

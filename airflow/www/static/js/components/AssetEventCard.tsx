@@ -48,9 +48,9 @@ type CardProps = {
   showTriggeredDagRuns?: boolean;
 };
 
-const datasetsUrl = getMetaValue("datasets_url");
+const assetsUrl = getMetaValue("assets_url");
 
-const DatasetEventCard = ({
+const AssetEventCard = ({
   assetEvent,
   showSource = true,
   showTriggeredDagRuns = true,
@@ -85,7 +85,7 @@ const DatasetEventCard = ({
               <Link
                 color="blue.600"
                 ml={2}
-                href={`${datasetsUrl}?uri=${encodeURIComponent(
+                href={`${assetsUrl}?uri=${encodeURIComponent(
                   assetEvent.assetUri
                 )}`}
               >
@@ -142,4 +142,4 @@ const DatasetEventCard = ({
   );
 };
 
-export default DatasetEventCard;
+export default AssetEventCard;

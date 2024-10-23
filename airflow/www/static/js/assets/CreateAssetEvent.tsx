@@ -54,14 +54,14 @@ function checkJsonString(str: string) {
 const CreateAssetEventModal = ({ uri, isOpen, onClose }: Props) => {
   const containerRef = useContainerRef();
   const [extra, setExtra] = useState("");
-  const { data: dataset } = useAsset({ uri });
+  const { data: asset } = useAsset({ uri });
 
   const isJson = checkJsonString(extra);
   const isDisabled = !!extra && !isJson;
 
   const { mutate: createAssetEvent, isLoading } = useCreateAssetEvent({
-    datasetId: dataset?.id,
-    uri: dataset?.uri,
+    assetId: asset?.id,
+    uri: asset?.uri,
   });
 
   const onSubmit = () => {
@@ -69,7 +69,7 @@ const CreateAssetEventModal = ({ uri, isOpen, onClose }: Props) => {
     onClose();
   };
 
-  if (!dataset) return null;
+  if (!asset) return null;
 
   return (
     <Modal
@@ -80,7 +80,7 @@ const CreateAssetEventModal = ({ uri, isOpen, onClose }: Props) => {
     >
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>Manually create event for {dataset?.uri}</ModalHeader>
+        <ModalHeader>Manually create event for {asset?.uri}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <FormControl isInvalid={isDisabled}>

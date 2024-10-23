@@ -233,7 +233,7 @@ export type DagRunTriggeredByType =
   | "ui"
   | "test"
   | "timetable"
-  | "dataset"
+  | "asset"
   | "backfill";
 
 /**
