@@ -166,7 +166,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/macros",
                 "tests/notifications",
                 "tests/plugins",
-                "tests/providers",
                 "tests/secrets",
                 "tests/security",
                 "tests/sensors",
