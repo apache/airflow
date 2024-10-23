@@ -144,6 +144,11 @@ hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is no
 Notes for combining git-sync and persistence
 ............................................
 
+.. note::
+
+    When using the helm chart, it is not possible to use git-sync and persistence at the same time
+    Use one or the other - the reasons for that are described below.
+
 While using both git-sync and persistence for DAGs is possible, it is generally not recommended unless the
 deployment manager carefully considered the trade-offs it brings. There are cases when git-sync without
 persistence has other trade-offs (for example delays in synchronization of DAGS vs. rate-limiting of Git
