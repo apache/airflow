@@ -777,7 +777,7 @@ class AirflowConfigParser(ConfigParser):
 
         for section, key in self.sensitive_config_values:
             try:
-                value = self.get(section, key)
+                value = self.get(section, key, suppress_warnings=True)
             except AirflowConfigException:
                 log.debug(
                     "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
