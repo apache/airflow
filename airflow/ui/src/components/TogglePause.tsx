@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Switch } from "@chakra-ui/react";
+import { Box, Switch } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
@@ -52,5 +52,14 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
     });
   }, [dagId, isPaused, mutate]);
 
-  return <Switch isChecked={!isPaused} onChange={onChange} size="sm" />;
+  return (
+    <Box
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      p={1}
+    >
+      <Switch isChecked={!isPaused} onChange={onChange} size="sm" />
+    </Box>
+  );
 };

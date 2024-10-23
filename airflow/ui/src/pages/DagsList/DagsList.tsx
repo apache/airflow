@@ -25,7 +25,7 @@ import {
   VStack,
   Link,
 } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Row } from "@tanstack/react-table";
 import {
   type ChangeEvent,
   type ChangeEventHandler,
