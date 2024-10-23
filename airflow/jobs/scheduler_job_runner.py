@@ -1701,7 +1701,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             except Exception as e:
                                 self.log.error("Error when calling on_kill for task %s: %s", task_instance, e)
                         else:
-                            self.log.warning("Task %s does not have on_kill method, skipping", task_instance)
+                            self.log.info("Task %s does not have on_kill method, skipping", task_instance)
                     session.merge(task_instance)
                 session.flush()
                 self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
