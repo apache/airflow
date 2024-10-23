@@ -760,7 +760,7 @@ def dag_maker(request):
     # and "baked" in to various constants
 
     want_serialized = False
-    want_activate_assets = True  # Only has effect if want_serialized=True.
+    want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
 
     # Allow changing default serialized behaviour with `@pytest.mark.need_serialized_dag` or
     # `@pytest.mark.need_serialized_dag(False)`
@@ -823,6 +823,8 @@ def dag_maker(request):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
 
+            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
             dag = self.dag
             dag.__exit__(type, value, traceback)
             if type is not None:
@@ -839,7 +841,7 @@ def dag_maker(request):
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self._bag_dag_compat(serialized_dag)
-                if self.want_activate_assets:
+                if AIRFLOW_V_3_0_PLUS and self.want_activate_assets:
                     self._activate_assets()
                 self.session.flush()
             else:
