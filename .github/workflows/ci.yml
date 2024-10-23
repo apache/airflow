@@ -21,9 +21,9 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '28 1,7,13,19 * * *'
   push:
-    branches: ['v[0-9]+-[0-9]+-test']
+    branches: ['main', 'v2-*']
   pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches: ['main', 'v2-*']
   workflow_dispatch:
 permissions:
   # All other permissions are set to none
