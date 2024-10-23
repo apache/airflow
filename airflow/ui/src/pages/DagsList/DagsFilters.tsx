@@ -144,7 +144,12 @@ export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
       </HStack>
       <ReactSelect
         aria-label="Filter DAGs by tag"
-        classNamePrefix="react-select"
+        chakraStyles={{
+          container: (provided) => ({
+            ...provided,
+            minWidth: 64,
+          }),
+        }}
         isClearable
         isMulti
         noOptionsMessage={() => "No tags found"}
