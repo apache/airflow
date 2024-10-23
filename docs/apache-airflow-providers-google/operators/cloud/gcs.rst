@@ -121,6 +121,19 @@ More information
 See Google Cloud Storage insert documentation to `create a ACL entry for ObjectAccess
 <https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert>`_.
 
+.. _howto/operator:GCSListObjectsOperator:
+
+Listing Objects in a Bucket
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Listing Objects in a Bucket allows you to view contents of bucket in the Google Cloud Storage.
+
+It is performed through the
+:class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator` operator.
+
+.. seealso::
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:GCSListObjectsOperator`
 
 .. _howto/operator:GCSDeleteBucketOperator:
 
