@@ -24,7 +24,7 @@ import pytest
 from airflow.models import DagRun
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
@@ -52,6 +52,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
                     start_date=start_date,
                     execution_date=start_date,
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)
@@ -82,22 +83,20 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == len(expected_ids)
-        dag_run_keys_with_interval = [
-            "data_interval_end",
-            "data_interval_start",
-            "end_date",
-            "execution_date",
-            "start_date",
+        required_dag_run_key = [
+            "run_id",
+            "dag_id",
             "state",
+            "logical_date",
         ]
-        dag_run_keys = ["end_date", "execution_date", "start_date", "state"]
         for recent_dag_runs in body["dags"]:
             dag_runs = recent_dag_runs["latest_dag_runs"]
             # check date ordering
             previous_execution_date = None
             for dag_run in dag_runs:
-                cur_sorted_keys = sorted(dag_run.keys())
-                assert cur_sorted_keys == dag_run_keys_with_interval or cur_sorted_keys == dag_run_keys
+                # validate the response
+                for key in required_dag_run_key:
+                    assert key in dag_run
                 if previous_execution_date:
-                    assert previous_execution_date > dag_run["execution_date"]
-                previous_execution_date = dag_run["execution_date"]
+                    assert previous_execution_date > dag_run["logical_date"]
+                previous_execution_date = dag_run["logical_date"]

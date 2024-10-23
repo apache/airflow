@@ -388,67 +388,16 @@ export type ProviderResponse = {
  * Recent DAG Runs collection response serializer.
  */
 export type RecentDAGCollectionResponse = {
-  dags: Array<RecentDAGResponse>;
   total_entries: number;
+  dags: Array<RecentDAGResponse>;
 };
 
 /**
  * Recent DAG Runs response serializer.
  */
 export type RecentDAGResponse = {
-  dag_id?: string;
-  dag_display_name?: string;
-  is_paused?: boolean;
-  is_active?: boolean;
-  last_parsed_time?: string | null;
-  last_pickled?: string | null;
-  last_expired?: string | null;
-  scheduler_lock?: string | null;
-  pickle_id?: string | null;
-  default_view?: string | null;
-  fileloc?: string;
-  description?: string | null;
-  timetable_summary?: string | null;
-  timetable_description?: string | null;
-  tags?: Array<DagTagPydantic>;
-  max_active_tasks?: number;
-  max_active_runs?: number | null;
-  max_consecutive_failed_dag_runs?: number;
-  has_task_concurrency_limits?: boolean;
-  has_import_errors?: boolean;
-  next_dagrun?: string | null;
-  next_dagrun_data_interval_start?: string | null;
-  next_dagrun_data_interval_end?: string | null;
-  next_dagrun_create_after?: string | null;
-  owners?: Array<string>;
-  latest_dag_runs?: Array<RecentDAGRunResponse>;
-  /**
-   * Return file token.
-   */
-  readonly file_token: string;
-};
-
-/**
- * Recent DAG Run response serializer.
- */
-export type RecentDAGRunResponse = {
-  run_id?: string | null;
-  dag_id?: string;
-  logical_date?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  data_interval_start?: string | null;
-  data_interval_end?: string | null;
-  last_scheduling_decision?: string | null;
-  run_type?: DagRunType;
-  state?: DagRunState;
-  external_trigger?: boolean;
-  triggered_by?: DagRunTriggeredByType;
-  conf?: {
-    [key: string]: unknown;
-  };
-  note?: string | null;
-  execution_date?: string;
+  dag_id: string;
+  latest_dag_runs: Array<DAGRunResponse>;
 };
 
 /**

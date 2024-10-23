@@ -17,27 +17,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from pydantic import BaseModel
 
 from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGCollectionResponse, DAGResponse
-from airflow.api_fastapi.core_api.serializers.optional import OptionalModel
 
 
-class RecentDAGRunResponse(DAGRunResponse, OptionalModel):
-    """Recent DAG Run response serializer."""
-
-    execution_date: datetime
-
-
-class RecentDAGResponse(DAGResponse, OptionalModel):
+class RecentDAGResponse(BaseModel):
     """Recent DAG Runs response serializer."""
 
-    latest_dag_runs: list[RecentDAGRunResponse]
+    dag_id: str
+    latest_dag_runs: list[DAGRunResponse]
 
 
-class RecentDAGCollectionResponse(DAGCollectionResponse):
+class RecentDAGCollectionResponse(BaseModel):
     """Recent DAG Runs collection response serializer."""
 
-    # override parent's fields to use RecentDAGResponse instead of DAGResponse
+    total_entries: int
     dags: list[RecentDAGResponse]  # type: ignore

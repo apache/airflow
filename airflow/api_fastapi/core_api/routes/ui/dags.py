@@ -38,10 +38,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryTagsFilter,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.serializers.ui.dags import (
     RecentDAGCollectionResponse,
     RecentDAGResponse,
-    RecentDAGRunResponse,
 )
 from airflow.models import DagModel, DagRun
 
@@ -79,16 +79,9 @@ async def recent_dag_runs(
     )
     dags_with_recent_dag_runs_select = (
         select(
+            DagRun,
             DagModel.dag_id,
-            # should select DagModel fields that `get_dags` in public endpoint will filter at
-            DagModel.dag_display_name,
-            DagModel.next_dagrun,
             recent_runs_subquery.c.execution_date,
-            DagRun.start_date,
-            DagRun.end_date,
-            DagRun.state,
-            DagRun.data_interval_start,
-            DagRun.data_interval_end,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
         .join(
@@ -102,11 +95,8 @@ async def recent_dag_runs(
         .group_by(
             DagModel.dag_id,
             recent_runs_subquery.c.execution_date,
-            DagRun.start_date,
-            DagRun.end_date,
-            DagRun.state,
-            DagRun.data_interval_start,
-            DagRun.data_interval_end,
+            DagRun.execution_date,
+            DagRun.id,
         )
         .order_by(recent_runs_subquery.c.execution_date.desc())
     )
@@ -117,7 +107,7 @@ async def recent_dag_runs(
         offset,
         limit,
     )
-    dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter).all()
+    dags_with_recent_dag_runs = session.scalars(dags_with_recent_dag_runs_select_filter).all()
     # aggregate rows by dag_id
     dag_runs_by_dag_id: dict[str, list] = {}
     for row in dags_with_recent_dag_runs:
@@ -132,15 +122,7 @@ async def recent_dag_runs(
             RecentDAGResponse(
                 dag_id=dag_id,
                 latest_dag_runs=[
-                    RecentDAGRunResponse(  # type: ignore
-                        start_date=dag_run.start_date,
-                        end_date=dag_run.end_date,
-                        state=dag_run.state,
-                        execution_date=dag_run.execution_date,
-                        data_interval_start=dag_run.data_interval_start,
-                        data_interval_end=dag_run.data_interval_end,
-                    )
-                    for dag_run in dag_runs
+                    DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs
                 ],
             )
             for dag_id, dag_runs in dag_runs_by_dag_id.items()
