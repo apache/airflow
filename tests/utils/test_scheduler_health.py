@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.utils.scheduler_health import HealthServer, serve_health_check
 from http.server import BaseHTTPRequestHandler
 from unittest import mock
 from unittest.mock import MagicMock
+
+import pytest
+
+from airflow.utils.scheduler_health import HealthServer
 
 pytestmark = pytest.mark.db_test
 
