@@ -100,6 +100,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
+
     from airflow.models.dag import DAG
     from airflow.providers.standard.operators.bash import BashOperator
 

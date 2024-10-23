@@ -38,7 +38,6 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
-      "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
@@ -572,7 +571,7 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.5.0",
+      "flask-appbuilder==4.5.2",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
@@ -626,7 +625,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",

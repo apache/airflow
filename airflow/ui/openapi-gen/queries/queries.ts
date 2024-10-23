@@ -18,7 +18,12 @@ import {
   ProviderService,
   VariableService,
 } from "../requests/services.gen";
-import { DAGPatchBody, DagRunState, VariableBody } from "../requests/types.gen";
+import {
+  DAGPatchBody,
+  DagRunState,
+  PoolBody,
+  VariableBody,
+} from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -773,6 +778,53 @@ export const useVariableServicePatchVariable = <
         requestBody,
         updateMask,
         variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Pool
+ * Update a Pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServicePatchPool = <
+  TData = Common.PoolServicePatchPoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        poolName: string;
+        requestBody: PoolBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      poolName: string;
+      requestBody: PoolBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ poolName, requestBody, updateMask }) =>
+      PoolService.patchPool({
+        poolName,
+        requestBody,
+        updateMask,
       }) as unknown as Promise<TData>,
     ...options,
   });

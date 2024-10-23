@@ -111,7 +111,7 @@ def test_assets() -> list[Asset]:
 @pytest.fixture
 def asset_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetOrTimeSchedule:
     """
-    Pytest fixture for creating a AssetOrTimeSchedule object.
+    Pytest fixture for creating an AssetOrTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
     :param test_assets: A list of Asset instances.
