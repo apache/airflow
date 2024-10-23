@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-22T18:05:50.192923
+# This constraints file was automatically generated on 2024-10-23T08:02:50.470826
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -340,9 +340,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.43
+mypy-boto3-rds==1.35.46
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.45
+mypy-boto3-s3==1.35.46
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -353,7 +353,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.52.0
+openai==1.52.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
