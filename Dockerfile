@@ -1476,6 +1476,8 @@ ARG PIP_PROGRESS_BAR
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case pyproject.toml changed. This is pure optimisation of CI/Breeze builds.
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
+# By default we do not use pre-cached yarn packages, but in CI/Breeze environment we override this to speed up
+ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
 # This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
@@ -1514,6 +1516,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
+    AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
@@ -1576,6 +1579,12 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
         ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
+
+# We are installing Yarn dependencies here to make sure they are cached in the layer
+RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
+        bash /install_yarn_dependencies.sh; \
+    fi
+
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 

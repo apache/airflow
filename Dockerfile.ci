@@ -1323,6 +1323,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
+ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1356,6 +1357,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
     AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
+    AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
@@ -1397,6 +1399,10 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
+# We are installing Yarn dependencies here to make sure they are cached in the layer
+RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
+        bash /install_yarn_dependencies.sh; \
+    fi
 
 # Here we fix the versions so all subsequent commands will use the versions
 # from the sources
