@@ -42,7 +42,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
     "/",
     responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]),
 )
-def get_dag_stats(
+async def get_dag_stats(
     session: Annotated[Session, Depends(get_session)],
     dag_ids: str | None = None,
 ) -> DagStatsCollectionResponse:
