@@ -65,7 +65,6 @@ class PluginResponse(BaseModel):
 
     name: str
     hooks: list[str]
-    executors: list[str]
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]

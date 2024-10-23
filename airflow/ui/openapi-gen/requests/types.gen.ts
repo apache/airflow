@@ -311,7 +311,6 @@ export type PluginCollectionResponse = {
 export type PluginResponse = {
   name: string;
   hooks: Array<string>;
-  executors: Array<string>;
   macros: Array<string>;
   flask_blueprints: Array<string>;
   fastapi_apps: Array<FastAPIAppResponse>;
