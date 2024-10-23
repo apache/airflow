@@ -851,6 +851,21 @@ class AirflowConfigParser(ConfigParser):
             stacklevel=3,
         )
 
+    def mask_secrets(self):
+        from airflow.utils.log.secrets_masker import mask_secret
+
+        for section, key in self.sensitive_config_values:
+            try:
+                value = self.get(section, key)
+            except AirflowConfigException:
+                log.debug(
+                    "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
+                    section,
+                    key,
+                )
+                continue
+            mask_secret(value)
+
     def _env_var_name(self, section: str, key: str) -> str:
         return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
 
