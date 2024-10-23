@@ -1381,7 +1381,7 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts install_packaging_tools.sh install_airflow_dependencies_from_branch_tip.sh \
-    common.sh /scripts/docker/
+    common.sh install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
 
 # We are first creating a venv where all python packages and .so binaries needed by those are
 # installed.
@@ -1401,7 +1401,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 
 # We are installing Yarn dependencies here to make sure they are cached in the layer
 RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
-        bash /install_yarn_dependencies.sh; \
+        bash /install_yarn_dependencies_from_branch_tip.sh; \
     fi
 
 # Here we fix the versions so all subsequent commands will use the versions

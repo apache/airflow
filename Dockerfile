@@ -1542,7 +1542,8 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts common.sh install_packaging_tools.sh \
-     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh /scripts/docker/
+     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh \
+     install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
 
 # We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
 # docker-context-files folder. This can be done for both additional packages you want to install
@@ -1582,7 +1583,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 
 # We are installing Yarn dependencies here to make sure they are cached in the layer
 RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
-        bash /install_yarn_dependencies.sh; \
+        bash /install_yarn_dependencies_from_branch_tip.sh; \
     fi
 
 
