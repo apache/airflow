@@ -43,12 +43,16 @@ class TestProjectStructure:
                 self.assert_file_contains(filename, "This module is deprecated.")
 
     def assert_file_not_contains(self, filename: pathlib.Path, pattern: str):
-        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+        with open(filename, "rb", 0) as file, mmap.mmap(
+            file.fileno(), 0, access=mmap.ACCESS_READ
+        ) as content:
             if content.find(bytes(pattern, "utf-8")) != -1:
                 pytest.fail(f"File {filename} not contains pattern - {pattern}")
 
     def assert_file_contains(self, filename: pathlib.Path, pattern: str):
-        with open(filename, "rb", 0) as file, mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ) as content:
+        with open(filename, "rb", 0) as file, mmap.mmap(
+            file.fileno(), 0, access=mmap.ACCESS_READ
+        ) as content:
             if content.find(bytes(pattern, "utf-8")) == -1:
                 pytest.fail(f"File {filename} contains illegal pattern - {pattern}")
 
@@ -160,7 +164,10 @@ class TestProjectStructure:
         # Exclude __init__.py
         modules_files = filter(lambda f: f.name != "__init__.py", modules_files)
         # Make path relative
-        modules_files = map(lambda f: f.relative_to(PROVIDERS_SRC / "airflow" / "providers"), modules_files)
+        modules_files = map(
+            lambda f: f.relative_to(PROVIDERS_SRC / "airflow" / "providers"),
+            modules_files,
+        )
         # Exclude example_dags
         modules_files = (f for f in modules_files if "example_dags" not in f.parts)
         # Exclude _vendor
@@ -170,21 +177,31 @@ class TestProjectStructure:
         # Change src/airflow/providers/ to tests/
         test_folder = pathlib.Path("providers/tests")
         # Add test_ prefix to filename
-        expected_test_files = (test_folder.joinpath(f.with_name("test_" + f.name)) for f in modules_files)
+        expected_test_files = (
+            test_folder.joinpath(f.with_name("test_" + f.name)) for f in modules_files
+        )
 
         current_test_files = PROVIDERS_TESTS.glob("**/*.py")
         # Make path relative
-        current_test_files = (os.path.relpath(f, ROOT_FOLDER) for f in current_test_files)
+        current_test_files = (
+            os.path.relpath(f, ROOT_FOLDER) for f in current_test_files
+        )
         # Exclude __init__.py
-        current_test_files = (f for f in current_test_files if not f.endswith("__init__.py"))
+        current_test_files = (
+            f for f in current_test_files if not f.endswith("__init__.py")
+        )
 
         modules_files = set(modules_files)
         expected_test_files = set(expected_test_files) - set(OVERLOOKED_TESTS)
         current_test_files = set(current_test_files)
 
-        missing_tests_files = expected_test_files - expected_test_files.intersection(current_test_files)
+        missing_tests_files = expected_test_files - expected_test_files.intersection(
+            current_test_files
+        )
 
-        assert set() == missing_tests_files, "Detect missing tests in providers module - please add tests"
+        assert (
+            set() == missing_tests_files
+        ), "Detect missing tests in providers module - please add tests"
 
         added_test_files = current_test_files.intersection(OVERLOOKED_TESTS)
         assert set() == added_test_files, (
@@ -203,7 +220,11 @@ def get_imports_from_file(filepath: str):
             continue
         for alias in current_node.names:
             name = alias.name
-            fullname = f"{current_node.module}.{name}" if isinstance(current_node, ast.ImportFrom) else name
+            fullname = (
+                f"{current_node.module}.{name}"
+                if isinstance(current_node, ast.ImportFrom)
+                else name
+            )
             import_names.add(fullname)
     return import_names
 
@@ -274,7 +295,8 @@ class ExampleCoverageTest(ProjectStructureTest):
         )
         # new_design:
         yield from glob.glob(
-            f"{ROOT_FOLDER}/providers/tests/system/{self.PROVIDER}/**/example_*.py", recursive=True
+            f"{ROOT_FOLDER}/providers/tests/system/{self.PROVIDER}/**/example_*.py",
+            recursive=True,
         )
 
     def test_missing_examples(self):
@@ -283,7 +305,9 @@ class ExampleCoverageTest(ProjectStructureTest):
         are used in any of the example dags
         """
         classes = self.list_of_classes()
-        assert 0 != len(classes), "Failed to retrieve operators, override class_paths if needed"
+        assert 0 != len(
+            classes
+        ), "Failed to retrieve operators, override class_paths if needed"
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
@@ -302,7 +326,9 @@ class ExampleCoverageTest(ProjectStructureTest):
         if set() != covered_but_omitted:
             print("Covered classes that are listed as missing:")
             print_sorted(covered_but_omitted)
-            pytest.fail("Operator listed in missing examples but is used in example dag")
+            pytest.fail(
+                "Operator listed in missing examples but is used in example dag"
+            )
 
 
 class AssetsCoverageTest(ProjectStructureTest):
@@ -560,7 +586,9 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
         "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     }
-    BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
+    BASE_CLASSES = {
+        "airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"
+    }
 
 
 class TestSlackProviderProjectStructure(ExampleCoverageTest):
@@ -585,7 +613,10 @@ class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
         files = itertools.chain.from_iterable(
-            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            glob.glob(
+                f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py",
+                recursive=True,
+            )
             for resource_type in ["operators", "hooks", "sensors", "example_dags"]
             for part in ["airflow", "tests"]
         )
