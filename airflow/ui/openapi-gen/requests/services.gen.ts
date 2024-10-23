@@ -46,6 +46,8 @@ import type {
   DeletePoolResponse,
   GetPoolData,
   GetPoolResponse,
+  PatchPoolData,
+  PatchPoolResponse,
   GetPoolsData,
   GetPoolsResponse,
   GetProvidersData,
@@ -680,6 +682,40 @@ export class PoolService {
         pool_name: data.poolName,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Pool
+   * Update a Pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchPool(
+    data: PatchPoolData,
+  ): CancelablePromise<PatchPoolResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

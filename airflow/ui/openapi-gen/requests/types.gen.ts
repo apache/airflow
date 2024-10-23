@@ -326,6 +326,16 @@ export type PluginResponse = {
 };
 
 /**
+ * Pool serializer for bodies.
+ */
+export type PoolBody = {
+  pool?: string | null;
+  slots?: number | null;
+  description?: string | null;
+  include_deferred?: boolean | null;
+};
+
+/**
  * Pool Collection serializer for responses.
  */
 export type PoolCollectionResponse = {
@@ -594,6 +604,14 @@ export type GetPoolData = {
 };
 
 export type GetPoolResponse = PoolResponse;
+
+export type PatchPoolData = {
+  poolName: string;
+  requestBody: PoolBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchPoolResponse = PoolResponse;
 
 export type GetPoolsData = {
   limit?: number;
@@ -1148,6 +1166,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

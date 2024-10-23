@@ -87,6 +87,7 @@ def get_pools(
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("PUT")
 @action_logging
 @provide_session

@@ -1163,6 +1163,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Pool
+      summary: Patch Pool
+      description: Update a Pool.
+      operationId: patch_pool
+      parameters:
+      - name: pool_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Pool Name
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoolBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/pools/:
     get:
       tags:
@@ -2222,6 +2288,31 @@ components:
       - timetables
       title: PluginResponse
       description: Plugin serializer.
+    PoolBody:
+      properties:
+        pool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool
+        slots:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Slots
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        include_deferred:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Include Deferred
+      type: object
+      title: PoolBody
+      description: Pool serializer for bodies.
     PoolCollectionResponse:
       properties:
         pools:
