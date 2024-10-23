@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-22T07:47:15.674862
+# This constraints file was automatically generated on 2024-10-23T02:09:53.444568
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -186,7 +186,7 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==21.0.1
 fastapi-cli==0.0.5
-fastapi==0.115.2
+fastapi==0.115.3
 fastavro==1.9.7
 fastjsonschema==2.20.0
 filelock==3.16.1
@@ -360,9 +360,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.43
+mypy-boto3-rds==1.35.46
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.45
+mypy-boto3-s3==1.35.46
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -376,7 +376,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.52.0
+openai==1.52.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -507,10 +507,10 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.9.2
+rich==13.9.3
 rpds-py==0.20.0
 rsa==4.9
-ruff==0.5.5
+ruff==0.7.0
 s3fs==2024.10.0
 s3transfer==0.10.3
 scramp==1.4.5
@@ -560,7 +560,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.40.0
+starlette==0.41.0
 statsd==4.0.1
 std-uritemplate==2.0.0
 strictyaml==1.7.3
@@ -638,7 +638,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.322.0
 yarl==1.16.0
-ydb==3.18.4
+ydb==3.18.5
 zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
