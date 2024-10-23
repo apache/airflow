@@ -166,21 +166,18 @@ class TestPatchPool(TestPoolsEndpoint):
                             "loc": ["pool"],
                             "msg": "Input should be a valid string",
                             "type": "string_type",
-                            "url": "https://errors.pydantic.dev/2.9/v/string_type",
                         },
                         {
                             "input": None,
                             "loc": ["slots"],
                             "msg": "Input should be a valid integer",
                             "type": "int_type",
-                            "url": "https://errors.pydantic.dev/2.9/v/int_type",
                         },
                         {
                             "input": None,
                             "loc": ["include_deferred"],
                             "msg": "Input should be a valid boolean",
                             "type": "bool_type",
-                            "url": "https://errors.pydantic.dev/2.9/v/bool_type",
                         },
                     ],
                 },
@@ -277,4 +274,10 @@ class TestPatchPool(TestPoolsEndpoint):
         assert response.status_code == expected_status_code
 
         body = response.json()
-        assert response.json() == expected_response
+
+        if response.status_code == 422:
+            for error in body["detail"]:
+                # pydantic version can vary in tests (lower constraints), we do not assert the url.
+                del error["url"]
+
+        assert body == expected_response
