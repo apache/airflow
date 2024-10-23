@@ -50,25 +50,15 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
         self,
         operation_resource_uri: str,
         gcp_conn_id: str = "google_cloud_default",
-        api_version: str = "v1",
-        dev_key_var: str = "AMLAI_API_KEY",
-        dev_key_secret_uri: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.operation_resource_uri = operation_resource_uri
         self.gcp_conn_id = gcp_conn_id
-        self.api_version = api_version
-        self.dev_key_var = dev_key_var
-        self.dev_key_secret_uri = dev_key_secret_uri
 
     def poke(self, context: Context) -> PokeReturnValue:
-        super().poke(context)
         hook = FinancialServicesHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version,
-            dev_key_var=self.dev_key_var,
-            dev_key_secret_uri=self.dev_key_secret_uri,
         )
         operation = hook.get_operation(operation_resource_uri=self.operation_resource_uri)
         if "error" in operation.keys():
