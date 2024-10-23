@@ -145,7 +145,6 @@ class TestGetPlugins(TestPluginsEndpoint):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": qualname(MockView)}],
-                    "executors": [],
                     "flask_blueprints": [
                         f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
                     ],

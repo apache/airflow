@@ -38,11 +38,11 @@ const Legend = () => (
       </Flex>
       <Flex alignItems="center" mr={2}>
         <HiDatabase size="14px" />
-        <Text ml={1}>Dataset</Text>
+        <Text ml={1}>Asset</Text>
       </Flex>
       <Flex alignItems="center">
         <PiRectangleDashed size="14px" />
-        <Text ml={1}>Dataset Alias</Text>
+        <Text ml={1}>Asset Alias</Text>
       </Flex>
     </Flex>
   </Box>

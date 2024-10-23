@@ -482,7 +482,6 @@ def _get_task_groups_details(dag: DAG) -> dict:
     return {
         tg_id: {
             "parent_group": tg.parent_group.group_id,
-            "tooltip": tg.tooltip,
             "ui_color": tg.ui_color,
             "ui_fgcolor": tg.ui_fgcolor,
             "ui_label": tg.label,
@@ -679,7 +678,7 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         from airflow.assets import _get_normalized_scheme
     except ModuleNotFoundError:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
         except ImportError:
             return None
 

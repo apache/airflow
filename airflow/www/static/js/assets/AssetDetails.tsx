@@ -42,10 +42,10 @@ interface Props {
 }
 
 const AssetDetails = ({ uri }: Props) => {
-  const { data: dataset, isLoading } = useAsset({ uri });
+  const { data: asset, isLoading } = useAsset({ uri });
 
-  const hasProducingTasks = !!dataset?.producingTasks?.length;
-  const hasConsumingDags = !!dataset?.consumingDags?.length;
+  const hasProducingTasks = !!asset?.producingTasks?.length;
+  const hasConsumingDags = !!asset?.consumingDags?.length;
 
   return (
     <Flex flexDirection="column">
@@ -53,8 +53,8 @@ const AssetDetails = ({ uri }: Props) => {
       <Grid templateColumns="repeat(5, 1fr)">
         {hasProducingTasks && (
           <GridItem colSpan={hasConsumingDags ? 2 : 4}>
-            <Heading size="sm">Tasks that update this Dataset</Heading>
-            {dataset?.producingTasks?.map((task) => {
+            <Heading size="sm">Tasks that update this Asset</Heading>
+            {asset?.producingTasks?.map((task) => {
               if (!task.taskId || !task.dagId) return null;
               const url = `${gridUrl?.replace(
                 "__DAG_ID__",
@@ -75,8 +75,8 @@ const AssetDetails = ({ uri }: Props) => {
         )}
         {hasConsumingDags && (
           <GridItem colSpan={hasProducingTasks ? 2 : 4}>
-            <Heading size="sm">DAGs that consume this Dataset</Heading>
-            {dataset?.consumingDags?.map((dag) => {
+            <Heading size="sm">DAGs that consume this Asset</Heading>
+            {asset?.consumingDags?.map((dag) => {
               if (!dag.dagId) return null;
               const url = gridUrl?.replace("__DAG_ID__", dag.dagId);
               return (
@@ -93,16 +93,16 @@ const AssetDetails = ({ uri }: Props) => {
           </GridItem>
         )}
       </Grid>
-      {dataset?.extra && !isEmpty(dataset?.extra) && (
+      {asset?.extra && !isEmpty(asset?.extra) && (
         <RenderedJsonField
-          content={dataset.extra}
+          content={asset.extra}
           bg="gray.100"
           maxH="300px"
           overflow="auto"
         />
       )}
       <Box mt={2}>
-        {dataset && dataset.id && <Events assetId={dataset.id} showLabel />}
+        {asset && asset.id && <Events assetId={asset.id} showLabel />}
       </Box>
     </Flex>
   );

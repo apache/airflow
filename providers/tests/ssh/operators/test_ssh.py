@@ -66,7 +66,7 @@ class TestSSHOperator:
 
     # Make sure nothing in this test actually connects to SSH -- that's for hook tests.
     @pytest.fixture(autouse=True)
-    def _patch_exec_ssh_client(self):
+    def patch_exec_ssh_client(self):
         with mock.patch.object(self.hook, "exec_ssh_client_command") as exec_ssh_client_command:
             self.exec_ssh_client_command = exec_ssh_client_command
             exec_ssh_client_command.return_value = (0, b"airflow", "")
