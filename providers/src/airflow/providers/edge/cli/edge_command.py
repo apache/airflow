@@ -95,9 +95,9 @@ def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
 
 
-def _write_pid_to_pidfile(pid_file_path):
+def _write_pid_to_pidfile(pid_file_path: str):
     """Write PIDs for Edge Workers to disk, handling existing PID files."""
-    if pid_file_path.exists():
+    if Path(pid_file_path).exists():
         # Handle existing PID files on disk
         logger.info("An existing PID file has been found: %s.", pid_file_path)
         pid_stored_in_pid_file = read_pid_from_pidfile(pid_file_path)
@@ -142,7 +142,7 @@ class _EdgeWorkerCli:
 
     def __init__(
         self,
-        pid_file_path: Path,
+        pid_file_path: str,
         hostname: str,
         queues: list[str] | None,
         concurrency: int,
