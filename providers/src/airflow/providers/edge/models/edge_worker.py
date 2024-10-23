@@ -279,7 +279,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             state=EdgeWorkerState.UNKNOWN,
             connected=False,
             jobs_active=jobs_active,
-            concurrency=sysinfo["concurrency"],
+            concurrency=int(sysinfo["concurrency"]),
             queues=worker.queues,
         )
         return worker.queues
