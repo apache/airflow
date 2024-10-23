@@ -246,3 +246,8 @@ licenses/LICENSES-ui.txt
 
 # airflow-build-dockerfile and correconding ignore file
 airflow-build-dockerfile*
+
+# Airflow 3 files
+# These directories are ignored so someone can develop on both of them without deleting files manually
+airflow/ui
+task_sdk
