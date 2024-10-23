@@ -34,14 +34,6 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
         'projects/<Project ID>/locations/<Location>/operations/<Operation ID>)
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
-    :param api_version: API version for the Financial Services API.
-        Defaults to "v1".
-    :param dev_key_var: Airflow variable name for accessing/saving the
-        developer key. If key is not provided, secret value will be stored in a
-        variable with the default name. Defaults to "AMLAI_API_KEY".
-    :param dev_key_secret_uri: URI for the GCP secret (Secrets
-        Manager) containing the developer key. Secret will only be accessed if
-        dev_key_var does not exist. Defaults to None.
     """
 
     template_fields: Sequence[str] = ("operation_resource_uri",)

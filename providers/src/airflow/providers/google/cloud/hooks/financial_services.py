@@ -83,7 +83,7 @@ class FinancialServicesHook(GoogleBaseHook):
         Create an AML AI instance.
 
         :param instance_id: Identifier for the instance to create
-        :param kms_key: URI of the KMS key to that will be used for instance encryption
+        :param kms_key_uri: URI of the KMS key to that will be used for instance encryption
             (format: 'projects/<Project ID>/locations/<Location>/keyRings/<Key Ring>/
             cryptoKeys/<Key>')
 
