@@ -1,3 +1,1 @@
 -e .[devel-devscripts,devel-tests,cncf.kubernetes]
--e ./providers
--e ./task_sdk
