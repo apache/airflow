@@ -120,7 +120,7 @@ class TestEdgeWorkerCli:
 
     @pytest.fixture
     def worker_with_job(self, tmp_path: Path, dummy_joblist: list[_Job]) -> _EdgeWorkerCli:
-        test_worker = _EdgeWorkerCli(tmp_path / "dummy.pid", "dummy", None, 8, 5, 5)
+        test_worker = _EdgeWorkerCli(str(tmp_path / "dummy.pid"), "dummy", None, 8, 5, 5)
         test_worker.jobs = dummy_joblist
         return test_worker
 
