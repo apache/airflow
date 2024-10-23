@@ -399,6 +399,7 @@ Steps:
 
 Building the interpreter index might take some time.
 3) Add ``exec`` to docker-compose/command and actions in python service
+
 .. image:: /img/docker-compose-pycharm.png
     :alt: Configuring the container's Python interpreter in PyCharm, step diagram
 
