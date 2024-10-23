@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.cloud.dataform_v1beta1 import WorkflowInvocation
+from google.cloud.dataform_v1beta1 import WorkflowInvocation, WorkflowInvocationAction
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
@@ -45,7 +45,10 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformRemoveFileOperator,
     DataformWriteFileOperator,
 )
-from airflow.providers.google.cloud.sensors.dataform import DataformWorkflowInvocationStateSensor
+from airflow.providers.google.cloud.sensors.dataform import (
+    DataformWorkflowInvocationActionStateSensor,
+    DataformWorkflowInvocationStateSensor,
+)
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -173,6 +176,37 @@ with DAG(
         expected_statuses={WorkflowInvocation.State.SUCCEEDED},
     )
     # [END howto_operator_create_workflow_invocation_async]
+
+    # [START howto_operator_create_workflow_invocation_action_async]
+    create_workflow_invocation_async_action = DataformCreateWorkflowInvocationOperator(
+        task_id="create-workflow-invocation-async",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        asynchronous=True,
+        workflow_invocation={
+            "compilation_result": "{{ task_instance.xcom_pull('create-compilation-result')['name'] }}"
+        },
+    )
+
+    is_workflow_invocation_action_done = DataformWorkflowInvocationActionStateSensor(
+        task_id="is-workflow-invocation-done",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workflow_invocation_id=(
+            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+        ),
+        target_name="YOUR_TARGET_HERE",
+        expected_statuses={WorkflowInvocationAction.State.SUCCEEDED},
+        failure_statuses={
+            WorkflowInvocationAction.State.SKIPPED,
+            WorkflowInvocationAction.State.DISABLED,
+            WorkflowInvocationAction.State.CANCELLED,
+            WorkflowInvocationAction.State.FAILED,
+        },
+    )
+    # [END howto_operator_create_workflow_invocation_action_async]
 
     # [START howto_operator_get_workflow_invocation]
     get_workflow_invocation = DataformGetWorkflowInvocationOperator(
@@ -314,6 +348,8 @@ with DAG(
         >> query_workflow_invocation_actions
         >> create_workflow_invocation_async
         >> is_workflow_invocation_done
+        >> create_workflow_invocation_async_action
+        >> is_workflow_invocation_action_done
         >> create_workflow_invocation_for_cancel
         >> cancel_workflow_invocation
         >> make_test_directory
