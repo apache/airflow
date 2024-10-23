@@ -42,11 +42,13 @@ class TestSchedulerHealthServer:
     def setup_method(self) -> None:
         self.mock_server = MockServer()
 
+    # This test is to ensure that the server responds correctly to a GET request on the correct endpoint.
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
     def test_incorrect_endpoint(self, mock_send_error):
         self.mock_server.do_GET("/incorrect")
         mock_send_error.assert_called_with(404)
 
+    # This test is to ensure that if the scheduler is healthy, it returns a 200 status code.
     @mock.patch.object(BaseHTTPRequestHandler, "end_headers")
     @mock.patch.object(BaseHTTPRequestHandler, "send_response")
     @mock.patch("airflow.utils.scheduler_health.create_session")
