@@ -23,13 +23,11 @@ import functools
 import operator
 from typing import TYPE_CHECKING, Iterator
 
-import airflow.sdk.definitions.contextmanager
 import airflow.sdk.definitions.taskgroup
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.typing_compat import TypeAlias
 
@@ -76,25 +74,6 @@ class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
             operator.mul,
             (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
-
-
-class TaskGroupContext(airflow.sdk.definitions.contextmanager.TaskGroupContext, share_parent_context=True):
-    """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
-
-    @classmethod
-    def push_context_managed_task_group(cls, task_group: TaskGroup):
-        """Push a TaskGroup into the list of managed TaskGroups."""
-        return cls.push(task_group)
-
-    @classmethod
-    def pop_context_managed_task_group(cls) -> TaskGroup | None:
-        """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
-        return cls.pop()
-
-    @classmethod
-    def get_current_task_group(cls, dag: DAG | None) -> TaskGroup | None:
-        """Get the current TaskGroup."""
-        return cls.get_current(dag)
 
 
 def task_group_to_dict(task_item_or_group):
