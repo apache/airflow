@@ -173,7 +173,7 @@ repos:
         entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/update_common_sql_api\.py|^providers/src/airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==24.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -234,12 +234,12 @@ repos:
         name: Run black on docs
         args:
           - --line-length=110
-          - --target-version=py37
-          - --target-version=py38
           - --target-version=py39
           - --target-version=py310
+          - --target-version=py311
+          - --target-version=py312
         alias: blacken-docs
-        additional_dependencies: [black==23.10.0]
+        additional_dependencies: [black==24.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -898,7 +898,7 @@ repos:
           - --max-length=53
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/check_pre_commit_hooks\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==24.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: check-integrations-list-consistent
@@ -906,7 +906,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_integrations_list.py
         language: python
         files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests.rst$
-        additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
+        additional_dependencies: ['black==24.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
