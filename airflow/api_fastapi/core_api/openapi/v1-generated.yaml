@@ -2207,11 +2207,6 @@ components:
         name:
           type: string
           title: Name
-        hooks:
-          items:
-            type: string
-          type: array
-          title: Hooks
         macros:
           items:
             type: string
@@ -2268,7 +2263,6 @@ components:
       type: object
       required:
       - name
-      - hooks
       - macros
       - flask_blueprints
       - fastapi_apps

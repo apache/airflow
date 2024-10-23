@@ -1326,13 +1326,6 @@ export const $PluginResponse = {
       type: "string",
       title: "Name",
     },
-    hooks: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Hooks",
-    },
     macros: {
       items: {
         type: "string",
@@ -1411,7 +1404,6 @@ export const $PluginResponse = {
   type: "object",
   required: [
     "name",
-    "hooks",
     "macros",
     "flask_blueprints",
     "fastapi_apps",
