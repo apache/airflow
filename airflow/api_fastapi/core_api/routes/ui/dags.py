@@ -39,9 +39,10 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
 from airflow.api_fastapi.core_api.serializers.ui.dags import (
-    RecentDAGCollectionResponse,
-    RecentDAGResponse,
+    DAGWithLatestDagRunsCollectionResponse,
+    DAGWithLatestDagRunsResponse,
 )
 from airflow.models import DagModel, DagRun
 
@@ -59,9 +60,9 @@ async def recent_dag_runs(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    dag_runs_limit: QueryLimit,
     session: Annotated[Session, Depends(get_session)],
-) -> RecentDAGCollectionResponse:
+    dag_runs_limit: int = 10,
+) -> DAGWithLatestDagRunsCollectionResponse:
     """Get recent DAG runs."""
     recent_runs_subquery = (
         select(
@@ -80,7 +81,7 @@ async def recent_dag_runs(
     dags_with_recent_dag_runs_select = (
         select(
             DagRun,
-            DagModel.dag_id,
+            DagModel,
             recent_runs_subquery.c.execution_date,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
@@ -91,7 +92,7 @@ async def recent_dag_runs(
                 DagRun.execution_date == recent_runs_subquery.c.execution_date,
             ),
         )
-        .where(recent_runs_subquery.c.rank <= dag_runs_limit.value)
+        .where(recent_runs_subquery.c.rank <= dag_runs_limit)
         .group_by(
             DagModel.dag_id,
             recent_runs_subquery.c.execution_date,
@@ -107,24 +108,26 @@ async def recent_dag_runs(
         offset,
         limit,
     )
-    dags_with_recent_dag_runs = session.scalars(dags_with_recent_dag_runs_select_filter).all()
+    dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter)
     # aggregate rows by dag_id
-    dag_runs_by_dag_id: dict[str, list] = {}
-    for row in dags_with_recent_dag_runs:
-        dag_id = row.dag_id
-        if dag_id not in dag_runs_by_dag_id:
-            dag_runs_by_dag_id[dag_id] = []
-        dag_runs_by_dag_id[dag_id].append(row)
+    dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {}
 
-    return RecentDAGCollectionResponse(
-        total_entries=len(dag_runs_by_dag_id),
-        dags=[
-            RecentDAGResponse(
-                dag_id=dag_id,
-                latest_dag_runs=[
-                    DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs
-                ],
+    for row in dags_with_recent_dag_runs:
+        dag_run, dag, *_ = row
+        dag_id = dag.dag_id
+        dag_run_response = DAGRunResponse.model_validate(dag_run, from_attributes=True)
+        if dag_id not in dag_runs_by_dag_id:
+            dag_response = DAGResponse.model_validate(dag, from_attributes=True)
+            dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
+                {
+                    **dag_response.dict(),
+                    "latest_dag_runs": [dag_run_response],
+                }
             )
-            for dag_id, dag_runs in dag_runs_by_dag_id.items()
-        ],
+        else:
+            dag_runs_by_dag_id[dag_id].latest_dag_runs.append(dag_run_response)
+
+    return DAGWithLatestDagRunsCollectionResponse(
+        total_entries=len(dag_runs_by_dag_id),
+        dags=list(dag_runs_by_dag_id.values()),
     )

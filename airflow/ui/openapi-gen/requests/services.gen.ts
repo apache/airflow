@@ -118,6 +118,7 @@ export class DagsService {
    * Recent Dag Runs
    * Get recent DAG runs.
    * @param data The data for the request.
+   * @param data.dagRunsLimit
    * @param data.limit
    * @param data.offset
    * @param data.tags
@@ -127,7 +128,7 @@ export class DagsService {
    * @param data.onlyActive
    * @param data.paused
    * @param data.lastDagRunState
-   * @returns RecentDAGCollectionResponse Successful Response
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
    * @throws ApiError
    */
   public static recentDagRuns(
@@ -137,6 +138,7 @@ export class DagsService {
       method: "GET",
       url: "/ui/dags/recent_dag_runs",
       query: {
+        dag_runs_limit: data.dagRunsLimit,
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,

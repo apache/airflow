@@ -35,6 +35,8 @@ from tests.api_fastapi.core_api.routes.public.test_dags import (
     TestDagEndpoint as TestPublicDagEndpoint,
 )
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRecentDagRuns(TestPublicDagEndpoint):
     @pytest.fixture(autouse=True)
