@@ -170,6 +170,13 @@ def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
     return set(tags or [])
 
 
+def _convert_access_control(value, self_: DAG):
+    if hasattr(self_, "_upgrade_outdated_dag_access_control"):
+        return self_._upgrade_outdated_dag_access_control(value)
+    else:
+        return value
+
+
 def _all_after_dag_id_to_kw_only(cls, fields: list[attrs.Attribute]):
     i = iter(fields)
     f = next(i)
@@ -353,7 +360,9 @@ class DAG:
         default=None,
         converter=attrs.Converter(_convert_params, takes_self=True),  # type: ignore[misc, call-overload]
     )
-    _access_control: dict | None = None
+    access_control: dict | None = attrs.field(
+        default=None, converter=attrs.Converter(_convert_access_control, takes_self=True)
+    )
     is_paused_upon_creation: bool | None = None
     jinja_environment_kwargs: dict | None = None
     render_template_as_native_obj: bool = attrs.field(default=False, converter=bool)
@@ -381,8 +390,6 @@ class DAG:
 
         self.start_date = timezone.convert_to_utc(self.start_date)
         self.end_date = timezone.convert_to_utc(self.end_date)
-        # This should trigger the setters for access_control
-        self.access_control = self.access_control
 
     @fileloc.default
     def _default_fileloc(self) -> str:
@@ -685,17 +692,6 @@ class DAG:
         if hasattr(self, "_log"):
             result._log = self._log  # type: ignore[attr-defined]
         return result
-
-    @property
-    def access_control(self):
-        return self._access_control
-
-    @access_control.setter
-    def access_control(self, value):
-        if hasattr(self, "_upgrade_outdated_dag_access_control"):
-            self._access_control = self._upgrade_outdated_dag_access_control(value)
-        else:
-            self._access_control = value
 
     def partial_subset(
         self,
