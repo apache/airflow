@@ -21,8 +21,6 @@ from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 
-from airflow.executors.base_executor import BaseExecutor
-
 # Importing base classes that we need to derive
 from airflow.hooks.base import BaseHook
 
@@ -46,11 +44,6 @@ from tests_common.test_utils.mock_operators import (
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
 class PluginHook(BaseHook):
-    pass
-
-
-# Will show up under airflow.executors.test_plugin.PluginExecutor
-class PluginExecutor(BaseExecutor):
     pass
 
 
@@ -123,7 +116,6 @@ class CustomPriorityWeightStrategy(PriorityWeightStrategy):
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     hooks = [PluginHook]
-    executors = [PluginExecutor]
     macros = [plugin_macro]
     flask_blueprints = [bp]
     fastapi_apps = [app_with_metadata]
