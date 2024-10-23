@@ -108,6 +108,7 @@ const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   PAUSED: PAUSED_PARAM,
+  TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
@@ -125,6 +126,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(
     LAST_DAG_RUN_STATE_PARAM,
   ) as DagRunState;
+  const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -163,8 +165,16 @@ export const DagsList = () => {
       onlyActive: true,
       orderBy,
       paused: showPaused === null ? undefined : showPaused === "true",
+      tags: selectedTags,
     },
-    [dagDisplayNamePattern, showPaused, lastDagRunState, pagination, orderBy],
+    [
+      dagDisplayNamePattern,
+      showPaused,
+      lastDagRunState,
+      pagination,
+      orderBy,
+      selectedTags,
+    ],
     {
       refetchOnMount: true,
       refetchOnReconnect: false,
