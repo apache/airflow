@@ -179,7 +179,7 @@ with DAG(
 
     # [START howto_operator_create_workflow_invocation_action_async]
     create_workflow_invocation_async_action = DataformCreateWorkflowInvocationOperator(
-        task_id="create-workflow-invocation-async",
+        task_id="create-workflow-invocation-async-action",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,
@@ -190,7 +190,7 @@ with DAG(
     )
 
     is_workflow_invocation_action_done = DataformWorkflowInvocationActionStateSensor(
-        task_id="is-workflow-invocation-done",
+        task_id="is-workflow-invocation-action-done",
         project_id=PROJECT_ID,
         region=REGION,
         repository_id=REPOSITORY_ID,

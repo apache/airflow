@@ -137,7 +137,6 @@ class TestProjectStructure:
             "providers/tests/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
             "providers/tests/google/cloud/operators/vertex_ai/test_model_service.py",
             "providers/tests/google/cloud/operators/vertex_ai/test_pipeline_job.py",
-            "providers/tests/google/cloud/sensors/test_dataform.py",
             "providers/tests/google/cloud/transfers/test_bigquery_to_sql.py",
             "providers/tests/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/tests/google/cloud/utils/test_bigquery.py",
