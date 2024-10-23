@@ -48,6 +48,7 @@ type DataTableProps<TData> = {
   readonly isLoading?: boolean;
   readonly modelName?: string;
   readonly noRowsMessage?: ReactNode;
+  readonly onRowClicked?: (row: Row<TData>) => void;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: {
     row: Row<TData>;
@@ -70,6 +71,7 @@ export const DataTable = <TData,>({
   isLoading,
   modelName,
   noRowsMessage,
+  onRowClicked,
   onStateChange,
   skeletonCount = 10,
   total = 0,
@@ -133,7 +135,9 @@ export const DataTable = <TData,>({
       {!Boolean(isLoading) && !rows.length && (
         <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
       )}
-      {display === "table" && <TableList table={table} />}
+      {display === "table" && (
+        <TableList onRowClicked={onRowClicked} table={table} />
+      )}
       {display === "card" && cardDef !== undefined && (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       )}
