@@ -24,7 +24,7 @@ import {
   Skeleton,
   VStack,
 } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef, Row } from "@tanstack/react-table";
 import {
   type ChangeEvent,
   type ChangeEventHandler,
@@ -253,7 +253,9 @@ export const DagsList = () => {
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag"
-        onRowClicked={(row) => navigate(`/dags/${row.original.dag_id}`)}
+        onRowClicked={(row: Row<DAGResponse>) =>
+          navigate(`/dags/${row.original.dag_id}`)
+        }
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
         total={data?.total_entries}
