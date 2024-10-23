@@ -6172,6 +6172,7 @@ class TestSchedulerJob:
         ).all()
         return [a for a, v in assets if not v], [a for a, v in assets if v]
 
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
@@ -6211,9 +6212,10 @@ class TestSchedulerJob:
 
         # Now we get the updated result.
         orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1, asset3, asset4]
-        assert orphaned == [asset2, asset5]
+        assert active == [asset1, asset3, asset5]
+        assert orphaned == [asset2, asset4]
 
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 

@@ -2097,7 +2097,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._orphan_unreferenced_assets(asset_orphanation.get(True, ()), session=session)
         self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
 
-    def _orphan_unreferenced_assets(self, assets: Collection[AssetModel], *, session: Session) -> None:
+    @staticmethod
+    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
         if assets:
             session.execute(
                 delete(AssetActive).where(
@@ -2106,7 +2107,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         Stats.gauge("asset.orphaned", len(assets))
 
-    def _activate_referenced_assets(self, assets: Collection[AssetModel], *, session: Session) -> None:
+    @staticmethod
+    def _activate_referenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
         if not assets:
             return
 
