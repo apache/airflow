@@ -40,7 +40,7 @@ export const ErrorPage = () => {
   const error = useRouteError();
 
   let errorMessage = "An unexpected error occurred";
-  let statusCode = "500";
+  let statusCode = "";
 
   if (isRouteErrorResponse(error)) {
     statusCode = String(error.status);
@@ -67,12 +67,7 @@ export const ErrorPage = () => {
           <Icon as={AirflowPin} height="50px" width="50px" />
 
           <VStack spacing={4}>
-            <Heading as="h1" fontWeight="bold" size="3xl">
-              {statusCode}
-            </Heading>
-            <Heading as="h2" size="xl">
-              {statusCode === "404" ? "Page Not Found" : "Error"}
-            </Heading>
+            <Heading>{statusCode || "Error"}</Heading>
             <Text fontSize="lg">{errorMessage}</Text>
             {error instanceof Error && (
               <Code borderRadius="md" fontSize="sm" p={3} width="full">
