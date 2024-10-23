@@ -18,6 +18,7 @@
  */
 import { HStack, Select, Text, Box } from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
+import type { MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -32,17 +33,15 @@ import {
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   PAUSED: PAUSED_PARAM,
+  TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-type DagsFiltersProps = {
-  readonly onTagsSelectChange: (tags: Array<string>) => void;
-};
-
-export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
+export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
+  const selectedTags = searchParams.getAll(TAGS_PARAM);
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
@@ -88,6 +87,21 @@ export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
       },
       [pagination, searchParams, setSearchParams, setTableURLState, sorting],
     );
+  const handleSelectTagsChange = useCallback(
+    (
+      tags: MultiValue<{
+        label: string;
+        value: string;
+      }>,
+    ) => {
+      searchParams.delete(TAGS_PARAM);
+      tags.forEach(({ value }) => {
+        searchParams.append(TAGS_PARAM, value);
+      });
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
 
   return (
     <HStack justifyContent="space-between">
@@ -143,7 +157,7 @@ export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
         </Box>
       </HStack>
       <ReactSelect
-        aria-label="Filter DAGs by tag"
+        aria-label="Filter Dags by tag"
         chakraStyles={{
           container: (provided) => ({
             ...provided,
@@ -153,14 +167,16 @@ export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
         isClearable
         isMulti
         noOptionsMessage={() => "No tags found"}
-        onChange={(options) => {
-          onTagsSelectChange(options.map(({ value }) => value));
-        }}
+        onChange={handleSelectTagsChange}
         options={data?.tags.map((tag) => ({
           label: tag,
           value: tag,
         }))}
         placeholder="Filter by tag"
+        value={selectedTags.map((tag) => ({
+          label: tag,
+          value: tag,
+        }))}
       />
     </HStack>
   );
