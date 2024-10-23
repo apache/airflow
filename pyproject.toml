@@ -295,7 +295,6 @@ ignore = [
     "E731", # Do not assign a lambda expression, use a def
     "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT004", # Fixture does not return anything, add leading underscore
-    "PT005", # Fixture returns a value, remove leading underscore
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
