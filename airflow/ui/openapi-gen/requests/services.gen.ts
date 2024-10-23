@@ -50,6 +50,8 @@ import type {
   PatchPoolResponse,
   GetPoolsData,
   GetPoolsResponse,
+  PostPoolData,
+  PostPoolResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetPluginsData,
@@ -749,6 +751,30 @@ export class PoolService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Pool
+   * Create a Pool.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPool(
+    data: PostPoolData,
+  ): CancelablePromise<PostPoolResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
