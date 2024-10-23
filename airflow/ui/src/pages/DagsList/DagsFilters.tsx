@@ -21,6 +21,7 @@ import { Select as ReactSelect } from "chakra-react-select";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import {
@@ -33,7 +34,11 @@ const {
   PAUSED: PAUSED_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-export const DagsFilters = () => {
+type DagsFiltersProps = {
+  readonly onTagsSelectChange: (tags: Array<string>) => void;
+};
+
+export const DagsFilters = ({ onTagsSelectChange }: DagsFiltersProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
@@ -42,6 +47,10 @@ export const DagsFilters = () => {
   const isRunning = state === "running";
   const isFailed = state === "failed";
   const isSuccess = state === "success";
+
+  const { data } = useDagServiceGetDagTags({
+    orderBy: "name",
+  });
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -133,7 +142,21 @@ export const DagsFilters = () => {
           </Select>
         </Box>
       </HStack>
-      <ReactSelect isDisabled placeholder="Filter by tag" />
+      <ReactSelect
+        aria-label="Filter DAGs by tag"
+        classNamePrefix="react-select"
+        isClearable
+        isMulti
+        noOptionsMessage={() => "No tags found"}
+        onChange={(options) => {
+          onTagsSelectChange(options.map(({ value }) => value));
+        }}
+        options={data?.tags.map((tag) => ({
+          label: tag,
+          value: tag,
+        }))}
+        placeholder="Filter by tag"
+      />
     </HStack>
   );
 };

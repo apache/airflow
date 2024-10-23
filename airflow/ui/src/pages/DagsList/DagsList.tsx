@@ -120,6 +120,7 @@ const cardDef: CardDef<DAGResponse> = {
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useState<"card" | "table">("card");
+  const [selectedTags, setSelectedTags] = useState<Array<string>>([]);
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
@@ -163,8 +164,16 @@ export const DagsList = () => {
       onlyActive: true,
       orderBy,
       paused: showPaused === null ? undefined : showPaused === "true",
+      tags: selectedTags,
     },
-    [dagDisplayNamePattern, showPaused, lastDagRunState, pagination, orderBy],
+    [
+      dagDisplayNamePattern,
+      showPaused,
+      lastDagRunState,
+      pagination,
+      orderBy,
+      selectedTags,
+    ],
     {
       refetchOnMount: true,
       refetchOnReconnect: false,
@@ -195,7 +204,7 @@ export const DagsList = () => {
             onChange: handleSearchChange,
           }}
         />
-        <DagsFilters />
+        <DagsFilters onTagsSelectChange={setSelectedTags} />
         <HStack justifyContent="space-between">
           <Heading py={3} size="md">
             {pluralize("DAG", data?.total_entries)}
