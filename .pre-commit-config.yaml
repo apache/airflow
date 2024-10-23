@@ -167,6 +167,12 @@ repos:
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
   - repo: local
     hooks:
+      - id: check-min-python-version
+        name: Check minimum Python version
+        entry: ./scripts/ci/pre_commit/check_min_python_version.py
+        language: python
+        additional_dependencies: ['rich>=12.4.4']
+        require_serial: true
       - id: update-common-sql-api-stubs
         name: Check and update common.sql API stubs
         entry: ./scripts/ci/pre_commit/update_common_sql_api_stubs.py
