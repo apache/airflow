@@ -70,7 +70,7 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   {
     accessorKey: "dag_id",
     cell: ({ row }) => row.original.dag_display_name,
-    header: "DAG",
+    header: "Dag",
   },
   {
     accessorKey: "timetable_description",
@@ -88,7 +88,7 @@ const columns: Array<ColumnDef<DAGResponse>> = [
         <Time datetime={original.next_dagrun} />
       ) : undefined,
     enableSorting: false,
-    header: "Next DAG Run",
+    header: "Next Dag Run",
   },
   {
     accessorKey: "tags",
@@ -198,7 +198,7 @@ export const DagsList = () => {
         <DagsFilters />
         <HStack justifyContent="space-between">
           <Heading py={3} size="md">
-            {pluralize("DAG", data?.total_entries)}
+            {pluralize("Dag", data?.total_entries)}
           </Heading>
           {display === "card" ? (
             <Select
@@ -209,8 +209,8 @@ export const DagsList = () => {
               variant="flushed"
               width="200px"
             >
-              <option value="dag_id">Sort by DAG ID (A-Z)</option>
-              <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+              <option value="dag_id">Sort by Dag ID (A-Z)</option>
+              <option value="-dag_id">Sort by Dag ID (Z-A)</option>
             </Select>
           ) : (
             false
@@ -227,7 +227,7 @@ export const DagsList = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="DAG"
+        modelName="Dag"
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
         total={data?.total_entries}
