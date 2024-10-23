@@ -111,14 +111,24 @@ class TestDagStatsEndpoint:
             external_trigger=True,
             state="success",
         )
-        session.add_all((dag_1, dag_1_run_1, dag_1_run_2, dag_2, dag_2_run_1, dag_3, dag_3_run_1))
+        entities = (
+            dag_1,
+            dag_1_run_1,
+            dag_1_run_2,
+            dag_2,
+            dag_2_run_1,
+            dag_3,
+            dag_3_run_1,
+        )
+        for entity in entities:
+            session.add(entity)
+        session.commit()
 
     @pytest.fixture(autouse=True)
     @provide_session
     def setup(self, session=None) -> None:
         self._clear_db()
         self._create_dag_and_runs(session)
-        session.commit()
 
     def teardown_method(self) -> None:
         self._clear_db()
