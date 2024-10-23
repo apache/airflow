@@ -91,6 +91,7 @@ export const useDashboardServiceHistoricalMetrics = <
  * Recent Dag Runs
  * Get recent DAG runs.
  * @param data The data for the request.
+ * @param data.dagRunsLimit
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -100,7 +101,7 @@ export const useDashboardServiceHistoricalMetrics = <
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
- * @returns RecentDAGCollectionResponse Successful Response
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useDagsServiceRecentDagRuns = <
@@ -111,6 +112,7 @@ export const useDagsServiceRecentDagRuns = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunsLimit,
     lastDagRunState,
     limit,
     offset,
@@ -121,6 +123,7 @@ export const useDagsServiceRecentDagRuns = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -137,6 +140,7 @@ export const useDagsServiceRecentDagRuns = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunsLimit,
         lastDagRunState,
         limit,
         offset,
@@ -151,6 +155,7 @@ export const useDagsServiceRecentDagRuns = <
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunsLimit,
         lastDagRunState,
         limit,
         offset,

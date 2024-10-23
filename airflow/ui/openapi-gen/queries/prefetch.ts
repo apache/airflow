@@ -67,6 +67,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * Recent Dag Runs
  * Get recent DAG runs.
  * @param data The data for the request.
+ * @param data.dagRunsLimit
  * @param data.limit
  * @param data.offset
  * @param data.tags
@@ -76,7 +77,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data.onlyActive
  * @param data.paused
  * @param data.lastDagRunState
- * @returns RecentDAGCollectionResponse Successful Response
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseDagsServiceRecentDagRuns = (
@@ -84,6 +85,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    dagRunsLimit,
     lastDagRunState,
     limit,
     offset,
@@ -94,6 +96,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    dagRunsLimit?: number;
     lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
@@ -107,6 +110,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
     queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
+      dagRunsLimit,
       lastDagRunState,
       limit,
       offset,
@@ -119,6 +123,7 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       DagsService.recentDagRuns({
         dagDisplayNamePattern,
         dagIdPattern,
+        dagRunsLimit,
         lastDagRunState,
         limit,
         offset,
