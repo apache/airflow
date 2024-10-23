@@ -678,7 +678,7 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
         from airflow.assets import _get_normalized_scheme
     except ModuleNotFoundError:
         try:
-            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
         except ImportError:
             return None
 
