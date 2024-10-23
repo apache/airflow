@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.2.1re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed handling of PID files in Edge Worker (#43153)``
+
 0.2.0pre0
 .........
 

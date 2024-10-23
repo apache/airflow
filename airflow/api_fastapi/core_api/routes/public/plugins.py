@@ -17,30 +17,24 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.serializers.plugins import PluginCollectionResponse, PluginResponse
+from airflow.plugins_manager import get_plugin_info
 
-import attrs
-
-from airflow.assets import AssetAlias, extract_event_key
-
-if TYPE_CHECKING:
-    from airflow.assets import Asset
+plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
-@attrs.define(init=False)
-class Metadata:
-    """Metadata to attach to an AssetEvent."""
-
-    uri: str
-    extra: dict[str, Any]
-    alias_name: str | None = None
-
-    def __init__(
-        self, target: str | Asset, extra: dict[str, Any], alias: AssetAlias | str | None = None
-    ) -> None:
-        self.uri = extract_event_key(target)
-        self.extra = extra
-        if isinstance(alias, AssetAlias):
-            self.alias_name = alias.name
-        else:
-            self.alias_name = alias
+@plugins_router.get("/")
+async def get_plugins(
+    limit: QueryLimit,
+    offset: QueryOffset,
+) -> PluginCollectionResponse:
+    plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
+    return PluginCollectionResponse(
+        plugins=[
+            PluginResponse.model_validate(plugin_info)
+            for plugin_info in plugins_info[offset.value :][: limit.value]
+        ],
+        total_entries=len(plugins_info),
+    )
