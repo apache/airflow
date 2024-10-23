@@ -23,7 +23,6 @@ import pytest
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -125,10 +124,8 @@ class TestDagStatsEndpoint:
         session.commit()
 
     @pytest.fixture(autouse=True)
-    @provide_session
-    def setup(self, session=None) -> None:
+    def setup(self) -> None:
         self._clear_db()
-        self._create_dag_and_runs(session)
 
     def teardown_method(self) -> None:
         self._clear_db()
@@ -137,7 +134,8 @@ class TestDagStatsEndpoint:
 class TestGetDagStats(TestDagStatsEndpoint):
     """Unit tests for Get DAG Stats."""
 
-    def test_should_respond_200(self, test_client):
+    def test_should_respond_200(self, client, session):
+        self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
                 {
@@ -186,7 +184,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 2,
         }
 
-        response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID},{DAG2_ID}")
+        response = client().get(f"{API_PREFIX}?dag_ids={DAG1_ID},{DAG2_ID}")
         assert response.status_code == 200
         res_json = response.json()
         assert len(res_json["dags"]) == 2
@@ -199,7 +197,8 @@ class TestGetDagStats(TestDagStatsEndpoint):
         )
         assert res_json["total_entries"] == 2
 
-    def test_all_dags_should_respond_200(self, test_client):
+    def test_all_dags_should_respond_200(self, client, session):
+        self._create_dag_and_runs(session)
         exp_payload = {
             "dags": [
                 {
@@ -269,7 +268,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 3,
         }
 
-        response = test_client.get(API_PREFIX)
+        response = client().get(API_PREFIX)
         assert response.status_code == 200
         res_json = response.json()
         assert len(res_json["dags"]) == 3
@@ -416,8 +415,9 @@ class TestGetDagStats(TestDagStatsEndpoint):
             ),
         ],
     )
-    def test_single_dag_in_dag_ids(self, test_client, url, exp_payload):
-        response = test_client.get(url)
+    def test_single_dag_in_dag_ids(self, client, session, url, exp_payload):
+        self._create_dag_and_runs(session)
+        response = client().get(url)
         num_dags = len(exp_payload["dags"])
         assert response.status_code == 200
         res_json = response.json()
