@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
+from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
 from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.monitor import monitor_router
 from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
@@ -38,3 +39,4 @@ public_router.include_router(monitor_router)
 public_router.include_router(pools_router)
 public_router.include_router(providers_router)
 public_router.include_router(plugins_router)
+public_router.include_router(dag_stats_router)
