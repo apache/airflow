@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-23T12:24:41.424723
+# This constraints file was automatically generated on 2024-10-23T17:38:14.615426
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -11,7 +11,7 @@
 Authlib==1.3.2
 ConfigUpdater==3.2
 Deprecated==1.2.14
-Flask-AppBuilder==4.5.0
+Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.0
@@ -31,7 +31,7 @@ Pygments==2.18.0
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
-WTForms==3.1.2
+WTForms==3.2.1
 Werkzeug==2.2.3
 aiobotocore==2.15.2
 aiohappyeyeballs==2.4.3
@@ -189,4 +189,4 @@ xmlsec==1.3.14
 yarl==1.16.0
 zipp==3.20.2
 zope.event==5.0
-zope.interface==7.1.0
+zope.interface==7.1.1
