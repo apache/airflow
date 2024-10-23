@@ -52,13 +52,13 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ("alias_id",),
             ["dataset_alias.id"],
-            name="dsdar_dataset_fkey",
+            name="dsdar_dataset_alias_fkey",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             columns=("dag_id",),
             refcolumns=["dag.dag_id"],
-            name="dsdar_dag_id_fkey",
+            name="dsdar_dag_fkey",
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
