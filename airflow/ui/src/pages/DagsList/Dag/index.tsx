@@ -16,17 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
 
-import { Nav } from "./Nav";
-
-export const BaseLayout = ({ children }: PropsWithChildren) => (
-  <>
-    <Nav />
-    <Box ml={24} p={3}>
-      {children ?? <Outlet />}
-    </Box>
-  </>
-);
+export { Dag } from "./Dag";

@@ -31,7 +31,7 @@ import {
   useCallback,
   useState,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
@@ -118,9 +118,24 @@ const cardDef: CardDef<DAGResponse> = {
   },
 };
 
+const DAGS_LIST_DISPLAY = "dags_list_display";
+
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useState<"card" | "table">("card");
+  const [display, setDisplay] = useState<"card" | "table">(() => {
+    const storage = localStorage.getItem(DAGS_LIST_DISPLAY);
+
+    if (storage === "card" || storage === "table") {
+      return storage;
+    }
+
+    return "card";
+  });
+  const updateDisplay = (newDisplay: "card" | "table") => {
+    localStorage.setItem(DAGS_LIST_DISPLAY, newDisplay);
+    setDisplay(newDisplay);
+  };
+  const navigate = useNavigate();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
@@ -227,7 +242,7 @@ export const DagsList = () => {
           )}
         </HStack>
       </VStack>
-      <ToggleTableDisplay display={display} setDisplay={setDisplay} />
+      <ToggleTableDisplay display={display} setDisplay={updateDisplay} />
       <DataTable
         cardDef={cardDef}
         columns={columns}
@@ -238,6 +253,7 @@ export const DagsList = () => {
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag"
+        onRowClicked={(row) => navigate(`/dags/${row.original.dag_id}`)}
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
         total={data?.total_entries}

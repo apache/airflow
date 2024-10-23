@@ -31,9 +31,7 @@ const baseStyle = definePartsStyle(() => ({
         },
       },
       "&:nth-of-type(odd)": {
-        td: {
-          background: "subtle-bg",
-        },
+        backgroundColor: "subtle-bg",
         "th, td": {
           borderBottomWidth: "0px",
           borderColor: "subtle-bg",
@@ -55,11 +53,6 @@ export const tableTheme = defineMultiStyleConfig({ baseStyle });
 const theme = extendTheme({
   components: {
     Table: tableTheme,
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
-      },
-    },
   },
   config: {
     initialColorMode: "system",
@@ -68,6 +61,10 @@ const theme = extendTheme({
   semanticTokens: {
     colors: {
       "subtle-bg": { _dark: "gray.900", _light: "blue.50" },
+      "subtle-bg-hover": {
+        _dark: "gray.700",
+        _light: "blue.100",
+      },
       "subtle-text": { _dark: "blue.500", _light: "blue.600" },
     },
   },

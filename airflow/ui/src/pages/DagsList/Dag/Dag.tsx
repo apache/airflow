@@ -17,16 +17,10 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { Nav } from "./Nav";
+export const Dag = () => {
+  const params = useParams();
 
-export const BaseLayout = ({ children }: PropsWithChildren) => (
-  <>
-    <Nav />
-    <Box ml={24} p={3}>
-      {children ?? <Outlet />}
-    </Box>
-  </>
-);
+  return <Box>{params.dagId}</Box>;
+};
