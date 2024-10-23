@@ -30,14 +30,6 @@ class FinancialServicesHook(GoogleBaseHook):
 
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
-    :param api_version: API version for the Financial Services API.
-        Defaults to "v1".
-    :param dev_key_var: Airflow variable name for accessing/saving the
-        developer key. If key is not provided, secret value will be stored in a
-        variable with the default name. Defaults to "AMLAI_API_KEY".
-    :param dev_key_secret_uri: URI for the GCP secret (Secrets
-        Manager) containing the developer key. Secret will only be accessed if
-        dev_key_var does not exist. Defaults to None.
     """
 
     connection: Resource | None = None
@@ -45,9 +37,6 @@ class FinancialServicesHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        api_version: str = "v1",
-        dev_key_var: str = "AMLAI_API_KEY",
-        dev_key_secret_uri: str | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
@@ -60,9 +49,6 @@ class FinancialServicesHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=None,
         )
-        self.dev_key_var = dev_key_var
-        self.dev_key_secret_uri = dev_key_secret_uri
-        self.api_version = api_version
 
     def get_conn(self) -> Resource:
         """

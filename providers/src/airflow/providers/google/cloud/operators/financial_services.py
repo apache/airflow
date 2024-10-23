@@ -55,27 +55,17 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         location_resource_uri: str,
         kms_key_uri: str,
         gcp_conn_id: str = "google_cloud_default",
-        api_version: str = "v1",
-        dev_key_var: str = "AMLAI_API_KEY",
-        dev_key_secret_uri: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_id = instance_id
         self.location_resource_uri = location_resource_uri
         self.gcp_conn_id = gcp_conn_id
-        self.api_version = api_version
-        self.dev_key_var = dev_key_var
-        self.dev_key_secret_uri = dev_key_secret_uri
         self.kms_key_uri = kms_key_uri
 
     def execute(self, context: Context):
-        super().execute(context)
         hook = FinancialServicesHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version,
-            dev_key_var=self.dev_key_var,
-            dev_key_secret_uri=self.dev_key_secret_uri,
         )
         response = hook.create_instance(
             instance_id=self.instance_id,
@@ -109,25 +99,15 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         self,
         instance_resource_uri: str,
         gcp_conn_id: str = "google_cloud_default",
-        api_version: str = "v1",
-        dev_key_var: str = "AMLAI_API_KEY",
-        dev_key_secret_uri: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_resource_uri = instance_resource_uri
         self.gcp_conn_id = gcp_conn_id
-        self.api_version = api_version
-        self.dev_key_var = dev_key_var
-        self.dev_key_secret_uri = dev_key_secret_uri
 
     def execute(self, context: Context):
-        super().execute(context)
         hook = FinancialServicesHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version,
-            dev_key_var=self.dev_key_var,
-            dev_key_secret_uri=self.dev_key_secret_uri,
         )
         response = hook.delete_instance(
             instance_resource_uri=self.instance_resource_uri,
@@ -159,25 +139,15 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
         self,
         instance_resource_uri: str,
         gcp_conn_id: str = "google_cloud_default",
-        api_version: str = "v1",
-        dev_key_var: str = "AMLAI_API_KEY",
-        dev_key_secret_uri: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_resource_uri = instance_resource_uri
         self.gcp_conn_id = gcp_conn_id
-        self.api_version = api_version
-        self.dev_key_var = dev_key_var
-        self.dev_key_secret_uri = dev_key_secret_uri
 
     def execute(self, context: Context):
-        super().execute(context)
         hook = FinancialServicesHook(
             gcp_conn_id=self.gcp_conn_id,
-            api_version=self.api_version,
-            dev_key_var=self.dev_key_var,
-            dev_key_secret_uri=self.dev_key_secret_uri,
         )
         response = hook.get_instance(
             instance_resource_uri=self.instance_resource_uri,
