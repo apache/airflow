@@ -67,7 +67,7 @@ class TestSchedulerHealthServer:
         mock_send_error.assert_called_with(503)
 
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
-    @mock.patch("airflow.utils.scheduler_health.create_session")git 
+    @mock.patch("airflow.utils.scheduler_health.create_session")gi
     def test_missing_scheduler(self, mock_session, mock_send_error):
         mock_session.return_value.__enter__.return_value.query.return_value = None
         self.mock_server.do_GET("/health")
