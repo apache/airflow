@@ -69,7 +69,6 @@ class TestPluginsCommand:
                 "admin_views": [],
                 "macros": ["tests.plugins.test_plugin.plugin_macro"],
                 "menu_links": [],
-                "executors": ["tests.plugins.test_plugin.PluginExecutor"],
                 "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
                 ],

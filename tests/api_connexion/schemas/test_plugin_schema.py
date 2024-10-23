@@ -86,7 +86,6 @@ class TestPluginSchema(TestPluginBase):
         assert deserialized_plugin == {
             "appbuilder_menu_items": [appbuilder_menu_items],
             "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-            "executors": [],
             "flask_blueprints": [str(bp)],
             "fastapi_apps": [
                 {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
@@ -113,7 +112,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
@@ -131,7 +129,6 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
                     "fastapi_apps": [
                         {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
