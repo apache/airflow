@@ -137,7 +137,7 @@ mappings:
     name: "airflow_edge_worker_num_queues"
     labels:
       worker_name: "$1"
-      
+
   - match: airflow.edge_worker.state.*
     name: "airflow_edge_worker_state"
     labels:
