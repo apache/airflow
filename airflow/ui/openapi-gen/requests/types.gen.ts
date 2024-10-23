@@ -433,6 +433,14 @@ export type VariableResponse = {
   value: string | null;
 };
 
+/**
+ * Version information serializer for responses.
+ */
+export type VersionInfo = {
+  version: string;
+  git_version: string | null;
+};
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -616,6 +624,8 @@ export type GetPluginsData = {
 };
 
 export type GetPluginsResponse = PluginCollectionResponse;
+
+export type GetVersionResponse = VersionInfo;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -1221,6 +1231,16 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/version/": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VersionInfo;
       };
     };
   };

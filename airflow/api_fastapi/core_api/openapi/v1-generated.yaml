@@ -1292,6 +1292,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/version/:
+    get:
+      tags:
+      - Version
+      summary: Get Version
+      description: Get version information.
+      operationId: get_version
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -2495,3 +2509,19 @@ components:
       - value
       title: VariableResponse
       description: Variable serializer for responses.
+    VersionInfo:
+      properties:
+        version:
+          type: string
+          title: Version
+        git_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Git Version
+      type: object
+      required:
+      - version
+      - git_version
+      title: VersionInfo
+      description: Version information serializer for responses.
