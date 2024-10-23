@@ -791,6 +791,21 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def email(  # type: ignore[misc]
+        self,
+        *,
+        to: list[str] | str,
+        subject: str,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python callable and uses the callable return value as an email's body to be sent.
+
+        :param to: list of emails to send the email to. (templated)
+        :param from_email: email to send from. (templated)
+        :param subject: subject line for the email. (templated)
+        """
     def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
         """
         Decorate a task to run only if a condition is met.
