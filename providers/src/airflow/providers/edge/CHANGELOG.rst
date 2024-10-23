@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.2.2re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed type confusion for PID file paths (#43308)``
+
 0.2.1re0
 .........
 
