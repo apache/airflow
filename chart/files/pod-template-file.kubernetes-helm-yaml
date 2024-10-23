@@ -142,6 +142,8 @@ spec:
           mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
           readOnly: true
         {{- end }}
+        - name: tmp
+          mountPath: /tmp        
     {{- if .Values.workers.kerberosSidecar.enabled }}
     - name: worker-kerberos
       image: {{ template "airflow_image" . }}
@@ -253,3 +255,5 @@ spec:
   {{- if .Values.workers.extraVolumes }}
     {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 2 }}
   {{- end }}
+  - name: tmp 
+    emptyDir: {}  
