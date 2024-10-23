@@ -175,6 +175,13 @@ def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort
     )
 
 
+def _get_info_list(*, dag, from_date, to_date, reverse):
+    dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
+    if reverse:
+        dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+    return dagrun_info_list
+
+
 def _create_backfill(
     *,
     dag_id: str,
@@ -200,6 +207,14 @@ def _create_backfill(
                 f"There can be only one running backfill per dag."
             )
 
+        dag = serdag.dag
+        depends_on_past = any(x.depends_on_past for x in dag.tasks)
+        if depends_on_past:
+            if reverse is True:
+                raise ValueError(
+                    "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+                )
+
         br = Backfill(
             dag_id=dag_id,
             from_date=from_date,
@@ -210,18 +225,8 @@ def _create_backfill(
         session.add(br)
         session.commit()
 
-        dag = serdag.dag
-        depends_on_past = any(x.depends_on_past for x in dag.tasks)
-        if depends_on_past:
-            if reverse is True:
-                raise ValueError(
-                    "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
-                )
-
         backfill_sort_ordinal = 0
-        dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
-        if reverse:
-            dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+        dagrun_info_list = _get_info_list(dag=dag, from_date=from_date, to_date=to_date, reverse=reverse)
         for info in dagrun_info_list:
             backfill_sort_ordinal += 1
             session.commit()
