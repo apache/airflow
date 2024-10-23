@@ -25,7 +25,7 @@ import createCache from "@emotion/cache";
 import reactFlowStyle from "reactflow/dist/style.css";
 
 import App from "src/App";
-import Datasets from "./Main";
+import Assets from "./Main";
 
 // create shadowRoot
 const root = document.querySelector("#root");
@@ -45,7 +45,7 @@ if (mainElement) {
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Datasets />
+      <Assets />
     </App>
   );
 }

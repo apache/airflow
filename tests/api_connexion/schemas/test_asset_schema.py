@@ -52,18 +52,18 @@ class TestAssetSchemaBase:
 
 class TestAssetSchema(TestAssetSchemaBase):
     def test_serialize(self, dag_maker, session):
-        dataset = Asset(
+        asset = Asset(
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )
-        with dag_maker(dag_id="test_dataset_upstream_schema", serialized=True, session=session):
-            EmptyOperator(task_id="task1", outlets=[dataset])
+        with dag_maker(dag_id="test_asset_upstream_schema", serialized=True, session=session):
+            EmptyOperator(task_id="task1", outlets=[asset])
         with dag_maker(
-            dag_id="test_dataset_downstream_schema", schedule=[dataset], serialized=True, session=session
+            dag_id="test_asset_downstream_schema", schedule=[asset], serialized=True, session=session
         ):
             EmptyOperator(task_id="task2")
 
-        asset_model = session.query(AssetModel).filter_by(uri=dataset.uri).one()
+        asset_model = session.query(AssetModel).filter_by(uri=asset.uri).one()
 
         serialized_data = asset_schema.dump(asset_model)
         serialized_data["id"] = 1
@@ -75,7 +75,7 @@ class TestAssetSchema(TestAssetSchemaBase):
             "updated_at": self.timestamp,
             "consuming_dags": [
                 {
-                    "dag_id": "test_dataset_downstream_schema",
+                    "dag_id": "test_asset_downstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }
@@ -83,7 +83,7 @@ class TestAssetSchema(TestAssetSchemaBase):
             "producing_tasks": [
                 {
                     "task_id": "task1",
-                    "dag_id": "test_dataset_upstream_schema",
+                    "dag_id": "test_asset_upstream_schema",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 }
@@ -103,7 +103,7 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
         ]
         asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
         for asset_alias in asset_aliases:
-            asset_alias.datasets.append(assets[0])
+            asset_alias.assets.append(assets[0])
         session.add_all(assets)
         session.add_all(asset_aliases)
         session.flush()
@@ -149,7 +149,7 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         session.commit()
         event = AssetEvent(
             id=1,
-            dataset_id=assetssetsset.id,
+            asset_id=assetssetsset.id,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
@@ -161,8 +161,8 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         serialized_data = asset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": assetssetsset.id,
-            "dataset_uri": "s3://abc",
+            "asset_id": assetssetsset.id,
+            "asset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -173,14 +173,14 @@ class TestAssetEventSchema(TestAssetSchemaBase):
         }
 
 
-class TestDatasetEventCreateSchema(TestAssetSchemaBase):
+class TestAssetEventCreateSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         asset = AssetModel("s3://abc")
         session.add(asset)
         session.commit()
         event = AssetEvent(
             id=1,
-            dataset_id=asset.id,
+            asset_id=asset.id,
             extra={"foo": "bar"},
             source_dag_id=None,
             source_task_id=None,
@@ -192,8 +192,8 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
         serialized_data = asset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": asset.id,
-            "dataset_uri": "s3://abc",
+            "asset_id": asset.id,
+            "asset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": None,
             "source_task_id": None,
@@ -207,7 +207,7 @@ class TestDatasetEventCreateSchema(TestAssetSchemaBase):
 class TestAssetEventCollectionSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         common = {
-            "dataset_id": 10,
+            "asset_id": 10,
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",

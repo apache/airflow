@@ -28,7 +28,7 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
-import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import AssetUpdateEvents from "./AssetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
 import TaskFailedDependency from "./TaskFailedDependency";
 import TaskDocumentation from "./TaskDocumentation";
@@ -115,8 +115,8 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
             tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
           />
         )}
-      {group?.hasOutletDatasets && (
-        <DatasetUpdateEvents taskId={taskId} runId={runId} />
+      {group?.hasOutletAssets && (
+        <AssetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
       {showTaskSchedulingDependencies && (
