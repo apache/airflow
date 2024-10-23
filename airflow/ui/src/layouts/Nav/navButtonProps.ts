@@ -19,6 +19,12 @@
 import type { ButtonProps } from "@chakra-ui/react";
 
 export const navButtonProps: ButtonProps = {
+  _active: {
+    backgroundColor: "emphasized",
+  },
+  _hover: {
+    backgroundColor: "solid",
+  },
   alignItems: "center",
   borderRadius: "none",
   flexDir: "column",
