@@ -40,7 +40,7 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
     """
 
     # [START howto_operator_financial_services_create_instance_template_fields]
-    template_fields: Sequence[str] = ("instance_id", "location_resource_uri", "kms_key_uri")
+    template_fields: Sequence[str] = ("instance_id", "location_resource_uri", "kms_key_uri", "discovery_doc")
     # [END howto_operator_financial_services_create_instance_template_fields]
 
     def __init__(
@@ -48,6 +48,7 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         instance_id: str,
         location_resource_uri: str,
         kms_key_uri: str,
+        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
@@ -56,9 +57,11 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         self.location_resource_uri = location_resource_uri
         self.gcp_conn_id = gcp_conn_id
         self.kms_key_uri = kms_key_uri
+        self.discovery_doc = discovery_doc
 
     def execute(self, context: Context):
         hook = FinancialServicesHook(
+            discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
         response = hook.create_instance(
@@ -80,21 +83,24 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
 
     # [START howto_operator_financial_services_get_instance_template_fields]
-    template_fields: Sequence[str] = ("instance_resource_uri",)
+    template_fields: Sequence[str] = ("instance_resource_uri", "discovery_doc")
     # [END howto_operator_financial_services_get_instance_template_fields]
 
     def __init__(
         self,
         instance_resource_uri: str,
+        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_resource_uri = instance_resource_uri
         self.gcp_conn_id = gcp_conn_id
+        self.discovery_doc = discovery_doc
 
     def execute(self, context: Context):
         hook = FinancialServicesHook(
+            discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
         response = hook.delete_instance(
@@ -114,21 +120,24 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
     """
 
     # [START howto_operator_financial_services_delete_instance_template_fields]
-    template_fields: Sequence[str] = ("instance_resource_uri",)
+    template_fields: Sequence[str] = ("instance_resource_uri", "discovery_doc")
     # [END howto_operator_financial_services_delete_instance_template_fields]
 
     def __init__(
         self,
         instance_resource_uri: str,
+        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.instance_resource_uri = instance_resource_uri
         self.gcp_conn_id = gcp_conn_id
+        self.discovery_doc = discovery_doc
 
     def execute(self, context: Context):
         hook = FinancialServicesHook(
+            discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
         response = hook.get_instance(

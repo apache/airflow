@@ -42,13 +42,14 @@ class TestFinancialServicesCreateInstanceOperator:
 
         op = FinancialServicesCreateInstanceOperator(
             task_id="test_create_instance_task",
+            discovery_doc={},
             instance_id="test-instance",
             kms_key_uri="projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
             location_resource_uri="projects/test-project/locations/us-central1",
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
             instance_id="test-instance",
             kms_key_uri="projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
@@ -63,11 +64,12 @@ class TestFinancialServicesDeleteInstanceOperator:
 
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_delete_instance_task",
+            discovery_doc={},
             instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
             instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance"
         )
@@ -80,11 +82,12 @@ class TestFinancialServicesGetInstanceOperator:
 
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_get_instance_task",
+            discovery_doc={},
             instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
             instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance"
         )

@@ -16,9 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import importlib.resources
-import json
-
 from googleapiclient.discovery import Resource, build_from_document
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -36,6 +33,7 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def __init__(
         self,
+        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ) -> None:
@@ -49,6 +47,7 @@ class FinancialServicesHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=None,
         )
+        self.discovery_doc = discovery_doc
 
     def get_conn(self) -> Resource:
         """
@@ -57,11 +56,7 @@ class FinancialServicesHook(GoogleBaseHook):
         :return: a Google Cloud Financial Services service object.
         """
         if not self.connection:
-            api_doc_res = importlib.resources.files("airflow.providers.google.cloud.hooks").joinpath(
-                "financial_services_discovery.json"
-            )
-            with importlib.resources.as_file(api_doc_res) as file:
-                self.connection = build_from_document(json.loads(file.read_text()))
+            self.connection = build_from_document(self.discovery_doc)
 
         return self.connection
 

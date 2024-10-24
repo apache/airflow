@@ -46,7 +46,7 @@ class TestFinancialServicesHook:
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_init,
         ):
-            self.financial_services_hook = FinancialServicesHook()
+            self.financial_services_hook = FinancialServicesHook(discovery_doc={})
 
     @patch("airflow.providers.google.cloud.hooks.financial_services.build_from_document")
     def test_get_conn(self, mock_build):

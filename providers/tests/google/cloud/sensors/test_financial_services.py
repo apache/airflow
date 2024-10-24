@@ -35,11 +35,12 @@ class TestFinancialServicesOperationSensor:
 
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
+            discovery_doc={},
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
         response = op.poke(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
@@ -51,11 +52,12 @@ class TestFinancialServicesOperationSensor:
 
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
+            discovery_doc={},
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
         response = op.poke(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
@@ -67,12 +69,13 @@ class TestFinancialServicesOperationSensor:
 
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
+            discovery_doc={},
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )
         with pytest.raises(AirflowFailException):
             op.poke(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id="google_cloud_default")
+        mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
             operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
         )

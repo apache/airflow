@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
+from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.financial_services import (
     FinancialServicesCreateInstanceOperator,
@@ -38,15 +41,27 @@ DAG_ID = "financial_services_instance"
 
 INSTANCE_ID = f"instance_{DAG_ID}_{ENV_ID}"
 
+RESOURCE_DIR_PATH = str(Path(__file__).parent / "resources" / "financial_services_discovery.json")
+
 with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
+
+    @task()
+    def load_discovery_doc() -> str:
+        with open(RESOURCE_DIR_PATH) as file:
+            doc = json.load(file)
+            return doc
+
+    discovery_doc = load_discovery_doc()
+
     # [START howto_operator_financial_services_create_instance]
     create_instance_task = FinancialServicesCreateInstanceOperator(
         task_id="create_instance_task",
+        discovery_doc=discovery_doc,
         instance_id=INSTANCE_ID,
         location_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}",
         kms_key_uri=KMS_KEY,
@@ -56,6 +71,7 @@ with DAG(
     # [START howto_sensor_financial_services_operation]
     create_instance_sensor = FinancialServicesOperationSensor(
         task_id="create_instance_sensor",
+        discovery_doc=discovery_doc,
         operation_resource_uri="{{ task_instance.xcom_pull(task_ids='create_instance_task', key='return_value') }}",
         poke_interval=timedelta(seconds=5),
         timeout=timedelta(hours=1),
@@ -65,6 +81,7 @@ with DAG(
     # [START howto_operator_financial_services_get_instance]
     get_instance_task = FinancialServicesGetInstanceOperator(
         task_id="get_instance_task",
+        discovery_doc=discovery_doc,
         instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
     )
     # [END howto_operator_financial_services_get_instance]
@@ -72,19 +89,22 @@ with DAG(
     # [START howto_operator_financial_services_delete_instance]
     delete_instance_task = FinancialServicesDeleteInstanceOperator(
         task_id="delete_instance_task",
+        discovery_doc=discovery_doc,
         instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
     )
     # [END howto_operator_financial_services_delete_instance]
 
     delete_instance_sensor = FinancialServicesOperationSensor(
         task_id="delete_instance_sensor",
+        discovery_doc=discovery_doc,
         operation_resource_uri="{{ task_instance.xcom_pull(task_ids='delete_instance_task', key='return_value') }}",
         poke_interval=timedelta(seconds=5),
         timeout=timedelta(hours=1),
     )
 
     (
-        create_instance_task
+        discovery_doc
+        >> create_instance_task
         >> create_instance_sensor
         >> get_instance_task
         >> delete_instance_task

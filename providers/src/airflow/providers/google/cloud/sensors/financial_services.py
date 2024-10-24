@@ -37,21 +37,24 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
     """
 
     # [START howto_sensor_financial_services_operation_template_fields]
-    template_fields: Sequence[str] = ("operation_resource_uri",)
+    template_fields: Sequence[str] = ("operation_resource_uri", "discovery_doc")
     # [END howto_sensor_financial_services_operation_template_fields]
 
     def __init__(
         self,
         operation_resource_uri: str,
+        discovery_doc: dict,
         gcp_conn_id: str = "google_cloud_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.operation_resource_uri = operation_resource_uri
+        self.discovery_doc = discovery_doc
         self.gcp_conn_id = gcp_conn_id
 
     def poke(self, context: Context) -> PokeReturnValue:
         hook = FinancialServicesHook(
+            discovery_doc=self.discovery_doc,
             gcp_conn_id=self.gcp_conn_id,
         )
         operation = hook.get_operation(operation_resource_uri=self.operation_resource_uri)
