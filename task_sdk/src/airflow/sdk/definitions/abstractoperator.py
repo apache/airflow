@@ -34,17 +34,11 @@ from airflow.sdk.definitions.node import DAGNode
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
-# TaskStateChangeCallback = Callable[[Context], None]
-
 if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.dag import DAG
-
-    # TODO: Task-SDK
-    Context = dict[str, Any]
-
 
 DEFAULT_OWNER: str = "airflow"
 DEFAULT_POOL_SLOTS: int = 1

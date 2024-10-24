@@ -40,8 +40,6 @@ from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 
-TaskStateChangeCallback = Callable[[Context], None]
-
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -57,6 +55,8 @@ if TYPE_CHECKING:
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
+
+TaskStateChangeCallback = Callable[[Context], None]
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1

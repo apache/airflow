@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -476,7 +476,7 @@ class ExternalTaskMarker(EmptyOperator):
     operator_extra_links = [ExternalDagLink()]
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: frozenset[str] | None = None
+    __serialized_fields: ClassVar[frozenset[str] | None] = None
 
     def __init__(
         self,

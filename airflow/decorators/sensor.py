@@ -42,7 +42,7 @@ class DecoratedSensorOperator(PythonSensor):
     """
 
     template_fields: Sequence[str] = ("op_args", "op_kwargs")
-    template_fields_renderers: dict[str, str] = {"op_args": "py", "op_kwargs": "py"}
+    template_fields_renderers: ClassVar[dict[str, str]] = {"op_args": "py", "op_kwargs": "py"}
 
     custom_operator_name = "@task.sensor"
 

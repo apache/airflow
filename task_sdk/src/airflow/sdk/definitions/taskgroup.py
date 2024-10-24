@@ -63,6 +63,12 @@ TASKGROUP_ARGS_EXPECTED_TYPES = {
 }
 
 
+def _default_parent_group() -> TaskGroup | None:
+    from airflow.sdk.definitions.contextmanager import TaskGroupContext
+
+    return TaskGroupContext.get_current()
+
+
 @attrs.define(repr=False)
 class TaskGroup(DAGNode):
     """
@@ -96,8 +102,8 @@ class TaskGroup(DAGNode):
 
     _group_id: str | None
     prefix_group_id: bool = True
-    parent_group: TaskGroup | None = attrs.field()
-    dag: DAG = attrs.field()
+    parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
+    dag: DAG = attrs.field()  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
     default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
     tooltip: str = ""
     children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
@@ -113,12 +119,6 @@ class TaskGroup(DAGNode):
     ui_fgcolor: str = "#000"
 
     add_suffix_on_collision: bool = False
-
-    @parent_group.default
-    def _default_parent_group(self):
-        from airflow.sdk.definitions.contextmanager import TaskGroupContext
-
-        return TaskGroupContext.get_current()
 
     @dag.default
     def _default_dag(self):
@@ -247,7 +247,7 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group.group_id:
+        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group.node_id:
             # defer to parent whether it adds a prefix
             return self.parent_group.child_id(self.group_id)
 

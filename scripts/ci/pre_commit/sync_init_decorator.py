@@ -116,7 +116,13 @@ def _expr_to_ast_dump(expr: str) -> str:
 
 
 ALLOWABLE_TYPE_ANNOTATIONS = {
-    _expr_to_ast_dump("Collection[str] | None"): _expr_to_ast_dump("MutableSet[str]")
+    # Mapping of allowble Decorator type -> Class attribute type
+    _expr_to_ast_dump("Collection[str] | None"): _expr_to_ast_dump("MutableSet[str]"),
+    _expr_to_ast_dump("ParamsDict | dict[str, Any] | None"): _expr_to_ast_dump("ParamsDict"),
+    # TODO: This one is legacy access control. Remove it in 3.0. RemovedInAirflow3Warning
+    _expr_to_ast_dump(
+        "dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None"
+    ): _expr_to_ast_dump("dict[str, dict[str, Collection[str]]] | None"),
 }
 
 

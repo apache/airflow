@@ -63,6 +63,7 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
+from airflow.utils.context import Context
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
@@ -86,10 +87,6 @@ __all__ = [
     "DAG",
     "dag",
 ]
-
-
-# TODO: Task-SDK
-class Context: ...
 
 
 DagStateChangeCallback = Callable[[Context], None]
@@ -341,7 +338,8 @@ class DAG:
     default_args: dict[str, Any] = attrs.field(
         factory=dict, validator=attrs.validators.instance_of(dict), converter=dict_copy
     )
-    start_date: datetime | None = attrs.field()
+    start_date: datetime | None = attrs.field()  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
+
     end_date: datetime | None = None
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
     schedule: ScheduleArg = attrs.field(default=None, on_setattr=attrs.setters.frozen)
@@ -373,7 +371,7 @@ class DAG:
         default=None,
         converter=attrs.Converter(_convert_params, takes_self=True),  # type: ignore[misc, call-overload]
     )
-    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = attrs.field(
+    access_control: dict[str, dict[str, Collection[str]]] | None = attrs.field(
         default=None,
         converter=attrs.Converter(_convert_access_control, takes_self=True),  # type: ignore[misc, call-overload]
     )
@@ -384,11 +382,11 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_stop: bool = attrs.field(default=False, converter=bool)
-    dag_display_name: str = attrs.field(validator=attrs.validators.instance_of(str))
+    dag_display_name: str = attrs.field(validator=attrs.validators.instance_of(str))  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
 
-    task_group: TaskGroup = attrs.field(on_setattr=attrs.setters.frozen)
+    task_group: TaskGroup = attrs.field(on_setattr=attrs.setters.frozen)  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
 
     fileloc: str = attrs.field(init=False)
     partial: bool = attrs.field(init=False, default=False)
@@ -1036,7 +1034,7 @@ if TYPE_CHECKING:
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
-        params: ParamsDict | None = None,
+        params: ParamsDict | dict[str, Any] | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
