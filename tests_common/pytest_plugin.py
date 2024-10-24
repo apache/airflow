@@ -23,7 +23,7 @@ import platform
 import re
 import subprocess
 import sys
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -819,9 +819,28 @@ def dag_maker(request):
                 self.serialized_model = SerializedDagModel(
                     dag, processor_subdir=self.dag_model.processor_subdir
                 )
-                self.session.merge(self.serialized_model)
+                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+                if AIRFLOW_V_3_0_PLUS and not sdm:
+                    from airflow.models.dag_version import DagVersion
+                    from airflow.models.dagcode import DagCode
+
+                    dagv = DagVersion.write_dag(
+                        dag_id=dag.dag_id,
+                        session=self.session,
+                        version_name=dag.version_name,
+                    )
+                    dag_code = DagCode(dagv, dag.fileloc, "Source")
+                    self.session.merge(dag_code)
+                    self.serialized_model.dag_version = dagv
+                if sdm:
+                    self.serialized_model = sdm
+                else:
+                    self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self._bag_dag_compat(serialized_dag)
+
                 self.session.flush()
             else:
                 self._bag_dag_compat(self.dag)
@@ -1442,3 +1461,25 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
     from itsdangerous import URLSafeSerializer
 
     return URLSafeSerializer(secret_key)
+
+
+@pytest.fixture
+def file_updater():
+    @contextmanager
+    def _file_updater(file_path):
+        original_content = None
+        try:
+            with open(file_path) as file:
+                original_content = file.read()
+                updated_content = original_content.replace("2021", "2024")
+
+            with open(file_path, "w") as file:
+                file.write(updated_content)
+
+            yield file_path
+        finally:
+            if original_content is not None:
+                with open(file_path, "w") as file:
+                    file.write(original_content)
+
+    return _file_updater
