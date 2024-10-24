@@ -1856,3 +1856,27 @@ export const $VariableResponse = {
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;
+
+export const $VersionInfo = {
+  properties: {
+    version: {
+      type: "string",
+      title: "Version",
+    },
+    git_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Version",
+    },
+  },
+  type: "object",
+  required: ["version", "git_version"],
+  title: "VersionInfo",
+  description: "Version information serializer for responses.",
+} as const;

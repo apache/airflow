@@ -12,6 +12,7 @@ import {
   PoolService,
   ProviderService,
   VariableService,
+  VersionService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
@@ -345,6 +346,18 @@ export const UsePluginServiceGetPluginsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type VersionServiceGetVersionDefaultResponse = Awaited<
+  ReturnType<typeof VersionService.getVersion>
+>;
+export type VersionServiceGetVersionQueryResult<
+  TData = VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVersionServiceGetVersionKey = "VersionServiceGetVersion";
+export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
+  useVersionServiceGetVersionKey,
+  ...(queryKey ?? []),
+];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
