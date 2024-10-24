@@ -29,8 +29,9 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.pools import (
     BasePool,
-    PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
+    PoolPostBody,
     PoolResponse,
 )
 from airflow.models.pool import Pool
@@ -107,7 +108,7 @@ async def get_pools(
 @pools_router.patch("/{pool_name}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_pool(
     pool_name: str,
-    patch_body: PoolBody,
+    patch_body: PoolPatchBody,
     session: Annotated[Session, Depends(get_session)],
     update_mask: list[str] | None = Query(None),
 ) -> PoolResponse:
@@ -134,5 +135,18 @@ async def patch_pool(
 
     for key, value in data.items():
         setattr(pool, key, value)
+
+    return PoolResponse.model_validate(pool, from_attributes=True)
+
+
+@pools_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
+async def post_pool(
+    post_body: PoolPostBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolResponse:
+    """Create a Pool."""
+    pool = Pool(**post_body.model_dump())
+
+    session.add(pool)
 
     return PoolResponse.model_validate(pool, from_attributes=True)

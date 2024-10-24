@@ -281,3 +281,52 @@ class TestPatchPool(TestPoolsEndpoint):
                 del error["url"]
 
         assert body == expected_response
+
+
+class TestPostPool(TestPoolsEndpoint):
+    @pytest.mark.parametrize(
+        "body, expected_status_code, expected_response",
+        [
+            (
+                {"name": "my_pool", "slots": 11},
+                201,
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "description": None,
+                    "include_deferred": False,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 11,
+                    "deferred_slots": 0,
+                },
+            ),
+            (
+                {"name": "my_pool", "slots": 11, "include_deferred": True, "description": "Some description"},
+                201,
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "description": "Some description",
+                    "include_deferred": True,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 11,
+                    "deferred_slots": 0,
+                },
+            ),
+        ],
+    )
+    def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/", json=body)
+        assert response.status_code == expected_status_code
+
+        body = response.json()
+        assert response.json() == expected_response
+        assert session.query(Pool).count() == n_pools + 1

@@ -147,6 +147,7 @@ def patch_pool(
     return pool_schema.dump(pool)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("POST")
 @action_logging
 @provide_session

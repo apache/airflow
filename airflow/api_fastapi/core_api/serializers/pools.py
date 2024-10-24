@@ -58,8 +58,8 @@ class PoolCollectionResponse(BaseModel):
     total_entries: int
 
 
-class PoolBody(BaseModel):
-    """Pool serializer for bodies."""
+class PoolPatchBody(BaseModel):
+    """Pool serializer for patch bodies."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -67,3 +67,11 @@ class PoolBody(BaseModel):
     slots: int | None = None
     description: str | None = None
     include_deferred: bool | None = None
+
+
+class PoolPostBody(BasePool):
+    """Pool serializer for post bodies."""
+
+    pool: str = Field(alias="name")
+    description: str | None = None
+    include_deferred: bool = False
