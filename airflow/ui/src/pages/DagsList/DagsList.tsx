@@ -23,15 +23,16 @@ import {
   Select,
   Skeleton,
   VStack,
+  Link,
 } from "@chakra-ui/react";
-import type { ColumnDef, Row } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   type ChangeEvent,
   type ChangeEventHandler,
   useCallback,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
@@ -69,7 +70,16 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "dag_id",
-    cell: ({ row }) => row.original.dag_display_name,
+    cell: ({ row }) => (
+      <Link
+        as={RouterLink}
+        color="subtle-text"
+        fontWeight="bold"
+        to={`/dags/${row.original.dag_id}`}
+      >
+        {row.original.dag_display_name}
+      </Link>
+    ),
     header: "Dag",
   },
   {
@@ -135,7 +145,6 @@ export const DagsList = () => {
     localStorage.setItem(DAGS_LIST_DISPLAY, newDisplay);
     setDisplay(newDisplay);
   };
-  const navigate = useNavigate();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
@@ -253,9 +262,6 @@ export const DagsList = () => {
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="Dag"
-        onRowClicked={(row: Row<DAGResponse>) =>
-          navigate(`/dags/${row.original.dag_id}`)
-        }
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
         total={data?.total_entries}

@@ -27,9 +27,10 @@ import {
   Tooltip,
   useColorModeValue,
   VStack,
+  Link,
 } from "@chakra-ui/react";
 import { FiCalendar, FiTag } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
@@ -42,20 +43,14 @@ type Props = {
 const MAX_TAGS = 3;
 
 export const DagCard = ({ dag }: Props) => {
-  const navigate = useNavigate();
   const cardBorder = useColorModeValue("gray.100", "gray.700");
   const tooltipBg = useColorModeValue("gray.200", "gray.700");
 
   return (
     <Box
-      _hover={{
-        borderColor: "subtle-text",
-        cursor: "pointer",
-      }}
       borderColor={cardBorder}
       borderRadius={8}
       borderWidth={1}
-      onClick={() => navigate(`/dags/${dag.dag_id}`)}
       overflow="hidden"
     >
       <Flex
@@ -67,9 +62,15 @@ export const DagCard = ({ dag }: Props) => {
       >
         <HStack>
           <Tooltip hasArrow label={dag.description}>
-            <Heading color="subtle-text" fontSize="md">
+            <Link
+              as={RouterLink}
+              color="subtle-text"
+              fontSize="md"
+              fontWeight="bold"
+              to={`/dags/${dag.dag_id}`}
+            >
               {dag.dag_display_name}
-            </Heading>
+            </Link>
           </Tooltip>
           {dag.tags.length ? (
             <HStack spacing={1}>

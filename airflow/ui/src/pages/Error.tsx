@@ -54,6 +54,9 @@ export const ErrorPage = () => {
     errorMessage = error;
   }
 
+  // This is vite's dev mode. We should switch to Airflow's dev mode as part of a UI config endpoint
+  const isDev = import.meta.env.DEV;
+
   return (
     <Box
       alignItems="center"
@@ -69,11 +72,11 @@ export const ErrorPage = () => {
           <VStack spacing={4}>
             <Heading>{statusCode || "Error"}</Heading>
             <Text fontSize="lg">{errorMessage}</Text>
-            {error instanceof Error && (
+            {error instanceof Error && isDev ? (
               <Code borderRadius="md" fontSize="sm" p={3} width="full">
                 {error.stack}
               </Code>
-            )}
+            ) : undefined}
           </VStack>
 
           <HStack spacing={4}>
