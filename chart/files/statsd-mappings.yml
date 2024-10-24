@@ -112,33 +112,3 @@ mappings:
     name: "airflow_executor_running_tasks"
     labels:
       executor: "$1"
-
-  - match: airflow.edge_worker.heartbeat_count.*
-    name: "airflow_edge_worker_heartbeat_count"
-    labels:
-      worker_name: "$1"
-
-  - match: airflow.edge_worker.state.*
-    name: "airflow_edge_worker_state"
-    labels:
-      worker_name: "$1"
-
-  - match: airflow.edge_worker.jobs_active.*
-    name: "airflow_edge_worker_jobs_active"
-    labels:
-      worker_name: "$1"
-
-  - match: airflow.edge_worker.concurrency.*
-    name: "airflow_edge_worker_concurrency"
-    labels:
-      worker_name: "$1"
-
-  - match: airflow.edge_worker.num_queues.*
-    name: "airflow_edge_worker_num_queues"
-    labels:
-      worker_name: "$1"
-
-  - match: airflow.edge_worker.state.*
-    name: "airflow_edge_worker_state"
-    labels:
-      worker_name: "$1"
