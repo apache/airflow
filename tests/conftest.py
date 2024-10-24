@@ -38,14 +38,6 @@ collect_ignore = [
 ]
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config) -> None:
-    dep_path = [config.rootpath.joinpath("tests", "deprecations_ignore.yml")]
-    config.inicfg["airflow_deprecations_ignore"] = (
-        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
-    )
-
-
 @pytest.fixture
 def reset_environment():
     """Resets env variables."""
