@@ -50,10 +50,13 @@ import type {
   PatchPoolResponse,
   GetPoolsData,
   GetPoolsResponse,
+  PostPoolData,
+  PostPoolResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetPluginsData,
   GetPluginsResponse,
+  GetVersionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -753,6 +756,30 @@ export class PoolService {
       },
     });
   }
+
+  /**
+   * Post Pool
+   * Create a Pool.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPool(
+    data: PostPoolData,
+  ): CancelablePromise<PostPoolResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class ProviderService {
@@ -804,6 +831,21 @@ export class PluginService {
       errors: {
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class VersionService {
+  /**
+   * Get Version
+   * Get version information.
+   * @returns VersionInfo Successful Response
+   * @throws ApiError
+   */
+  public static getVersion(): CancelablePromise<GetVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/version/",
     });
   }
 }
