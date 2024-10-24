@@ -26,7 +26,7 @@ Prerequisite Tasks
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
 Manage instances
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 .. _howto/operator:FinancialServicesCreateInstanceOperator:
 
@@ -100,7 +100,7 @@ See Google Cloud Financial Services API documentation to `get an instance
 
 .. _howto/operator:FinancialServicesDeleteInstanceOperator:
 
-Get an AML AI instance
+Delete an AML AI instance
 -------------------------
 
 Use the :class:`~airflow.providers.google.cloud.operators.financial_services.FinancialServicesDeleteInstanceOperator`
@@ -131,3 +131,41 @@ See Google Cloud Financial Services API documentation to `delete an instance
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/delete>`_.
 
 .. _howto/operator:FinancialServicesDeleteInstanceOperator:
+
+
+Sensors
+^^^^^^^
+
+.. _howto/sensor:FinancialServicesOperationSensor:
+
+Check operation status
+----------------------
+
+Use the :class:`~airflow.providers.google.cloud.sensors.financial_services.FinancialServicesOperationSensor`
+sensor to check the status of an operation in the Google Cloud Financial Services API.
+
+Using the sensor
+""""""""""""""""""
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/financial_services/example_financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_financial_services_operation]
+    :end-before: [END howto_sensor_financial_services_operation]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_financial_services_operation_template_fields]
+    :end-before: [END howto_sensor_financial_services_operation_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Financial Services API documentation to `get an operation
+<https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.operations/get>`_.
+
+.. _howto/sensor:FinancialServicesOperationSensor:

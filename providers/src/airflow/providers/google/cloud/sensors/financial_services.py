@@ -36,7 +36,9 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
         Defaults to "google_cloud_default".
     """
 
+    # [START howto_sensor_financial_services_operation_template_fields]
     template_fields: Sequence[str] = ("operation_resource_uri",)
+    # [END howto_sensor_financial_services_operation_template_fields]
 
     def __init__(
         self,

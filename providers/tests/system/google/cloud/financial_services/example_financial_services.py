@@ -53,12 +53,14 @@ with DAG(
     )
     # [END howto_operator_financial_services_create_instance]
 
+    # [START howto_sensor_financial_services_operation]
     create_instance_sensor = FinancialServicesOperationSensor(
         task_id="create_instance_sensor",
         operation_resource_uri="{{ task_instance.xcom_pull(task_ids='create_instance_task', key='return_value') }}",
         poke_interval=timedelta(seconds=5),
         timeout=timedelta(hours=1),
     )
+    # [END howto_sensor_financial_services_operation]
 
     # [START howto_operator_financial_services_get_instance]
     get_instance_task = FinancialServicesGetInstanceOperator(
