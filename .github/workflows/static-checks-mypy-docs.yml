@@ -243,9 +243,7 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERBOSE: "true"
-      # Temporary disabled it until self-hosted ASF runners will be working again
-    if: false
-    # if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    if: inputs.canary-run == 'true' && inputs.branch == 'main'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -263,6 +261,7 @@ jobs:
           path: './docs/_build'
       - name: "Clone airflow-site"
         run: >
+          df -h
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
