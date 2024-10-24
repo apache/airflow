@@ -60,15 +60,19 @@ with DAG(
         timeout=timedelta(hours=1),
     )
 
+    # [START howto_operator_financial_services_get_instance]
     get_instance_task = FinancialServicesGetInstanceOperator(
         task_id="get_instance_task",
         instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
     )
+    # [END howto_operator_financial_services_get_instance]
 
+    # [START howto_operator_financial_services_delete_instance]
     delete_instance_task = FinancialServicesDeleteInstanceOperator(
         task_id="delete_instance_task",
         instance_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}/instances/{INSTANCE_ID}",
     )
+    # [END howto_operator_financial_services_delete_instance]
 
     delete_instance_sensor = FinancialServicesOperationSensor(
         task_id="delete_instance_sensor",

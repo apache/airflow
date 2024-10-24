@@ -17,23 +17,24 @@
 
 
 
-Google Cloud Functions Operators
-================================
+Google Cloud Financial Services Operators
+=========================================
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
+Manage instances
+^^^^^^^^^^^^^^^
+
 .. _howto/operator:FinancialServicesCreateInstanceOperator:
 
-FinancialServicesCreateInstanceOperator
----------------------------------------
+Create an AML AI instance
+-------------------------
 
-Use the operator to create an AML AI instance in the Google Cloud Financial Services API.
-
-For parameter definition, take a look at
-:class:`~airflow.providers.google.cloud.operators.financial_services.FinancialServicesCreateInstanceOperator`.
+Use the :class:`~airflow.providers.google.cloud.operators.financial_services.FinancialServicesCreateInstanceOperator`
+operator to create an AML AI instance in the Google Cloud Financial Services API.
 
 Using the operator
 """"""""""""""""""
@@ -60,3 +61,73 @@ See Google Cloud Financial Services API documentation to `create an instance
 <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/create>`_.
 
 .. _howto/operator:FinancialServicesCreateInstanceOperator:
+
+
+.. _howto/operator:FinancialServicesGetInstanceOperator:
+
+Get an AML AI instance
+-------------------------
+
+Use the :class:`~airflow.providers.google.cloud.operators.financial_services.FinancialServicesGetInstanceOperator`
+operator to get an AML AI instance in the Google Cloud Financial Services API.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/financial_services/example_financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_financial_services_get_instance]
+    :end-before: [END howto_operator_financial_services_get_instance]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_financial_services_get_instance_template_fields]
+    :end-before: [END howto_operator_financial_services_get_instance_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Financial Services API documentation to `get an instance
+<https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/get>`_.
+
+.. _howto/operator:FinancialServicesGetInstanceOperator:
+
+
+.. _howto/operator:FinancialServicesDeleteInstanceOperator:
+
+Get an AML AI instance
+-------------------------
+
+Use the :class:`~airflow.providers.google.cloud.operators.financial_services.FinancialServicesDeleteInstanceOperator`
+operator to delete an AML AI instance in the Google Cloud Financial Services API.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/financial_services/example_financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_financial_services_delete_instance]
+    :end-before: [END howto_operator_financial_services_delete_instance]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/financial_services.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_financial_services_delete_instance_template_fields]
+    :end-before: [END howto_operator_financial_services_delete_instance_template_fields]
+
+More information
+""""""""""""""""
+
+See Google Cloud Financial Services API documentation to `delete an instance
+<https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest/v1/projects.locations.instances/delete>`_.
+
+.. _howto/operator:FinancialServicesDeleteInstanceOperator:
