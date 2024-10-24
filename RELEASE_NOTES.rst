@@ -21,6 +21,61 @@
 
 .. towncrier release notes start
 
+Airflow 2.10.3 (2024-10-23)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Improves the handling of value masking when setting Airflow variables for enhanced security.  (#43123) (#43278)
+- Adds support for task_instance_mutation_hook to handle mapped operators with index 0. (#42661) (#43089)
+- Fixes executor cleanup to properly handle zombie tasks when task instances are terminated. (#43065)
+- Adds retry logic for HTTP 502 and 504 errors in internal API calls to handle webserver startup issues. (#42994) (#43044)
+- Restores the use of separate sessions for writing and deleting RTIF data to prevent StaleDataError. (#42928) (#43012)
+- Fixes PythonOperator error by replacing hyphens with underscores in DAG names. (#42993)
+- Improving validation of task retries to handle None values (#42532) (#42915)
+- Fixes error handling in dataset managers when resolving dataset aliases into new datasets (#42733)
+- Enables clicking on task names in the DAG Graph View to correctly select the corresponding task. (#38782) (#42697)
+- Prevent redirect loop on /home with tags/last run filters (#42607) (#42609) (#42628)
+- Support of host.name in OTEL metrics and usage of OTEL_RESOURCE_ATTRIBUTES in metrics (#42428) (#42604)
+- Reduce eyestrain in dark mode with reduced contrast and saturation (#42567) (#42583)
+- Handle ENTER key correctly in trigger form and allow manual JSON (#42525) (#42535)
+- Ensure DAG trigger form submits with updated parameters upon keyboard submit (#42487) (#42499)
+- Do not attempt to provide not ``stringified`` objects to UI via xcom if pickling is active (#42388) (#42486)
+- Fix the span link of task instance to point to the correct span in the scheduler_job_loop (#42430) (#42480)
+- Bugfix task execution from runner in Windows (#42426) (#42478)
+- Allows overriding the hardcoded OTEL_SERVICE_NAME with an environment variable (#42242) (#42441)
+- Improves trigger performance by using ``selectinload`` instead of ``joinedload`` (#40487) (#42351)
+- Suppress warnings when masking sensitive configs (#43335) (#43337)
+- Masking configuration values irrelevant to DAG author (#43040) (#43336)
+- Execute templated bash script as file in BashOperator (#43191)
+- Fixes schedule_downstream_tasks to include upstream tasks for one_success trigger rule (#42582) (#43299)
+- Add retry logic in the scheduler for updating trigger timeouts in case of deadlocks. (#41429) (#42651)
+
+Miscellaneous
+"""""""""""""
+- Deprecate session auth backend (#42911)
+- Removed unicodecsv dependency for providers with Airflow version 2.8.0 and above (#42765) (#42970)
+- Remove the referrer from Webserver to Scarf (#42901) (#42942)
+- Bump ``dompurify`` from 2.2.9 to 2.5.6 in /airflow/www (#42263) (#42270)
+- Correct docstring format in _get_template_context (#42244) (#42272)
+- Backport: Bump Flask-AppBuilder to ``4.5.2`` (#43309) (#43318)
+- Check python version that was used to install pre-commit venvs (#43282) (#43310)
+
+Doc Only Changes
+""""""""""""""""
+- Clarifying PLUGINS_FOLDER permissions by DAG authors (#43022) (#43029)
+- Add templating info to TaskFlow tutorial (#42992)
+- Airflow local settings no longer importable from dags folder (#42231) (#42603)
+- Fix documentation for cpu and memory usage (#42147) (#42256)
+- Fix instruction for docker compose (#43119) (#43321)
+- Updates documentation to reflect that dag_warnings is returned instead of import_errors. (#42858) (#42888)
+
+
 Airflow 2.10.2 (2024-09-18)
 ---------------------------
 
@@ -580,6 +635,7 @@ Miscellaneous
 - Add in Trove classifiers Python 3.12 support (#39004)
 - Use debug level for ``minischeduler`` skip (#38976)
 - Bump ``undici`` from ``5.28.3 to 5.28.4`` in ``/airflow/www`` (#38751)
+- Remove Scarf analytics from Airflow Webserver (#43346) (#43348)
 
 
 Doc Only Changes
