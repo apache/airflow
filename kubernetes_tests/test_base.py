@@ -191,7 +191,7 @@ class BaseK8STest:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
 
-    def ensure_dag_expected_state(self, host, execution_date, dag_id, expected_final_state, timeout):
+    def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
         max_tries = max(int(timeout / 5), 1)
@@ -207,7 +207,7 @@ class BaseK8STest:
             print(f"Received: {result}")
             state = None
             for dag_run in result_json["dag_runs"]:
-                if dag_run["execution_date"] == execution_date:
+                if dag_run["logical_date"] == logical_date:
                     state = dag_run["state"]
             check_call(["echo", f"Attempt {tries}: Current state of dag is {state}"])
             print(f"Attempt {tries}: Current state of dag is {state}")
@@ -271,12 +271,12 @@ class BaseK8STest:
         result_json = self.start_dag(dag_id=dag_id, host=host)
         dag_runs = result_json["dag_runs"]
         assert len(dag_runs) > 0
-        execution_date = None
+        logical_date = None
         dag_run_id = None
         for dag_run in dag_runs:
             if dag_run["dag_id"] == dag_id:
-                execution_date = dag_run["execution_date"]
+                logical_date = dag_run["logical_date"]
                 dag_run_id = dag_run["dag_run_id"]
                 break
-        assert execution_date is not None, f"No execution_date can be found for the dag with {dag_id}"
-        return dag_run_id, execution_date
+        assert logical_date is not None, f"No logical_date can be found for the dag with {dag_id}"
+        return dag_run_id, logical_date

@@ -224,11 +224,11 @@ def test_endpoint_should_not_be_unauthenticated(app):
     "url, content",
     [
         (
-            "/taskinstance/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskinstance/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Instance",
         ),
         (
-            "/taskreschedule/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskreschedule/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Reschedule",
         ),
     ],
@@ -321,6 +321,7 @@ def test_mark_task_instance_state(test_app):
     """
     from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
@@ -345,7 +346,7 @@ def test_mark_task_instance_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -358,7 +359,7 @@ def test_mark_task_instance_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                DagRun.logical_date == start_date,
             )
             .one()
         )
@@ -415,6 +416,7 @@ def test_mark_task_group_state(test_app):
     """
     from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
@@ -448,7 +450,7 @@ def test_mark_task_group_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -461,7 +463,7 @@ def test_mark_task_group_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                DagRun.logical_date == start_date,
             )
             .one()
         )
@@ -571,31 +573,31 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
     "url, content",
     [
         (
-            "/rendered-templates?execution_date=invalid",
+            "/rendered-templates?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?dag_id=tutorial&execution_date=invalid",
+            "/log?dag_id=tutorial&logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/redirect_to_external_log?execution_date=invalid",
+            "/redirect_to_external_log?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/task?execution_date=invalid",
+            "/task?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/graph?execution_date=invalid",
+            "dags/example_bash_operator/graph?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/gantt?execution_date=invalid",
+            "dags/example_bash_operator/gantt?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "extra_links?execution_date=invalid",
+            "extra_links?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
     ],

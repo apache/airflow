@@ -43,6 +43,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
 )
+from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
@@ -416,7 +417,7 @@ class PodGenerator:
         if map_index >= 0:
             annotations["map_index"] = str(map_index)
         if date:
-            annotations["execution_date"] = date.isoformat()
+            annotations[get_logical_date_key()] = date.isoformat()
         if run_id:
             annotations["run_id"] = run_id
 
@@ -431,7 +432,7 @@ class PodGenerator:
                     try_number=try_number,
                     airflow_worker=scheduler_job_id,
                     map_index=map_index,
-                    execution_date=date,
+                    logical_date=date,
                     run_id=run_id,
                 ),
             ),
@@ -474,7 +475,7 @@ class PodGenerator:
         task_id,
         try_number,
         map_index=None,
-        execution_date=None,
+        logical_date=None,
         run_id=None,
         airflow_worker=None,
         include_version=False,
@@ -489,7 +490,7 @@ class PodGenerator:
             task_id=task_id,
             try_number=try_number,
             map_index=map_index,
-            execution_date=execution_date,
+            logical_date=logical_date,
             run_id=run_id,
             airflow_worker=airflow_worker,
             include_version=include_version,
@@ -509,7 +510,7 @@ class PodGenerator:
         try_number,
         airflow_worker=None,
         map_index=None,
-        execution_date=None,
+        logical_date=None,
         run_id=None,
         include_version=True,
     ):
@@ -530,8 +531,8 @@ class PodGenerator:
             labels["airflow-worker"] = make_safe_label_value(str(airflow_worker))
         if map_index is not None and map_index >= 0:
             labels["map_index"] = str(map_index)
-        if execution_date:
-            labels["execution_date"] = datetime_to_label_safe_datestring(execution_date)
+        if logical_date:
+            labels[get_logical_date_key()] = datetime_to_label_safe_datestring(logical_date)
         if run_id:
             labels["run_id"] = make_safe_label_value(run_id)
         return labels

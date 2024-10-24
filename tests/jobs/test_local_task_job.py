@@ -309,7 +309,7 @@ class TestLocalTaskJob:
             dr = dag.create_dagrun(
                 run_id="test_heartbeat_failed_fast_run",
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 start_date=DEFAULT_DATE,
                 session=session,
                 data_interval=data_interval,
@@ -347,7 +347,7 @@ class TestLocalTaskJob:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
             session=session,
             data_interval=data_interval,
@@ -383,7 +383,7 @@ class TestLocalTaskJob:
         dr = dag.create_dagrun(
             run_id="test",
             state=State.SUCCESS,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             session=session,
             data_interval=data_interval,
@@ -489,7 +489,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -526,7 +526,7 @@ class TestLocalTaskJob:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -561,7 +561,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -598,7 +598,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -637,7 +637,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -677,7 +677,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -717,7 +717,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dr = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -761,7 +761,7 @@ class TestLocalTaskJob:
         with create_session() as session:
             dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=data_interval,
@@ -937,14 +937,14 @@ class TestLocalTaskJob:
         dr = dag.create_dagrun(
             run_id="test_1",
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             **triggered_by_kwargs,
         )
         dr2 = dag.create_dagrun(
             run_id="test_2",
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE + datetime.timedelta(hours=1),
+            logical_date=DEFAULT_DATE + datetime.timedelta(hours=1),
             data_interval=data_interval,
             **triggered_by_kwargs,
         )
@@ -1075,8 +1075,8 @@ class TestSigtermOnRunner:
 
         dag_id = f"test_task_runner_sigterm_{mp_method}_{'' if daemon else 'non_'}daemon"
         task_id = "test_on_retry_callback"
-        execution_date = DEFAULT_DATE
-        run_id = f"test-{execution_date.date().isoformat()}"
+        logical_date = DEFAULT_DATE
+        run_id = f"test-{logical_date.date().isoformat()}"
         tmp_file = tmp_path / "test.txt"
         # Run LocalTaskJob in separate process
         proc = mp_context.Process(
@@ -1086,7 +1086,7 @@ class TestSigtermOnRunner:
                 dag_id,
                 task_id,
                 run_id,
-                execution_date,
+                logical_date,
                 task_started,
                 retry_callback_called,
             ),
@@ -1130,7 +1130,7 @@ class TestSigtermOnRunner:
         dag_id,
         task_id,
         run_id,
-        execution_date,
+        logical_date,
         is_started,
         callback_value,
     ):
@@ -1150,7 +1150,7 @@ class TestSigtermOnRunner:
             while True:
                 time.sleep(0.25)
 
-        with DAG(dag_id=dag_id, schedule=None, start_date=execution_date) as dag:
+        with DAG(dag_id=dag_id, schedule=None, start_date=logical_date) as dag:
             task = PythonOperator(
                 task_id=task_id,
                 python_callable=task_function,
@@ -1166,7 +1166,7 @@ class TestSigtermOnRunner:
         dag_run = dag.create_dagrun(
             state=State.RUNNING,
             run_id=run_id,
-            execution_date=execution_date,
+            logical_date=logical_date,
             data_interval=data_interval,
             **triggered_by_kwargs,
         )

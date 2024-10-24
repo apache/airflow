@@ -86,7 +86,6 @@ class TestBashOperator:
             "AWESOME_PYTHONPATH\n"
             "bash_op_test\n"
             "echo_env_vars\n"
-            f"{utc_now.isoformat()}\n"
             f"manual__{utc_now.isoformat()}\n"
         )
 
@@ -104,23 +103,33 @@ class TestBashOperator:
                 f"echo $PYTHONPATH>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
                 f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
-                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
                 append_env=append_env,
                 env=user_defined_env,
             )
 
-        execution_date = utc_now
+        logical_date = utc_now
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dag_maker.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
-            start_date=utc_now,
-            state=State.RUNNING,
-            external_trigger=False,
-            data_interval=(execution_date, execution_date),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_maker.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                logical_date=logical_date,
+                start_date=utc_now,
+                state=State.RUNNING,
+                external_trigger=False,
+                data_interval=(logical_date, logical_date),
+                **triggered_by_kwargs,
+            )
+        else:
+            dag_maker.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                execution_date=logical_date,
+                start_date=utc_now,
+                state=State.RUNNING,
+                external_trigger=False,
+                data_interval=(logical_date, logical_date),
+                **triggered_by_kwargs,
+            )
 
         with mock.patch.dict(
             "os.environ", {"AIRFLOW_HOME": "MY_PATH_TO_AIRFLOW_HOME", "PYTHONPATH": "AWESOME_PYTHONPATH"}
@@ -282,12 +291,10 @@ class TestBashOperator:
             # Other parameters
             dag_id="test_templated_fields_dag",
             task_id="test_templated_fields_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         ti.render_templates()
         task: BashOperator = ti.task
         assert task.bash_command == 'echo "test_templated_fields_dag"'
-        assert task.env == {"FOO": "2024-02-01"}
         assert task.cwd == Path(__file__).absolute().parent.as_posix()
 
     @pytest.mark.db_test

@@ -407,13 +407,12 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
-        "execution_date",
         "logical_date",
-        "next_execution_date",
+        "next_logical_date",
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_execution_date",
-        "prev_execution_date_success",
+        "prev_logical_date",
+        "prev_logical_date_success",
         "prev_start_date_success",
         "prev_end_date_success",
     }
