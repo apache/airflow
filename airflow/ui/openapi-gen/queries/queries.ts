@@ -17,11 +17,13 @@ import {
   PoolService,
   ProviderService,
   VariableService,
+  VersionService,
 } from "../requests/services.gen";
 import {
   DAGPatchBody,
   DagRunState,
-  PoolBody,
+  PoolPatchBody,
+  PoolPostBody,
   VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
@@ -563,6 +565,25 @@ export const usePluginServiceGetPlugins = <
     ...options,
   });
 /**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const useVersionServiceGetVersion = <
+  TData = Common.VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
+    queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
  * Post Variable
  * Create a variable.
  * @param data The data for the request.
@@ -599,6 +620,43 @@ export const useVariableServicePostVariable = <
       VariableService.postVariable({
         requestBody,
       }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Pool
+ * Create a Pool.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServicePostPool = <
+  TData = Common.PoolServicePostPoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -802,7 +860,7 @@ export const usePoolServicePatchPool = <
       TError,
       {
         poolName: string;
-        requestBody: PoolBody;
+        requestBody: PoolPatchBody;
         updateMask?: string[];
       },
       TContext
@@ -815,7 +873,7 @@ export const usePoolServicePatchPool = <
     TError,
     {
       poolName: string;
-      requestBody: PoolBody;
+      requestBody: PoolPatchBody;
       updateMask?: string[];
     },
     TContext

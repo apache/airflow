@@ -50,7 +50,6 @@ if TYPE_CHECKING:
     from types import ModuleType
     from typing import Generator
 
-    from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
 
@@ -62,7 +61,6 @@ plugins: list[AirflowPlugin] | None = None
 loaded_plugins: set[str] = set()
 
 # Plugin components to integrate as modules
-registered_hooks: list[BaseHook] | None = None
 macros_modules: list[Any] | None = None
 
 # Plugin components to integrate directly
@@ -86,7 +84,6 @@ Used by the DAG serialization code to only allow specific classes to be created
 during deserialization
 """
 PLUGINS_ATTRIBUTES_TO_DUMP = {
-    "hooks",
     "macros",
     "admin_views",
     "flask_blueprints",
@@ -151,7 +148,6 @@ class AirflowPlugin:
 
     name: str | None = None
     source: AirflowPluginSource | None = None
-    hooks: list[Any] = []
     macros: list[Any] = []
     admin_views: list[Any] = []
     flask_blueprints: list[Any] = []
@@ -345,7 +341,7 @@ def ensure_plugins_loaded():
     """
     from airflow.stats import Stats
 
-    global plugins, registered_hooks
+    global plugins
 
     if plugins is not None:
         log.debug("Plugins are already loaded. Skipping.")
@@ -358,18 +354,12 @@ def ensure_plugins_loaded():
 
     with Stats.timer() as timer:
         plugins = []
-        registered_hooks = []
 
         load_plugins_from_plugin_directory()
         load_entrypoint_plugins()
 
         if not settings.LAZY_LOAD_PROVIDERS:
             load_providers_plugins()
-
-        # We don't do anything with these for now, but we want to keep track of
-        # them so we can integrate them in to the UI's Connection screens
-        for plugin in plugins:
-            registered_hooks.extend(plugin.hooks)
 
     if plugins:
         log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
@@ -598,7 +588,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
             for attr in attrs_to_dump:
                 if attr in ("global_operator_extra_links", "operator_extra_links"):
                     info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
-                elif attr in ("macros", "timetables", "hooks", "priority_weight_strategies"):
+                elif attr in ("macros", "timetables", "priority_weight_strategies"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
                     # listeners may be modules or class instances

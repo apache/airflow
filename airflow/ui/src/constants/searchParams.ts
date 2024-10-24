@@ -23,6 +23,7 @@ export enum SearchParamsKeys {
   OFFSET = "offset",
   PAUSED = "paused",
   SORT = "sort",
+  TAGS = "tags",
 }
 
 export type SearchParamsKeysType = Record<

@@ -23,7 +23,6 @@ from airflow import __version__ as airflow_version
 
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
     "plugins",
-    "registered_hooks",
     "macros_modules",
     "admin_views",
     "flask_blueprints",
@@ -41,7 +40,6 @@ PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
 
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V2_10 = [
     "plugins",
-    "registered_hooks",
     "macros_modules",
     "admin_views",
     "flask_blueprints",
