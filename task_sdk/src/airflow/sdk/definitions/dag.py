@@ -340,7 +340,6 @@ class DAG:
     template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined
     user_defined_macros: dict | None = None
     user_defined_filters: dict | None = None
-    concurrency: int | None = None
     max_active_tasks: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
     max_active_runs: int = attrs.field(default=16, validator=attrs.validators.instance_of(int))
     max_consecutive_failed_dag_runs: int = attrs.field(
@@ -360,7 +359,7 @@ class DAG:
         default=None,
         converter=attrs.Converter(_convert_params, takes_self=True),  # type: ignore[misc, call-overload]
     )
-    access_control: dict | None = attrs.field(
+    access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = attrs.field(
         default=None, converter=attrs.Converter(_convert_access_control, takes_self=True)
     )
     is_paused_upon_creation: bool | None = None
@@ -935,7 +934,7 @@ class DAG:
                 "_log",
                 "task_dict",
                 "template_searchpath",
-                "sla_miss_callback",
+                # "sla_miss_callback",
                 "on_success_callback",
                 "on_failure_callback",
                 "template_undefined",
@@ -997,17 +996,17 @@ if TYPE_CHECKING:
         template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
         user_defined_macros: dict | None = None,
         user_defined_filters: dict | None = None,
-        default_args: dict | None = None,
+        default_args: dict[str, Any] | None = None,
         max_active_tasks: int = ...,
         max_active_runs: int = ...,
         max_consecutive_failed_dag_runs: int = ...,
         dagrun_timeout: timedelta | None = None,
-        sla_miss_callback: Any = None,
+        # sla_miss_callback: Any = None,
         catchup: bool = ...,
-        on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        # on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        # on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
-        params: abc.MutableMapping | None = None,
+        params: ParamsDict | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
