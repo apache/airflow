@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-24T00:39:50.364698
+# This constraints file was automatically generated on 2024-10-24T08:51:47.235021
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -105,7 +105,7 @@ azure-mgmt-datafactory==9.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
-azure-mgmt-resource==23.1.1
+azure-mgmt-resource==23.2.0
 azure-mgmt-storage==21.2.1
 azure-nspkg==3.0.2
 azure-servicebus==7.12.3
