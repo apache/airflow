@@ -298,7 +298,7 @@ if TYPE_CHECKING:
 else:
 
     def dag(dag_id: str = "", **kwargs):
-        return task_sdk_dag_decorator(dag_id, __DAG_class=DAG, __warnings_stacklevel_delta=3)
+        return task_sdk_dag_decorator(dag_id, __DAG_class=DAG, __warnings_stacklevel_delta=3, **kwargs)
 
 
 @functools.total_ordering
@@ -419,14 +419,13 @@ class DAG(TaskSDKDag, LoggingMixin):
 
     partial: bool = False
     last_loaded: datetime | None = attrs.field(factory=timezone.utcnow)
-    on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
-    on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
-
-    has_on_success_callback: bool = attrs.field(init=False)
-    has_on_failure_callback: bool = attrs.field(init=False)
 
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation")
+
+    # this will only be set at serialization time
+    # it's only use is for determining the relative fileloc based only on the serialize dag
+    _processor_dags_folder: str | None = attrs.field(init=False, default=None)
 
     # Override the default from parent class to use config
     max_consecutive_failed_dag_runs: int = attrs.field()
@@ -435,17 +434,9 @@ class DAG(TaskSDKDag, LoggingMixin):
     def _max_consecutive_failed_dag_runs_default(self):
         return airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
 
-    # this will only be set at serialization time
-    # it's only use is for determining the relative fileloc based only on the serialize dag
-    _processor_dags_folder: str | None = attrs.field(init=False, default=None)
-
-    @has_on_success_callback.default
-    def _has_on_success_callback(self) -> bool:
-        return self.on_success_callback is not None
-
-    @has_on_failure_callback.default
-    def _has_on_failure_callback(self) -> bool:
-        return self.on_failure_callback is not None
+    def validate(self):
+        super().validate()
+        self.validate_executor_field()
 
     def validate_executor_field(self):
         for task in self.tasks:

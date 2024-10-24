@@ -16,33 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
-    from airflow.serialization.enums import DagAttributeTypes
     from airflow.typing_compat import TypeAlias
 
 import airflow.sdk.definitions.mixins
 import airflow.sdk.definitions.node
 
 DependencyMixin: TypeAlias = airflow.sdk.definitions.mixins.DependencyMixin
-
-
-class DAGNode(airflow.sdk.definitions.node.DAGNode):
-    """
-    A base class for a node in the graph of a workflow.
-
-    A node may be an Operator or a Task Group, either mapped or unmapped.
-    """
-
-    def get_direct_relatives(self, upstream: bool = False) -> Iterable[Operator]:
-        """Get list of the direct relatives to the current task, upstream or downstream."""
-        if upstream:
-            return self.upstream_list
-        else:
-            return self.downstream_list
-
-    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Serialize a task group's content; used by TaskGroupSerialization."""
-        raise NotImplementedError()
+DAGNode: TypeAlias = airflow.sdk.definitions.node.DAGNode

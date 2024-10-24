@@ -1190,6 +1190,7 @@ repos:
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
           task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          task_sdk/src/airflow/sdk/definitions/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |

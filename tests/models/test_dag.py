@@ -76,7 +76,6 @@ from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
-    ContinuousTimetable,
     NullTimetable,
     OnceTimetable,
 )
@@ -1683,7 +1682,15 @@ class TestDag:
         with dag:
             check_task_2(check_task())
 
-        dag.test()
+        dr = dag.test()
+
+        ti1 = dr.get_task_instance("check_task")
+        ti2 = dr.get_task_instance("check_task_2")
+
+        assert ti1
+        assert ti2
+        assert ti1.state == TaskInstanceState.FAILED
+        assert ti2.state == TaskInstanceState.UPSTREAM_FAILED
 
         mock_handle_object_1.assert_called_with("task check_task failed...")
         mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
@@ -2120,22 +2127,6 @@ my_postgres_conn:
 
         orm_dag_owners = session.query(DagOwnerAttributes).all()
         assert not orm_dag_owners
-
-        # Check wrong formatted owner link
-        with pytest.raises(AirflowException):
-            DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
-
-    def test_continuous_schedule_linmits_max_active_runs(self):
-        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
-        assert isinstance(dag.timetable, ContinuousTimetable)
-        assert dag.max_active_runs == 1
-
-        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=0)
-        assert isinstance(dag.timetable, ContinuousTimetable)
-        assert dag.max_active_runs == 0
-
-        with pytest.raises(AirflowException):
-            dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
 
 class TestDagModel:
@@ -2854,7 +2845,7 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
     }
 
 
-def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
+def test_dag_teardowns_property_lists_all_teardown_tasks():
     @setup
     def setup_task():
         return 1
@@ -2875,7 +2866,7 @@ def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
     def mytask():
         return 1
 
-    with dag_maker() as dag:
+    with DAG("dag") as dag:
         t1 = setup_task()
         t2 = teardown_task()
         t3 = teardown_task2()

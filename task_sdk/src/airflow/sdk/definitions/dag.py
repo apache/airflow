@@ -25,7 +25,7 @@ import os
 import sys
 import weakref
 from collections import abc
-from collections.abc import Collection, Iterable, Iterator, MutableSet
+from collections.abc import Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
 from re import Pattern
@@ -175,6 +175,20 @@ def _convert_access_control(value, self_: DAG):
         return self_._upgrade_outdated_dag_access_control(value)
     else:
         return value
+
+
+def _convert_doc_md(doc_md: str | None) -> str | None:
+    if doc_md is None:
+        return doc_md
+
+    if doc_md.endswith(".md"):
+        try:
+            with open(doc_md) as fh:
+                return fh.read()
+        except FileNotFoundError:
+            return doc_md
+
+    return doc_md
 
 
 def _all_after_dag_id_to_kw_only(cls, fields: list[attrs.Attribute]):
@@ -351,16 +365,17 @@ class DAG:
     )
     # sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None
     catchup: bool = attrs.field(default=True, converter=bool)
-    # on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
-    # on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
-    doc_md: str | None = None
+    on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
+    on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
+    doc_md: str | None = attrs.field(default=None, converter=_convert_doc_md)
     params: ParamsDict = attrs.field(
         # mypy doesn't really like passing the Converter object
         default=None,
         converter=attrs.Converter(_convert_params, takes_self=True),  # type: ignore[misc, call-overload]
     )
     access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = attrs.field(
-        default=None, converter=attrs.Converter(_convert_access_control, takes_self=True)
+        default=None,
+        converter=attrs.Converter(_convert_access_control, takes_self=True),  # type: ignore[misc, call-overload]
     )
     is_paused_upon_creation: bool | None = None
     jinja_environment_kwargs: dict | None = None
@@ -368,7 +383,7 @@ class DAG:
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
-    fail_stop: bool = attrs.field(default=True, converter=bool)
+    fail_stop: bool = attrs.field(default=False, converter=bool)
     dag_display_name: str = attrs.field(validator=attrs.validators.instance_of(str))
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
@@ -379,6 +394,9 @@ class DAG:
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
+
+    has_on_success_callback: bool = attrs.field(init=False)
+    has_on_failure_callback: bool = attrs.field(init=False)
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -481,6 +499,23 @@ class DAG:
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
+    @max_active_runs.validator
+    def _validate_max_active_runs(self, _, max_active_runs):
+        if self.timetable.active_runs_limit is not None:
+            if self.timetable.active_runs_limit < self.max_active_runs:
+                raise ValueError(
+                    f"Invalid max_active_runs: {type(self.timetable).__name__} "
+                    f"requires max_active_runs <= {self.timetable.active_runs_limit}"
+                )
+
+    @has_on_success_callback.default
+    def _has_on_success_callback(self) -> bool:
+        return self.on_success_callback is not None
+
+    @has_on_failure_callback.default
+    def _has_on_failure_callback(self) -> bool:
+        return self.on_failure_callback is not None
+
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
 
@@ -522,18 +557,6 @@ class DAG:
 
         _ = DagContext.pop()
 
-    def get_doc_md(self, doc_md: str | None) -> str | None:
-        if doc_md is None:
-            return doc_md
-
-        if doc_md.endswith(".md"):
-            try:
-                return open(doc_md).read()
-            except FileNotFoundError:
-                return doc_md
-
-        return doc_md
-
     def validate(self):
         """
         Validate the DAG has a coherent setup.
@@ -542,6 +565,10 @@ class DAG:
         """
         self.timetable.validate()
         self.validate_setup_teardown()
+
+        # We validate owner links on set, but since it's a dict it could be mutated without calling the
+        # setter. Validate again here
+        self._validate_owner_links(None, self.owner_links)
 
     def validate_setup_teardown(self):
         """
@@ -966,20 +993,23 @@ class DAG:
         """
         self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
 
-    def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
-        """
-        Parse a given link, and verifies if it's a valid URL, or a 'mailto' link.
+    @owner_links.validator
+    def _validate_owner_links(self, _, owner_links):
+        wrong_links = {}
 
-        Returns an iterator of invalid (owner, link) pairs.
-        """
-        for owner, link in self.owner_links.items():
+        for owner, link in owner_links.items():
             result = urlsplit(link)
             if result.scheme == "mailto":
                 # netloc is not existing for 'mailto' link, so we are checking that the path is parsed
                 if not result.path:
-                    yield result.path, link
+                    wrong_links[result.path] = link
             elif not result.scheme or not result.netloc:
-                yield owner, link
+                wrong_links[owner] = link
+        if wrong_links:
+            raise ValueError(
+                "Wrong link format was used for the owner. Use a valid link \n"
+                f"Bad formatted links are: {wrong_links}"
+            )
 
 
 if TYPE_CHECKING:
@@ -1003,8 +1033,8 @@ if TYPE_CHECKING:
         dagrun_timeout: timedelta | None = None,
         # sla_miss_callback: Any = None,
         catchup: bool = ...,
-        # on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
-        # on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: ParamsDict | None = None,
         access_control: dict[str, dict[str, Collection[str]]] | dict[str, Collection[str]] | None = None,
