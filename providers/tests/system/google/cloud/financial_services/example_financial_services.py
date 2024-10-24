@@ -44,12 +44,14 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
+    # [START howto_operator_financial_services_create_instance]
     create_instance_task = FinancialServicesCreateInstanceOperator(
         task_id="create_instance_task",
         instance_id=INSTANCE_ID,
         location_resource_uri=f"projects/{PROJECT_ID}/locations/{LOCATION}",
         kms_key_uri=KMS_KEY,
     )
+    # [END howto_operator_financial_services_create_instance]
 
     create_instance_sensor = FinancialServicesOperationSensor(
         task_id="create_instance_sensor",

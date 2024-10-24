@@ -39,7 +39,9 @@ class FinancialServicesCreateInstanceOperator(GoogleCloudBaseOperator):
         Defaults to "google_cloud_default".
     """
 
+    # [START howto_operator_financial_services_create_instance_template_fields]
     template_fields: Sequence[str] = ("instance_id", "location_resource_uri", "kms_key_uri")
+    # [END howto_operator_financial_services_create_instance_template_fields]
 
     def __init__(
         self,
