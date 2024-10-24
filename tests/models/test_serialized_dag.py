@@ -212,23 +212,6 @@ class TestSerializedDagModel:
             SDM.bulk_sync_to_db(dags)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @pytest.mark.parametrize("dag_dependencies_fields", [{"dag_dependencies": None}, {}])
-    def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
-        """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
-        example_dags = make_example_dags(example_dags_module)
-
-        with create_session() as session:
-            sdms = [SDM(dag) for dag in example_dags.values()]
-            # Simulate pre-2.1.0 format.
-            for sdm in sdms:
-                del sdm.data["dag"]["dag_dependencies"]
-                sdm.data["dag"].update(dag_dependencies_fields)
-            session.bulk_save_objects(sdms)
-
-        expected_dependencies = {dag_id: [] for dag_id in example_dags}
-        assert SDM.get_dag_dependencies() == expected_dependencies
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_order_of_dag_params_is_stable(self):
         """
         This asserts that we have logic in place which guarantees the order

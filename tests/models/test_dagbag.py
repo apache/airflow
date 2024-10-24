@@ -64,10 +64,10 @@ def db_clean_up():
 
 
 class TestDagBag:
-    def setup_method(self):
+    def setup_class(cls):
         db_clean_up()
 
-    def teardown_method(self):
+    def teardown_class(cls):
         db_clean_up()
 
     def test_get_existing_dag(self, tmp_path):
@@ -723,6 +723,7 @@ with airflow.DAG(
                 dagbag.sync_to_db(session=session)
 
             dag = dagbag.dags["test_example_bash_operator"]
+            dag.sync_to_db()
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
@@ -859,6 +860,7 @@ with airflow.DAG(
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
         """
+        db_clean_up()
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")

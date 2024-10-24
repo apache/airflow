@@ -25,6 +25,7 @@ import airflow.example_dags as example_dags_module
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 
@@ -58,9 +59,11 @@ class TestDagCode:
     def _write_two_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
-        DagCode(bash_dag.fileloc).sync_to_db()
+        dag_version = DagVersion.get_latest_version("example_bash_operator")
+        DagCode(dag_version, bash_dag.fileloc).sync_to_db()
         xcom_dag = example_dags["example_xcom"]
-        DagCode(xcom_dag.fileloc).sync_to_db()
+        dag_version = DagVersion.get_latest_version("example_xcom")
+        DagCode(dag_version, xcom_dag.fileloc).sync_to_db()
         return [bash_dag, xcom_dag]
 
     def _write_example_dags(self):

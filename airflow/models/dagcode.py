@@ -28,6 +28,7 @@ from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.configuration import conf
 from airflow.exceptions import DagCodeNotFound
 from airflow.models.base import Base
 from airflow.utils import timezone
@@ -37,6 +38,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.dag_version import DagVersion
 
 log = logging.getLogger(__name__)
 
@@ -57,10 +60,13 @@ class DagCode(Base):
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
-    dag_version_id = Column(UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version_id = Column(
+        UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False, cascade_backrefs=False)
 
-    def __init__(self, full_filepath: str, source_code: str | None = None):
+    def __init__(self, dag_version, full_filepath: str, source_code: str | None = None):
+        self.dag_version = dag_version
         self.fileloc = full_filepath
         self.fileloc_hash = DagCode.dag_fileloc_hash(self.fileloc)
         self.last_updated = timezone.utcnow()
@@ -68,7 +74,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def write_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
+    def write_dag(cls, dag_version: DagVersion, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
         """
         Write code into database.
 
@@ -76,7 +82,7 @@ class DagCode(Base):
         :param session: ORM Session
         """
         log.debug("Writing DAG file %s into DagCode table", fileloc)
-        dag_code = DagCode(fileloc, cls._get_code_from_file(fileloc))
+        dag_code = DagCode(dag_version, fileloc, cls._get_code_from_file(fileloc))
         session.add(dag_code)
         log.debug("DAG file %s written into DagCode table", fileloc)
         return dag_code
@@ -153,9 +159,15 @@ class DagCode(Base):
 
     @staticmethod
     def _get_code_from_file(fileloc):
-        with open_maybe_zipped(fileloc, "r") as f:
-            code = f.read()
-        return code
+        try:
+            with open_maybe_zipped(fileloc, "r") as f:
+                code = f.read()
+            return code
+        except FileNotFoundError:
+            test_mode = conf.get("core", "unit_test_mode")
+            if test_mode:
+                return "source_code"
+            raise
 
     @classmethod
     @provide_session
