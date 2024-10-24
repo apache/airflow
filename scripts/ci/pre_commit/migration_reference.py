@@ -32,6 +32,6 @@ cmd_result = run_command_via_breeze_shell(
 if cmd_result.returncode != 0:
     console.print(
         "[warning]\nIf you see strange stacktraces above, "
-        "run `breeze ci-image build --python 3.8` and try again."
+        "run `breeze ci-image build --python 3.9` and try again."
     )
 sys.exit(cmd_result.returncode)

@@ -20,8 +20,8 @@ from __future__ import annotations
 import contextlib
 import sys
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
