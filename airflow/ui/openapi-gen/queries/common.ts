@@ -361,6 +361,9 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
+export type PoolServicePostPoolMutationResult = Awaited<
+  ReturnType<typeof PoolService.postPool>
+>;
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;

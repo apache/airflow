@@ -22,7 +22,8 @@ import {
 import {
   DAGPatchBody,
   DagRunState,
-  PoolBody,
+  PoolPatchBody,
+  PoolPostBody,
   VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
@@ -622,6 +623,43 @@ export const useVariableServicePostVariable = <
     ...options,
   });
 /**
+ * Post Pool
+ * Create a Pool.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServicePostPool = <
+  TData = Common.PoolServicePostPoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dags
  * Patch multiple DAGs.
  * @param data The data for the request.
@@ -822,7 +860,7 @@ export const usePoolServicePatchPool = <
       TError,
       {
         poolName: string;
-        requestBody: PoolBody;
+        requestBody: PoolPatchBody;
         updateMask?: string[];
       },
       TContext
@@ -835,7 +873,7 @@ export const usePoolServicePatchPool = <
     TError,
     {
       poolName: string;
-      requestBody: PoolBody;
+      requestBody: PoolPatchBody;
       updateMask?: string[];
     },
     TContext

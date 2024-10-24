@@ -324,9 +324,17 @@ export type PluginResponse = {
 };
 
 /**
- * Pool serializer for bodies.
+ * Pool Collection serializer for responses.
  */
-export type PoolBody = {
+export type PoolCollectionResponse = {
+  pools: Array<PoolResponse>;
+  total_entries: number;
+};
+
+/**
+ * Pool serializer for patch bodies.
+ */
+export type PoolPatchBody = {
   pool?: string | null;
   slots?: number | null;
   description?: string | null;
@@ -334,11 +342,13 @@ export type PoolBody = {
 };
 
 /**
- * Pool Collection serializer for responses.
+ * Pool serializer for post bodies.
  */
-export type PoolCollectionResponse = {
-  pools: Array<PoolResponse>;
-  total_entries: number;
+export type PoolPostBody = {
+  name: string;
+  slots: number;
+  description?: string | null;
+  include_deferred?: boolean;
 };
 
 /**
@@ -613,7 +623,7 @@ export type GetPoolResponse = PoolResponse;
 
 export type PatchPoolData = {
   poolName: string;
-  requestBody: PoolBody;
+  requestBody: PoolPatchBody;
   updateMask?: Array<string> | null;
 };
 
@@ -626,6 +636,12 @@ export type GetPoolsData = {
 };
 
 export type GetPoolsResponse = PoolCollectionResponse;
+
+export type PostPoolData = {
+  requestBody: PoolPostBody;
+};
+
+export type PostPoolResponse = PoolResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -1242,6 +1258,27 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
