@@ -45,10 +45,11 @@ pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 class TestReapProcessGroup:
     @staticmethod
-    def _ignores_sigterm(child_pid, child_setup_done):
+    def _ignores_sighup_and_sigterm(child_pid, child_setup_done):
         def signal_handler(unused_signum, unused_frame):
             pass
 
+        signal.signal(signal.SIGHUP, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         child_pid.value = os.getpid()
         child_setup_done.release()
@@ -56,15 +57,16 @@ class TestReapProcessGroup:
             time.sleep(1)
 
     @staticmethod
-    def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
+    def _parent_of_ignores_sighup_and_sigterm(parent_pid, child_pid, setup_done):
         def signal_handler(unused_signum, unused_frame):
             pass
 
         os.setsid()
+        signal.signal(signal.SIGHUP, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
         child_setup_done = multiprocessing.Semaphore(0)
         child = multiprocessing.Process(
-            target=TestReapProcessGroup._ignores_sigterm, args=[child_pid, child_setup_done]
+            target=TestReapProcessGroup._ignores_sighup_and_sigterm, args=[child_pid, child_setup_done]
         )
         child.start()
         child_setup_done.acquire(timeout=5.0)
@@ -82,7 +84,10 @@ class TestReapProcessGroup:
         parent_pid = multiprocessing.Value("i", 0)
         child_pid = multiprocessing.Value("i", 0)
         args = [parent_pid, child_pid, parent_setup_done]
-        parent = multiprocessing.Process(target=TestReapProcessGroup._parent_of_ignores_sigterm, args=args)
+        parent = multiprocessing.Process(
+            target=TestReapProcessGroup._parent_of_ignores_sighup_and_sigterm,
+            args=args,
+        )
         try:
             parent.start()
             assert parent_setup_done.acquire(timeout=5.0)
