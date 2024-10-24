@@ -1059,12 +1059,6 @@ export interface components {
        */
       last_expired?: string | null;
       /**
-       * @description Whether (one of) the scheduler is scheduling this DAG at the moment
-       *
-       * *New in version 2.3.0*
-       */
-      scheduler_lock?: boolean | null;
-      /**
        * @description Foreign key to the latest pickle_id
        *
        * *New in version 2.3.0*
