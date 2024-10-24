@@ -276,6 +276,16 @@ class _DagTagNamePatternSearch(_SearchParam):
         return self.set_value(tag_name_pattern)
 
 
+def _parse_comma_separated_query_params(comma_separated_list: str | None = None) -> list[str]:
+    """Parse Comma Separated Query Params for backward compatibility."""
+    if not comma_separated_list:
+        return Query(None)
+    try:
+        return comma_separated_list.split(",") if "," in comma_separated_list else [comma_separated_list]
+    except AttributeError:
+        raise HTTPException(400, "Invalid update_mask. Please provide a comma-separated list of fields.")
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -312,3 +322,4 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
+# PATCH Methods Generic Params

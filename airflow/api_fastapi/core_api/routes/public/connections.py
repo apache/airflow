@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -26,6 +26,7 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.connections import (
+    ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
 )
@@ -104,3 +105,33 @@ async def get_connections(
         ],
         total_entries=total_entries,
     )
+
+
+@connections_router.patch(
+    "/{connection_id}",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+)
+async def patch_connection(
+    connection_id: str,
+    patch_body: ConnectionBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> ConnectionResponse:
+    """Update a connection entry."""
+    if patch_body.connection_id != connection_id:
+        raise HTTPException(400, "The connection_id in the request body does not match the URL parameter")
+
+    non_update_fields = {"connection_id", "conn_id"}
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+
+    if connection is None:
+        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+
+    if update_mask:
+        data = patch_body.model_dump(include=set(update_mask) - non_update_fields, exclude_none=True)
+    else:
+        data = patch_body.model_dump(exclude=non_update_fields, exclude_none=True)
+
+    for key, val in data.items():
+        setattr(connection, key, val)
+    return ConnectionResponse.model_validate(connection, from_attributes=True)

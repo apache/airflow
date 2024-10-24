@@ -114,12 +114,14 @@ async def patch_variable(
     if not variable:
         raise HTTPException(404, f"The Variable with key: `{variable_key}` was not found")
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+        data = patch_body.model_dump(
+            include=set(update_mask) - non_update_fields, by_alias=True, exclude_none=True
+        )
     else:
-        data = patch_body.model_dump(exclude=non_update_fields)
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
     for key, val in data.items():
         setattr(variable, key, val)
-    return variable
+    return VariableResponse.model_validate(variable, from_attributes=True)
 
 
 @variables_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
