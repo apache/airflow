@@ -1,0 +1,1 @@
+Bash script files (``.sh`` and ``.bash``) with Jinja templating enabled (without the space after the file extension) are now rendered into a temporary file, and then executed. Instead of being directly executed as inline command.
