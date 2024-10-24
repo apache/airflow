@@ -620,6 +620,7 @@ class DbApiHook(BaseHook):
         replace=False,
         *,
         executemany=False,
+        fast_executemany=False,
         autocommit=False,
         **kwargs,
     ):
@@ -638,6 +639,8 @@ class DbApiHook(BaseHook):
         :param executemany: If True, all rows are inserted at once in
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
+        :param fast_executemany: If True, the fast_executemany parameter will be set on the
+            cursor used by executemany which leads to better performance, if supported by driver.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
@@ -646,6 +649,15 @@ class DbApiHook(BaseHook):
             conn.commit()
             with closing(conn.cursor()) as cur:
                 if self.supports_executemany or executemany:
+                    if fast_executemany:
+                        with contextlib.suppress(AttributeError):
+                            # Try to set the fast_executemany attribute
+                            cur.fast_executemany = True
+                            self.log.info(
+                                "Fast_executemany is enabled for conn_id '%s'!",
+                                self.get_conn_id(),
+                            )
+
                     for chunked_rows in chunked(rows, commit_every):
                         values = list(
                             map(
