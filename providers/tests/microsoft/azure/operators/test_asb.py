@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from azure.servicebus import ServiceBusMessage
 
 try:
     from azure.servicebus import ServiceBusMessage
@@ -37,6 +38,7 @@ from airflow.providers.microsoft.azure.operators.asb import (
     AzureServiceBusTopicDeleteOperator,
     AzureServiceBusUpdateSubscriptionOperator,
 )
+from airflow.utils.context import Context
 
 QUEUE_NAME = "test_queue"
 MESSAGE = "Test Message"
@@ -216,21 +218,22 @@ class TestAzureServiceBusReceiveMessageOperator:
         Test AzureServiceBusReceiveMessageOperator by mock connection, values
         and the service bus receive message
         """
-        mock_service_bus_message = ServiceBusMessage("Test message")
+        mock_service_bus_message = ServiceBusMessage("Test message with context")
         mock_get_conn.return_value.__enter__.return_value.get_queue_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
             mock_service_bus_message
         ]
 
         messages_received = []
 
-        def message_callback(msg):
+        def message_callback(msg: ServiceBusMessage, context: Context):
             messages_received.append(msg)
+            assert context is not None
             print(msg)
 
         asb_receive_queue_operator = AzureServiceBusReceiveMessageOperator(
             task_id="asb_receive_message_queue", queue_name=QUEUE_NAME, message_callback=message_callback
         )
-        asb_receive_queue_operator.execute(None)
+        asb_receive_queue_operator.execute(Context())
         assert len(messages_received) == 1
         assert messages_received[0] == mock_service_bus_message
 
@@ -470,8 +473,9 @@ class TestASBSubscriptionReceiveMessageOperator:
 
         messages_received = []
 
-        def message_callback(msg):
+        def message_callback(msg: ServiceBusMessage, context: Context):
             messages_received.append(msg)
+            assert context is not None
             print(msg)
 
         asb_subscription_receive_message = ASBReceiveSubscriptionMessageOperator(
@@ -482,7 +486,7 @@ class TestASBSubscriptionReceiveMessageOperator:
             message_callback=message_callback,
         )
 
-        asb_subscription_receive_message.execute(None)
+        asb_subscription_receive_message.execute(Context())
         expected_calls = [
             mock.call()
             .__enter__()
