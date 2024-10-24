@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam, UpdateMask
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.variables import (
@@ -125,7 +125,7 @@ async def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
     session: Annotated[Session, Depends(get_session)],
-    update_mask: UpdateMask | None = Query(None),
+    update_mask: list[str] | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
     if patch_body.key != variable_key:
@@ -144,7 +144,6 @@ async def patch_variable(
         )
     else:
         data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
-    print(data)
     for key, val in data.items():
         setattr(variable, key, val)
     return VariableResponse.model_validate(variable, from_attributes=True)

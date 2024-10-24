@@ -41,7 +41,6 @@ from airflow.api_fastapi.common.parameters import (
     QueryPausedFilter,
     QueryTagsFilter,
     SortParam,
-    UpdateMask,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -197,7 +196,7 @@ async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
     session: Annotated[Session, Depends(get_session)],
-    update_mask: UpdateMask | None = Query(None),
+    update_mask: list[str] | None = Query(None),
 ) -> DAGResponse:
     """Patch the specific DAG."""
     dag = session.get(DagModel, dag_id)

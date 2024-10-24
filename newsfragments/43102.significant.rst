@@ -1,0 +1,5 @@
+Change in update model endpoints (PATCH) ``update_mask``
+
+The ``update_mask`` parameter in the PATCH endpoints has been updated to explode (true) by default.
+Before: ``http://<URL>:<PORT>/<PATH>?update_mask=item1,item2``
+After: ``http://<URL>:<PORT>/<PATH>?update_mask=item1&update_mask=item2``
