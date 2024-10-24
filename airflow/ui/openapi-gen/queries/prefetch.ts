@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagStatsService,
   DashboardService,
   MonitorService,
   PluginService,
@@ -428,4 +429,24 @@ export const prefetchUsePluginServiceGetPlugins = (
   queryClient.prefetchQuery({
     queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
     queryFn: () => PluginService.getPlugins({ limit, offset }),
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagStatsServiceGetDagStats = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+  }: {
+    dagIds?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });

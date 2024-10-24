@@ -11,6 +11,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagStatsService,
   DashboardService,
   MonitorService,
   PluginService,
@@ -560,6 +561,32 @@ export const usePluginServiceGetPlugins = <
       queryKey,
     ),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    ...options,
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagStatsServiceGetDagStats = <
+  TData = Common.DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+  }: {
+    dagIds?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
     ...options,
   });
 /**

@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagStatsService,
   DashboardService,
   MonitorService,
   PluginService,
@@ -345,6 +346,22 @@ export const UsePluginServiceGetPluginsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
+  ReturnType<typeof DagStatsService.getDagStats>
+>;
+export type DagStatsServiceGetDagStatsQueryResult<
+  TData = DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";
+export const UseDagStatsServiceGetDagStatsKeyFn = (
+  {
+    dagIds,
+  }: {
+    dagIds?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;

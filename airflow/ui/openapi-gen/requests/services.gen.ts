@@ -54,6 +54,8 @@ import type {
   GetProvidersResponse,
   GetPluginsData,
   GetPluginsResponse,
+  GetDagStatsData,
+  GetDagStatsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -803,6 +805,35 @@ export class PluginService {
       },
       errors: {
         422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagStatsService {
+  /**
+   * Get Dag Stats
+   * Get Dag statistics.
+   * @param data The data for the request.
+   * @param data.dagIds
+   * @returns DagStatsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagStats(
+    data: GetDagStatsData = {},
+  ): CancelablePromise<GetDagStatsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagStats/",
+      query: {
+        dag_ids: data.dagIds,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Unprocessable Entity",
       },
     });
   }
