@@ -21,8 +21,6 @@ from abc import abstractmethod
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk.types import NOTSET, ArgNotSet
-
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator
     from airflow.sdk.definitions.edges import EdgeModifier
@@ -72,8 +70,8 @@ class DependencyMixin:
     def as_teardown(
         self,
         *,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
-        on_failure_fail_dagrun: bool | ArgNotSet = NOTSET,
+        setups: BaseOperator | Iterable[BaseOperator] | None = None,
+        on_failure_fail_dagrun: bool | None = None,
     ) -> DependencyMixin:
         """Mark a task as teardown and set its setups as direct relatives."""
         raise NotImplementedError()

@@ -393,15 +393,15 @@ class PlainXComArg(XComArg):
     def as_teardown(
         self,
         *,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
-        on_failure_fail_dagrun=NOTSET,
+        setups: BaseOperator | Iterable[BaseOperator] | None = None,
+        on_failure_fail_dagrun: bool | None = None,
     ):
         for operator, _ in self.iter_references():
             operator.is_teardown = True
             operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-            if on_failure_fail_dagrun is not NOTSET:
+            if on_failure_fail_dagrun is not None:
                 operator.on_failure_fail_dagrun = on_failure_fail_dagrun
-            if not isinstance(setups, ArgNotSet):
+            if setups is not None:
                 setups = [setups] if isinstance(setups, DependencyMixin) else setups
                 for s in setups:
                     s.is_setup = True

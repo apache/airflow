@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 from collections import deque
 from types import ModuleType
-from typing import Any, Generic, Optional, TypeVar, cast
+from typing import Any, Generic, TypeVar
 
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.taskgroup import TaskGroup
@@ -109,7 +109,7 @@ class DagContext(ContextStack[DAG]):
 
     @classmethod
     def get_current_dag(cls) -> DAG | None:
-        return cast(Optional[DAG], cls.get_current())
+        return cls.get_current()
 
 
 class TaskGroupContext(ContextStack[TaskGroup]):
