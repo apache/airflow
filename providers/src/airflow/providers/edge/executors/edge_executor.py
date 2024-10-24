@@ -96,6 +96,7 @@ class EdgeExecutor(BaseExecutor):
             session.query(EdgeWorkerModel)
             .filter(
                 EdgeWorkerModel.state != EdgeWorkerState.UNKNOWN
+                and EdgeWorkerModel.state != EdgeWorkerState.OFFLINE
                 and EdgeWorkerModel.last_update
                 < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5))
             )

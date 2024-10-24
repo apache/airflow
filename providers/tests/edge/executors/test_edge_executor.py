@@ -160,14 +160,23 @@ class TestEdgeExecutor:
 
         # Prepare some data
         with create_session() as session:
-            for worker_name, last_heartbeat in [
-                ("inactive_timed_out_worker", datetime(2023, 1, 1, 0, 59, 0, tzinfo=timezone.utc)),
-                ("active_worker", datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc)),
+            for worker_name, state, last_heartbeat in [
+                (
+                    "inactive_timed_out_worker",
+                    EdgeWorkerState.IDLE,
+                    datetime(2023, 1, 1, 0, 59, 0, tzinfo=timezone.utc),
+                ),
+                ("active_worker", EdgeWorkerState.IDLE, datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc)),
+                (
+                    "offline_worker",
+                    EdgeWorkerState.OFFLINE,
+                    datetime(2023, 1, 1, 0, 59, 10, tzinfo=timezone.utc),
+                ),
             ]:
                 session.add(
                     EdgeWorkerModel(
                         worker_name=worker_name,
-                        state=EdgeWorkerState.IDLE,
+                        state=state,
                         last_update=last_heartbeat,
                         queues="",
                         first_online=timezone.utcnow(),
@@ -184,7 +193,9 @@ class TestEdgeExecutor:
         with create_session() as session:
             for worker in session.query(EdgeWorkerModel).all():
                 print(worker.worker_name)
-                if "inactive_" in worker.worker_name:
+                if "offline_" in worker.worker_name:
+                    assert worker.state == EdgeWorkerState.OFFLINE
+                elif "inactive_" in worker.worker_name:
                     assert worker.state == EdgeWorkerState.UNKNOWN
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
