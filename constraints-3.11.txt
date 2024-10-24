@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-23T19:03:15.993849
+# This constraints file was automatically generated on 2024-10-24T00:47:57.991436
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -339,8 +339,8 @@ google-cloud-dataflow-client==0.8.12
 google-cloud-dataform==0.5.11
 google-cloud-dataplex==2.2.2
 google-cloud-dataproc-metastore==1.15.5
-google-cloud-dataproc==5.13.0
-google-cloud-dlp==3.23.0
+google-cloud-dataproc==5.14.0
+google-cloud-dlp==3.24.0
 google-cloud-kms==3.0.0
 google-cloud-language==2.14.0
 google-cloud-logging==3.11.3
@@ -358,7 +358,7 @@ google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.18.0
+google-cloud-texttospeech==2.19.0
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -489,7 +489,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.52.1
+openai==1.52.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
