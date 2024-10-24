@@ -33,6 +33,7 @@ except ImportError:
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
+from airflow.utils.context import Context
 
 MESSAGE = "Test Message"
 MESSAGE_LIST = [f"{MESSAGE} {n}" for n in range(10)]
@@ -256,7 +257,7 @@ class TestMessageHook:
         mock_sb_client.return_value.get_queue_receiver.return_value.receive_messages.return_value = [
             mock_service_bus_message
         ]
-        hook.receive_message(self.queue_name)
+        hook.receive_message(self.queue_name, Context())
         expected_calls = [
             mock.call()
             .__enter__()
@@ -285,12 +286,13 @@ class TestMessageHook:
 
         received_messages = []
 
-        def message_callback(msg: Any) -> None:
+        def message_callback(msg: Any, context: Context) -> None:
             nonlocal received_messages
             print("received message:", msg)
+            assert context is not None
             received_messages.append(msg)
 
-        hook.receive_message(self.queue_name, message_callback=message_callback)
+        hook.receive_message(self.queue_name, Context(), message_callback=message_callback)
 
         assert len(received_messages) == 1
         assert received_messages[0] == mock_service_bus_message
@@ -316,7 +318,9 @@ class TestMessageHook:
         max_message_count = 10
         max_wait_time = 5
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
-        hook.receive_subscription_message(topic_name, subscription_name, max_message_count, max_wait_time)
+        hook.receive_subscription_message(
+            topic_name, subscription_name, Context(), max_message_count, max_wait_time
+        )
         expected_calls = [
             mock.call()
             .__enter__()
@@ -350,13 +354,19 @@ class TestMessageHook:
 
         received_messages = []
 
-        def message_callback(msg: ServiceBusMessage) -> None:
+        def message_callback(msg: ServiceBusMessage, context: Context) -> None:
             nonlocal received_messages
             print("received message:", msg)
+            assert context is not None
             received_messages.append(msg)
 
         hook.receive_subscription_message(
-            topic_name, subscription_name, max_message_count, max_wait_time, message_callback=message_callback
+            topic_name,
+            subscription_name,
+            Context(),
+            max_message_count,
+            max_wait_time,
+            message_callback=message_callback,
         )
 
         assert len(received_messages) == 2
