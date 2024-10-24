@@ -26,6 +26,7 @@ from airflow.decorators import dag, task_group
 from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import MappedTaskGroup
+from airflow.utils.trigger_rule import TriggerRule
 
 
 def test_task_group_with_overridden_kwargs():
@@ -131,6 +132,28 @@ def test_expand_fail_empty():
     with pytest.raises(TypeError) as ctx:
         pipeline()
     assert str(ctx.value) == "no arguments to expand against"
+
+
+def test_expand_fail_trigger_rule_always(dag_maker, session):
+    with pytest.raises(  # noqa: PT012, check decorators required more than one line
+        ValueError, match="Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'"
+    ):
+        with dag_maker(dag_id="expand_fail_trigger_rule_always", session=session) as dag:
+
+            @dag.task
+            def get_param():
+                return ["a", "b", "c"]
+
+            @dag.task(trigger_rule=TriggerRule.ALWAYS)
+            def t1(param):
+                return param
+
+            @task_group()
+            def tg(param):
+                t1(param)
+
+            tg.expand(param=get_param())
+    session.flush()
 
 
 def test_expand_create_mapped():
