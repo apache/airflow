@@ -57,6 +57,7 @@ from airflow.task.priority_strategy import (
     validate_and_load_priority_weight_strategy,
 )
 from airflow.utils import timezone
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import AttributeRemoved
 
@@ -854,11 +855,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
-        self._is_setup = False
-        self._is_teardown = False
-        # TODO: Task-SDK
-        # if SetupTeardownContext.active:
-        #     SetupTeardownContext.update_context_map(self)
+        self.is_setup = False
+        self.is_teardown = False
+
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
 
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
@@ -944,7 +945,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
+        shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
         for k, v in self.__dict__.items():
             if k not in shallow_copy:
@@ -1173,8 +1174,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
-                    "_is_setup",
-                    "_is_teardown",
                     "_on_failure_fail_dagrun",
                 }
                 | {  # Class level defaults need to be added to this list

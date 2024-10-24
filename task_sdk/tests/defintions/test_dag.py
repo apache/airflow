@@ -248,6 +248,39 @@ class TestDag:
         # Make sure we don't affect the original!
         assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
 
+    def test_dag_owner_links(self):
+        dag = DAG(
+            "dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            owner_links={"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"},
+        )
+
+        assert dag.owner_links == {"owner1": "https://mylink.com", "owner2": "mailto:someone@yoursite.com"}
+
+        # Check wrong formatted owner link
+        with pytest.raises(ValueError, match="Wrong link format"):
+            DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
+
+        dag = DAG("dag", schedule=None, start_date=DEFAULT_DATE)
+        dag.owner_links["owner1"] = "my-bad-link"
+        with pytest.raises(ValueError, match="Wrong link format"):
+            dag.validate()
+
+    def test_continuous_schedule_linmits_max_active_runs(self):
+        from airflow.timetables.simple import ContinuousTimetable
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 1
+
+        dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=0)
+        assert isinstance(dag.timetable, ContinuousTimetable)
+        assert dag.max_active_runs == 0
+
+        with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
+            dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
+
 
 # Test some of the arg valiadtion. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
@@ -255,6 +288,7 @@ class TestDag:
     [
         pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
         pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
+        pytest.param("max_active_runs", "not_an_int", id="max_active_runs"),
     ],
 )
 def test_invalid_type_for_args(attr: str, value: Any):

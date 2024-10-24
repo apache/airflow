@@ -211,6 +211,13 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         else:
             return self.downstream_task_ids
 
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable[Operator]:
+        """Get list of the direct relatives to the current task, upstream or downstream."""
+        if upstream:
+            return self.upstream_list
+        else:
+            return self.downstream_list
+
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Serialize a task group's content; used by TaskGroupSerialization."""
         raise NotImplementedError()
