@@ -77,7 +77,7 @@ class FinancialServicesDeleteInstanceOperator(GoogleCloudBaseOperator):
         Defaults to "google_cloud_default".
     """
 
-    template_fields: Sequence[str] = "instance_resource_uri"
+    template_fields: Sequence[str] = ("instance_resource_uri",)
 
     def __init__(
         self,
@@ -109,7 +109,7 @@ class FinancialServicesGetInstanceOperator(GoogleCloudBaseOperator):
         Defaults to "google_cloud_default".
     """
 
-    template_fields: Sequence[str] = "instance_resource_uri"
+    template_fields: Sequence[str] = ("instance_resource_uri",)
 
     def __init__(
         self,
