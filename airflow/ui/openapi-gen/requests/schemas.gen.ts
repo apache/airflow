@@ -1326,20 +1326,6 @@ export const $PluginResponse = {
       type: "string",
       title: "Name",
     },
-    hooks: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Hooks",
-    },
-    executors: {
-      items: {
-        type: "string",
-      },
-      type: "array",
-      title: "Executors",
-    },
     macros: {
       items: {
         type: "string",
@@ -1418,8 +1404,6 @@ export const $PluginResponse = {
   type: "object",
   required: [
     "name",
-    "hooks",
-    "executors",
     "macros",
     "flask_blueprints",
     "fastapi_apps",
@@ -1434,6 +1418,58 @@ export const $PluginResponse = {
   ],
   title: "PluginResponse",
   description: "Plugin serializer.",
+} as const;
+
+export const $PoolBody = {
+  properties: {
+    pool: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pool",
+    },
+    slots: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Include Deferred",
+    },
+  },
+  type: "object",
+  title: "PoolBody",
+  description: "Pool serializer for bodies.",
 } as const;
 
 export const $PoolCollectionResponse = {

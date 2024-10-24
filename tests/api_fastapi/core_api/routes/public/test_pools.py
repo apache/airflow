@@ -126,3 +126,158 @@ class TestGetPools(TestPoolsEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [pool["name"] for pool in body["pools"]] == expected_ids
+
+
+class TestPatchPool(TestPoolsEndpoint):
+    @pytest.mark.parametrize(
+        "pool_name, query_params, body, expected_status_code, expected_response",
+        [
+            # Error
+            (
+                Pool.DEFAULT_POOL_NAME,
+                {},
+                {},
+                400,
+                {"detail": "Only slots and included_deferred can be modified on Default Pool"},
+            ),
+            (
+                Pool.DEFAULT_POOL_NAME,
+                {"update_mask": ["description"]},
+                {},
+                400,
+                {"detail": "Only slots and included_deferred can be modified on Default Pool"},
+            ),
+            (
+                "unknown_pool",
+                {},
+                {},
+                404,
+                {"detail": "The Pool with name: `unknown_pool` was not found"},
+            ),
+            (
+                POOL1_NAME,
+                {},
+                {},
+                422,
+                {
+                    "detail": [
+                        {
+                            "input": None,
+                            "loc": ["pool"],
+                            "msg": "Input should be a valid string",
+                            "type": "string_type",
+                        },
+                        {
+                            "input": None,
+                            "loc": ["slots"],
+                            "msg": "Input should be a valid integer",
+                            "type": "int_type",
+                        },
+                        {
+                            "input": None,
+                            "loc": ["include_deferred"],
+                            "msg": "Input should be a valid boolean",
+                            "type": "bool_type",
+                        },
+                    ],
+                },
+            ),
+            # Success
+            # Partial body
+            (
+                POOL1_NAME,
+                {"update_mask": ["name"]},
+                {"slots": 150, "name": "pool_1_updated"},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": None,
+                    "include_deferred": True,
+                    "name": "pool_1_updated",
+                    "occupied_slots": 0,
+                    "open_slots": 3,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 3,
+                },
+            ),
+            # Partial body on default_pool
+            (
+                Pool.DEFAULT_POOL_NAME,
+                {"update_mask": ["slots"]},
+                {"slots": 150},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": "Default pool",
+                    "include_deferred": False,
+                    "name": "default_pool",
+                    "occupied_slots": 0,
+                    "open_slots": 150,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 150,
+                },
+            ),
+            # Partial body on default_pool alternate
+            (
+                Pool.DEFAULT_POOL_NAME,
+                {"update_mask": ["slots", "include_deferred"]},
+                {"slots": 150, "include_deferred": True},
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": "Default pool",
+                    "include_deferred": True,
+                    "name": "default_pool",
+                    "occupied_slots": 0,
+                    "open_slots": 150,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 150,
+                },
+            ),
+            # Full body
+            (
+                POOL1_NAME,
+                {},
+                {
+                    "slots": 8,
+                    "description": "Description Updated",
+                    "name": "pool_1_updated",
+                    "include_deferred": False,
+                },
+                200,
+                {
+                    "deferred_slots": 0,
+                    "description": "Description Updated",
+                    "include_deferred": False,
+                    "name": "pool_1_updated",
+                    "occupied_slots": 0,
+                    "open_slots": 8,
+                    "queued_slots": 0,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 8,
+                },
+            ),
+        ],
+    )
+    def test_should_respond_200(
+        self, test_client, session, pool_name, query_params, body, expected_status_code, expected_response
+    ):
+        self.create_pools()
+        response = test_client.patch(f"/public/pools/{pool_name}", params=query_params, json=body)
+        assert response.status_code == expected_status_code
+
+        body = response.json()
+
+        if response.status_code == 422:
+            for error in body["detail"]:
+                # pydantic version can vary in tests (lower constraints), we do not assert the url.
+                del error["url"]
+
+        assert body == expected_response

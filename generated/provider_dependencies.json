@@ -571,7 +571,7 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.5.0",
+      "flask-appbuilder==4.5.2",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
@@ -625,7 +625,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",
@@ -1279,6 +1279,7 @@
   },
   "standard": {
     "deps": [
+      "apache-airflow-providers-common-sql>=1.18.0",
       "apache-airflow>=2.10.0"
     ],
     "devel-deps": [],

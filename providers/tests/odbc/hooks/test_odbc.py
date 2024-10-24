@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 from dataclasses import dataclass
 from unittest import mock
 from unittest.mock import patch
@@ -365,3 +366,11 @@ class TestOdbcHook:
         hook = mock_hook(OdbcHook, conn_params={"extra": {"dialect": "oracle"}})
         hook.get_uri = raise_argument_error
         assert hook.dialect_name == "oracle"
+
+    def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
+        hook = mock_hook(OdbcHook, conn_params={"extra": {"sqlalchemy_scheme": "sqlite"}})
+
+        with sqlite3.connect(":memory:") as connection:
+            hook.get_conn = lambda: connection
+            engine = hook.get_sqlalchemy_engine()
+            assert engine.connect().connection.connection == connection

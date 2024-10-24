@@ -194,6 +194,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-merge-conflict                                      | Check that merge conflicts are not being committed     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-min-python-version                                  | Check minimum Python version                           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers             |         |
