@@ -17,18 +17,9 @@
 
 from __future__ import annotations
 
-import pathlib
 from unittest import mock
 
 import pytest
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_configure(config: pytest.Config) -> None:
-    dep_path = [pathlib.Path(__file__).parent.joinpath("deprecations_ignore.yml")]
-    config.inicfg["airflow_deprecations_ignore"] = (
-        config.inicfg.get("airflow_deprecations_ignore", []) + dep_path  # type: ignore[assignment,operator]
-    )
 
 
 @pytest.fixture
