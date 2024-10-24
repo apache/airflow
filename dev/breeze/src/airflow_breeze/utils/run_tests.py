@@ -31,6 +31,7 @@ from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
+COMMON_TESTS_PYTEST_PLUGIN = "tests_common.pytest_plugin"
 
 
 def verify_an_image(
@@ -336,6 +337,7 @@ def generate_args_for_pytest(
             # P - passed with output
             #
             "-rfEX",
+            f"-p {COMMON_TESTS_PYTEST_PLUGIN}",
         ]
     )
     if skip_db_tests:
