@@ -27,7 +27,6 @@ from airflow.configuration import conf
 from airflow.utils.usage_data_collection import (
     get_database_version,
     get_python_version,
-    to_bucket,
     usage_data_collection,
 )
 
@@ -101,20 +100,3 @@ def test_get_database_version(version_info, expected_version):
 def test_get_python_version(version_info, expected_version):
     with mock.patch("platform.python_version", return_value=version_info):
         assert get_python_version() == expected_version
-
-
-@pytest.mark.parametrize(
-    "counter, expected_bucket",
-    [
-        (0, "0"),
-        (1, "1-5"),
-        (5, "1-5"),
-        (6, "6-10"),
-        (11, "11-20"),
-        (20, "11-20"),
-        (21, "21-50"),
-        (10000, "2000+"),
-    ],
-)
-def test_to_bucket(counter, expected_bucket):
-    assert to_bucket(counter) == expected_bucket

@@ -118,7 +118,7 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
+from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
@@ -217,45 +217,6 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
-
-
-def build_scarf_url(dags_count: int) -> str:
-    """
-    Build the URL for the Scarf usage data collection.
-
-    :meta private:
-    """
-    if not settings.is_usage_data_collection_enabled():
-        return ""
-
-    scarf_domain = "https://apacheairflow.gateway.scarf.sh"
-    platform_sys, platform_arch = usage_data_collection.get_platform_info()
-    db_version = usage_data_collection.get_database_version()
-    db_name = usage_data_collection.get_database_name()
-    executor = usage_data_collection.get_executor()
-    python_version = usage_data_collection.get_python_version()
-    plugin_counts = usage_data_collection.get_plugin_counts()
-    plugins_count = plugin_counts["plugins"]
-    flask_blueprints_count = plugin_counts["flask_blueprints"]
-    appbuilder_views_count = plugin_counts["appbuilder_views"]
-    appbuilder_menu_items_count = plugin_counts["appbuilder_menu_items"]
-    timetables_count = plugin_counts["timetables"]
-    dag_bucket = usage_data_collection.to_bucket(dags_count)
-    plugins_bucket = usage_data_collection.to_bucket(plugins_count)
-    timetable_bucket = usage_data_collection.to_bucket(timetables_count)
-
-    # Path Format:
-    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}/{plugin_count}/{flask_blueprint_count}/{appbuilder_view_count}/{appbuilder_menu_item_count}/{timetables}
-    #
-    # This path redirects to a Pixel tracking URL
-    scarf_url = (
-        f"{scarf_domain}/webserver"
-        f"/{version}/{python_version}"
-        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dag_bucket}"
-        f"/{plugins_bucket}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetable_bucket}"
-    )
-
-    return scarf_url
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -815,19 +776,22 @@ class Airflow(AirflowBaseView):
             return redirect(url_for("Airflow.index"))
 
         filter_tags_cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+
+        # update filter args in url from session values if needed
+        if (not arg_tags_filter and filter_tags_cookie_val) or (
+            not arg_lastrun_filter and filter_lastrun_cookie_val
+        ):
+            tags = arg_tags_filter or (filter_tags_cookie_val and filter_tags_cookie_val.split(","))
+            lastrun = arg_lastrun_filter or filter_lastrun_cookie_val
+            return redirect(url_for("Airflow.index", tags=tags, lastrun=lastrun))
+
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
-        elif filter_tags_cookie_val:
-            # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", tags=filter_tags_cookie_val.split(",")))
 
-        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
         if arg_lastrun_filter:
             arg_lastrun_filter = arg_lastrun_filter.strip().lower()
             flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
-        elif filter_lastrun_cookie_val:
-            # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", lastrun=filter_lastrun_cookie_val))
 
         if arg_status_filter is None:
             filter_status_cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -1126,11 +1090,6 @@ class Airflow(AirflowBaseView):
                     "warning",
                 )
 
-        try:
-            scarf_url = build_scarf_url(dags_count=all_dags_count)
-        except Exception:
-            scarf_url = ""
-
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
@@ -1170,7 +1129,6 @@ class Airflow(AirflowBaseView):
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
-            scarf_url=scarf_url,
             file_tokens=file_tokens,
         )
 

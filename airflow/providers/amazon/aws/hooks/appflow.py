@@ -117,9 +117,9 @@ class AppflowHook(AwsGenericHook["AppflowClient"]):
 
         self.conn.update_flow(
             flowName=response["flowName"],
-            destinationFlowConfigList=response["destinationFlowConfigList"],
-            sourceFlowConfig=response["sourceFlowConfig"],
-            triggerConfig=response["triggerConfig"],
+            destinationFlowConfigList=response["destinationFlowConfigList"],  # type: ignore[arg-type]
+            sourceFlowConfig=response["sourceFlowConfig"],  # type: ignore[arg-type]
+            triggerConfig=response["triggerConfig"],  # type: ignore[arg-type]
             description=response.get("description", "Flow description."),
-            tasks=tasks,
+            tasks=tasks,  # type: ignore[arg-type]
         )

@@ -308,6 +308,8 @@ jobs:
           --hook-stage manual
           update-build-dependencies
         if: always()
+        env:
+          SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run

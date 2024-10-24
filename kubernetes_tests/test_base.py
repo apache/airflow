@@ -29,6 +29,7 @@ import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
+from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
@@ -123,7 +124,12 @@ class BaseK8STest:
     def _get_session_with_retries(self):
         session = requests.Session()
         session.auth = ("admin", "admin")
-        retries = Retry(total=3, backoff_factor=1)
+        retries = Retry(
+            total=3,
+            backoff_factor=10,
+            status_forcelist=[404],
+            allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
+        )
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
         return session
@@ -218,7 +224,22 @@ class BaseK8STest:
     def start_dag(self, dag_id, host):
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
-        result = self.session.patch(patch_string, json={"is_paused": False})
+        max_attempts = 10
+        result = {}
+        # This loop retries until the DAG parser finishes with max_attempts and the DAG is available for execution.
+        # Keep the try/catch block, as the session object has a default retry configuration.
+        # If a MaxRetryError is raised, it can be safely ignored, indicating that the DAG is not yet parsed.
+        while max_attempts:
+            try:
+                result = self.session.patch(patch_string, json={"is_paused": False})
+                if result.status_code == 200:
+                    break
+            except MaxRetryError:
+                pass
+
+            time.sleep(30)
+            max_attempts -= 1
+
         try:
             result_json = result.json()
         except ValueError:

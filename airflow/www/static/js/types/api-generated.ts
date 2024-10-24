@@ -1299,7 +1299,7 @@ export interface components {
     };
     /** @description Collection of DAG warnings. */
     DagWarningCollection: {
-      import_errors?: components["schemas"]["DagWarning"][];
+      dag_warnings?: components["schemas"]["DagWarning"][];
     } & components["schemas"]["CollectionInfo"];
     SetDagRunNote: {
       /** @description Custom notes left by users for this Dag Run. */
@@ -4652,6 +4652,8 @@ export interface operations {
          *
          * If set to true (default) the Any value will be returned as string, e.g. a Python representation
          * of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+         *
+         * This parameter is not meaningful when using XCom pickling, then it is always returned as string.
          *
          * *New in version 2.10.0*
          */

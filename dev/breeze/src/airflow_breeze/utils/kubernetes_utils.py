@@ -33,9 +33,11 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_ARCHITECTURES,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     HELM_VERSION,
     KIND_VERSION,
     PIP_VERSION,
@@ -299,7 +301,7 @@ def _requirements_changed() -> bool:
 
 
 def _install_packages_in_k8s_virtualenv():
-    install_command = [
+    install_command_no_constraints = [
         str(PYTHON_BIN_PATH),
         "-m",
         "pip",
@@ -311,16 +313,42 @@ def _install_packages_in_k8s_virtualenv():
     capture_output = True
     if get_verbose():
         capture_output = False
+    python_major_minor_version = run_command(
+        [
+            str(PYTHON_BIN_PATH),
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
+    install_command_with_constraints = install_command_no_constraints.copy()
+    install_command_with_constraints.extend(
+        [
+            "--constraint",
+            "https://raw.githubusercontent.com/"
+            f"{APACHE_AIRFLOW_GITHUB_REPOSITORY}/"
+            f"constraints-{AIRFLOW_BRANCH}/constraints-{python_major_minor_version}.txt",
+        ],
+    )
     install_packages_result = run_command(
-        install_command, check=False, capture_output=capture_output, text=True, env=env
+        install_command_with_constraints, check=False, capture_output=capture_output, text=True, env=env
     )
     if install_packages_result.returncode != 0:
-        get_console().print(
-            f"[error]Error when installing packages from : {K8S_REQUIREMENTS_PATH.resolve()}[/]\n"
-        )
         if not get_verbose():
             get_console().print(install_packages_result.stdout)
             get_console().print(install_packages_result.stderr)
+        install_packages_result = run_command(
+            install_command_no_constraints, check=False, capture_output=capture_output, text=True, env=env
+        )
+        if install_packages_result.returncode != 0:
+            get_console().print(
+                f"[error]Error when installing packages from : {K8S_REQUIREMENTS_PATH.resolve()}[/]\n"
+            )
+            if not get_verbose():
+                get_console().print(install_packages_result.stdout)
+                get_console().print(install_packages_result.stderr)
     return install_packages_result
 
 

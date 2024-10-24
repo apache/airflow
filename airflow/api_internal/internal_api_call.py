@@ -21,6 +21,7 @@ import inspect
 import json
 import logging
 from functools import wraps
+from http import HTTPStatus
 from typing import Callable, TypeVar
 from urllib.parse import urlparse
 
@@ -38,6 +39,14 @@ PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
 logger = logging.getLogger(__name__)
+
+
+class AirflowHttpException(AirflowException):
+    """Raise when there is a problem during an http request on the internal API decorator."""
+
+    def __init__(self, message: str, status_code: HTTPStatus):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 class InternalApiConfig:
@@ -105,10 +114,27 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
     from requests.exceptions import ConnectionError
 
+    def _is_retryable_exception(exception: BaseException) -> bool:
+        """
+        Evaluate which exception types to retry.
+
+        This is especially demanded for cases where an application gateway or Kubernetes ingress can
+        not find a running instance of a webserver hosting the API (HTTP 502+504) or when the
+        HTTP request fails in general on network level.
+
+        Note that we want to fail on other general errors on the webserver not to send bad requests in an endless loop.
+        """
+        retryable_status_codes = (HTTPStatus.BAD_GATEWAY, HTTPStatus.GATEWAY_TIMEOUT)
+        return (
+            isinstance(exception, AirflowHttpException)
+            and exception.status_code in retryable_status_codes
+            or isinstance(exception, (ConnectionError, NewConnectionError))
+        )
+
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(10),
         wait=tenacity.wait_exponential(min=1),
-        retry=tenacity.retry_if_exception_type((NewConnectionError, ConnectionError)),
+        retry=tenacity.retry_if_exception(_is_retryable_exception),
         before_sleep=tenacity.before_log(logger, logging.WARNING),
     )
     def make_jsonrpc_request(method_name: str, params_json: str) -> bytes:
@@ -126,9 +152,10 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         internal_api_endpoint = InternalApiConfig.get_internal_api_endpoint()
         response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:
-            raise AirflowException(
+            raise AirflowHttpException(
                 f"Got {response.status_code}:{response.reason} when sending "
-                f"the internal api request: {response.text}"
+                f"the internal api request: {response.text}",
+                HTTPStatus(response.status_code),
             )
         return response.content
 
