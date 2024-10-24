@@ -295,7 +295,7 @@ class DagScheduleAssetAliasReference(Base):
 
     __tablename__ = "dag_schedule_asset_alias_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(alias_id, dag_id, name="asaar_pkey"),
+        PrimaryKeyConstraint(alias_id, dag_id, name="dsaar_pkey"),
         ForeignKeyConstraint(
             (alias_id,),
             ["asset_alias.id"],
