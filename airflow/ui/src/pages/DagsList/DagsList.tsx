@@ -33,6 +33,7 @@ import {
   useState,
 } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
@@ -132,19 +133,14 @@ const DAGS_LIST_DISPLAY = "dags_list_display";
 
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useState<"card" | "table">(() => {
-    const storage = localStorage.getItem(DAGS_LIST_DISPLAY);
-
-    if (storage === "card" || storage === "table") {
-      return storage;
-    }
-
-    return "card";
-  });
-  const updateDisplay = (newDisplay: "card" | "table") => {
-    localStorage.setItem(DAGS_LIST_DISPLAY, newDisplay);
-    setDisplay(newDisplay);
-  };
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(
+    DAGS_LIST_DISPLAY,
+    "card",
+    {
+      deserializer: (value) =>
+        value !== "card" && value !== "table" ? "card" : value,
+    },
+  );
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
@@ -251,7 +247,7 @@ export const DagsList = () => {
           )}
         </HStack>
       </VStack>
-      <ToggleTableDisplay display={display} setDisplay={updateDisplay} />
+      <ToggleTableDisplay display={display} setDisplay={setDisplay} />
       <DataTable
         cardDef={cardDef}
         columns={columns}
