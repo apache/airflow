@@ -48,7 +48,7 @@ class TestSchedulerHealthServer:
         self.mock_server.do_GET("/incorrect")
         mock_send_error.assert_called_with(404)
 
-    # This test is to ensure that if the scheduler is healthy, it returns a 200 status code.
+    # This test is to ensure that if the scheduler is healthy, it returns 200 status code.
     @mock.patch.object(BaseHTTPRequestHandler, "end_headers")
     @mock.patch.object(BaseHTTPRequestHandler, "send_response")
     @mock.patch("airflow.utils.scheduler_health.create_session")
@@ -60,7 +60,7 @@ class TestSchedulerHealthServer:
         mock_send_response.assert_called_once_with(200)
         mock_end_headers.assert_called_once()
 
-    # This test is to ensure that if the scheduler is unhealthy, it returns a 503 error code.
+    # This test is to ensure that if the scheduler is unhealthy, it returns 503 error code.
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
     @mock.patch("airflow.utils.scheduler_health.create_session")
     def test_unhealthy_scheduler(self, mock_session, mock_send_error):
@@ -70,7 +70,7 @@ class TestSchedulerHealthServer:
         self.mock_server.do_GET("/health")
         mock_send_error.assert_called_with(503)
 
-    # This test is to ensure that if there's no scheduler job running, it returns a 503 error code.
+    # This test is to ensure that if there's no scheduler job running, it returns 503 error code.
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
     @mock.patch("airflow.utils.scheduler_health.create_session")
     def test_missing_scheduler(self, mock_session, mock_send_error):
