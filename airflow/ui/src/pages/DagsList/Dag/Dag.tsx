@@ -16,11 +16,72 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
+import {
+  Box,
+  Button,
+  Progress,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+} from "@chakra-ui/react";
+import { FiChevronsLeft } from "react-icons/fi";
+import { Link as RouterLink, useParams } from "react-router-dom";
+
+import { useDagServiceGetDagDetails } from "openapi/queries";
+import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { Header } from "./Header";
 
 export const Dag = () => {
-  const params = useParams();
+  const { dagId } = useParams();
 
-  return <Box>{params.dagId}</Box>;
+  const {
+    data: dag,
+    error,
+    isLoading,
+  } = useDagServiceGetDagDetails({
+    dagId: dagId ?? "",
+  });
+
+  return (
+    <Box>
+      <Button
+        as={RouterLink}
+        color="blue.400"
+        leftIcon={<FiChevronsLeft />}
+        to="/dags"
+        variant="link"
+      >
+        Back to all dags
+      </Button>
+      <Header dag={dag} dagId={dagId} />
+      <ErrorAlert error={error} />
+      <Progress
+        isIndeterminate
+        size="xs"
+        visibility={isLoading ? "visible" : "hidden"}
+      />
+      <Tabs>
+        <TabList>
+          <Tab>Overview</Tab>
+          <Tab>Runs</Tab>
+          <Tab>Tasks</Tab>
+        </TabList>
+
+        <TabPanels>
+          <TabPanel>
+            <p>one!</p>
+          </TabPanel>
+          <TabPanel>
+            <p>two!</p>
+          </TabPanel>
+          <TabPanel>
+            <p>three!</p>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </Box>
+  );
 };
