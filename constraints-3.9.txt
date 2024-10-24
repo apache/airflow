@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-23T02:17:05.473988
+# This constraints file was automatically generated on 2024-10-24T02:16:26.205010
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -64,7 +64,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 SecretStorage==3.3.3
 Sphinx==5.3.0
-WTForms==3.1.2
+WTForms==3.2.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
@@ -97,7 +97,6 @@ anyascii==0.3.2
 anyio==4.6.2.post1
 apache-airflow-providers-airbyte==4.0.0
 apache-airflow-providers-alibaba==2.9.1
-apache-airflow-providers-amazon==9.0.0
 apache-airflow-providers-apache-beam==5.8.1
 apache-airflow-providers-apache-cassandra==3.6.0
 apache-airflow-providers-apache-drill==2.8.0
@@ -299,7 +298,7 @@ eventlet==0.37.0
 exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.1.0
-facebook_business==21.0.1
+facebook_business==21.0.3
 fastapi-cli==0.0.5
 fastapi==0.115.3
 fastavro==1.9.7
@@ -307,7 +306,7 @@ fasteners==0.19
 fastjsonschema==2.20.0
 filelock==3.16.1
 flower==2.0.1
-frozenlist==1.4.1
+frozenlist==1.5.0
 fsspec==2024.10.0
 future==1.0.0
 gcloud-aio-auth==5.3.2
@@ -341,8 +340,8 @@ google-cloud-dataflow-client==0.8.12
 google-cloud-dataform==0.5.11
 google-cloud-dataplex==2.2.2
 google-cloud-dataproc-metastore==1.15.5
-google-cloud-dataproc==5.13.0
-google-cloud-dlp==3.23.0
+google-cloud-dataproc==5.14.0
+google-cloud-dlp==3.24.0
 google-cloud-kms==3.0.0
 google-cloud-language==2.14.0
 google-cloud-logging==3.11.3
@@ -360,7 +359,7 @@ google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.18.0
+google-cloud-texttospeech==2.19.0
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -492,7 +491,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.52.1
+openai==1.52.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -547,7 +546,7 @@ prison==0.2.1
 prometheus_client==0.21.0
 prompt_toolkit==3.0.48
 propcache==0.2.0
-proto-plus==1.24.0
+proto-plus==1.25.0
 protobuf==4.25.5
 psutil==6.1.0
 psycopg2-binary==2.9.10
@@ -672,7 +671,6 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.14
 sqlalchemy-bigquery==1.12.0
-sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
 sqlalchemy_drill==1.1.5
 sqlparse==0.5.1
@@ -737,7 +735,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.24
+uv==0.4.26
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.33.0
@@ -763,5 +761,5 @@ zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
 zope.event==5.0
-zope.interface==7.1.0
+zope.interface==7.1.1
 zstandard==0.23.0
