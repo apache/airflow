@@ -32,11 +32,11 @@ const baseStyle = definePartsStyle(() => ({
       },
       "&:nth-of-type(odd)": {
         td: {
-          background: "minimal",
+          background: "blue.minimal",
         },
         "th, td": {
           borderBottomWidth: "0px",
-          borderColor: "subtle",
+          borderColor: "blue.subtle",
         },
       },
     },
@@ -72,16 +72,18 @@ const theme = extendTheme({
   },
   semanticTokens: {
     colors: {
-      /* eslint-disable perfectionist/sort-objects */
-      contrast: { _dark: "blue.200", _light: "blue.600" },
-      focusRing: "blue.500",
-      fg: { _dark: "blue.600", _light: "blue.400" },
-      emphasized: { _dark: "blue.700", _light: "blue.300" },
-      solid: { _dark: "blue.800", _light: "blue.200" },
-      muted: { _dark: "blue.900", _light: "blue.100" },
-      subtle: { _dark: "blue.950", _light: "blue.50" },
-      minimal: { _dark: "gray.900", _light: "blue.50" },
-      /* eslint-enable perfectionist/sort-objects */
+      blue: {
+        /* eslint-disable perfectionist/sort-objects */
+        contrast: { _dark: "blue.200", _light: "blue.600" },
+        focusRing: "blue.500",
+        fg: { _dark: "blue.600", _light: "blue.400" },
+        emphasized: { _dark: "blue.700", _light: "blue.300" },
+        solid: { _dark: "blue.800", _light: "blue.200" },
+        muted: { _dark: "blue.900", _light: "blue.100" },
+        subtle: { _dark: "blue.950", _light: "blue.50" },
+        minimal: { _dark: "gray.900", _light: "blue.50" },
+        /* eslint-enable perfectionist/sort-objects */
+      },
     },
   },
   styles: {

@@ -37,7 +37,7 @@ import { UserSettingsButton } from "./UserSettingsButton";
 export const Nav = () => (
   <VStack
     alignItems="center"
-    bg="muted"
+    bg="blue.muted"
     height="100%"
     justifyContent="space-between"
     left={0}

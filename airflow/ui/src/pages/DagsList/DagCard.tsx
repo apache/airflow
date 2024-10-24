@@ -40,17 +40,22 @@ type Props = {
 const MAX_TAGS = 3;
 
 export const DagCard = ({ dag }: Props) => (
-  <Box borderColor="minimal" borderRadius={8} borderWidth={1} overflow="hidden">
+  <Box
+    borderColor="blue.minimal"
+    borderRadius={8}
+    borderWidth={1}
+    overflow="hidden"
+  >
     <Flex
       alignItems="center"
-      bg="minimal"
+      bg="blue.minimal"
       justifyContent="space-between"
       px={3}
       py={2}
     >
       <HStack>
         <Tooltip hasArrow label={dag.description}>
-          <Heading color="contrast" fontSize="md">
+          <Heading color="blue.contrast" fontSize="md">
             {dag.dag_display_name}
           </Heading>
         </Tooltip>
