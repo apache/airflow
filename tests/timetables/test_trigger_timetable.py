@@ -37,7 +37,7 @@ PREV_DATA_INTERVAL_EXACT = DataInterval.exact(PREV_DATA_INTERVAL_END)
 CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
 
-HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", timezone=utc)
+HOURLY_CRON_TRIGGER_TIMETABLE = CronTriggerTimetable("@hourly", timezone=utc, run_immediately=True)
 
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
@@ -68,7 +68,11 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     next_start_time: pendulum.DateTime,
 ) -> None:
     """If ``catchup=False`` and start_date is a day before"""
-    timetable = CronTriggerTimetable("30 16 * * *", timezone=utc)
+    timetable = CronTriggerTimetable(
+        "30 16 * * *",
+        timezone=utc,
+        run_immediately=False,  # Should have no effect since earliest is not None
+    )
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
         restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
@@ -151,12 +155,6 @@ def test_hourly_cron_trigger_no_catchup_next_info(
             DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="no_last_automated_with_earliest_not_on_boundary",
         ),
-        pytest.param(
-            None,
-            None,
-            None,
-            id="no_last_automated_no_earliest",
-        ),
     ],
 )
 def test_hourly_cron_trigger_catchup_next_info(
@@ -207,18 +205,29 @@ def test_validate_failure() -> None:
 @pytest.mark.parametrize(
     "timetable, data",
     [
-        (HOURLY_CRON_TRIGGER_TIMETABLE, {"expression": "0 * * * *", "timezone": "UTC", "interval": 0}),
         (
-            CronTriggerTimetable("0 0 1 12 *", timezone=utc, interval=datetime.timedelta(hours=2)),
-            {"expression": "0 0 1 12 *", "timezone": "UTC", "interval": 7200.0},
+            HOURLY_CRON_TRIGGER_TIMETABLE,
+            {"expression": "0 * * * *", "run_immediately": True, "timezone": "UTC", "interval": 0.0},
+        ),
+        (
+            CronTriggerTimetable(
+                "0 0 1 12 *", timezone=utc, run_immediately=False, interval=datetime.timedelta(hours=2)
+            ),
+            {"expression": "0 0 1 12 *", "run_immediately": False, "timezone": "UTC", "interval": 7200.0},
         ),
         (
             CronTriggerTimetable(
                 "0 0 1 12 0",
                 timezone="Asia/Taipei",
+                run_immediately=False,
                 interval=dateutil.relativedelta.relativedelta(weekday=dateutil.relativedelta.MO),
             ),
-            {"expression": "0 0 1 12 0", "timezone": "Asia/Taipei", "interval": {"weekday": [0]}},
+            {
+                "expression": "0 0 1 12 0",
+                "run_immediately": False,
+                "timezone": "Asia/Taipei",
+                "interval": {"weekday": [0]},
+            },
         ),
     ],
 )
@@ -230,3 +239,49 @@ def test_serialization(timetable: CronTriggerTimetable, data: dict[str, typing.A
     assert tt._expression == timetable._expression
     assert tt._timezone == timetable._timezone
     assert tt._interval == timetable._interval
+
+
+JUST_AFTER = pendulum.datetime(year=2024, month=8, day=15, hour=3, minute=5)
+WAY_AFTER = pendulum.datetime(year=2024, month=8, day=15, hour=12, minute=5)
+PREVIOUS = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=15, hour=3))
+NEXT = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=16, hour=3))
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+@pytest.mark.parametrize(
+    "run_immediately, current_time, correct_interval",
+    [
+        (True, WAY_AFTER, PREVIOUS),
+        (False, JUST_AFTER, PREVIOUS),
+        (False, WAY_AFTER, NEXT),
+        (datetime.timedelta(minutes=10), JUST_AFTER, PREVIOUS),
+        (datetime.timedelta(minutes=10), WAY_AFTER, NEXT),
+    ],
+)
+def test_run_immediately(catchup, run_immediately, current_time, correct_interval):
+    timetable = CronTriggerTimetable(
+        "0 3 * * *",
+        timezone=utc,
+        run_immediately=run_immediately,
+    )
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+        )
+        assert next_info == correct_interval
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+def test_run_immediately_fast_dag(catchup):
+    timetable = CronTriggerTimetable(
+        "*/10 3 * * *",  # Runs every 10 minutes, so falls back to 5 min hardcoded limit on buffer time
+        timezone=utc,
+        run_immediately=False,
+    )
+    with time_machine.travel(JUST_AFTER, tick=False):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+        )
+        assert next_info == PREVIOUS
