@@ -49,7 +49,6 @@ from airflow.models.baseoperator import (
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.dag import DagContext
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
@@ -59,25 +58,26 @@ from airflow.models.expandinput import (
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG
     from airflow.models.expandinput import (
         ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
     from airflow.models.mappedoperator import ValidationSource
+    from airflow.sdk import DAG
     from airflow.utils.context import Context
     from airflow.utils.task_group import TaskGroup
 
@@ -141,13 +141,13 @@ def get_unique_task_id(
       ...
       task_id__20
     """
-    dag = dag or DagContext.get_current_dag()
+    dag = dag or DagContext.get_current()
     if not dag:
         return task_id
 
     # We need to check if we are in the context of TaskGroup as the task_id may
     # already be altered
-    task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+    task_group = task_group or TaskGroupContext.get_current(dag)
     tg_task_id = task_group.child_id(task_id) if task_group else task_id
 
     if tg_task_id not in dag.task_ids:
@@ -186,7 +186,7 @@ class DecoratedOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ("python_callable",)
+    shallow_copy_attrs: ClassVar[Sequence[str]] = ("python_callable",)
 
     def __init__(
         self,
@@ -428,8 +428,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
-        dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
-        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
+        dag = task_kwargs.pop("dag", None) or DagContext.get_current()
+        task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current(dag)
 
         default_args, partial_params = get_merged_defaults(
             dag=dag,
@@ -442,7 +442,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
-        base_signature = inspect.signature(BaseOperator)
+        base_signature = inspect.signature(TaskSDKBaseOperator)
         ignore = {
             "default_args",  # This is target we are working on now.
             "kwargs",  # A common name for a keyword argument.

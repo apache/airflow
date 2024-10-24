@@ -24,6 +24,7 @@ __all__ = [
     "ParamSpec",
     "Protocol",
     "Self",
+    "TypeAlias",
     "TypedDict",
     "TypeGuard",
     "runtime_checkable",
@@ -43,9 +44,9 @@ else:
     from typing_extensions import Literal  # type: ignore[assignment]
 
 if sys.version_info >= (3, 10):
-    from typing import ParamSpec, TypeGuard
+    from typing import ParamSpec, TypeAlias, TypeGuard
 else:
-    from typing_extensions import ParamSpec, TypeGuard
+    from typing_extensions import ParamSpec, TypeAlias, TypeGuard
 
 if sys.version_info >= (3, 11):
     from typing import Self

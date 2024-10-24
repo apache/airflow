@@ -470,6 +470,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
+    "--tb=short",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.

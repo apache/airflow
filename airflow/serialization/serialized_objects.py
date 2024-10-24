@@ -22,6 +22,7 @@ import collections.abc
 import datetime
 import enum
 import inspect
+import itertools
 import logging
 import weakref
 from functools import cache
@@ -59,6 +60,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -101,7 +103,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
+    from airflow.sdk.definitions.node import DAGNode
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
@@ -920,10 +922,11 @@ class BaseSerialization:
         to account for the case where the default value of the field is None but has the
         ``field = field or {}`` set.
         """
-        if attrname in cls._CONSTRUCTOR_PARAMS and (
-            cls._CONSTRUCTOR_PARAMS[attrname] is value or (value in [{}, []])
-        ):
-            return True
+        if attrname in cls._CONSTRUCTOR_PARAMS:
+            if cls._CONSTRUCTOR_PARAMS[attrname] is value or (value in [{}, []]):
+                return True
+            if cls._CONSTRUCTOR_PARAMS[attrname] is attrs.NOTHING and value is None:
+                return True
         return False
 
     @classmethod
@@ -1079,7 +1082,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     _CONSTRUCTOR_PARAMS = {
         k: v.default
-        for k, v in signature(BaseOperator.__init__).parameters.items()
+        for k, v in itertools.chain(
+            signature(BaseOperator.__init__).parameters.items(),
+            signature(TaskSDKBaseOperator.__init__).parameters.items(),
+        )
         if v.default is not v.empty
     }
 
@@ -1613,7 +1619,7 @@ class SerializedDAG(DAG, BaseSerialization):
             ]
             dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
-            serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
+            serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info
@@ -1633,7 +1639,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"], schedule=None)
+        dag = SerializedDAG(dag_id=encoded_dag["dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":
@@ -1668,20 +1674,21 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = set(v)
             # else use v as it is
 
-            setattr(dag, k, v)
+            object.__setattr__(dag, k, v)
 
         # Set _task_group
-        if "_task_group" in encoded_dag:
-            dag._task_group = TaskGroupSerialization.deserialize_task_group(
-                encoded_dag["_task_group"],
+        if "task_group" in encoded_dag:
+            tg = TaskGroupSerialization.deserialize_task_group(
+                encoded_dag["task_group"],
                 None,
                 dag.task_dict,
                 dag,
             )
+            object.__setattr__(dag, "task_group", tg)
         else:
             # This must be old data that had no task_group. Create a root TaskGroup and add
             # all tasks to it.
-            dag._task_group = TaskGroup.create_root(dag)
+            dag.task_group = TaskGroup.create_root(dag)
             for task in dag.tasks:
                 dag.task_group.add(task)
 
