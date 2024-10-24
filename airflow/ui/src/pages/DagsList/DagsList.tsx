@@ -136,10 +136,6 @@ export const DagsList = () => {
   const [display, setDisplay] = useLocalStorage<"card" | "table">(
     DAGS_LIST_DISPLAY,
     "card",
-    {
-      deserializer: (value) =>
-        value !== "card" && value !== "table" ? "card" : value,
-    },
   );
 
   const showPaused = searchParams.get(PAUSED_PARAM);
