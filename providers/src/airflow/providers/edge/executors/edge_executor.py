@@ -95,8 +95,7 @@ class EdgeExecutor(BaseExecutor):
         lifeless_workers: list[EdgeWorkerModel] = (
             session.query(EdgeWorkerModel)
             .filter(
-                EdgeWorkerModel.state != EdgeWorkerState.UNKNOWN
-                and EdgeWorkerModel.state != EdgeWorkerState.OFFLINE
+                EdgeWorkerModel.state not in (EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE)
                 and EdgeWorkerModel.last_update
                 < (timezone.utcnow() - timedelta(seconds=heartbeat_interval * 5))
             )
