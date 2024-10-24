@@ -881,31 +881,33 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag_model = self.session.get(DagModel, dag.dag_id)
 
             if self.want_serialized:
-                from airflow.models.dag_version import DagVersion
-                from airflow.models.dagcode import DagCode
-
                 self.serialized_model = SerializedDagModel(
                     dag, processor_subdir=self.dag_model.processor_subdir
                 )
-                self.session.merge(self.serialized_model)
-                serialized_dag = self._serialized_dag()
-                self._bag_dag_compat(serialized_dag)
-                if AIRFLOW_V_3_0_PLUS:
+                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+                if AIRFLOW_V_3_0_PLUS and not sdm:
                     from airflow.models.dag_version import DagVersion
                     from airflow.models.dagcode import DagCode
 
-                    dag_code = DagCode(dag.fileloc, "Source")
-                    self.session.merge(dag_code)
                     dagv = DagVersion.write_dag(
                         dag_id=dag.dag_id,
-                        dag_code=dag_code,
-                        serialized_dag=self.serialized_model,
                         session=self.session,
                         version_name=dag.version_name,
                     )
-                    self.session.merge(dagv)
+                    dag_code = DagCode(dagv, dag.fileloc, "Source")
+                    self.session.merge(dag_code)
+                    self.serialized_model.dag_version = dagv
                     if self.want_activate_assets:
                         self._activate_assets()
+                if sdm:
+                    self.serialized_model = sdm
+                else:
+                    self.session.merge(self.serialized_model)
+                serialized_dag = self._serialized_dag()
+                self._bag_dag_compat(serialized_dag)
+
                 self.session.flush()
             else:
                 self._bag_dag_compat(self.dag)

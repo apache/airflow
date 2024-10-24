@@ -2371,9 +2371,8 @@ class TestDagModel:
         """
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = fileloc
-        sdm = SerializedDagModel(dag)
-        session.add(sdm)
-        session.commit()
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
         session.expunge_all()
         sdm = SerializedDagModel.get(dag.dag_id, session)
         dag = sdm.dag
@@ -2384,8 +2383,10 @@ class TestDagModel:
         """Only populated after deserializtion"""
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
+        dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        sdm = SerializedDagModel(dag)
+        SerializedDagModel.write_dag(dag)
+        sdm = SerializedDagModel.get(dag.dag_id, session)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag

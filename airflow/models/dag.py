@@ -2071,7 +2071,9 @@ class DagModel(Base):
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
     )
     version_name = Column(StringID())
-    dag_versions = relationship("DagVersion", back_populates="dag_model")
+    dag_versions = relationship(
+        "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -2447,8 +2449,6 @@ def _get_or_create_dagrun(
 
     :return: The newly created DAG run.
     """
-    from airflow.models.serialized_dag import SerializedDagModel
-
     log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
@@ -2457,10 +2457,6 @@ def _get_or_create_dagrun(
         session.delete(dr)
         session.commit()
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-    if not dag_version:
-        dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag)
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dr = dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,

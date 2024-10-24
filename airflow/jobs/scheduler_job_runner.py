@@ -1763,7 +1763,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not dag_run.dag:
             return False
 
-        dag_run.dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        dag_run.dag_version_id = latest_dag_version.id
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)

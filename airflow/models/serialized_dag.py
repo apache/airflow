@@ -101,7 +101,9 @@ class SerializedDagModel(Base):
         innerjoin=True,
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
-    dag_version_id = Column(UUIDType(), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version_id = Column(
+        UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
     dag_version = relationship("DagVersion", back_populates="serialized_dag", cascade_backrefs=False)
 
     load_op_links = True
@@ -204,23 +206,17 @@ class SerializedDagModel(Base):
         ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
-        try:
-            log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
-            session.add(new_serialized_dag)
-            log.debug("DAG: %s written to the DB", dag.dag_id)
+        dagv = DagVersion.write_dag(
+            version_name=dag.version_name,
+            dag_id=dag.dag_id,
+            session=session,
+        )
+        log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+        new_serialized_dag.dag_version = dagv
+        session.add(new_serialized_dag)
+        log.debug("DAG: %s written to the DB", dag.dag_id)
 
-            dag_code = DagCode.write_dag(dag.fileloc, session=session)
-            # Write DagVersion
-            DagVersion.write_dag(
-                version_name=dag.version_name,
-                dag_id=dag.dag_id,
-                dag_code=dag_code,
-                serialized_dag=new_serialized_dag,
-                session=session,
-            )
-        except Exception:
-            session.rollback()
-            raise
+        DagCode.write_dag(dagv, dag.fileloc, session=session)
         return True
 
     @classmethod
