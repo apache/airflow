@@ -39,10 +39,6 @@ import {
 } from "react-icons/ti";
 
 type DataTableProps<TData> = {
-  readonly onRowClicked?: (
-    row: Row<TData>,
-    event: React.MouseEvent<HTMLTableRowElement>,
-  ) => void;
   readonly renderSubComponent?: (props: {
     row: Row<TData>;
   }) => React.ReactElement;
@@ -50,7 +46,6 @@ type DataTableProps<TData> = {
 };
 
 export const TableList = <TData,>({
-  onRowClicked,
   renderSubComponent,
   table,
 }: DataTableProps<TData>) => (
@@ -129,19 +124,7 @@ export const TableList = <TData,>({
       <Tbody>
         {table.getRowModel().rows.map((row) => (
           <Fragment key={row.id}>
-            <Tr
-              _hover={
-                onRowClicked
-                  ? {
-                      backgroundColor: "subtle-bg-hover !important",
-                      cursor: "pointer",
-                    }
-                  : undefined
-              }
-              onClick={
-                onRowClicked ? (event) => onRowClicked(row, event) : undefined
-              }
-            >
+            <Tr>
               {/* first row is a normal row */}
               {row.getVisibleCells().map((cell) => (
                 <Td key={cell.id}>
