@@ -219,7 +219,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
-                {"update_mask": "login, port"},
+                {"update_mask": ["login", "port"]},
             ),
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "test_host_patch"},
@@ -233,7 +233,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
-                {"update_mask": "host"},
+                {"update_mask": ["host"]},
             ),
             (
                 {
@@ -252,7 +252,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
-                {"update_mask": "host,port"},
+                {"update_mask": ["host", "port"]},
             ),
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "login": "test_login_patch"},
@@ -266,7 +266,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
-                {"update_mask": "login"},
+                {"update_mask": ["login"]},
             ),
             (
                 {
@@ -285,7 +285,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
                 },
-                {"update_mask": "host"},
+                {"update_mask": ["host"]},
             ),
         ],
     )

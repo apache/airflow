@@ -304,8 +304,6 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
 
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
-# Comma Separated List Query Params
-UpdateMask = Annotated[str, Query(), AfterValidator(_parse_comma_separated_query_params)]
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
