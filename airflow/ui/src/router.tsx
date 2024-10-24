@@ -16,18 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Route, Routes } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 
 import { DagsList } from "src/pages/DagsList";
 import { Dashboard } from "src/pages/Dashboard";
 
 import { BaseLayout } from "./layouts/BaseLayout";
+import { Dag } from "./pages/DagsList/Dag";
+import { ErrorPage } from "./pages/Error";
 
-export const App = () => (
-  <Routes>
-    <Route element={<BaseLayout />} path="/">
-      <Route element={<Dashboard />} index />
-      <Route element={<DagsList />} path="dags" />
-    </Route>
-  </Routes>
+export const router = createBrowserRouter(
+  [
+    {
+      children: [
+        {
+          element: <Dashboard />,
+          index: true,
+        },
+        {
+          element: <DagsList />,
+          path: "dags",
+        },
+        { element: <Dag />, path: "dags/:dagId" },
+      ],
+      element: <BaseLayout />,
+      errorElement: (
+        <BaseLayout>
+          <ErrorPage />
+        </BaseLayout>
+      ),
+      path: "/",
+    },
+  ],
+  {
+    basename: "/webapp",
+  },
 );

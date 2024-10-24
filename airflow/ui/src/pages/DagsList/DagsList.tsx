@@ -23,6 +23,7 @@ import {
   Select,
   Skeleton,
   VStack,
+  Link,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -31,7 +32,8 @@ import {
   useCallback,
   useState,
 } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
@@ -69,7 +71,16 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
   {
     accessorKey: "dag_id",
-    cell: ({ row }) => row.original.dag_display_name,
+    cell: ({ row }) => (
+      <Link
+        as={RouterLink}
+        color="subtle-text"
+        fontWeight="bold"
+        to={`/dags/${row.original.dag_id}`}
+      >
+        {row.original.dag_display_name}
+      </Link>
+    ),
     header: "Dag",
   },
   {
@@ -118,9 +129,18 @@ const cardDef: CardDef<DAGResponse> = {
   },
 };
 
+const DAGS_LIST_DISPLAY = "dags_list_display";
+
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [display, setDisplay] = useState<"card" | "table">("card");
+  const [display, setDisplay] = useLocalStorage<"card" | "table">(
+    DAGS_LIST_DISPLAY,
+    "card",
+    {
+      deserializer: (value) =>
+        value !== "card" && value !== "table" ? "card" : value,
+    },
+  );
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const lastDagRunState = searchParams.get(
