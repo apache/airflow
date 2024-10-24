@@ -31,6 +31,7 @@ from airflow.providers.teradata.hooks.teradata import TeradataHook, _handle_user
 class TestTeradataHook:
     def setup_method(self):
         self.connection = Connection(
+            conn_id="teradata_conn_id",
             conn_type="teradata",
             login="login",
             password="password",
@@ -46,12 +47,14 @@ class TestTeradataHook:
         conn = self.conn
 
         class UnitTestTeradataHook(TeradataHook):
-            conn_name_attr = "teradata_conn_id"
-
             def get_conn(self):
                 return conn
 
-        self.test_db_hook = UnitTestTeradataHook()
+            @classmethod
+            def get_connection(cls, conn_id: str) -> Connection:
+                return conn
+
+        self.test_db_hook = UnitTestTeradataHook(teradata_conn_id="teradata_conn_id")
 
     @mock.patch("teradatasql.connect")
     def test_get_conn(self, mock_connect):
