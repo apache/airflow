@@ -173,12 +173,12 @@ def _fetch_dag_runs(
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
     total_entries = get_query_count(query, session=session)
-    to_replace = {"dag_run_id": "run_id", "execution_date": "logical_date"}
+    to_replace = {"dag_run_id": "run_id", "logical_date": "logical_date"}
     allowed_sort_attrs = [
         "id",
         "state",
         "dag_id",
-        "execution_date",
+        "logical_date",
         "dag_run_id",
         "start_date",
         "end_date",
@@ -318,13 +318,13 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    logical_date = pendulum.instance(post_body["execution_date"])
+    logical_date = pendulum.instance(post_body["logical_date"])
     run_id = post_body["run_id"]
     dagrun_instance = session.scalar(
         select(DagRun)
         .where(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id, DagRun.execution_date == logical_date),
+            or_(DagRun.run_id == run_id, DagRun.logical_date == logical_date),
         )
         .limit(1)
     )
@@ -345,7 +345,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
-                execution_date=logical_date,
+                logical_date=logical_date,
                 data_interval=data_interval,
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
@@ -362,7 +362,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         except (ValueError, ParamValidationError) as ve:
             raise BadRequest(detail=str(ve))
 
-    if dagrun_instance.execution_date == logical_date:
+    if dagrun_instance.logical_date == logical_date:
         raise AlreadyExists(
             detail=(
                 f"DAGRun with DAG ID: '{dag_id}' and "

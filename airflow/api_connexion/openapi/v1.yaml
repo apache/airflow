@@ -4751,14 +4751,9 @@ components:
           description: The task ID.
           type: string
 
-        execution_date:
-          description: The execution date. Either set this or dag_run_id but not both.
-          type: string
-          format: datetime
-
         dag_run_id:
           description: |
-            The task instance's DAG run ID. Either set this or execution_date but not both.
+            The task instance's DAG run ID.
 
             *New in version 2.3.0*
           type: string

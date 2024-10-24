@@ -285,7 +285,7 @@ class DagRun(Base, LoggingMixin):
         return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
 
     @property
-    def logical_date(self) -> datetime:
+    def logical_date(self):
         return self.execution_date
 
     def get_state(self):
