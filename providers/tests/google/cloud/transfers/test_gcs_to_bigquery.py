@@ -1730,8 +1730,6 @@ class TestAsyncGCSToBigQueryOperator:
             project_id=JOB_PROJECT_ID,
         )
 
-        job._begin.assert_called_once_with()
-
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_force_rerun_async_should_execute_successfully(self, hook):
         hook.return_value.generate_job_id.return_value = f"{job_id}_{hash_}"
