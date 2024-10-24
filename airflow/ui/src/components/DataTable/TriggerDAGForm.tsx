@@ -17,163 +17,172 @@
  * under the License.
  */
 import {
-    FormControl,
-    FormLabel,
-    Input,
-    VStack,
-    ModalCloseButton,
-    Button,
-    ModalFooter,
-    Box,
-    Text,
-    Spacer,
-    HStack,
-    Collapse,
-  } from "@chakra-ui/react";
-  import React, { useState, useEffect } from "react";
-  import CodeMirror from "@uiw/react-codemirror";
-  import { json } from "@codemirror/lang-json";
-  import { autocompletion } from "@codemirror/autocomplete";
-  import { oneDark } from "@codemirror/theme-one-dark";
-  
-  type DagParams = {
-    configJson: string;
-    dagId: string;
-    logicalDate: string;
-    runId?: string;
+  FormControl,
+  FormLabel,
+  Input,
+  VStack,
+  ModalCloseButton,
+  Button,
+  ModalFooter,
+  Box,
+  Text,
+  Spacer,
+  HStack,
+  Collapse,
+} from "@chakra-ui/react";
+import { autocompletion } from "@codemirror/autocomplete";
+import { json } from "@codemirror/lang-json";
+import { oneDark } from "@codemirror/theme-one-dark";
+import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
+import React, { useState, useEffect } from "react";
+
+type DagParams = {
+  configJson: string;
+  dagId: string;
+  logicalDate: string;
+  runId?: string;
+};
+
+type TriggerDAGFormProps = {
+  dagParams: DagParams;
+  onClose: () => void;
+  onTrigger: () => void;
+  setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
+};
+
+const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
+  dagParams,
+  onTrigger,
+  setDagParams,
+}) => {
+  const [showDetails, setShowDetails] = useState(false);
+
+  useEffect(() => {
+    try {
+      const prettyJson = JSON.stringify(
+        JSON.parse(dagParams.configJson),
+        undefined,
+        2,
+      );
+
+      setDagParams((prev) => ({ ...prev, configJson: prettyJson }));
+    } catch {
+      // Invalid JSON handling
+    }
+  }, [dagParams.configJson, setDagParams]);
+
+  const handleChange = (
+    ele: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = ele.target;
+
+    setDagParams((prev) => ({ ...prev, [name]: value }));
   };
-  
-  type TriggerDAGFormProps = {
-    dagParams: DagParams;
-    onClose: () => void;
-    onTrigger: () => void;
-    setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
+
+  const handleReset = () => {
+    setDagParams({
+      configJson: "{}",
+      dagId: dagParams.dagId,
+      logicalDate: "",
+      runId: "",
+    });
   };
-  
-  const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
-    dagParams,
-    onClose,
-    onTrigger,
-    setDagParams,
-  }) => {
-    const [showDetails, setShowDetails] = useState(false); // State to show/hide all details
-  
-    // Automatically format JSON whenever the configJson changes
-    useEffect(() => {
-      try {
-        const prettyJson = JSON.stringify(
-          JSON.parse(dagParams.configJson),
-          null,
-          2
-        );
-        setDagParams((prev) => ({ ...prev, configJson: prettyJson }));
-      } catch {
-        // Invalid JSON handling can go here (e.g., highlight or notification)
-      }
-    }, [dagParams.configJson, setDagParams]);
-  
-    const handleChange = (
-      ele: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-    ) => {
-      const { name, value } = ele.target;
-      setDagParams((prev) => ({ ...prev, [name]: value }));
-    };
-  
-    const handleJsonChange = (value: string) => {
-      setDagParams((prev) => ({ ...prev, configJson: value }));
-    };
-  
-    const isValidJson = () => {
-      try {
-        JSON.parse(dagParams.configJson);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-  
-    return (
-      <>
-        <ModalCloseButton />
-  
-        {/* Toggle show/hide for all details */}
-        <VStack align="stretch" p={4} spacing={4}>
-          <Button
-            variant="outline"
-            onClick={() => setShowDetails(!showDetails)}
-            width="full"
-          >
-            {showDetails ? "Hide Details" : "Show Details"}
-          </Button>
-  
-          <Collapse in={showDetails}>
-            <VStack align="stretch" spacing={4}>
-              {/* Logical date/time input with timezone */}
-              <FormControl>
-                <FormLabel>Logical date (with time)</FormLabel>
-                <Input
-                  boxShadow="md"
-                  name="logicalDate"
-                  onChange={handleChange}
-                  placeholder="yyyy-mm-ddThh:mm"
-                  type="datetime-local" // Allows date and time selection
-                  value={dagParams.logicalDate}
-                />
-              </FormControl>
-  
-              {/* Run ID input */}
-              <FormControl>
-                <FormLabel>Run ID (Optional)</FormLabel>
-                <Input
-                  boxShadow="md"
-                  name="runId"
-                  onChange={handleChange}
-                  placeholder="Run ID (Optional - autogenerated if left empty)"
-                  value={dagParams.runId}
-                />
-              </FormControl>
-  
-              {/* JSON Configuration with CodeMirror */}
-              <FormControl>
-                <FormLabel>Configuration JSON</FormLabel>
-                <Box border="1px" borderColor="gray.300" borderRadius="md">
-                  <CodeMirror
-                    value={dagParams.configJson}
-                    height="200px"
-                    extensions={[json(), autocompletion()]}
-                    theme={oneDark}
-                    onChange={handleJsonChange}
-                  />
+
+  const handleJsonChange = (value: string) => {
+    setDagParams((prev) => ({ ...prev, configJson: value }));
+  };
+
+  const isValidJson = () => {
+    try {
+      JSON.parse(dagParams.configJson);
+
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  return (
+    <>
+      <ModalCloseButton />
+
+      <VStack align="stretch" p={5} spacing={2}>
+        <Button
+          onClick={() => setShowDetails(!showDetails)}
+          variant="outline"
+          width="full"
+        >
+          {showDetails ? "Hide Advance Options" : "Show Advance Options"}
+        </Button>
+
+        <Collapse in={showDetails}>
+          <VStack align="stretch" spacing={3}>
+            <FormControl>
+              <FormLabel size="sm">Logical date</FormLabel>
+              <Input
+                name="logicalDate"
+                onChange={handleChange}
+                placeholder="yyyy-mm-ddThh:mm"
+                size="sm"
+                type="datetime-local"
+                value={dagParams.logicalDate}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel size="sm">Run ID (Optional)</FormLabel>
+              <Input
+                name="runId"
+                onChange={handleChange}
+                placeholder="Autogenerated if left empty"
+                size="sm"
+                value={dagParams.runId}
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel size="sm">Configuration JSON</FormLabel>
+              <CodeMirror
+                extensions={[json(), autocompletion(), lineNumbers()]}
+                height="200px"
+                onChange={handleJsonChange}
+                style={{
+                  border: "1px solid #CBD5E0",
+                  borderRadius: "8px",
+                  outline: "none",
+                  padding: "2px",
+                }}
+                theme={oneDark}
+                value={dagParams.configJson}
+              />
+              {isValidJson() ? undefined : (
+                <Box color="red.500" mt={2}>
+                  <Text fontSize="sm">Invalid JSON format</Text>
                 </Box>
-                {!isValidJson() ? (
-                  <Box color="red.500" mt={2}>
-                    <Text fontSize="sm">Invalid JSON format</Text>
-                  </Box>
-                ) : null}
-              </FormControl>
-            </VStack>
-          </Collapse>
-        </VStack>
-  
-        <ModalFooter>
-          <HStack w="full">
-            {/* Cancel button in red */}
-            <Button colorScheme="red" onClick={onClose}>
-              Cancel
-            </Button>
-            <Spacer />
-            {/* Trigger button in green */}
-            <Button
-              colorScheme="green"
-              isDisabled={!isValidJson()} // Disable if JSON is invalid
-              onClick={onTrigger}
-            >
-              Trigger
-            </Button>
-          </HStack>
-        </ModalFooter>
-      </>
-    );
-  };
-  
-  export default TriggerDAGForm;  
+              )}
+            </FormControl>
+          </VStack>
+        </Collapse>
+      </VStack>
+
+      <ModalFooter>
+        <HStack w="full">
+          <Button colorScheme="red" onClick={handleReset}>
+            Reset
+          </Button>
+          <Spacer />
+          <Spacer />
+          <Button
+            colorScheme="green"
+            isDisabled={!isValidJson()}
+            onClick={onTrigger}
+          >
+            Trigger
+          </Button>
+        </HStack>
+      </ModalFooter>
+    </>
+  );
+};
+
+export default TriggerDAGForm;

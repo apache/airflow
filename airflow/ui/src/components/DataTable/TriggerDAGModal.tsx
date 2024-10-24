@@ -17,7 +17,6 @@
  * under the License.
  */
 import {
-  Button,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -52,46 +51,38 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   const { isOpen, onClose, onOpen } = useDisclosure();
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: "{}",
-    dagId, // Assigning passed dagId
+    dagId,
     logicalDate: "",
     runId: "",
   });
 
   const handleTrigger = () => {
-    TriggerDAG(dagParams); // Calls the trigger functionality
-    onClose(); // Close the modal after triggering
+    TriggerDAG(dagParams);
+    onClose();
   };
 
   return (
     <Box>
-      <Button
-        alignSelf="center"
-        boxSize={4}
-        colorScheme="blue"
-        onClick={onOpen}
-      >
+      <Box alignSelf="center" cursor="pointer" onClick={onOpen}>
         <FiPlay />
-      </Button>
+      </Box>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+      <Modal isOpen={isOpen} onClose={onClose} size="xl">
         <ModalOverlay />
         <ModalContent>
-          <VStack align="start" p={4} spacing={4}>
-            {/* Display title "Trigger DAG" */}
-            <Heading size="lg">Trigger DAG</Heading>
+          <VStack align="start" p={5} spacing={2}>
+            <Heading size="md">Trigger DAG</Heading>
 
-            {/* Display DAG Name and DAG ID */}
             <Box>
-              <Heading mb={1} size="md">
+              <Heading mb={1} size="sm">
                 {dagDisplayName}
               </Heading>
-              <Text color="gray.500" fontSize="sm">
+              <Text color="gray.500" fontSize="xs">
                 DAG ID: {dagId}
               </Text>
             </Box>
           </VStack>
 
-          {/* Include the form */}
           <TriggerDAGForm
             dagParams={dagParams}
             onClose={onClose}
