@@ -121,6 +121,7 @@ class HttpSensor(BaseSensorOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
+        self.kwargs = kwargs
 
     def poke(self, context: Context) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
@@ -141,6 +142,7 @@ class HttpSensor(BaseSensorOperator):
                 data=self.request_params,
                 headers=self.headers,
                 extra_options=self.extra_options,
+                **self.kwargs,
             )
 
             if self.response_check:
