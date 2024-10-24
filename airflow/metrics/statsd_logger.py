@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     PatternAllowListValidator,
@@ -32,6 +33,7 @@ from airflow.metrics.validators import (
 )
 
 if TYPE_CHECKING:
+    from opentelemetry.util.types import Attributes
     from statsd import StatsClient
 
     from airflow.metrics.protocols import DeltaType, TimerProtocol
@@ -44,27 +46,38 @@ T = TypeVar("T", bound=Callable)
 log = logging.getLogger(__name__)
 
 
-def prepare_stat_with_tags(fn: T) -> T:
-    """Add tags to stat with influxdb standard format if influxdb_tags_enabled is True."""
+def prepare_metric_name_with_tags(fn: T) -> T:
+    """Add tags to metric_name with InfluxDB standard format if influxdb_tags_enabled is True."""
 
     @wraps(fn)
     def wrapper(
-        self, stat: str | None = None, *args, tags: dict[str, str] | None = None, **kwargs
+        self, metric_name: str | None = None, tags: dict[str, str | int] | None = None
     ) -> Callable[[str], str]:
-        if self.influxdb_tags_enabled:
-            if stat is not None and tags is not None:
-                for k, v in tags.items():
-                    if self.metric_tags_validator.test(k):
-                        if all(c not in [",", "="] for c in f"{v}{k}"):
-                            stat += f",{k}={v}"
-                        else:
-                            log.error("Dropping invalid tag: %s=%s.", k, v)
-        return fn(self, stat, *args, tags=tags, **kwargs)
+        # if not isinstance(self, SafeStatsdLogger):  # Check if self is an instance of SafeStatsdLogger
+        #     raise TypeError("Expected an instance of SafeStatsdLogger")
+
+        if metric_name is None:
+            metric_name = ""
+
+        if self.influxdb_tags_enabled and tags is not None:
+            valid_tags: dict[str, str | int] = {}
+            for k, v in tags.items():
+                if self.metric_tags_validator.test(k):
+                    value_str = str(v)
+                    key_str = str(k)
+                    if all(c not in [",", "="] for c in value_str) and all(
+                        c not in [",", "="] for c in key_str
+                    ):
+                        valid_tags[k] = value_str
+                    else:
+                        log.error("Dropping invalid tag: %s=%s.", k, value_str)
+            tags = valid_tags
+        return fn(self, metric_name, tags=tags)
 
     return cast(T, wrapper)
 
 
-class SafeStatsdLogger:
+class SafeStatsdLogger(StatsLogger):
     """StatsD Logger."""
 
     def __init__(
@@ -79,41 +92,38 @@ class SafeStatsdLogger:
         self.influxdb_tags_enabled = influxdb_tags_enabled
         self.metric_tags_validator = metric_tags_validator
 
-    @prepare_stat_with_tags
-    @validate_stat
     def incr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
         """Increment stat."""
-        if self.metrics_validator.test(stat):
-            return self.statsd.incr(stat, count, rate)
+        full_metric_name = self.get_name(metric_name, tags)
+
+        if self.metrics_validator.test(full_metric_name):
+            self.statsd.incr(full_metric_name, count, rate)
         return None
 
-    @prepare_stat_with_tags
-    @validate_stat
     def decr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
         """Decrement stat."""
-        if self.metrics_validator.test(stat):
-            return self.statsd.decr(stat, count, rate)
+        full_metric_name = self.get_name(metric_name, tags)
+        if self.metrics_validator.test(full_metric_name):
+            return self.statsd.decr(full_metric_name, count, rate)
         return None
 
-    @prepare_stat_with_tags
-    @validate_stat
     def gauge(
         self,
-        stat: str,
+        metric_name: str,
         value: int | float,
         rate: float = 1,
         delta: bool = False,
@@ -121,37 +131,44 @@ class SafeStatsdLogger:
         tags: dict[str, str] | None = None,
     ) -> None:
         """Gauge stat."""
-        if self.metrics_validator.test(stat):
-            return self.statsd.gauge(stat, value, rate, delta)
+        full_metric_name = self.get_name(metric_name, tags)
+        if self.metrics_validator.test(full_metric_name):
+            return self.statsd.gauge(full_metric_name, value, rate, delta)
         return None
 
-    @prepare_stat_with_tags
-    @validate_stat
     def timing(
         self,
-        stat: str,
-        dt: DeltaType,
+        metric_name: str,
+        dt: DeltaType | None,
         *,
         tags: dict[str, str] | None = None,
     ) -> None:
         """Stats timing."""
-        if self.metrics_validator.test(stat):
-            return self.statsd.timing(stat, dt)
+        full_metric_name = self.get_name(metric_name, tags)
+        if self.metrics_validator.test(full_metric_name):
+            return self.statsd.timing(full_metric_name, dt)
         return None
 
-    @prepare_stat_with_tags
-    @validate_stat
     def timer(
         self,
-        stat: str | None = None,
+        metric_name: str | None = None,
         *args,
         tags: dict[str, str] | None = None,
         **kwargs,
     ) -> TimerProtocol:
         """Timer metric that can be cancelled."""
-        if stat and self.metrics_validator.test(stat):
-            return Timer(self.statsd.timer(stat, *args, **kwargs))
+        full_metric_name = self.get_name(metric_name, tags)
+        if full_metric_name and self.metrics_validator.test(full_metric_name):
+            return Timer(self.statsd.timer(full_metric_name, *args, **kwargs))
         return Timer()
+
+    @prepare_metric_name_with_tags
+    @validate_stat
+    def get_name(self, metric_name: str, tags: Attributes | None = None) -> str:
+        """Get metric name with tags, ensuring no invalid keys are included."""
+        if tags:
+            return f"{metric_name},{','.join(f'{k}={v}' for k, v in tags.items())}"
+        return metric_name
 
 
 def get_statsd_logger(cls) -> SafeStatsdLogger:
