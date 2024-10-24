@@ -143,6 +143,7 @@ class HttpOperator(BaseOperator):
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
         self.retry_args = retry_args
+        self.kwargs = kwargs
 
     @property
     def hook(self) -> HttpHook:
@@ -173,10 +174,21 @@ class HttpOperator(BaseOperator):
         self.log.info("Calling HTTP method")
         if self.retry_args:
             response = self.hook.run_with_advanced_retry(
-                self.retry_args, self.endpoint, self.data, self.headers, self.extra_options
+                self.retry_args,
+                self.endpoint,
+                self.data,
+                self.headers,
+                self.extra_options,
+                **self.kwargs,
             )
         else:
-            response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+            response = self.hook.run(
+                self.endpoint,
+                self.data,
+                self.headers,
+                self.extra_options,
+                **self.kwargs,
+            )
         response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
@@ -303,7 +315,10 @@ class HttpOperator(BaseOperator):
             endpoint=next_page_params.get("endpoint") or self.endpoint,
             data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
-            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
+            extra_options=merge_dicts(
+                self.extra_options, next_page_params.get("extra_options", {})
+            ),
+            **self.kwargs,
         )
 
 
