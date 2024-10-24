@@ -17,6 +17,7 @@
  * under the License.
  */
 import {
+  Button,
   Table as ChakraTable,
   TableContainer,
   Tbody,
@@ -57,40 +58,62 @@ export const TableList = <TData,>({
               ({ colSpan, column, getContext, id, isPlaceholder }) => {
                 const sort = column.getIsSorted();
                 const canSort = column.getCanSort();
+                const text = flexRender(column.columnDef.header, getContext());
 
-                return (
-                  <Th
-                    colSpan={colSpan}
-                    cursor={column.getCanSort() ? "pointer" : undefined}
-                    key={id}
-                    onClick={column.getToggleSortingHandler()}
-                    whiteSpace="nowrap"
-                  >
-                    {isPlaceholder ? undefined : (
-                      <>{flexRender(column.columnDef.header, getContext())}</>
-                    )}
-                    {canSort && sort === false ? (
+                let rightIcon;
+
+                if (canSort) {
+                  if (sort === "desc") {
+                    rightIcon = (
+                      <TiArrowSortedDown
+                        aria-label="sorted descending"
+                        size="1em"
+                        style={{ display: "inline" }}
+                      />
+                    );
+                  } else if (sort === "asc") {
+                    rightIcon = (
+                      <TiArrowSortedUp
+                        aria-label="sorted ascending"
+                        size="1em"
+                        style={{ display: "inline" }}
+                      />
+                    );
+                  } else {
+                    rightIcon = (
                       <TiArrowUnsorted
                         aria-label="unsorted"
                         size="1em"
                         style={{ display: "inline" }}
                       />
-                    ) : undefined}
-                    {canSort && sort !== false ? (
-                      sort === "desc" ? (
-                        <TiArrowSortedDown
-                          aria-label="sorted descending"
-                          size="1em"
-                          style={{ display: "inline" }}
-                        />
-                      ) : (
-                        <TiArrowSortedUp
-                          aria-label="sorted ascending"
-                          size="1em"
-                          style={{ display: "inline" }}
-                        />
-                      )
-                    ) : undefined}
+                    );
+                  }
+
+                  return (
+                    <Th colSpan={colSpan} key={id} whiteSpace="nowrap">
+                      {isPlaceholder ? undefined : (
+                        <Button
+                          aria-label="sort"
+                          fontSize="inherit"
+                          fontWeight="inherit"
+                          isDisabled={!canSort}
+                          minWidth={0}
+                          onClick={column.getToggleSortingHandler()}
+                          padding={0}
+                          rightIcon={rightIcon}
+                          textTransform="inherit"
+                          variant="unstyled"
+                        >
+                          {text}
+                        </Button>
+                      )}
+                    </Th>
+                  );
+                }
+
+                return (
+                  <Th colSpan={colSpan} key={id} whiteSpace="nowrap">
+                    {isPlaceholder ? undefined : text}
                   </Th>
                 );
               },
