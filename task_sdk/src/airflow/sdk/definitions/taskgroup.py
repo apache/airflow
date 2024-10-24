@@ -112,6 +112,8 @@ class TaskGroup(DAGNode):
     ui_color: str = "CornflowerBlue"
     ui_fgcolor: str = "#000"
 
+    add_suffix_on_collision: bool = False
+
     @parent_group.default
     def _default_parent_group(self):
         from airflow.sdk.definitions.contextmanager import TaskGroupContext
@@ -132,6 +134,10 @@ class TaskGroup(DAGNode):
             raise RuntimeError("TaskGroup can only be used inside a dag")
 
     def __attrs_post_init__(self):
+        # TODO: If attrs supported init only args we could use that here
+        # https://github.com/python-attrs/attrs/issues/342
+        self._check_for_group_id_collisions(self.add_suffix_on_collision)
+
         if self.parent_group:
             object.__setattr__(self, "used_group_ids", self.parent_group.used_group_ids)
             self.parent_group.add(self)
