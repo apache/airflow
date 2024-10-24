@@ -15,7 +15,7 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:2.10.2
+FROM apache/airflow:2.10.3
 ENV AIRFLOW__CORE__LOAD_EXAMPLES=True
 ENV AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 # [END Dockerfile]
