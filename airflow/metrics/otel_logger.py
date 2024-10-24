@@ -32,6 +32,7 @@ from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, Pe
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
 
 from airflow.configuration import conf
+from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -165,7 +166,7 @@ class _OtelTimer(Timer):
             )
 
 
-class SafeOtelLogger:
+class SafeOtelLogger(StatsLogger):
     """Otel Logger."""
 
     def __init__(
@@ -182,7 +183,7 @@ class SafeOtelLogger:
 
     def incr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         tags: Attributes = None,
@@ -190,7 +191,7 @@ class SafeOtelLogger:
         """
         Increment stat by count.
 
-        :param stat: The name of the stat to increment.
+        :param metric_name: The name of the metric to increment.
         :param count: A positive integer to add to the current value of stat.
         :param rate: value between 0 and 1 that represents the sample rate at
             which the metric is going to be emitted.
@@ -201,14 +202,18 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
+        full_metric_name = self.get_name(metric_name, tags)
+
+        if self.metrics_validator.test(full_metric_name) and name_is_otel_safe(self.prefix, full_metric_name):
+            counter = self.metrics_map.get_counter(
+                full_name(prefix=self.prefix, name=full_metric_name), attributes=tags
+            )
             counter.add(count, attributes=tags)
             return counter
 
     def decr(
         self,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: float = 1,
         tags: Attributes = None,
@@ -216,7 +221,7 @@ class SafeOtelLogger:
         """
         Decrement stat by count.
 
-        :param stat: The name of the stat to decrement.
+        :param metric_name: The name of the metric to decrement.
         :param count: A positive integer to subtract from current value of stat.
         :param rate: value between 0 and 1 that represents the sample rate at
             which the metric is going to be emitted.
@@ -227,14 +232,15 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
+        full_metric_name = self.get_name(metric_name, tags)
+        if self.metrics_validator.test(full_metric_name) and name_is_otel_safe(self.prefix, full_metric_name):
+            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=full_metric_name))
             counter.add(-count, attributes=tags)
             return counter
 
     def gauge(
         self,
-        stat: str,
+        metric_name: str,
         value: int | float,
         rate: float = 1,
         delta: bool = False,
@@ -245,7 +251,7 @@ class SafeOtelLogger:
         """
         Record a new value for a Gauge.
 
-        :param stat: The name of the stat to update.
+        :param metric_name: The name of the metric to update.
         :param value: The new value of stat, either a float or an int.
         :param rate: value between 0 and 1 that represents the sample rate at
             which the metric is going to be emitted.
@@ -263,21 +269,30 @@ class SafeOtelLogger:
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
-        if self.metrics_validator.test(stat):
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
+        full_metric_name = self.get_name(metric_name, tags)
+        if self.metrics_validator.test(full_metric_name):
+            self.metrics_map.set_gauge_value(
+                full_name(prefix=self.prefix, name=full_metric_name), value, delta, tags
+            )
 
     def timing(
         self,
-        stat: str,
-        dt: DeltaType,
+        metric_name: str,
+        dt: DeltaType | None,
         *,
         tags: Attributes = None,
     ) -> None:
         """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        full_metric_name = self.get_name(metric_name, tags)
+        if dt is None:
+            log.warning("The duration (dt) cannot be None. Skipping timing update.")
+            return
+        if self.metrics_validator.test(full_metric_name) and name_is_otel_safe(self.prefix, full_metric_name):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
+            self.metrics_map.set_gauge_value(
+                full_name(prefix=self.prefix, name=full_metric_name), float(dt), False, tags
+            )
 
     def timer(
         self,
@@ -288,6 +303,10 @@ class SafeOtelLogger:
     ) -> TimerProtocol:
         """Timer context manager returns the duration and can be cancelled."""
         return _OtelTimer(self, stat, tags)
+
+    def get_name(self, metric_name: str, tags: Attributes | None = None) -> str:
+        """For OTel, we use the metric name directly without adding tags to it."""
+        return metric_name
 
 
 class MetricsMap:

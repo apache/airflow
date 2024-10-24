@@ -23,6 +23,8 @@ from airflow.metrics.protocols import Timer
 from airflow.typing_compat import Protocol
 
 if TYPE_CHECKING:
+    from opentelemetry.util.types import Attributes
+
     from airflow.metrics.protocols import DeltaType, TimerProtocol
 
 
@@ -31,54 +33,52 @@ class StatsLogger(Protocol):
 
     instance: StatsLogger | NoStatsLogger | None = None
 
-    @classmethod
     def incr(
         cls,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: int | float = 1,
         *,
         tags: dict[str, Any] | None = None,
     ) -> None:
-        """Increment stat."""
+        """Increment metric_name."""
 
-    @classmethod
     def decr(
         cls,
-        stat: str,
+        metric_name: str,
         count: int = 1,
         rate: int | float = 1,
         *,
         tags: dict[str, Any] | None = None,
     ) -> None:
-        """Decrement stat."""
+        """Decrement metric_name."""
 
-    @classmethod
     def gauge(
         cls,
-        stat: str,
+        metric_name: str,
         value: float,
         rate: int | float = 1,
         delta: bool = False,
         *,
         tags: dict[str, Any] | None = None,
     ) -> None:
-        """Gauge stat."""
+        """Gauge metric_name."""
 
-    @classmethod
     def timing(
         cls,
-        stat: str,
+        metric_name: str,
         dt: DeltaType | None,
         *,
         tags: dict[str, Any] | None = None,
     ) -> None:
         """Stats timing."""
 
-    @classmethod
     def timer(cls, *args, **kwargs) -> TimerProtocol:
         """Timer metric that can be cancelled."""
         raise NotImplementedError()
+
+    def get_name(self, metric_name: str, tags: Attributes | None = None) -> str:
+        pass
 
 
 class NoStatsLogger:
