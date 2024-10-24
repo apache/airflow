@@ -276,7 +276,9 @@ class TestSlackAPIFileOperator:
         ],
     )
     @pytest.mark.parametrize("snippet_type", [None, "text"])
-    def test_api_call_params_with_file_args(self, initial_comment, title, method_version, method_name, snippet_type):
+    def test_api_call_params_with_file_args(
+        self, initial_comment, title, method_version, method_name, snippet_type
+    ):
         op = SlackAPIFileOperator(
             task_id="slack",
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
