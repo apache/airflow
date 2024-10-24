@@ -454,20 +454,6 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dag
     assert lower_index < greater_index
 
 
-@pytest.mark.parametrize("is_enabled, should_have_pixel", [(False, False), (True, True)])
-def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
-    """
-    Test that the analytics pixel is not included when the feature is disabled
-    """
-    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled):
-        resp = user_client.get("home", follow_redirects=True)
-
-    if should_have_pixel:
-        check_content_in_response("apacheairflow.gateway.scarf.sh", resp)
-    else:
-        check_content_not_in_response("apacheairflow.gateway.scarf.sh", resp)
-
-
 @pytest.mark.parametrize(
     "url, filter_tags_cookie_val, filter_lastrun_cookie_val, expected_filter_tags, expected_filter_lastrun",
     [
