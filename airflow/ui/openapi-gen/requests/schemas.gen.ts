@@ -1420,7 +1420,27 @@ export const $PluginResponse = {
   description: "Plugin serializer.",
 } as const;
 
-export const $PoolBody = {
+export const $PoolCollectionResponse = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolResponse",
+      },
+      type: "array",
+      title: "Pools",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["pools", "total_entries"],
+  title: "PoolCollectionResponse",
+  description: "Pool Collection serializer for responses.",
+} as const;
+
+export const $PoolPatchBody = {
   properties: {
     pool: {
       anyOf: [
@@ -1468,28 +1488,41 @@ export const $PoolBody = {
     },
   },
   type: "object",
-  title: "PoolBody",
-  description: "Pool serializer for bodies.",
+  title: "PoolPatchBody",
+  description: "Pool serializer for patch bodies.",
 } as const;
 
-export const $PoolCollectionResponse = {
+export const $PoolPostBody = {
   properties: {
-    pools: {
-      items: {
-        $ref: "#/components/schemas/PoolResponse",
-      },
-      type: "array",
-      title: "Pools",
+    name: {
+      type: "string",
+      title: "Name",
     },
-    total_entries: {
+    slots: {
       type: "integer",
-      title: "Total Entries",
+      title: "Slots",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    include_deferred: {
+      type: "boolean",
+      title: "Include Deferred",
+      default: false,
     },
   },
   type: "object",
-  required: ["pools", "total_entries"],
-  title: "PoolCollectionResponse",
-  description: "Pool Collection serializer for responses.",
+  required: ["name", "slots"],
+  title: "PoolPostBody",
+  description: "Pool serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
@@ -1855,4 +1888,28 @@ export const $VariableResponse = {
   required: ["key", "description", "value"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
+} as const;
+
+export const $VersionInfo = {
+  properties: {
+    version: {
+      type: "string",
+      title: "Version",
+    },
+    git_version: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Version",
+    },
+  },
+  type: "object",
+  required: ["version", "git_version"],
+  title: "VersionInfo",
+  description: "Version information serializer for responses.",
 } as const;

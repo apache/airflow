@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.3.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker exports metrics``
+* ``State is set to unknown if worker heartbeat times out.``
+
 0.2.2re0
 .........
 
