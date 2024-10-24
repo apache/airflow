@@ -37,6 +37,7 @@ import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse, DagRunState } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
+import TriggerDAGModal from "src/components/DataTable/TriggerDAGModal";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -101,6 +102,17 @@ const columns: Array<ColumnDef<DAGResponse>> = [
     ),
     enableSorting: false,
     header: () => "Tags",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => (
+      <TriggerDAGModal
+        dagDisplayName={row.original.dag_display_name}
+        dagId={row.original.dag_id}
+      />
+    ),
+    enableSorting: false,
+    header: "",
   },
 ];
 

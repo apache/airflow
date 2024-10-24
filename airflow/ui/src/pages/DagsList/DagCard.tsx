@@ -31,6 +31,7 @@ import {
 import { FiCalendar, FiTag } from "react-icons/fi";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
+import TriggerDAGModal from "src/components/DataTable/TriggerDAGModal";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 
@@ -90,6 +91,10 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
         <HStack>
           <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <TriggerDAGModal
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+          />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
