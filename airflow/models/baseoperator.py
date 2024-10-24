@@ -274,6 +274,7 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
+    call_on_kill_on_dagrun_timeout: bool | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -343,6 +344,7 @@ def partial(
         "task_display_name": task_display_name,
         "logger_name": logger_name,
         "allow_nested_operators": allow_nested_operators,
+        "call_on_kill_on_dagrun_timeout": call_on_kill_on_dagrun_timeout,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -919,6 +921,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_display_name: str | None = None,
         logger_name: str | None = None,
         allow_nested_operators: bool = True,
+        call_on_kill_on_dagrun_timeout: bool = True,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -961,6 +964,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.on_skipped_callback = on_skipped_callback
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
+        self.call_on_kill_on_dagrun_timeout = call_on_kill_on_dagrun_timeout
 
         if start_date and not isinstance(start_date, datetime):
             self.log.warning("start_date for %s isn't datetime.datetime", self)
