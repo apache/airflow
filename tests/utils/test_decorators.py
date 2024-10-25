@@ -49,7 +49,7 @@ def test_task_decorator_using_source(decorator: TaskDecorator):
     def f():
         return ["some_task"]
 
-    assert parse_python_source(f, "decorator") == 'def f():\n    return ["some_task"]\n'
+    assert parse_python_source(f, "decorator") == "def f():\n    return ['some_task']"
 
 
 @pytest.mark.parametrize("decorator", DECORATORS, indirect=["decorator"])
@@ -59,7 +59,7 @@ def test_skip_if(decorator: TaskDecorator):
     def f():
         return "hello world"
 
-    assert parse_python_source(f, "decorator") == 'def f():\n    return "hello world"\n'
+    assert parse_python_source(f, "decorator") == "def f():\n    return 'hello world'"
 
 
 @pytest.mark.parametrize("decorator", DECORATORS, indirect=["decorator"])
@@ -69,7 +69,7 @@ def test_run_if(decorator: TaskDecorator):
     def f():
         return "hello world"
 
-    assert parse_python_source(f, "decorator") == 'def f():\n    return "hello world"\n'
+    assert parse_python_source(f, "decorator") == "def f():\n    return 'hello world'"
 
 
 def test_skip_if_and_run_if():
@@ -79,7 +79,7 @@ def test_skip_if_and_run_if():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == 'def f():\n    return "hello world"\n'
+    assert parse_python_source(f) == "def f():\n    return 'hello world'"
 
 
 def test_run_if_and_skip_if():
@@ -89,7 +89,7 @@ def test_run_if_and_skip_if():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == 'def f():\n    return "hello world"\n'
+    assert parse_python_source(f) == "def f():\n    return 'hello world'"
 
 
 def test_skip_if_allow_decorator():
@@ -102,7 +102,7 @@ def test_skip_if_allow_decorator():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    assert parse_python_source(f) == "@non_task_decorator\ndef f():\n    return 'hello world'"
 
 
 def test_run_if_allow_decorator():
@@ -115,7 +115,7 @@ def test_run_if_allow_decorator():
     def f():
         return "hello world"
 
-    assert parse_python_source(f) == '@non_task_decorator\ndef f():\n    return "hello world"\n'
+    assert parse_python_source(f) == "@non_task_decorator\ndef f():\n    return 'hello world'"
 
 
 def parse_python_source(task: Task, custom_operator_name: str | None = None) -> str:
