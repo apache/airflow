@@ -20,12 +20,12 @@
 from __future__ import annotations
 
 import logging
-import uuid
 import zlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
+import uuid6
 from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, or_, select
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -79,7 +79,7 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-    id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
+    id = Column(UUIDType, primary_key=True, default=uuid6.uuid7)
     dag_id = Column(String(ID_LEN), nullable=False)
     _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)

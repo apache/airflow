@@ -20,9 +20,9 @@ from __future__ import annotations
 import logging
 import random
 import string
-import uuid
 from typing import TYPE_CHECKING
 
+import uuid6
 from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, func, select
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
@@ -47,7 +47,7 @@ class DagVersion(Base):
     """Model to track the versions of DAGs in the database."""
 
     __tablename__ = "dag_version"
-    id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
+    id = Column(UUIDType, primary_key=True, default=uuid6.uuid7)
     version_number = Column(Integer, nullable=False, default=1)
     version_name = Column(StringID(), default=_gen_random_str, nullable=False)
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)

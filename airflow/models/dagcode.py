@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 import struct
-import uuid
 from typing import TYPE_CHECKING, Collection
 
+import uuid6
 from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import relationship
@@ -54,7 +54,7 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-    id = Column(UUIDType, primary_key=True, default=uuid.uuid4)
+    id = Column(UUIDType, primary_key=True, default=uuid6.uuid7)
     fileloc_hash = Column(BigInteger, nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
