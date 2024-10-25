@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,8 +37,12 @@ from typing import (
 
 from databricks import sql  # type: ignore[attr-defined]
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
@@ -47,6 +53,16 @@ LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 T = TypeVar("T")
+
+
+def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
+    if execution_timeout is not None:
+        seconds_to_timeout = execution_timeout.total_seconds()
+        t = threading.Timer(seconds_to_timeout, cur.connection.cancel)
+    else:
+        t = None
+
+    return t
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -184,6 +200,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = None,
     ) -> None: ...
 
     @overload
@@ -195,6 +212,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = None,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
@@ -205,6 +223,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
+        execution_timeout: timedelta | None = None,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
@@ -224,6 +243,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param return_last: Whether to return result for only last statement or for all after split
         :return: return only result of the LAST SQL expression if handler was provided unless return_last
             is set to False.
+        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond
+            it will raise and fail.
         """
         self.descriptions = []
         if isinstance(sql, str):
@@ -248,7 +269,23 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                    t = create_timeout_thread(cur, execution_timeout)
+
+                    # TODO: adjust this to make testing easier
+                    try:
+                        self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                    except Exception as e:
+                        if t is None or t.is_alive():
+                            raise DatabricksSqlExecutionError(
+                                f"Error running SQL statement: {sql_statement}. {str(e)}"
+                            )
+                        raise DatabricksSqlExecutionTimeout(
+                            f"Timeout threshold exceeded for SQL statement: {sql_statement} was cancelled."
+                        )
+                    finally:
+                        if t is not None:
+                            t.cancel()
+
                     if handler is not None:
                         raw_result = handler(cur)
                         if self.return_tuple:
