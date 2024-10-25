@@ -238,7 +238,7 @@ class _EdgeWorkerCli:
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("r") as logfile:
-                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size", fallback=1024)
+                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)
                     while True:
                         logdata = logfile.read(push_log_chunk_size)

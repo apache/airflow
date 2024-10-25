@@ -104,9 +104,13 @@ config:
         default: "60"
       push_log_chunk_size:
         description: |
-          Edge Worker uploads log files in chunks. If the log file part which is uploaded exceeds the chunk size it creates a new request. This solves issue if firewall defines max size of request.
+          Edge Worker uploads log files in chunks. If the log file part which is uploaded
+          exceeds the chunk size it creates a new request. The application gateway can
+          limit the max body size see:
+          https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+          A HTTP 413 issue can point to this value to fix the issue.
           This value must be defined in Bytes.
         version_added: ~
         type: integer
         example: ~
-        default: "1024"
+        default: "524288"
