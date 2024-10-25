@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterator, Mapping
 
 import attrs
 
-from airflow.datasets import Dataset as Asset
+from airflow.assets import Asset, _validate_identifier
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.operators.python import PythonOperator
 
@@ -97,6 +97,11 @@ class asset:
 
     schedule: ScheduleArg
     uri: str | ObjectStoragePath | None
+    group: str = attrs.field(
+        kw_only=True,
+        default="",
+        validator=[attrs.validators.max_len(1500), _validate_identifier],
+    )
     extra: dict[str, Any] = attrs.field(factory=dict)
 
     def __call__(self, f: types.FunctionType) -> AssetDefinition:
@@ -107,6 +112,7 @@ class asset:
         return AssetDefinition(
             name=name,
             uri=name if self.uri is None else str(self.uri),
+            group=self.group,
             extra=self.extra,
             function=f,
             schedule=self.schedule,
