@@ -26,8 +26,10 @@ import {
   Text,
   Tooltip,
   VStack,
+  Link,
 } from "@chakra-ui/react";
 import { FiCalendar, FiTag } from "react-icons/fi";
+import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
@@ -55,9 +57,15 @@ export const DagCard = ({ dag }: Props) => (
     >
       <HStack>
         <Tooltip hasArrow label={dag.description}>
-          <Heading color="blue.contrast" fontSize="md">
+          <Link
+            as={RouterLink}
+            color="blue.contrast"
+            fontSize="md"
+            fontWeight="bold"
+            to={`/dags/${dag.dag_id}`}
+          >
             {dag.dag_display_name}
-          </Heading>
+          </Link>
         </Tooltip>
         {dag.tags.length ? (
           <HStack spacing={1}>
@@ -82,9 +90,7 @@ export const DagCard = ({ dag }: Props) => (
           </HStack>
         ) : undefined}
       </HStack>
-      <HStack>
-        <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
-      </HStack>
+      <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
     </Flex>
     <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
       <div />
