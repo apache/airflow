@@ -1191,7 +1191,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PoolBody'
+              $ref: '#/components/schemas/PoolPatchBody'
       responses:
         '200':
           description: Successful Response
@@ -1289,6 +1289,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Pool
+      summary: Post Pool
+      description: Create a Pool.
+      operationId: post_pool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoolPostBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/providers/:
     get:
       tags:
@@ -1358,6 +1395,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/version/:
+    get:
+      tags:
+      - Version
+      summary: Get Version
+      description: Get version information.
+      operationId: get_version
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -2276,7 +2327,23 @@ components:
       - timetables
       title: PluginResponse
       description: Plugin serializer.
-    PoolBody:
+    PoolCollectionResponse:
+      properties:
+        pools:
+          items:
+            $ref: '#/components/schemas/PoolResponse'
+          type: array
+          title: Pools
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - pools
+      - total_entries
+      title: PoolCollectionResponse
+      description: Pool Collection serializer for responses.
+    PoolPatchBody:
       properties:
         pool:
           anyOf:
@@ -2299,24 +2366,31 @@ components:
           - type: 'null'
           title: Include Deferred
       type: object
-      title: PoolBody
-      description: Pool serializer for bodies.
-    PoolCollectionResponse:
+      title: PoolPatchBody
+      description: Pool serializer for patch bodies.
+    PoolPostBody:
       properties:
-        pools:
-          items:
-            $ref: '#/components/schemas/PoolResponse'
-          type: array
-          title: Pools
-        total_entries:
+        name:
+          type: string
+          title: Name
+        slots:
           type: integer
-          title: Total Entries
+          title: Slots
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        include_deferred:
+          type: boolean
+          title: Include Deferred
+          default: false
       type: object
       required:
-      - pools
-      - total_entries
-      title: PoolCollectionResponse
-      description: Pool Collection serializer for responses.
+      - name
+      - slots
+      title: PoolPostBody
+      description: Pool serializer for post bodies.
     PoolResponse:
       properties:
         name:
@@ -2574,3 +2648,19 @@ components:
       - value
       title: VariableResponse
       description: Variable serializer for responses.
+    VersionInfo:
+      properties:
+        version:
+          type: string
+          title: Version
+        git_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Git Version
+      type: object
+      required:
+      - version
+      - git_version
+      title: VersionInfo
+      description: Version information serializer for responses.

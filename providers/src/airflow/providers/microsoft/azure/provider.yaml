@@ -190,6 +190,8 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Power BI
     external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/powerbi.rst
     tags: [azure]
 
 operators:
