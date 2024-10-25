@@ -29,8 +29,9 @@ import time_machine
 
 from airflow import settings
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
-from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -500,7 +501,7 @@ def test_code(admin_client):
 
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    DagCode.write_dag(dag.fileloc)
+    SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -510,7 +511,7 @@ def test_code_from_db(admin_client):
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
-        DagCode.write_dag(dag.fileloc)
+        SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -619,9 +620,9 @@ def new_id_example_bash_operator():
     dag_id = "example_bash_operator"
     test_dag_id = "non_existent_dag"
     with create_session() as session:
+        session.query(DagVersion).delete()
         dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
-        dag_query.first().dag_versions = []  # same as above
     with create_session() as session:
         dag_query.update({"dag_id": test_dag_id})
     yield test_dag_id

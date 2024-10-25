@@ -90,7 +90,11 @@ def upgrade():
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_version_id", UUIDType))
         batch_op.create_foreign_key(
-            batch_op.f("task_instance_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
+            batch_op.f("task_instance_dag_version_id_fkey"),
+            "dag_version",
+            ["dag_version_id"],
+            ["id"],
+            ondelete="CASCADE",
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
@@ -99,7 +103,11 @@ def upgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_version_id", UUIDType))
         batch_op.create_foreign_key(
-            batch_op.f("dag_run_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
+            batch_op.f("dag_run_dag_version_id_fkey"),
+            "dag_version",
+            ["dag_version_id"],
+            ["id"],
+            ondelete="CASCADE",
         )
         batch_op.drop_column("dag_hash")
 
