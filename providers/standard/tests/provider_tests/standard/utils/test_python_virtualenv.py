@@ -192,25 +192,25 @@ class TestPrepareVirtualenv:
         )
 
     def test_remove_task_decorator(self):
-        py_source = '@task.virtualenv(serializer="dill")\ndef f():\nimport funcsigs'
+        py_source = '@task.virtualenv(serializer="dill")\ndef f():\n    import funcsigs'
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\nimport funcsigs"
+        assert res == "def f():\n    import funcsigs"
 
     def test_remove_decorator_no_parens(self):
-        py_source = "@task.virtualenv\ndef f():\nimport funcsigs"
+        py_source = "@task.virtualenv\ndef f():\n    import funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\nimport funcsigs"
+        assert res == "def f():\n    import funcsigs"
 
     def test_remove_decorator_including_comment(self):
-        py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\nimport funcsigs"
+        py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\n    import funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
+        assert res == "def f():\n# @task.virtualenv\n    import funcsigs"
 
     def test_remove_decorator_nested(self):
-        py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\nimport funcsigs"
+        py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\n    import funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
+        assert res == "@foo\n@bar\ndef f():\n    import funcsigs"
 
-        py_source = "@foo\n@task.virtualenv()\n@bar\ndef f():\nimport funcsigs"
+        py_source = "@foo\n@task.virtualenv()\n@bar\ndef f():\n    import funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "@foo\n@bar\ndef f():\nimport funcsigs"
+        assert res == "@foo\n@bar\ndef f():\n    import funcsigs"
