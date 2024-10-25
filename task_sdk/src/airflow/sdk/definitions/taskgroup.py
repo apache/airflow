@@ -69,6 +69,17 @@ def _default_parent_group() -> TaskGroup | None:
     return TaskGroupContext.get_current()
 
 
+# This could be achieved with `@dag.default` and make this a method, but for some unknown reason when we do
+# that it makes Mypy (1.9.0 and 1.13.0 tested) seem to entirely loose track that this is an Attrs class. So
+# we've gone with this and moved on with our lives, mypy is to much of a dark beast to battle over this.
+def _default_dag(instance: TaskGroup):
+    from airflow.sdk.definitions.contextmanager import DagContext
+
+    if (pg := instance.parent_group) is not None:
+        return pg.dag
+    return DagContext.get_current()
+
+
 @attrs.define(repr=False)
 class TaskGroup(DAGNode):
     """
@@ -101,9 +112,9 @@ class TaskGroup(DAGNode):
     """
 
     _group_id: str | None
-    prefix_group_id: bool = True
+    prefix_group_id: bool = attrs.field(default=True)
     parent_group: TaskGroup | None = attrs.field(factory=_default_parent_group)
-    dag: DAG = attrs.field()  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
+    dag: DAG = attrs.field(default=attrs.Factory(_default_dag, takes_self=True))
     default_args: dict[str, Any] = attrs.field(factory=dict, converter=copy.deepcopy)
     tooltip: str = ""
     children: dict[str, DAGNode] = attrs.field(factory=dict, init=False)
@@ -119,14 +130,6 @@ class TaskGroup(DAGNode):
     ui_fgcolor: str = "#000"
 
     add_suffix_on_collision: bool = False
-
-    @dag.default
-    def _default_dag(self):
-        from airflow.sdk.definitions.contextmanager import DagContext
-
-        if self.parent_group is not None:
-            return self.parent_group.dag
-        return DagContext.get_current()
 
     @dag.validator
     def _validate_dag(self, _attr, dag):

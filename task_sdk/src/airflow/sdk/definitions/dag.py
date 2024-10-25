@@ -213,6 +213,37 @@ else:
     dict_copy = copy.copy
 
 
+def _default_start_date(instance: DAG):
+    # Find start date inside default_args for compat with Airflow 2.
+    from airflow.utils import timezone
+
+    if date := instance.default_args.get("start_date"):
+        if not isinstance(date, datetime):
+            date = timezone.parse(date)
+            instance.default_args["start_date"] = date
+        return date
+    return None
+
+
+def _default_dag_display_name(instance: DAG) -> str:
+    return instance.dag_id
+
+
+def _default_fileloc() -> str:
+    # Skip over this frame, and the 'attrs generated init'
+    back = sys._getframe().f_back
+    if not back or not (back := back.f_back):
+        # We expect two frames back, if not we don't know where we are
+        return ""
+    return back.f_code.co_filename if back else ""
+
+
+def _default_task_group(instance: DAG) -> TaskGroup:
+    from airflow.sdk.definitions.taskgroup import TaskGroup
+
+    return TaskGroup.create_root(dag=instance)
+
+
 # TODO: Task-SDK: look at re-enabling slots after we remove pickling
 @attrs.define(repr=False, field_transformer=_all_after_dag_id_to_kw_only, slots=False)
 class DAG:
@@ -328,6 +359,11 @@ class DAG:
 
     __serialized_fields: ClassVar[frozenset[str] | None] = None
 
+    # Note: mypy gets very confused about the use of `@${attr}.default` for attrs without init=False -- and it
+    # doesn't correctly track/notice that they have default values (it gives errors about `Missing positional
+    # argument "description" in call to "DAG"`` etc), so for init=True args we use the `default=Factory()`
+    # style
+
     # NOTE: When updating arguments here, please also keep arguments in @dag()
     # below in sync. (Search for 'def dag(' in this file.)
     dag_id: str = attrs.field(kw_only=False, validator=attrs.validators.instance_of(str))
@@ -338,7 +374,9 @@ class DAG:
     default_args: dict[str, Any] = attrs.field(
         factory=dict, validator=attrs.validators.instance_of(dict), converter=dict_copy
     )
-    start_date: datetime | None = attrs.field()  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
+    start_date: datetime | None = attrs.field(
+        default=attrs.Factory(_default_start_date, takes_self=True),
+    )
 
     end_date: datetime | None = None
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
@@ -382,13 +420,18 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_stop: bool = attrs.field(default=False, converter=bool)
-    dag_display_name: str = attrs.field(validator=attrs.validators.instance_of(str))  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
+    dag_display_name: str = attrs.field(
+        default=attrs.Factory(_default_dag_display_name, takes_self=True),
+        validator=attrs.validators.instance_of(str),
+    )
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
 
-    task_group: TaskGroup = attrs.field(on_setattr=attrs.setters.frozen)  # type: ignore[misc]  # mypy doesn't grok the `@dag.default` seemingly
+    task_group: TaskGroup = attrs.field(
+        on_setattr=attrs.setters.frozen, default=attrs.Factory(_default_task_group, takes_self=True)
+    )
 
-    fileloc: str = attrs.field(init=False)
+    fileloc: str = attrs.field(init=False, factory=_default_fileloc)
     partial: bool = attrs.field(init=False, default=False)
 
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(init=False, factory=dict)
@@ -405,68 +448,6 @@ class DAG:
 
         self.start_date = timezone.convert_to_utc(self.start_date)
         self.end_date = timezone.convert_to_utc(self.end_date)
-
-    @fileloc.default
-    def _default_fileloc(self) -> str:
-        # Skip over this frame, and the 'attrs generated init'
-        back = sys._getframe().f_back
-        if not back or not (back := back.f_back):
-            # We expect two frames back, if not we don't know where we are
-            return ""
-        return back.f_code.co_filename if back else ""
-
-    @dag_display_name.default
-    def _default_dag_display_name(self) -> str:
-        return self.dag_id
-
-    @task_group.default
-    def _default_task_group(self) -> TaskGroup:
-        from airflow.sdk.definitions.taskgroup import TaskGroup
-
-        return TaskGroup.create_root(dag=self)
-
-    @timetable.default
-    def _default_timetable(self):
-        from airflow.assets import AssetAll
-
-        schedule = self.schedule
-        # TODO: Once
-        # delattr(self, "schedule")
-        if isinstance(schedule, Timetable):
-            return schedule
-        elif isinstance(schedule, BaseAsset):
-            return AssetTriggeredTimetable(schedule)
-        elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
-            return AssetTriggeredTimetable(AssetAll(*schedule))
-        else:
-            return _create_timetable(schedule, self.timezone)
-
-    @start_date.default
-    def _default_start_date(self):
-        # Find start date inside default_args for compat with Airflow 2.
-        from airflow.utils import timezone
-
-        if date := self.default_args.get("start_date"):
-            if not isinstance(date, datetime):
-                date = timezone.parse(date)
-                self.default_args["start_date"] = date
-            return date
-        return None
-
-    @timezone.default
-    def _extract_tz(self):
-        import pendulum
-
-        from airflow.utils import timezone
-
-        # TODO: Task-SDK: get default dag tz from settings
-        tz = timezone.utc
-        if self.start_date and (tzinfo := self.start_date.tzinfo):
-            tzinfo = None if tzinfo else tz
-            tz = pendulum.instance(self.start_date, tz=tzinfo).timezone
-        return tz
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):
@@ -505,6 +486,37 @@ class DAG:
                     f"Invalid max_active_runs: {type(self.timetable).__name__} "
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
+
+    @timetable.default
+    def _default_timetable(instance: DAG):
+        from airflow.assets import AssetAll
+
+        schedule = instance.schedule
+        # TODO: Once
+        # delattr(self, "schedule")
+        if isinstance(schedule, Timetable):
+            return schedule
+        elif isinstance(schedule, BaseAsset):
+            return AssetTriggeredTimetable(schedule)
+        elif isinstance(schedule, Collection) and not isinstance(schedule, str):
+            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
+            return AssetTriggeredTimetable(AssetAll(*schedule))
+        else:
+            return _create_timetable(schedule, instance.timezone)
+
+    @timezone.default
+    def _extract_tz(instance):
+        import pendulum
+
+        from airflow.utils import timezone
+
+        # TODO: Task-SDK: get default dag tz from settings
+        tz = timezone.utc
+        if instance.start_date and (tzinfo := instance.start_date.tzinfo):
+            tzinfo = None if tzinfo else tz
+            tz = pendulum.instance(instance.start_date, tz=tzinfo).timezone
+        return tz
 
     @has_on_success_callback.default
     def _has_on_success_callback(self) -> bool:

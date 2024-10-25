@@ -507,7 +507,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     email_on_retry: bool = True
     email_on_failure: bool = True
     retries: int | None = DEFAULT_RETRIES
-    retry_delay: timedelta | float = DEFAULT_RETRY_DELAY
+    retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: bool = False
     max_retry_delay: timedelta | float | None = None
     start_date: datetime | None = None
@@ -561,10 +561,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     is_setup: bool = False
     is_teardown: bool = False
 
+    # TODO: Task-SDK: Make these ClassVar[]?
     template_fields: Collection[str] = ()
     template_ext: Sequence[str] = ()
 
-    template_fields_renderers: ClassVar[dict[str, str]] = {}
+    template_fields_renderers: dict[str, str] = field(default_factory=dict, init=False)
 
     # Defines the color in the UI
     ui_color: str = "#fff"
@@ -574,6 +575,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _dag: DAG | None = field(init=False, default=None)
+
+    # Make this optional so the type matches the one define in LoggingMixin
+    _log_config_logger_name: str | None = field(default="airflow.task.operators", init=False)
+    _logger_name: str | None = None
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: ClassVar[frozenset[str] | None] = None
@@ -633,7 +638,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     )
 
     # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs: ClassVar[Sequence[str]] = ()
+    shallow_copy_attrs: Sequence[str] = ()
 
     def __setattr__(self: BaseOperator, key: str, value: Any):
         if converter := getattr(self, f"_convert_{key}", None):
@@ -789,7 +794,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retry_delay = retry_delay
+        # Converted by setattr
+        self.retry_delay = retry_delay  # type: ignore[assignment]
         self.retry_exponential_backoff = retry_exponential_backoff
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
@@ -817,10 +823,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.allow_nested_operators = allow_nested_operators
 
-        """
-        self._log_config_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
-        """
 
         # Lineage
         if inlets:

@@ -33,7 +33,7 @@ from collections.abc import Container
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Mapping, NamedTuple, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
@@ -197,10 +197,7 @@ class PythonOperator(BaseOperator):
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs: ClassVar[Sequence[str]] = (
-        "python_callable",
-        "op_kwargs",
-    )
+    shallow_copy_attrs: Sequence[str] = ("python_callable", "op_kwargs")
 
     def __init__(
         self,

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, ClassVar, Collection, Mapping, Sequence
+from typing import Any, Callable, Collection, Mapping, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.standard.operators.bash import BashOperator
@@ -39,7 +39,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
     """
 
     template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *BashOperator.template_fields)
-    template_fields_renderers: ClassVar[dict[str, str]] = {
+    template_fields_renderers: dict[str, str] = {
         **DecoratedOperator.template_fields_renderers,
         **BashOperator.template_fields_renderers,
     }
