@@ -64,7 +64,7 @@ export const Nav = () => {
         <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
         <NavButton
           icon={<DagIcon height={7} width={7} />}
-          title="DAGs"
+          title="Dags"
           to="dags"
         />
         <NavButton
@@ -76,7 +76,7 @@ export const Nav = () => {
         <NavButton
           icon={<FiBarChart2 size="1.75rem" />}
           isDisabled
-          title="DAG Runs"
+          title="Dag Runs"
           to="dag_runs"
         />
         <NavButton

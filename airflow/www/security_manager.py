@@ -108,8 +108,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
         g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
-        limiter = Limiter(key_func=get_remote_address)
-        limiter.init_app(self.appbuilder.get_app)
+        app = self.appbuilder.get_app
+        limiter = Limiter(key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
+        limiter.init_app(app)
         return limiter
 
     def register_views(self):

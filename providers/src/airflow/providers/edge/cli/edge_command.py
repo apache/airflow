@@ -95,9 +95,9 @@ def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
 
 
-def _write_pid_to_pidfile(pid_file_path):
+def _write_pid_to_pidfile(pid_file_path: str):
     """Write PIDs for Edge Workers to disk, handling existing PID files."""
-    if pid_file_path.exists():
+    if Path(pid_file_path).exists():
         # Handle existing PID files on disk
         logger.info("An existing PID file has been found: %s.", pid_file_path)
         pid_stored_in_pid_file = read_pid_from_pidfile(pid_file_path)
@@ -142,7 +142,7 @@ class _EdgeWorkerCli:
 
     def __init__(
         self,
-        pid_file_path: Path,
+        pid_file_path: str,
         hostname: str,
         queues: list[str] | None,
         concurrency: int,
@@ -238,14 +238,18 @@ class _EdgeWorkerCli:
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("r") as logfile:
+                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)
-                    logdata = logfile.read()
-                    EdgeLogs.push_logs(
-                        task=job.edge_job.key,
-                        log_chunk_time=datetime.now(),
-                        log_chunk_data=logdata,
-                    )
-                    job.logsize += len(logdata)
+                    while True:
+                        logdata = logfile.read(push_log_chunk_size)
+                        if not logdata:
+                            break
+                        EdgeLogs.push_logs(
+                            task=job.edge_job.key,
+                            log_chunk_time=datetime.now(),
+                            log_chunk_data=logdata,
+                        )
+                        job.logsize += len(logdata)
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""

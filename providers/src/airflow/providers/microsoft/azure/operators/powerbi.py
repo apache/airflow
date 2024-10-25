@@ -52,6 +52,10 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     """
     Refreshes a Power BI dataset.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PowerBIDatasetRefreshOperator`
+
     :param dataset_id: The dataset id.
     :param group_id: The workspace id.
     :param conn_id: Airflow Connection ID that contains the connection information for the Power BI account used for authentication.

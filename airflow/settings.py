@@ -741,6 +741,9 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # mask the sensitive_config_values
+    conf.mask_secrets()
+
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()
 

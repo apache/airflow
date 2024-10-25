@@ -95,6 +95,12 @@ We have possibility to run this operation in the sync mode and async, for async 
 a sensor:
 :class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationStateSensor`
 
+We also have a sensor to check the status of a particular action for a workflow invocation triggered
+asynchronously.
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformWorkflowInvocationActionStateSensor`
+
+
 .. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
     :language: python
     :dedent: 4
@@ -106,6 +112,12 @@ a sensor:
     :dedent: 4
     :start-after: [START howto_operator_create_workflow_invocation_async]
     :end-before: [END howto_operator_create_workflow_invocation_async]
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_workflow_invocation_action_async]
+    :end-before: [END howto_operator_create_workflow_invocation_action_async]
 
 Get Workflow Invocation
 -----------------------

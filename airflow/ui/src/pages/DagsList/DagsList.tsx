@@ -70,7 +70,7 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   {
     accessorKey: "dag_id",
     cell: ({ row }) => row.original.dag_display_name,
-    header: "DAG",
+    header: "Dag",
   },
   {
     accessorKey: "timetable_description",
@@ -88,7 +88,7 @@ const columns: Array<ColumnDef<DAGResponse>> = [
         <Time datetime={original.next_dagrun} />
       ) : undefined,
     enableSorting: false,
-    header: "Next DAG Run",
+    header: "Next Dag Run",
   },
   {
     accessorKey: "tags",
@@ -108,6 +108,7 @@ const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   PAUSED: PAUSED_PARAM,
+  TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGResponse> = {
@@ -125,6 +126,7 @@ export const DagsList = () => {
   const lastDagRunState = searchParams.get(
     LAST_DAG_RUN_STATE_PARAM,
   ) as DagRunState;
+  const selectedTags = searchParams.getAll(TAGS_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -163,8 +165,16 @@ export const DagsList = () => {
       onlyActive: true,
       orderBy,
       paused: showPaused === null ? undefined : showPaused === "true",
+      tags: selectedTags,
     },
-    [dagDisplayNamePattern, showPaused, lastDagRunState, pagination, orderBy],
+    [
+      dagDisplayNamePattern,
+      showPaused,
+      lastDagRunState,
+      pagination,
+      orderBy,
+      selectedTags,
+    ],
     {
       refetchOnMount: true,
       refetchOnReconnect: false,
@@ -198,7 +208,7 @@ export const DagsList = () => {
         <DagsFilters />
         <HStack justifyContent="space-between">
           <Heading py={3} size="md">
-            {pluralize("DAG", data?.total_entries)}
+            {pluralize("Dag", data?.total_entries)}
           </Heading>
           {display === "card" ? (
             <Select
@@ -209,8 +219,8 @@ export const DagsList = () => {
               variant="flushed"
               width="200px"
             >
-              <option value="dag_id">Sort by DAG ID (A-Z)</option>
-              <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+              <option value="dag_id">Sort by Dag ID (A-Z)</option>
+              <option value="-dag_id">Sort by Dag ID (Z-A)</option>
             </Select>
           ) : (
             false
@@ -227,7 +237,7 @@ export const DagsList = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="DAG"
+        modelName="Dag"
         onStateChange={setTableURLState}
         skeletonCount={display === "card" ? 5 : undefined}
         total={data?.total_entries}
