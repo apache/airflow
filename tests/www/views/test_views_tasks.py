@@ -28,8 +28,7 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.models.dag import DAG, DagModel
-from airflow.models.dag_version import DagVersion
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -615,25 +614,12 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
         return True
 
 
-@pytest.fixture
-def new_id_example_bash_operator():
-    dag_id = "example_bash_operator"
-    test_dag_id = "non_existent_dag"
-    with create_session() as session:
-        session.query(DagVersion).filter(DagVersion.dag_id == dag_id).delete()
-        dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
-        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
-    with create_session() as session:
-        dag_query.update({"dag_id": test_dag_id})
-    yield test_dag_id
-    with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
-    DagBag(include_examples=True).get_dag(dag_id).sync_to_db()
-
-
-def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
+def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
+    with dag_maker() as dag:
+        EmptyOperator(task_id="task")
+    dag.sync_to_db()
     # The delete-dag URL should be generated correctly
-    test_dag_id = new_id_example_bash_operator
+    test_dag_id = dag.dag_id
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response(f"/delete?dag_id={test_dag_id}", resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
