@@ -216,10 +216,10 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
         "types-aiofiles",
         "types-certifi",
         "types-croniter",
