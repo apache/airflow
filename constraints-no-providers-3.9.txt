@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-24T08:51:58.929743
+# This constraints file was automatically generated on 2024-10-25T16:43:10.519469
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -65,14 +65,13 @@ colorama==0.4.6
 colorlog==6.8.2
 connexion==2.14.2
 cron-descriptor==1.4.5
-croniter==3.0.3
+croniter==3.0.4
 cryptography==43.0.3
 decorator==5.1.1
 dill==0.3.9
 distlib==0.3.9
 dnspython==2.7.0
 docopt==0.6.2
-docutils==0.21.2
 email_validator==2.2.0
 eventlet==0.37.0
 exceptiongroup==1.2.2
@@ -147,7 +146,7 @@ pydantic==2.9.2
 pydantic_core==2.23.4
 pykerberos==1.2.4
 pyspnego==0.11.1
-python-daemon==3.0.1
+python-daemon==3.1.0
 python-dateutil==2.9.0.post0
 python-ldap==3.4.4
 python-nvd3==0.16.0
