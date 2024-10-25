@@ -25,7 +25,6 @@ import {
   SimpleGrid,
   Text,
   Tooltip,
-  useColorModeValue,
   VStack,
 } from "@chakra-ui/react";
 import { FiCalendar, FiTag } from "react-icons/fi";
@@ -40,82 +39,76 @@ type Props = {
 
 const MAX_TAGS = 3;
 
-export const DagCard = ({ dag }: Props) => {
-  const cardBorder = useColorModeValue("gray.100", "gray.700");
-  const tooltipBg = useColorModeValue("gray.200", "gray.700");
-
-  return (
-    <Box
-      borderColor={cardBorder}
-      borderRadius={8}
-      borderWidth={1}
-      overflow="hidden"
+export const DagCard = ({ dag }: Props) => (
+  <Box
+    borderColor="blue.minimal"
+    borderRadius={8}
+    borderWidth={1}
+    overflow="hidden"
+  >
+    <Flex
+      alignItems="center"
+      bg="blue.minimal"
+      justifyContent="space-between"
+      px={3}
+      py={2}
     >
-      <Flex
-        alignItems="center"
-        bg="subtle-bg"
-        justifyContent="space-between"
-        px={3}
-        py={2}
-      >
-        <HStack>
-          <Tooltip hasArrow label={dag.description}>
-            <Heading color="subtle-text" fontSize="md">
-              {dag.dag_display_name}
-            </Heading>
-          </Tooltip>
-          {dag.tags.length ? (
-            <HStack spacing={1}>
-              <FiTag data-testid="dag-tag" />
-              {dag.tags.slice(0, MAX_TAGS).map((tag) => (
-                <Badge key={tag.name}>{tag.name}</Badge>
-              ))}
-              {dag.tags.length > MAX_TAGS && (
-                <Tooltip
-                  bg={tooltipBg}
-                  hasArrow
-                  label={
-                    <VStack p={1} spacing={1}>
-                      {dag.tags.slice(MAX_TAGS).map((tag) => (
-                        <Badge key={tag.name}>{tag.name}</Badge>
-                      ))}
-                    </VStack>
-                  }
-                >
-                  <Badge>+{dag.tags.length - MAX_TAGS} more</Badge>
-                </Tooltip>
-              )}
-            </HStack>
-          ) : undefined}
-        </HStack>
-        <HStack>
-          <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
-        </HStack>
-      </Flex>
-      <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
-        <div />
-        <VStack align="flex-start" spacing={1}>
-          <Heading color="gray.500" fontSize="xs">
-            Next Run
+      <HStack>
+        <Tooltip hasArrow label={dag.description}>
+          <Heading color="blue.contrast" fontSize="md">
+            {dag.dag_display_name}
           </Heading>
-          {Boolean(dag.next_dagrun) ? (
+        </Tooltip>
+        {dag.tags.length ? (
+          <HStack spacing={1}>
+            <FiTag data-testid="dag-tag" />
+            {dag.tags.slice(0, MAX_TAGS).map((tag) => (
+              <Badge key={tag.name}>{tag.name}</Badge>
+            ))}
+            {dag.tags.length > MAX_TAGS && (
+              <Tooltip
+                hasArrow
+                label={
+                  <VStack p={1} spacing={1}>
+                    {dag.tags.slice(MAX_TAGS).map((tag) => (
+                      <Badge key={tag.name}>{tag.name}</Badge>
+                    ))}
+                  </VStack>
+                }
+              >
+                <Badge>+{dag.tags.length - MAX_TAGS} more</Badge>
+              </Tooltip>
+            )}
+          </HStack>
+        ) : undefined}
+      </HStack>
+      <HStack>
+        <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+      </HStack>
+    </Flex>
+    <SimpleGrid columns={4} height={20} px={3} py={2} spacing={4}>
+      <div />
+      <VStack align="flex-start" spacing={1}>
+        <Heading color="gray.500" fontSize="xs">
+          Next Run
+        </Heading>
+        {Boolean(dag.next_dagrun) ? (
+          <Text fontSize="sm">
+            <Time datetime={dag.next_dagrun} />
+          </Text>
+        ) : undefined}
+        {Boolean(dag.timetable_summary) ? (
+          <Tooltip hasArrow label={dag.timetable_description}>
             <Text fontSize="sm">
-              <Time datetime={dag.next_dagrun} />
+              {" "}
+              <FiCalendar style={{ display: "inline" }} />{" "}
+              {dag.timetable_summary}
             </Text>
-          ) : undefined}
-          {Boolean(dag.timetable_summary) ? (
-            <Tooltip hasArrow label={dag.timetable_description}>
-              <Text fontSize="sm">
-                {" "}
-                <FiCalendar style={{ display: "inline" }} />{" "}
-                {dag.timetable_summary}
-              </Text>
-            </Tooltip>
-          ) : undefined}
-        </VStack>
-        <div />
-        <div />
-      </SimpleGrid>
-    </Box>
-  );
-};
+          </Tooltip>
+        ) : undefined}
+      </VStack>
+      <div />
+      <div />
+    </SimpleGrid>
+  </Box>
+);
