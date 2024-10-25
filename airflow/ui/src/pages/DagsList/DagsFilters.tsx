@@ -163,6 +163,10 @@ export const DagsFilters = () => {
             ...provided,
             minWidth: 64,
           }),
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 2,
+          }),
         }}
         isClearable
         isMulti
