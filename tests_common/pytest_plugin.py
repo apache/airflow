@@ -1026,16 +1026,30 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
+                    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-                    self.session.query(SerializedDagModel).filter(
-                        SerializedDagModel.dag_id.in_(dag_ids)
-                    ).delete(synchronize_session=False)
-                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
+                    if AIRFLOW_V_3_0_PLUS:
+                        from airflow.models.dag_version import DagVersion
+
+                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(DagVersion).filter(DagVersion.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False
+                        )
+                    else:
+                        self.session.query(SerializedDagModel).filter(
+                            SerializedDagModel.dag_id.in_(dag_ids)
+                        ).delete(synchronize_session=False)
+                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
