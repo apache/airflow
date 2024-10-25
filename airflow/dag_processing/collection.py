@@ -37,7 +37,6 @@ from sqlalchemy.orm import joinedload, load_only
 from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
-    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -277,7 +276,7 @@ class AssetModelOperation(NamedTuple):
     schedule_asset_references: dict[str, list[Asset]]
     schedule_asset_alias_references: dict[str, list[AssetAlias]]
     outlet_references: dict[str, list[tuple[str, Asset]]]
-    assets: dict[str, Asset]
+    assets: dict[tuple[str, str], Asset]
     asset_aliases: dict[str, AssetAlias]
 
     @classmethod
@@ -300,22 +299,25 @@ class AssetModelOperation(NamedTuple):
                 ]
                 for dag_id, dag in dags.items()
             },
-            assets={asset.uri: asset for asset in _find_all_assets(dags.values())},
+            assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
             asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
         return coll
 
-    def add_assets(self, *, session: Session) -> dict[str, AssetModel]:
+    def add_assets(self, *, session: Session) -> dict[tuple[str, str], AssetModel]:
         # Optimization: skip all database calls if no assets were collected.
         if not self.assets:
             return {}
-        orm_assets: dict[str, AssetModel] = {
-            am.uri: am for am in session.scalars(select(AssetModel).where(AssetModel.uri.in_(self.assets)))
+        orm_assets: dict[tuple[str, str], AssetModel] = {
+            (am.name, am.uri): am
+            for am in session.scalars(
+                select(AssetModel).where(tuple_(AssetModel.name, AssetModel.uri).in_(self.assets))
+            )
         }
         orm_assets.update(
-            (model.uri, model)
+            ((model.name, model.uri), model)
             for model in asset_manager.create_assets(
-                [asset for uri, asset in self.assets.items() if uri not in orm_assets],
+                [asset for name_uri, asset in self.assets.items() if name_uri not in orm_assets],
                 session=session,
             )
         )
@@ -340,24 +342,10 @@ class AssetModelOperation(NamedTuple):
         )
         return orm_aliases
 
-    def add_asset_active_references(self, assets: Collection[AssetModel], *, session: Session) -> None:
-        existing_entries = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((asset.name, asset.uri) for asset in assets)
-                )
-            )
-        )
-        session.add_all(
-            AssetActive.for_asset(asset)
-            for asset in assets
-            if (asset.name, asset.uri) not in existing_entries
-        )
-
     def add_dag_asset_references(
         self,
         dags: dict[str, DagModel],
-        assets: dict[str, AssetModel],
+        assets: dict[tuple[str, str], AssetModel],
         *,
         session: Session,
     ) -> None:
@@ -369,7 +357,7 @@ class AssetModelOperation(NamedTuple):
             if not references:
                 dags[dag_id].schedule_asset_references = []
                 continue
-            referenced_asset_ids = {asset.id for asset in (assets[r.uri] for r in references)}
+            referenced_asset_ids = {asset.id for asset in (assets[r.name, r.uri] for r in references)}
             orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
@@ -409,7 +397,7 @@ class AssetModelOperation(NamedTuple):
     def add_task_asset_references(
         self,
         dags: dict[str, DagModel],
-        assets: dict[str, AssetModel],
+        assets: dict[tuple[str, str], AssetModel],
         *,
         session: Session,
     ) -> None:
@@ -423,7 +411,7 @@ class AssetModelOperation(NamedTuple):
                 continue
             referenced_outlets = {
                 (task_id, asset.id)
-                for task_id, asset in ((task_id, assets[d.uri]) for task_id, d in references)
+                for task_id, asset in ((task_id, assets[d.name, d.uri]) for task_id, d in references)
             }
             orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
             for key, ref in orm_refs.items():
