@@ -38,9 +38,7 @@ LOCATION = os.environ.get("SYSTEM_TESTS_GCP_LOCATION", "us-central1")
 KMS_KEY = os.environ.get("SYSTEM_TESTS_GCP_KMS_KEY")
 
 DAG_ID = "financial_services_instance"
-
 INSTANCE_ID = f"instance_{DAG_ID}_{ENV_ID}"
-
 RESOURCE_DIR_PATH = str(Path(__file__).parent / "resources" / "financial_services_discovery.json")
 
 with DAG(

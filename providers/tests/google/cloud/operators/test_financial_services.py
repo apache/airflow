@@ -23,15 +23,18 @@ from airflow.providers.google.cloud.operators.financial_services import (
     FinancialServicesDeleteInstanceOperator,
 )
 
+TEST_KMS_KEY_URI = "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key"
+TEST_LOCATION_RESOURCE_URI = "projects/test-project/locations/us-central1"
+TEST_INSTANCE_ID = "test-instance"
+TEST_INSTANCE_RESOURCE_URI = f"{TEST_LOCATION_RESOURCE_URI}/instances/{TEST_INSTANCE_ID}"
 TEST_OPERATION = {"name": "test-operation", "metadata": {}, "done": False}
-
 TEST_INSTANCE = {
     "name": "test-instance",
     "createTime": "2014-10-02T15:01:23Z",
     "updateTime": "2014-10-02T15:01:23Z",
     "labels": {},
     "state": "ACTIVE",
-    "kmsKey": "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
+    "kmsKey": TEST_KMS_KEY_URI,
 }
 
 
@@ -43,17 +46,17 @@ class TestFinancialServicesCreateInstanceOperator:
         op = FinancialServicesCreateInstanceOperator(
             task_id="test_create_instance_task",
             discovery_doc={},
-            instance_id="test-instance",
-            kms_key_uri="projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
-            location_resource_uri="projects/test-project/locations/us-central1",
+            instance_id=TEST_INSTANCE_ID,
+            kms_key_uri=TEST_KMS_KEY_URI,
+            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.create_instance.assert_called_once_with(
-            instance_id="test-instance",
-            kms_key_uri="projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
-            location_resource_uri="projects/test-project/locations/us-central1",
+            instance_id=TEST_INSTANCE_ID,
+            kms_key_uri=TEST_KMS_KEY_URI,
+            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
         )
 
 
@@ -65,13 +68,13 @@ class TestFinancialServicesDeleteInstanceOperator:
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_delete_instance_task",
             discovery_doc={},
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance"
+            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
         )
 
 
@@ -83,11 +86,11 @@ class TestFinancialServicesGetInstanceOperator:
         op = FinancialServicesDeleteInstanceOperator(
             task_id="test_get_instance_task",
             discovery_doc={},
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI,
         )
         op.execute(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.delete_instance.assert_called_once_with(
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/test-instance"
+            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
         )

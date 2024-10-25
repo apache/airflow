@@ -25,6 +25,8 @@ class FinancialServicesHook(GoogleBaseHook):
     """
     Hook for interacting with the Google Financial Services API.
 
+    :param discovery_doc: Discovery document for building the Financial Services API
+        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
     """
@@ -53,7 +55,7 @@ class FinancialServicesHook(GoogleBaseHook):
         """
         Establish a connection to the Google Financial Services API.
 
-        :return: a Google Cloud Financial Services service object.
+        :return: A Google Cloud Financial Services API service resource.
         """
         if not self.connection:
             self.connection = build_from_document(self.discovery_doc)
@@ -62,10 +64,10 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def get_instance(self, instance_resource_uri: str) -> dict:
         """
-        Get an AML AI instance.
+        Get a Financial Services Anti-Money Laundering AI instance.
 
         :param instance_resource_uri: URI of the instance to get (format:
-            'projects/<Project ID>/locations/<Location>/instances/<Instance>)
+            'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
 
         :returns: A dictionary containing the instance metadata
         """
@@ -75,7 +77,7 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def create_instance(self, instance_id: str, kms_key_uri: str, location_resource_uri: str) -> dict:
         """
-        Create an AML AI instance.
+        Create a Financial Services Anti-Money Laundering AI instance.
 
         :param instance_id: Identifier for the instance to create
         :param kms_key_uri: URI of the KMS key to that will be used for instance encryption
@@ -100,10 +102,10 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def delete_instance(self, instance_resource_uri: str) -> dict:
         """
-        Delete an AML AI instance.
+        Delete a Financial Services Anti-Money Laundering AI instance.
 
         :param instance_resource_uri: URI of the instance to delete (format:
-                'projects/<Project ID>/locations/<Location>/instances/<Instance>)
+                'projects/<Project ID>/locations/<Location>/instances/<Instance ID>)
 
         :returns: A dictionary containing metadata for the delete instance
                 operation
@@ -114,9 +116,11 @@ class FinancialServicesHook(GoogleBaseHook):
 
     def get_operation(self, operation_resource_uri: str) -> dict:
         """
-        Get an operation.
+        Get a Financial Services Anti-Money Laundering AI operation.
 
-        :param operation_resource_uri: URI of the operation
+        :param operation_resource_uri: URI of the operation to get (format:
+            'projects/<Project ID>/locations/<Location>/operations/<Operation ID>)
+
         :return: A dictionary containing metadata for the operation
         """
         conn = self.get_conn()

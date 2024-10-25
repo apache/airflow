@@ -23,6 +23,8 @@ import pytest
 from airflow.exceptions import AirflowFailException
 from airflow.providers.google.cloud.sensors.financial_services import FinancialServicesOperationSensor
 
+TEST_LOCATION_RESOURCE_URI = "projects/test-project/locations/us-central1"
+TEST_OPERATION_RESOURCE_URI = f"{TEST_LOCATION_RESOURCE_URI}/operations/test-operation"
 TEST_OPERATION = {"name": "test-operation", "metadata": {}, "done": False}
 TEST_OPERATION_DONE = {"name": "test-operation", "metadata": {}, "done": True, "response": {}}
 TEST_OPERATION_ERROR = {"name": "test-operation", "metadata": {}, "done": True, "error": {}}
@@ -36,13 +38,13 @@ class TestFinancialServicesOperationSensor:
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
             discovery_doc={},
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )
         response = op.poke(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )
         assert response.is_done == TEST_OPERATION["done"]
 
@@ -53,13 +55,13 @@ class TestFinancialServicesOperationSensor:
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
             discovery_doc={},
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )
         response = op.poke(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )
         assert response.is_done == TEST_OPERATION_DONE["done"]
 
@@ -70,12 +72,12 @@ class TestFinancialServicesOperationSensor:
         op = FinancialServicesOperationSensor(
             task_id="test_operation_sensor_task",
             discovery_doc={},
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )
         with pytest.raises(AirflowFailException):
             op.poke(context={"ti": mock.MagicMock()})
 
         mock_hook.assert_called_once_with(discovery_doc={}, gcp_conn_id="google_cloud_default")
         mock_hook.return_value.get_operation.assert_called_once_with(
-            operation_resource_uri="projects/test-project/locations/us-central1/instances/test-instance",
+            operation_resource_uri=TEST_OPERATION_RESOURCE_URI,
         )

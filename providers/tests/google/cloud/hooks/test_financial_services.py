@@ -20,15 +20,18 @@ from unittest.mock import patch
 
 from airflow.providers.google.cloud.hooks.financial_services import FinancialServicesHook
 
+TEST_KMS_KEY_URI = "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key"
+TEST_LOCATION_RESOURCE_URI = "projects/test-project/locations/us-central1"
+TEST_INSTANCE_ID = "test-instance"
+TEST_INSTANCE_RESOURCE_URI = f"{TEST_LOCATION_RESOURCE_URI}/instances/{TEST_INSTANCE_ID}"
 TEST_OPERATION = {"name": "test-operation", "metadata": {}, "done": False}
-
 TEST_INSTANCE = {
     "name": "test-instance",
     "createTime": "2014-10-02T15:01:23Z",
     "updateTime": "2014-10-02T15:01:23Z",
     "labels": {},
     "state": "ACTIVE",
-    "kmsKey": "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
+    "kmsKey": TEST_KMS_KEY_URI,
 }
 
 
@@ -65,13 +68,9 @@ class TestFinancialServicesHook:
         instances = locations.instances.return_value
         instances.get.return_value.execute.return_value = TEST_INSTANCE
 
-        response = self.financial_services_hook.get_instance(
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/unit-test-instance"
-        )
+        response = self.financial_services_hook.get_instance(instance_resource_uri=TEST_INSTANCE_RESOURCE_URI)
 
-        instances.get.assert_called_once_with(
-            name="projects/test-project/locations/us-central1/instances/unit-test-instance"
-        )
+        instances.get.assert_called_once_with(name=TEST_INSTANCE_RESOURCE_URI)
 
         assert response == TEST_INSTANCE
 
@@ -85,17 +84,15 @@ class TestFinancialServicesHook:
         instances.create.return_value.execute.return_value = TEST_OPERATION
 
         response = self.financial_services_hook.create_instance(
-            instance_id="test-instance",
-            kms_key_uri="projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key",
-            location_resource_uri="projects/test-project/locations/us-central1",
+            instance_id=TEST_INSTANCE_ID,
+            kms_key_uri=TEST_KMS_KEY_URI,
+            location_resource_uri=TEST_LOCATION_RESOURCE_URI,
         )
 
         instances.create.assert_called_once_with(
-            parent="projects/test-project/locations/us-central1",
-            instanceId="test-instance",
-            body={
-                "kmsKey": "projects/test-project/locations/us-central1/keyRings/my-kr/cryptoKeys/my-kms-key"
-            },
+            parent=TEST_LOCATION_RESOURCE_URI,
+            instanceId=TEST_INSTANCE_ID,
+            body={"kmsKey": TEST_KMS_KEY_URI},
         )
 
         assert response == TEST_OPERATION
@@ -110,11 +107,9 @@ class TestFinancialServicesHook:
         instances.delete.return_value.execute.return_value = TEST_OPERATION
 
         response = self.financial_services_hook.delete_instance(
-            instance_resource_uri="projects/test-project/locations/us-central1/instances/unit-test-instance"
+            instance_resource_uri=TEST_INSTANCE_RESOURCE_URI
         )
 
-        instances.delete.assert_called_once_with(
-            name="projects/test-project/locations/us-central1/instances/unit-test-instance"
-        )
+        instances.delete.assert_called_once_with(name=TEST_INSTANCE_RESOURCE_URI)
 
         assert response == TEST_OPERATION

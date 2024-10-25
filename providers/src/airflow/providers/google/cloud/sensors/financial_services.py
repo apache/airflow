@@ -32,12 +32,14 @@ class FinancialServicesOperationSensor(BaseSensorOperator):
 
     :param operation_resource_uri: URI of the operation (format:
         'projects/<Project ID>/locations/<Location>/operations/<Operation ID>)
+    :param discovery_doc: Discovery document for building the Financial Services API
+        as described `here <https://cloud.google.com/financial-services/anti-money-laundering/docs/reference/rest#discovery-document>`__
     :param gcp_conn_id: Identifier of connection to Google Cloud Platform.
         Defaults to "google_cloud_default".
     """
 
     # [START howto_sensor_financial_services_operation_template_fields]
-    template_fields: Sequence[str] = ("operation_resource_uri", "discovery_doc")
+    template_fields: Sequence[str] = ("operation_resource_uri", "discovery_doc", "gcp_conn_id")
     # [END howto_sensor_financial_services_operation_template_fields]
 
     def __init__(
