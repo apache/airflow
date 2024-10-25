@@ -355,6 +355,11 @@ class OracleHook(DbApiHook):
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields or rows[0]
 
+        if (sequence_column is None) != (sequence_name is None):
+            raise ValueError(
+                "Parameters 'sequence_column' and 'sequence_name' must be provided together or not at all."
+            )
+
         if sequence_column and sequence_name:
             prepared_stm = "insert into {tablename} {columns} values ({values})".format(
                 tablename=table,
