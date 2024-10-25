@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.4.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker uploads log file in chunks. Chunk size can be defined by push_log_chunk_size value in config.``
+
 0.3.0pre0
 .........
 

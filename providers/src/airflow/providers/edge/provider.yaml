@@ -27,7 +27,7 @@ source-date-epoch: 1729683247
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.3.0pre0
+  - 0.4.0pre0
 
 dependencies:
   - apache-airflow>=2.10.0
@@ -102,3 +102,11 @@ config:
         type: integer
         example: ~
         default: "60"
+      push_log_chunk_size:
+        description: |
+          Edge Worker uploads log files in chunks. If the log file part which is uploaded exceeds the chunk size it creates a new request. This solves issue if firewall defines max size of request.
+          This value must be defined in Bytes.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "1024"
