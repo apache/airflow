@@ -118,5 +118,5 @@ class DagRunTriggeredByType(enum.Enum):
     UI = "ui"  # for clicking the `Trigger DAG` button
     TEST = "test"  # for dag.test()
     TIMETABLE = "timetable"  # for timetable based triggering
-    DATASET = "dataset"  # for asset_triggered run type
+    ASSET = "asset"  # for asset_triggered run type
     BACKFILL = "backfill"

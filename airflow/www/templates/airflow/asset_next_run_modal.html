@@ -19,33 +19,33 @@
 
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
-{% macro dataset_next_run_modal(id=None, classes=None) %}
-  <div class="modal fade" id="datasetNextRunModal" tabindex="-1" role="dialog" aria-labelledby="datasetNextRunModalLabel" aria-hidden="true">
+{% macro asset_next_run_modal(id=None, classes=None) %}
+  <div class="modal fade" id="assetNextRunModal" tabindex="-1" role="dialog" aria-labelledby="assetNextRunModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title" id="datasetNextRunModalLabel">
-            <span class="text-muted">Datasets needed to trigger the next run for</span> <span id="dag_id"></span>
+          <h4 class="modal-title" id="assetNextRunModalLabel">
+            <span class="text-muted">Assets needed to trigger the next run for</span> <span id="dag_id"></span>
           </h4>
         </div>
         <div class="modal-body">
           <strong>Conditions</strong>
           <p><pre id="asset_expression"></pre></p>
           <p id="next_run_summary"></p>
-          {{ loading_dots(id='datasets-loading-dots', classes='refresh-loading') }}
-          <div id="datasets_error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+          {{ loading_dots(id='assets-loading-dots', classes='refresh-loading') }}
+          <div id="assets_error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
             <span class="material-icons" aria-hidden="true">error</span>
-            <span id="datasets_error_msg">Oops.</span>
+            <span id="assets_error_msg">Oops.</span>
           </div>
-          <table class="table table-striped table-bordered table-hover dataset-events">
+          <table class="table table-striped table-bordered table-hover asset-events">
             <thead>
               <tr>
-                <th>Dataset URI</th>
+                <th>Asset URI</th>
                 <th>Latest Update since last Dag Run</th>
               </tr>
             </thead>
-            <tbody id="datasets_tbody">
+            <tbody id="assets_tbody">
             </tbody>
           </table>
         </div>
