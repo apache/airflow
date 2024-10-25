@@ -60,11 +60,6 @@ const theme = extendTheme({
   },
   components: {
     Table: tableTheme,
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
-      },
-    },
   },
   config: {
     initialColorMode: "system",
