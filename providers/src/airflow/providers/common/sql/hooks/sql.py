@@ -639,8 +639,8 @@ class DbApiHook(BaseHook):
         :param executemany: If True, all rows are inserted at once in
             chunks defined by the commit_every parameter. This only works if all rows
             have same number of column names, but leads to better performance.
-        :param fast_executemany: If True, the fast_executemany parameter will be set on the
-            cursor used by executemany which leads to better performance, if supported by driver.
+        :param fast_executemany: If True, the `fast_executemany` parameter will be set on the
+            cursor used by `executemany` which leads to better performance, if supported by driver.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
