@@ -203,7 +203,9 @@ class TestEdgeWorkerCli:
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = None
         job.logfile.write_text("some log content")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
@@ -218,7 +220,9 @@ class TestEdgeWorkerCli:
         job.logfile.write_text("hello ")
         job.logsize = job.logfile.stat().st_size
         job.logfile.write_text("hello world")
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars(
+            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         mock_push_logs.assert_called_once_with(
