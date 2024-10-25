@@ -841,8 +841,7 @@ class DAG:
             t.upstream_task_ids.intersection_update(dag.task_dict)
             t.downstream_task_ids.intersection_update(dag.task_dict)
 
-        if len(dag.tasks) < len(self.tasks):
-            dag.partial = True
+        dag.partial = len(dag.tasks) < len(self.tasks)
 
         return dag
 
