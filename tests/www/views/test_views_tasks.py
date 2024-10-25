@@ -620,7 +620,7 @@ def new_id_example_bash_operator():
     dag_id = "example_bash_operator"
     test_dag_id = "non_existent_dag"
     with create_session() as session:
-        session.query(DagVersion).delete()
+        session.query(DagVersion).filter(DagVersion.dag_id == dag_id).delete()
         dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
         dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
     with create_session() as session:
@@ -628,6 +628,7 @@ def new_id_example_bash_operator():
     yield test_dag_id
     with create_session() as session:
         session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
+    DagBag(include_examples=True).get_dag(dag_id).sync_to_db()
 
 
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
