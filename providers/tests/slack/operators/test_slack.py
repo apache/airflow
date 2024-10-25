@@ -201,6 +201,7 @@ class TestSlackAPIFileOperator:
         self.test_content = "This is a test text file!"
         self.test_api_params = {"key": "value"}
         self.expected_method = "files.upload"
+        self.test_snippet_type = "text"
 
     def __construct_operator(self, test_slack_conn_id, test_api_params=None):
         return SlackAPIFileOperator(
@@ -212,6 +213,7 @@ class TestSlackAPIFileOperator:
             filetype=self.test_filetype,
             content=self.test_content,
             api_params=test_api_params,
+            snippet_type=self.test_snippet_type,
         )
 
     def test_init_with_valid_params(self):
@@ -226,6 +228,7 @@ class TestSlackAPIFileOperator:
         assert slack_api_post_operator.filename == self.filename
         assert slack_api_post_operator.filetype == self.test_filetype
         assert slack_api_post_operator.content == self.test_content
+        assert slack_api_post_operator.snippet_type == self.test_snippet_type
         assert not hasattr(slack_api_post_operator, "token")
 
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
@@ -237,7 +240,10 @@ class TestSlackAPIFileOperator:
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
     )
-    def test_api_call_params_with_content_args(self, initial_comment, title, method_version, method_name):
+    @pytest.mark.parametrize("snippet_type", [None, "text"])
+    def test_api_call_params_with_content_args(
+        self, initial_comment, title, method_version, method_name, snippet_type
+    ):
         op = SlackAPIFileOperator(
             task_id="slack",
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
@@ -246,6 +252,7 @@ class TestSlackAPIFileOperator:
             initial_comment=initial_comment,
             title=title,
             method_version=method_version,
+            snippet_type=snippet_type,
         )
         with mock.patch(f"airflow.providers.slack.operators.slack.SlackHook.{method_name}") as mock_send_file:
             op.execute({})
@@ -256,6 +263,7 @@ class TestSlackAPIFileOperator:
                 filetype=None,
                 initial_comment=initial_comment,
                 title=title,
+                snippet_type=snippet_type,
             )
 
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])
@@ -267,7 +275,10 @@ class TestSlackAPIFileOperator:
             pytest.param("v2", "send_file_v1_to_v2", id="v2"),
         ],
     )
-    def test_api_call_params_with_file_args(self, initial_comment, title, method_version, method_name):
+    @pytest.mark.parametrize("snippet_type", [None, "text"])
+    def test_api_call_params_with_file_args(
+        self, initial_comment, title, method_version, method_name, snippet_type
+    ):
         op = SlackAPIFileOperator(
             task_id="slack",
             slack_conn_id=SLACK_API_TEST_CONNECTION_ID,
@@ -276,6 +287,7 @@ class TestSlackAPIFileOperator:
             initial_comment=initial_comment,
             title=title,
             method_version=method_version,
+            snippet_type=snippet_type,
         )
         with mock.patch(f"airflow.providers.slack.operators.slack.SlackHook.{method_name}") as mock_send_file:
             op.execute({})
@@ -286,6 +298,7 @@ class TestSlackAPIFileOperator:
                 filetype=None,
                 initial_comment=initial_comment,
                 title=title,
+                snippet_type=snippet_type,
             )
 
     def test_channel_deprecated(self):
