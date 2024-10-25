@@ -6,6 +6,7 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagsService,
   DashboardService,
   MonitorService,
   PluginService,
@@ -53,6 +54,56 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
 ) => [
   useDashboardServiceHistoricalMetricsKey,
   ...(queryKey ?? [{ endDate, startDate }]),
+];
+export type DagsServiceRecentDagRunsDefaultResponse = Awaited<
+  ReturnType<typeof DagsService.recentDagRuns>
+>;
+export type DagsServiceRecentDagRunsQueryResult<
+  TData = DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
+export const UseDagsServiceRecentDagRunsKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagsServiceRecentDagRunsKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      tags,
+    },
+  ]),
 ];
 export type DagServiceGetDagsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDags>
