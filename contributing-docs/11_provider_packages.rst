@@ -243,9 +243,8 @@ backward compatible with future versions of Airflow, so you can upgrade Airflow 
 at the same version.
 
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
-properly. You have to update ``CHANGELOG.rst`` file in the provider package and you have to make sure that
-you update the ``provider.yaml`` file with the new (breaking) version of the provider. Ideally in the
-``CHANGELOG.rst`` you should also provide a migration path for the users to follow.
+properly. You have to update ``CHANGELOG.rst`` file in the provider package. Ideally you should provide
+a migration path for the users to follow in the``CHANGELOG.rst``.
 
 If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
 breaking changes in the providers.
