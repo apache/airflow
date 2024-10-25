@@ -136,7 +136,7 @@ def upgrade():
             unique=False,
         )
         batch_op.create_foreign_key(
-            constraint_name="asset_alias_asset_alias_id_fk_key",
+            constraint_name="asset_alias_asset_alias_id_fkey",
             referent_table="asset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
@@ -152,7 +152,7 @@ def upgrade():
             unique=False,
         )
         batch_op.create_foreign_key(
-            constraint_name="asset_alias_asset_asset_id_fk_key",
+            constraint_name="asset_alias_asset_asset_id_fkey",
             referent_table="asset",
             local_cols=["asset_id"],
             remote_cols=["id"],
@@ -169,7 +169,7 @@ def upgrade():
             unique=False,
         )
         batch_op.create_foreign_key(
-            constraint_name=op.f("asset_alias_asset_event_asset_id_fkey"),
+            constraint_name=op.f("asset_alias_asset_event_alias_id_fkey"),
             referent_table="asset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
@@ -185,7 +185,7 @@ def upgrade():
             unique=False,
         )
         batch_op.create_foreign_key(
-            constraint_name=op.f("asset_alias_asset_event_event_id_fk_key"),
+            constraint_name=op.f("asset_alias_asset_event_event_id_fkey"),
             referent_table="asset_event",
             local_cols=["event_id"],
             remote_cols=["id"],
@@ -193,13 +193,13 @@ def upgrade():
         )
 
     with op.batch_alter_table("dag_schedule_asset_alias_reference", schema=None) as batch_op:
-        batch_op.drop_constraint("dsdar_dataset_fkey", type_="foreignkey")
-        batch_op.drop_constraint("dsdar_dag_id_fkey", type_="foreignkey")
+        batch_op.drop_constraint("dsdar_dataset_alias_fkey", type_="foreignkey")
+        batch_op.drop_constraint("dsdar_dag_fkey", type_="foreignkey")
 
         _rename_pk_constraint(
             batch_op=batch_op,
             original_name="dsdar_pkey",
-            new_name="asaar_pkey",
+            new_name="dsaar_pkey",
             columns=["alias_id", "dag_id"],
         )
         _rename_index(
@@ -230,7 +230,7 @@ def upgrade():
 
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
         batch_op.drop_constraint("dsdr_dag_id_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgres", "mysql"):
+        if op.get_bind().dialect.name in ("postgresql", "mysql"):
             batch_op.drop_constraint("dsdr_dataset_fkey", type_="foreignkey")
 
         _rename_pk_constraint(
@@ -266,7 +266,7 @@ def upgrade():
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
         batch_op.drop_constraint("todr_dag_id_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgres", "mysql"):
+        if op.get_bind().dialect.name in ("postgresql", "mysql"):
             batch_op.drop_constraint("todr_dataset_fkey", type_="foreignkey")
 
         _rename_pk_constraint(
@@ -303,7 +303,7 @@ def upgrade():
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
         batch_op.drop_constraint("ddrq_dag_fkey", type_="foreignkey")
-        if op.get_bind().dialect.name in ("postgres", "mysql"):
+        if op.get_bind().dialect.name in ("postgresql", "mysql"):
             batch_op.drop_constraint("ddrq_dataset_fkey", type_="foreignkey")
 
         _rename_pk_constraint(
@@ -499,7 +499,7 @@ def downgrade():
 
         _rename_pk_constraint(
             batch_op=batch_op,
-            original_name="asaar_pkey",
+            original_name="dsaar_pkey",
             new_name="dsdar_pkey",
             columns=["alias_id", "dag_id"],
         )
@@ -512,14 +512,14 @@ def downgrade():
         )
 
         batch_op.create_foreign_key(
-            constraint_name="dsdar_dataset_fkey",
+            constraint_name="dsdar_dataset_alias_fkey",
             referent_table="dataset_alias",
             local_cols=["alias_id"],
             remote_cols=["id"],
             ondelete="CASCADE",
         )
         batch_op.create_foreign_key(
-            constraint_name="dsdar_dag_id_fkey",
+            constraint_name="dsdar_dag_fkey",
             referent_table="dag",
             local_cols=["dag_id"],
             remote_cols=["dag_id"],

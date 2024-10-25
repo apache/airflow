@@ -168,4 +168,4 @@ class TestGetConnections(TestConnectionEndpoint):
 
         body = response.json()
         assert body["total_entries"] == expected_total_entries
-        assert [dag["connection_id"] for dag in body["connections"]] == expected_ids
+        assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
