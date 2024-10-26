@@ -1878,7 +1878,7 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
-    dag_version_id = Column(UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
     # _set_ti_attrs() or they won't display in the UI correctly

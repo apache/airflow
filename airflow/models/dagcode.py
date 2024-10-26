@@ -54,14 +54,14 @@ class DagCode(Base):
     """
 
     __tablename__ = "dag_code"
-    id = Column(UUIDType, primary_key=True, default=uuid6.uuid7)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     fileloc_hash = Column(BigInteger, nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     dag_version_id = Column(
-        UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     dag_version = relationship("DagVersion", back_populates="dag_code", uselist=False, cascade_backrefs=False)
 

@@ -79,7 +79,7 @@ class SerializedDagModel(Base):
     """
 
     __tablename__ = "serialized_dag"
-    id = Column(UUIDType, primary_key=True, default=uuid6.uuid7)
+    id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     dag_id = Column(String(ID_LEN), nullable=False)
     _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
@@ -102,7 +102,7 @@ class SerializedDagModel(Base):
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
     dag_version_id = Column(
-        UUIDType, ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
+        UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     dag_version = relationship("DagVersion", back_populates="serialized_dag", cascade_backrefs=False)
 

@@ -20,7 +20,7 @@
 add dag versioning.
 
 Revision ID: 2b47dc6bc8df
-Revises: d03e4a635aa3
+Revises: 486ac7936b78
 Create Date: 2024-10-09 05:44:04.670984
 
 """
@@ -38,7 +38,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"
-down_revision = "d03e4a635aa3"
+down_revision = "486ac7936b78"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
@@ -51,7 +51,7 @@ def upgrade():
 
     op.create_table(
         "dag_version",
-        sa.Column("id", UUIDType, nullable=False),
+        sa.Column("id", UUIDType(binary=False), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("version_name", StringID(), nullable=False),
         sa.Column("dag_id", StringID(), nullable=False),
@@ -64,11 +64,17 @@ def upgrade():
     )
     with op.batch_alter_table("dag_code", recreate="always", naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint("dag_code_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", UUIDType, primary_key=True), insert_before="fileloc_hash")
+        batch_op.add_column(
+            sa.Column("id", UUIDType(binary=False), primary_key=True), insert_before="fileloc_hash"
+        )
         batch_op.create_primary_key("dag_code_pkey", ["id"])
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType, nullable=False))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False), nullable=False))
         batch_op.create_foreign_key(
-            batch_op.f("dag_code_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
+            batch_op.f("dag_code_dag_version_id_fkey"),
+            "dag_version",
+            ["dag_version_id"],
+            ["id"],
+            ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
 
@@ -76,19 +82,23 @@ def upgrade():
         "serialized_dag", recreate="always", naming_convention=naming_convention
     ) as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
-        batch_op.add_column(sa.Column("id", UUIDType, primary_key=True))
+        batch_op.add_column(sa.Column("id", UUIDType(binary=False), primary_key=True))
         batch_op.drop_index("idx_fileloc_hash")
         batch_op.drop_column("fileloc_hash")
         batch_op.drop_column("fileloc")
         batch_op.create_primary_key("serialized_dag_pkey", ["id"])
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType, nullable=False))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False), nullable=False))
         batch_op.create_foreign_key(
-            batch_op.f("serialized_dag_dag_version_id_fkey"), "dag_version", ["dag_version_id"], ["id"]
+            batch_op.f("serialized_dag_dag_version_id_fkey"),
+            "dag_version",
+            ["dag_version_id"],
+            ["id"],
+            ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
         batch_op.create_foreign_key(
             batch_op.f("task_instance_dag_version_id_fkey"),
             "dag_version",
@@ -98,10 +108,10 @@ def upgrade():
         )
 
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dag_version_id", UUIDType))
+        batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
         batch_op.create_foreign_key(
             batch_op.f("dag_run_dag_version_id_fkey"),
             "dag_version",

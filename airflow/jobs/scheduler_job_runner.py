@@ -58,7 +58,6 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
