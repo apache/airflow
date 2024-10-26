@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+.. warning::
+   * We changed the message callback for Azure Service Bus messages to take two parameters, the message and the context, rather than just the message. This allows pushing message information into XComs. To upgrade from the previous version, which only took the message, please update your callback to take the context as a second parameter.
+
+
 10.5.1
 ......
 
