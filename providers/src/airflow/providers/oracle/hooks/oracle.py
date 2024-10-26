@@ -355,7 +355,7 @@ class OracleHook(DbApiHook):
         cursor = conn.cursor()  # type: ignore[attr-defined]
         values_base = target_fields or rows[0]
 
-        if (sequence_column is None) != (sequence_name is None):
+        if bool(sequence_column) ^ bool(sequence_name):
             raise ValueError(
                 "Parameters 'sequence_column' and 'sequence_name' must be provided together or not at all."
             )
