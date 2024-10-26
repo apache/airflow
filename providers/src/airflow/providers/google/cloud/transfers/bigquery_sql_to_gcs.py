@@ -19,11 +19,12 @@
 
 from datetime import datetime, timezone
 
-from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryCursor
+from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 
 class _BigQueryCursorWrapper:
-    """Wrapps BigQueryCursor cursor to BaseSQLToGCSOperator's expectations.
+    """
+    Wrapps BigQueryCursor cursor to BaseSQLToGCSOperator's expectations.
     """
     def __init__(self, cursor: BigQueryCursor):
         self.cursor = cursor
@@ -33,7 +34,8 @@ class _BigQueryCursorWrapper:
 
     # pylint: disable=redefined-builtin
     def __next__(self):
-        """Wraps standard __next__ to raise StopIteration when over.
+        """
+        Wraps standard __next__ to raise StopIteration when over.
         """
         next = self.cursor.next()
         if next is None:
@@ -42,7 +44,8 @@ class _BigQueryCursorWrapper:
 
     @property
     def description(self):
-        """Forwards description
+        """
+        Forwards description.
         """
         return self.cursor.description
 
@@ -55,43 +58,46 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
     :param override_schema_from_cursor: Flag to allow override schema field
         based on sql result.
     :param custom_value_transform_delegate: The delegate to manually convert
-        fieild into GCS's scheema instead of default.
+        field into GCS's schema instead of default.
     :param custom_field_to_bigquer_delegate: The delegate to manually convert
-        incomming value into desired shape.
+        incoming value into desired shape.
 
     **Example**:
         The following operator will export data from the Customers sql
         into the given google BigQuery Database and then upload it to the
         'bq-sql-export' GCS bucket ::
 
-            export_customers = BigQuerySqlToGCSOperator(
-                task_id="sql_json_raw",
-                sql='''
-                    SELECT
-                    True as _BOOL,
-                    CODE_POINTS_TO_BYTES([65, 98, 67, 100]) as _BYTES,
-                    DATE('0001-01-01') as _DATE,
-                    DATETIME('0001-01-01 00:00:00') as _DATETIME,
-                    JSON '{"id": 10,"type": "fruit","name": "apple","on_menu": true,"recipes":{"salads":[{ "id": 2001, "type": "Walnut Apple Salad" },{ "id": 2002, "type": "Apple Spinach Salad" }],"desserts":[{ "id": 3001, "type": "Apple Pie" },{ "id": 3002, "type": "Apple Scones" },{ "id": 3003, "type": "Apple Crumble" }]}}' as _JSON,
-                    -9223372036854775808 as _INT64,
-                    cast(-9.9999999999999999999999999999999999999E+28 as NUMERIC) as _NUMERIC,
-                    cast(-5.7896044618658097711785492504343953926634992332820282019728792003956564819968E+38 as BIGNUMERIC) as _BIGNUMERIC,
-                    1.0 as _FLOAT64,
-                    "str" as _STRING,
-                    TIME '12:30:00.45' as _TIME,
-                    TIMESTAMP '2014-09-27 12:30:00.45-08' as _TIMESTAMP
-                ''',
-                bucket="bq-sql-export",
-                filename="example/manual.csv",
-                export_format="csv",
-            )
+    .. code-block:: python
+
+        export_customers = BigQuerySqlToGCSOperator(
+            task_id="sql_json_raw",
+            sql='''
+                SELECT
+                True as _BOOL,
+                CODE_POINTS_TO_BYTES([65, 98, 67, 100]) as _BYTES,
+                DATE('0001-01-01') as _DATE,
+                DATETIME('0001-01-01 00:00:00') as _DATETIME,
+                JSON '{"id": 10,"type": "fruit","name": "apple","on_menu": true,"recipes":{"salads":[{ "id": 2001, "type": "Walnut Apple Salad" },{ "id": 2002, "type": "Apple Spinach Salad" }],"desserts":[{ "id": 3001, "type": "Apple Pie" },{ "id": 3002, "type": "Apple Scones" },{ "id": 3003, "type": "Apple Crumble" }]}}' as _JSON,
+                -9223372036854775808 as _INT64,
+                cast(-9.9999999999999999999999999999999999999E+28 as NUMERIC) as _NUMERIC,
+                cast(-5.7896044618658097711785492504343953926634992332820282019728792003956564819968E+38 as BIGNUMERIC) as _BIGNUMERIC,
+                1.0 as _FLOAT64,
+                "str" as _STRING,
+                TIME '12:30:00.45' as _TIME,
+                TIMESTAMP '2014-09-27 12:30:00.45-08' as _TIMESTAMP
+            ''',
+            bucket="bq-sql-export",
+            filename="example/manual.csv",
+            export_format="csv",
+        )
 
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         *,
         use_legacy_sql=False,
-        sql_gcp_conn_id='bigquery_default',
+        sql_gcp_conn_id="bigquery_default",
         override_schema_from_cursor=True,
         custom_value_transform_delegate=None,
         custom_field_to_bigquer_delegate=None,
@@ -117,14 +123,14 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
     def field_to_bigquery(self, field) -> dict[str, str]:
         if self.custom_field_to_bigquer_delegate is not None:
             return self.custom_field_to_bigquer_delegate(self, field)
-        field_type = field[1] if field[1] is not None  else "STRING"
+        field_type = field[1] if field[1] is not None else "STRING"
         return {
             "name": field[0],
             "type": field_type,
             # Arrays, aka REPEATED, are not supported
             "mode": "NULLABLE" if field[6] else "REQUIRED",
         }
-    
+
     def convert_type(self, value, schema_type: str, **kwargs):
         if self.custom_value_transform_delegate is not None:
             return self.custom_value_transform_delegate(value, schema_type, **kwargs)
