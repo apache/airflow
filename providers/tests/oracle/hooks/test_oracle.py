@@ -369,6 +369,36 @@ class TestOracleHook:
         with pytest.raises(ValueError):
             self.db_hook.bulk_insert_rows("table", rows)
 
+    def test_bulk_insert_sequence_field(self):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        target_fields = ["col1", "col2", "col3"]
+        sequence_column = "id"
+        sequence_name = "my_sequence"
+        self.db_hook.bulk_insert_rows(
+            "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+        )
+        self.cur.prepare.assert_called_once_with(
+            "insert into table (id, col1, col2, col3) values (my_sequence.NEXTVAL, :1, :2, :3)"
+        )
+        self.cur.executemany.assert_called_once_with(None, rows)
+
+    def test_bulk_insert_sequence_without_parameter(self):
+        rows = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+        target_fields = ["col1", "col2", "col3"]
+        sequence_column = "id"
+        sequence_name = None
+        with pytest.raises(ValueError):
+            self.db_hook.bulk_insert_rows(
+                "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+            )
+
+        sequence_column = None
+        sequence_name = "my_sequence"
+        with pytest.raises(ValueError):
+            self.db_hook.bulk_insert_rows(
+                "table", rows, target_fields, sequence_column=sequence_column, sequence_name=sequence_name
+            )
+
     def test_callproc_none(self):
         parameters = None
 
