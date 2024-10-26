@@ -2708,7 +2708,7 @@ dags:
     ## optional subpath for dag volume mount
     subPath: ~
   gitSync:
-    enabled: true
+    enabled: false
 
     # git repo clone url
     # ssh example: git@github.com:apache/airflow.git
@@ -2716,17 +2716,17 @@ dags:
     repositories:
     # list of all repositories in an array format
     # for multiple repo or branch in gitSync , cotainerName should be unique
-      - repo: https://github.com/koustreak/airflow-dags.git
-        branch: main
+      - repo: https://github.com/apache/airflow.git
+        branch: v2-2-stable
         rev: HEAD
         # The git revision (branch, tag, or hash) to check out, v4 only
-        ref: main
+        ref: v2-2-stable
         depth: 1
         # the number of consecutive failures allowed before aborting
         maxFailures: 0
         # subpath within the repo where dags are located
         # should be "" if dags are at repo root
-        subPath: "dags"
+        subPath: "tests/dags"
         # if your repo needs a user name password
         # you can load them to a k8s secret like the one below
         #   ---
@@ -2785,7 +2785,7 @@ dags:
         #   - secretRef:
         #       name: 'proxy-config'
 
-        containerName: git-sync-main
+        containerName: git-sync
         uid: 65533
 
         # When not set, the values defined in the global securityContext will be used
