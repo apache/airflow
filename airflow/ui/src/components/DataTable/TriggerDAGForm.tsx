@@ -34,14 +34,14 @@ import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { oneDark } from "@codemirror/theme-one-dark";
 import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
-import React, { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 
 type DagParams = {
   configJson: string;
   dagId: string;
   logicalDate: string;
-  runId?: string;
+  runId: string;
 };
 
 type TriggerDAGFormProps = {
@@ -56,7 +56,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   onTrigger,
   setDagParams,
 }) => {
-  const [showDetails, setShowDetails] = React.useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const { control, handleSubmit, setValue, watch } = useForm({
     defaultValues: {
       configJson: dagParams.configJson,
@@ -65,8 +65,14 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     },
   });
 
+  // Store initial values to compare later
+  const initialValues = {
+    configJson: dagParams.configJson,
+    logicalDate: dagParams.logicalDate,
+    runId: dagParams.runId,
+  };
+
   useEffect(() => {
-    // Update default values if dagParams change
     setValue("logicalDate", dagParams.logicalDate);
     setValue("runId", dagParams.runId);
     setValue("configJson", dagParams.configJson);
@@ -91,11 +97,26 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     setValue("configJson", "{}");
   };
 
-  const handleJsonChange = (value: string) => {
-    setValue("configJson", value);
-    handleChange("configJson", value);
+  const onSubmit = () => {
+    onTrigger();
   };
 
+  // Function to check if the form has been modified
+  const hasFormChanged = () => {
+    const currentValues = {
+      configJson: watch("configJson"),
+      logicalDate: watch("logicalDate"),
+      runId: watch("runId"),
+    };
+
+    return (
+      currentValues.configJson !== initialValues.configJson ||
+      currentValues.logicalDate !== initialValues.logicalDate ||
+      currentValues.runId !== initialValues.runId
+    );
+  };
+
+  // Check for valid JSON
   const isValidJson = () => {
     try {
       JSON.parse(watch("configJson"));
@@ -104,10 +125,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     } catch {
       return false;
     }
-  };
-
-  const onSubmit = () => {
-    onTrigger();
   };
 
   return (
@@ -162,29 +179,32 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 control={control}
                 name="configJson"
                 render={({ field }) => (
-                  <CodeMirror
-                    {...field}
-                    extensions={[json(), autocompletion(), lineNumbers()]}
-                    height="200px"
-                    onChange={(value) => {
-                      handleJsonChange(value);
-                      field.onChange(value); // Update the field value
-                    }}
-                    style={{
-                      border: "1px solid #CBD5E0",
-                      borderRadius: "8px",
-                      outline: "none",
-                      padding: "2px",
-                    }}
-                    theme={oneDark}
-                  />
+                  <Box>
+                    <CodeMirror
+                      {...field}
+                      basicSetup
+                      extensions={[json(), autocompletion(), lineNumbers()]}
+                      height="200px"
+                      onChange={(value) => {
+                        field.onChange(value); // Directly use field.onChange
+                      }}
+                      style={{
+                        border: "1px solid #CBD5E0",
+                        borderRadius: "8px",
+                        outline: "none",
+                        padding: "2px",
+                      }}
+                      theme={oneDark}
+                    />
+                    {/* Show warning if JSON is invalid */}
+                    {!isValidJson() && (
+                      <Box color="red.500" mt={2}>
+                        <Text fontSize="sm">Invalid JSON format.</Text>
+                      </Box>
+                    )}
+                  </Box>
                 )}
               />
-              {!isValidJson() && (
-                <Box color="red.500" mt={2}>
-                  <Text fontSize="sm">Invalid JSON format</Text>
-                </Box>
-              )}
             </FormControl>
           </VStack>
         </Collapse>
@@ -192,13 +212,15 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       <ModalFooter>
         <HStack w="full">
-          <Button colorScheme="red" onClick={handleReset}>
-            Reset
-          </Button>
+          {hasFormChanged() && (
+            <Button colorScheme="red" onClick={handleReset}>
+              Reset
+            </Button>
+          )}
           <Spacer />
           <Button
             colorScheme="green"
-            isDisabled={!isValidJson()}
+            isDisabled={!isValidJson()} // Disable if JSON is invalid
             onClick={() => {
               void handleSubmit(onSubmit)();
             }}
