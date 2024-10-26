@@ -68,13 +68,16 @@ if TYPE_CHECKING:
 
 def is_venv_installed() -> bool:
     """
-    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
+    Check if the virtualenv package is installed by importing `venv`.
 
-    :return: True if it is. Whichever way of checking it works, is fine.
+    :return: True if no `ModuleNotFoundError` is raised, False otherwise. 
     """
-    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+    try:
+        import venv
         return True
-    return False
+    except ModuleNotFoundError:
+        return False
+    
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
