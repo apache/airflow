@@ -200,12 +200,10 @@ If release name contains chart name it will be used as a full name.
 
 {{/*  Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
-{{- range $repo := .Values.dags.gitSync.repositories }}
-- name: {{ printf "git-sync-ssh-key-%s" $repo.containerName }}
+- name: {{ printf "git-sync-ssh-key-%s" .containerName }}
   secret:
     secretName: {{ template "git_sync_ssh_key" . }}
     defaultMode: 288
-{{- end }}
 {{- end }}
 
 # multirepo sync changes
@@ -317,7 +315,7 @@ If release name contains chart name it will be used as a full name.
     - name: repo-volume-{{ $repo.containerName }}
       mountPath: /git
   {{- if or $repo.sshKeySecret $repo.sshKey }}
-    - name: git-sync-ssh-key
+    - name: git-sync-ssh-key-{{ $repo.containerName }}
       mountPath: /etc/git-secret/ssh
       readOnly: true
       subPath: gitSshKey
@@ -480,7 +478,7 @@ postStart:
 # multirepo sync changes
 {{/* Create the name of the git sync ssh secret to use */}}
 {{- define "git_sync_ssh_key" -}}
-  {{- default (printf "%s-ssh-secret" (include "airflow.fullname" $ )) .sshKeySecret }}
+  {{- default (printf "%s-ssh-secret" .containerName) .sshKeySecret }}
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}

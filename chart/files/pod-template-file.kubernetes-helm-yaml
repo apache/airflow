@@ -108,8 +108,16 @@ spec:
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}
+      # In order to make the multirepo sync change work ,
+      # postStart LifeCycle Hook is created
+      # Check the airflow.dags_poststart in _helpers.yaml
+      {{- if or $containerLifecycleHooks .Values.dags.gitSync.enabled }}
       {{- if $containerLifecycleHooks }}
-      lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+      {{ include "airflow.dags_poststart" . | nindent 12 }}
+      {{- else }}
+      lifecycle: {{ include "airflow.dags_poststart" . | nindent 12 }}
+      {{- end }}
       {{- end }}
       name: base
       {{- if .Values.workers.command }}
@@ -213,14 +221,21 @@ spec:
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
+  # multirepo gitSync , separate volumes for each containers
   {{- if .Values.dags.persistence.enabled }}
   - name: dags
     persistentVolumeClaim:
       claimName: {{ template "airflow_dags_volume_claim" . }}
   {{- else if .Values.dags.gitSync.enabled }}
-  - name: dags
-    emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 6 }}
+  {{- range $repo := .Values.dags.gitSync.repositories }}
+  - name: repo-volume-{{ $repo.containerName }}
+    emptyDir: {{- toYaml (default (dict) $repo.emptyDirConfig) | nindent 12 }}
+  {{- if or $repo.sshKeySecret $repo.sshKey}}
+    {{- include "git_sync_ssh_key_volume" . | indent 8 }}
   {{- end }}
+  {{- end }}
+  {{- end }}
+    # end of multirepo gitSync changes
   {{- if .Values.logs.persistence.enabled }}
   - name: logs
     persistentVolumeClaim:
@@ -228,9 +243,6 @@ spec:
   {{- else }}
   - emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 6 }}
     name: logs
-  {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
-    {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
   {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}

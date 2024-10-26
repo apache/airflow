@@ -215,9 +215,14 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserve
 #  If dags persistence enabled make sure it is RWX or RWO #
 ###########################################################
 
+{{- if .Values.dags.persistence.enabled }}
+ Dags Persistence enabled, GitSync containers will not be created
+{{- else }}
 {{- if .Values.dags.gitSync.enabled }}
  GitSync Enabled : {{ .Values.dags.gitSync.enabled }}
  Number of Repositories : {{ len .Values.dags.gitSync.repositories }}
 {{- else }}
  GitSync Enabled : {{ .Values.dags.gitSync.enabled }}
 {{- end }}
+{{- end }}
+
