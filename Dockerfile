@@ -49,7 +49,7 @@ ARG AIRFLOW_VERSION="2.10.2"
 
 ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
-ARG AIRFLOW_PIP_VERSION=24.2
+ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.4.27
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
@@ -615,7 +615,7 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Installing latest pip version${COLOR_RESET}"
         echo
         pip install --root-user-action ignore --disable-pip-version-check --upgrade pip
-    elif [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
+    elif [[ ! ${AIRFLOW_PIP_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
         echo
@@ -628,7 +628,6 @@ function common::install_packaging_tools() {
             echo
             echo "${COLOR_BLUE}(Re)Installing pip version: ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
             echo
-            # shellcheck disable=SC2086
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
@@ -637,7 +636,7 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
         echo
         pip install --root-user-action ignore --disable-pip-version-check --upgrade uv
-    elif [[ ! ${AIRFLOW_UV_VERSION} =~ [0-9.]* ]]; then
+    elif [[ ! ${AIRFLOW_UV_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing uv version from spec ${AIRFLOW_UV_VERSION}${COLOR_RESET}"
         echo

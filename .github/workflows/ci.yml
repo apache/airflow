@@ -205,7 +205,7 @@ jobs:
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
+      use-uv: "false"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
@@ -556,7 +556,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
-      use-uv: "true"
+      use-uv: "false"
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
