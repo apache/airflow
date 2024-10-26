@@ -6,12 +6,14 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagsService,
   DashboardService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
   VariableService,
+  VersionService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -72,6 +74,85 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
     ),
     queryFn: () =>
       DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagsServiceRecentDagRunsSuspense = <
+  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      }) as TData,
     ...options,
   });
 /**
@@ -550,5 +631,24 @@ export const usePluginServiceGetPluginsSuspense = <
       queryKey,
     ),
     queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    ...options,
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const useVersionServiceGetVersionSuspense = <
+  TData = Common.VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
+    queryFn: () => VersionService.getVersion() as TData,
     ...options,
   });

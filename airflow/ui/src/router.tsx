@@ -16,24 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createBrowserRouter } from "react-router-dom";
 
-/**
- * @import { Config } from "prettier";
- * @import { PluginConfig } from "@trivago/prettier-plugin-sort-imports";
- */
+import { DagsList } from "src/pages/DagsList";
+import { Dashboard } from "src/pages/Dashboard";
 
-/**
- * Prettier configuration.
- */
-export default /** @type {const} @satisfies {Config & PluginConfig} */ ({
-  endOfLine: "lf",
-  importOrder: ["<THIRD_PARTY_MODULES>", "^(src|openapi)/", "^[./]"],
-  importOrderSeparation: true,
-  jsxSingleQuote: false,
-  plugins: ["@trivago/prettier-plugin-sort-imports"],
-  printWidth: 80,
-  singleQuote: false,
-  tabWidth: 2,
-  trailingComma: "all",
-  useTabs: false,
-});
+import { BaseLayout } from "./layouts/BaseLayout";
+import { Dag } from "./pages/DagsList/Dag";
+import { ErrorPage } from "./pages/Error";
+
+export const router = createBrowserRouter(
+  [
+    {
+      children: [
+        {
+          element: <Dashboard />,
+          index: true,
+        },
+        {
+          element: <DagsList />,
+          path: "dags",
+        },
+        { element: <Dag />, path: "dags/:dagId" },
+      ],
+      element: <BaseLayout />,
+      errorElement: (
+        <BaseLayout>
+          <ErrorPage />
+        </BaseLayout>
+      ),
+      path: "/",
+    },
+  ],
+  {
+    basename: "/webapp",
+  },
+);

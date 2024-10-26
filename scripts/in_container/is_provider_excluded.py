@@ -23,7 +23,7 @@ import os
 from in_container_utils import console
 
 if __name__ == "__main__":
-    excluded_providers = json.loads(os.environ["EXCLUDED_PROVIDERS"])
+    excluded_providers = json.loads(os.environ.get("EXCLUDED_PROVIDERS", "{}"))
     extra = os.environ["EXTRA"]
     console.print(f"[bright_blue]Check if provider {extra} is excluded in {excluded_providers}")
     python_version = os.environ["PYTHON_MAJOR_MINOR_VERSION"]

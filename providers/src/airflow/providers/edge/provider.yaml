@@ -23,10 +23,11 @@ description: |
   Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites
 
 state: not-ready
-source-date-epoch: 1729588146
+source-date-epoch: 1729683247
+
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 0.2.1pre0
+  - 0.4.0pre0
 
 dependencies:
   - apache-airflow>=2.10.0
@@ -101,3 +102,15 @@ config:
         type: integer
         example: ~
         default: "60"
+      push_log_chunk_size:
+        description: |
+          Edge Worker uploads log files in chunks. If the log file part which is uploaded
+          exceeds the chunk size it creates a new request. The application gateway can
+          limit the max body size see:
+          https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size
+          A HTTP 413 issue can point to this value to fix the issue.
+          This value must be defined in Bytes.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "524288"

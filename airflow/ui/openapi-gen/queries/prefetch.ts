@@ -6,12 +6,14 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagsService,
   DashboardService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
   VariableService,
+  VersionService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -60,6 +62,76 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
       startDate,
     }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagsServiceRecentDagRuns = (
+  queryClient: QueryClient,
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      tags,
+    }),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      }),
   });
 /**
  * Get Dags
@@ -428,4 +500,15 @@ export const prefetchUsePluginServiceGetPlugins = (
   queryClient.prefetchQuery({
     queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
     queryFn: () => PluginService.getPlugins({ limit, offset }),
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
+    queryFn: () => VersionService.getVersion(),
   });

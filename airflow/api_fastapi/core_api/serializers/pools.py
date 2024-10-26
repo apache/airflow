@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Callable
 
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -31,13 +31,17 @@ def _call_function(function: Callable[[], int]) -> int:
     return function()
 
 
-class PoolResponse(BaseModel):
-    """Pool serializer for responses."""
+class BasePool(BaseModel):
+    """Base serializer for Pool."""
 
-    pool: str = Field(serialization_alias="name", validation_alias="pool")
+    pool: str = Field(serialization_alias="name")
     slots: int
     description: str | None
     include_deferred: bool
+
+
+class PoolResponse(BasePool):
+    """Pool serializer for responses."""
 
     occupied_slots: Annotated[int, BeforeValidator(_call_function)]
     running_slots: Annotated[int, BeforeValidator(_call_function)]
@@ -52,3 +56,22 @@ class PoolCollectionResponse(BaseModel):
 
     pools: list[PoolResponse]
     total_entries: int
+
+
+class PoolPatchBody(BaseModel):
+    """Pool serializer for patch bodies."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    name: str | None = Field(default=None, alias="pool")
+    slots: int | None = None
+    description: str | None = None
+    include_deferred: bool | None = None
+
+
+class PoolPostBody(BasePool):
+    """Pool serializer for post bodies."""
+
+    pool: str = Field(alias="name")
+    description: str | None = None
+    include_deferred: bool = False

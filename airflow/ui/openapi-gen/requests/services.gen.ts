@@ -7,6 +7,8 @@ import type {
   NextRunAssetsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
+  RecentDagRunsData,
+  RecentDagRunsResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -46,12 +48,17 @@ import type {
   DeletePoolResponse,
   GetPoolData,
   GetPoolResponse,
+  PatchPoolData,
+  PatchPoolResponse,
   GetPoolsData,
   GetPoolsResponse,
+  PostPoolData,
+  PostPoolResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetPluginsData,
   GetPluginsResponse,
+  GetVersionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -100,6 +107,49 @@ export class DashboardService {
       },
       errors: {
         400: "Bad Request",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagsService {
+  /**
+   * Recent Dag Runs
+   * Get recent DAG runs.
+   * @param data The data for the request.
+   * @param data.dagRunsLimit
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.owners
+   * @param data.dagIdPattern
+   * @param data.dagDisplayNamePattern
+   * @param data.onlyActive
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static recentDagRuns(
+    data: RecentDagRunsData = {},
+  ): CancelablePromise<RecentDagRunsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags/recent_dag_runs",
+      query: {
+        dag_runs_limit: data.dagRunsLimit,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        only_active: data.onlyActive,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      errors: {
         422: "Validation Error",
       },
     });
@@ -689,6 +739,40 @@ export class PoolService {
   }
 
   /**
+   * Patch Pool
+   * Update a Pool.
+   * @param data The data for the request.
+   * @param data.poolName
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchPool(
+    data: PatchPoolData,
+  ): CancelablePromise<PatchPoolResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/pools/{pool_name}",
+      path: {
+        pool_name: data.poolName,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Pools
    * Get all pools entries.
    * @param data The data for the request.
@@ -713,6 +797,30 @@ export class PoolService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Pool
+   * Create a Pool.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPool(
+    data: PostPoolData,
+  ): CancelablePromise<PostPoolResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -768,6 +876,21 @@ export class PluginService {
       errors: {
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class VersionService {
+  /**
+   * Get Version
+   * Get version information.
+   * @returns VersionInfo Successful Response
+   * @throws ApiError
+   */
+  public static getVersion(): CancelablePromise<GetVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/version/",
     });
   }
 }

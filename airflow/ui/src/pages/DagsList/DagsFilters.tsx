@@ -18,9 +18,11 @@
  */
 import { HStack, Select, Text, Box } from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
+import type { MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
 import {
@@ -31,6 +33,7 @@ import {
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   PAUSED: PAUSED_PARAM,
+  TAGS: TAGS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const DagsFilters = () => {
@@ -38,10 +41,15 @@ export const DagsFilters = () => {
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
+  const selectedTags = searchParams.getAll(TAGS_PARAM);
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
   const isSuccess = state === "success";
+
+  const { data } = useDagServiceGetDagTags({
+    orderBy: "name",
+  });
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -79,6 +87,21 @@ export const DagsFilters = () => {
       },
       [pagination, searchParams, setSearchParams, setTableURLState, sorting],
     );
+  const handleSelectTagsChange = useCallback(
+    (
+      tags: MultiValue<{
+        label: string;
+        value: string;
+      }>,
+    ) => {
+      searchParams.delete(TAGS_PARAM);
+      tags.forEach(({ value }) => {
+        searchParams.append(TAGS_PARAM, value);
+      });
+      setSearchParams(searchParams);
+    },
+    [searchParams, setSearchParams],
+  );
 
   return (
     <HStack justifyContent="space-between">
@@ -133,7 +156,32 @@ export const DagsFilters = () => {
           </Select>
         </Box>
       </HStack>
-      <ReactSelect isDisabled placeholder="Filter by tag" />
+      <ReactSelect
+        aria-label="Filter Dags by tag"
+        chakraStyles={{
+          container: (provided) => ({
+            ...provided,
+            minWidth: 64,
+          }),
+          menu: (provided) => ({
+            ...provided,
+            zIndex: 2,
+          }),
+        }}
+        isClearable
+        isMulti
+        noOptionsMessage={() => "No tags found"}
+        onChange={handleSelectTagsChange}
+        options={data?.tags.map((tag) => ({
+          label: tag,
+          value: tag,
+        }))}
+        placeholder="Filter by tag"
+        value={selectedTags.map((tag) => ({
+          label: tag,
+          value: tag,
+        }))}
+      />
     </HStack>
   );
 };

@@ -138,7 +138,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv>=20.26.0",
     ],
 }
 
@@ -216,14 +216,14 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
-        "types-aiofiles",
-        "types-certifi",
-        "types-croniter",
-        "types-docutils",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
+        "types-aiofiles>=23.2.0.20240403",
+        "types-certifi>=2021.10.8.3",
+        "types-croniter>=2.0.0.20240423",
+        "types-docutils>=0.21.0.20240704",
         "types-paramiko",
         "types-protobuf",
         "types-python-dateutil",
@@ -379,13 +379,6 @@ DEPENDENCIES = [
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
-    # WTForms are limited to 3.2.0 because of the error in tests. We technically do not need it directly
-    # as this is a dependency of Flask-WTF, but we need to specify it here to add the limitation
-    # The issue to track it is https://github.com/pallets-eco/wtforms/issues/863
-    # Note. 3.2.0 has been broken because of imports https://github.com/pallets-eco/wtforms/issues/861 which
-    # was fixed in 3.2.1, but after import was fixed, the tests started to work with 3.2.1
-    # when the issue 863 is fixed, we should likely leave the line below and specify !=3.2.0,!=3.2.1
-    "wtforms>=3.1.0,<3.2.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it

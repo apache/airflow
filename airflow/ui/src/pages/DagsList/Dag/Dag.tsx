@@ -16,18 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Route, Routes } from "react-router-dom";
+import { Box } from "@chakra-ui/react";
+import { useParams } from "react-router-dom";
 
-import { DagsList } from "src/pages/DagsList";
-import { Dashboard } from "src/pages/Dashboard";
+export const Dag = () => {
+  const params = useParams();
 
-import { BaseLayout } from "./layouts/BaseLayout";
-
-export const App = () => (
-  <Routes>
-    <Route element={<BaseLayout />} path="/">
-      <Route element={<Dashboard />} index />
-      <Route element={<DagsList />} path="dags" />
-    </Route>
-  </Routes>
-);
+  return <Box>{params.dagId}</Box>;
+};
