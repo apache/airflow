@@ -240,7 +240,9 @@ class S3ToDynamoDBOperator(BaseOperator):
         finally:
             self.log.info("Delete tmp DynamoDB table %s", self.tmp_table_name)
             client.delete_table(TableName=self.tmp_table_name)
-            return dynamodb_hook.get_conn().Table(self.dynamodb_table_name).table_arn
+            
+        # Return the ARN of the target DynamoDB table after try-finally completes
+        return dynamodb_hook.get_conn().Table(self.dynamodb_table_name).table_arn
 
     def execute(self, context: Context) -> str:
         """

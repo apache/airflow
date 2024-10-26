@@ -141,51 +141,48 @@ class AthenaHook(AwsBaseHook):
         return response
 
     def check_query_status(self, query_execution_id: str, use_cache: bool = False) -> str | None:
-        """
-        Fetch the state of a submitted query.
+    """
+    Fetch the state of a submitted query.
 
-        .. seealso::
-            - :external+boto3:py:meth:`Athena.Client.get_query_execution`
+    .. seealso::
+        - :external+boto3:py:meth:`Athena.Client.get_query_execution`
 
-        :param query_execution_id: Id of submitted athena query
-        :return: One of valid query states, or *None* if the response is
-            malformed.
-        """
-        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
-        state = None
-        try:
-            state = response["QueryExecution"]["Status"]["State"]
-        except Exception:
-            self.log.exception(
-                "Exception while getting query state. Query execution id: %s", query_execution_id
-            )
-        finally:
-            # The error is being absorbed here and is being handled by the caller.
-            # The error is being absorbed to implement retries.
-            return state
+    :param query_execution_id: Id of submitted Athena query
+    :return: One of the valid query states, or *None* if the response is malformed.
+    """
+    response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
+    try:
+        state = response["QueryExecution"]["Status"]["State"]
+    except Exception as e:
+        self.log.exception(
+            "Exception while getting query state. Query execution id: %s", query_execution_id
+        )
+        raise e  # Re-raise the exception so it can be handled by the caller.
+    return state
+
 
     def get_state_change_reason(self, query_execution_id: str, use_cache: bool = False) -> str | None:
-        """
-        Fetch the reason for a state change (e.g. error message). Returns None or reason string.
+    """
+    Fetch the reason for a state change (e.g., error message). Returns None or reason string.
 
-        .. seealso::
-            - :external+boto3:py:meth:`Athena.Client.get_query_execution`
+    .. seealso::
+        - :external+boto3:py:meth:`Athena.Client.get_query_execution`
 
-        :param query_execution_id: Id of submitted athena query
-        """
-        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
-        reason = None
-        try:
-            reason = response["QueryExecution"]["Status"]["StateChangeReason"]
-        except Exception:
-            self.log.exception(
-                "Exception while getting query state change reason. Query execution id: %s",
-                query_execution_id,
-            )
-        finally:
-            # The error is being absorbed here and is being handled by the caller.
-            # The error is being absorbed to implement retries.
-            return reason
+    :param query_execution_id: Id of submitted Athena query.
+    """
+    response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
+    reason = None
+    try:
+        reason = response["QueryExecution"]["Status"]["StateChangeReason"]
+    except Exception as e:
+        self.log.exception(
+            "Exception while getting query state change reason. Query execution id: %s",
+            query_execution_id,
+        )
+        # Propagate the exception to allow the caller to handle it if needed.
+        raise e
+    return reason
+
 
     def get_query_results(
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
@@ -266,30 +263,34 @@ class AthenaHook(AwsBaseHook):
     def poll_query_status(
         self, query_execution_id: str, max_polling_attempts: int | None = None, sleep_time: int | None = None
     ) -> str | None:
-        """
-        Poll the state of a submitted query until it reaches final state.
+    """
+    Poll the state of a submitted query until it reaches a final state.
 
-        :param query_execution_id: ID of submitted athena query
-        :param max_polling_attempts: Number of times to poll for query state before function exits
-        :param sleep_time: Time (in seconds) to wait between two consecutive query status checks.
-        :return: One of the final states
-        """
-        try:
-            wait(
-                waiter=self.get_waiter("query_complete"),
-                waiter_delay=30 if sleep_time is None else sleep_time,
-                waiter_max_attempts=max_polling_attempts or 120,
-                args={"QueryExecutionId": query_execution_id},
-                failure_message=f"Error while waiting for query {query_execution_id} to complete",
-                status_message=f"Query execution id: {query_execution_id}, "
-                f"Query is still in non-terminal state",
-                status_args=["QueryExecution.Status.State"],
-            )
-        except AirflowException as error:
-            # this function does not raise errors to keep previous behavior.
-            self.log.warning(error)
-        finally:
-            return self.check_query_status(query_execution_id)
+    :param query_execution_id: ID of submitted Athena query
+    :param max_polling_attempts: Number of times to poll for query state before function exits
+    :param sleep_time: Time (in seconds) to wait between two consecutive query status checks.
+    :return: One of the final states.
+    :raises AirflowException: If polling fails or an error occurs.
+    """
+    try:
+        wait(
+            waiter=self.get_waiter("query_complete"),
+            waiter_delay=30 if sleep_time is None else sleep_time,
+            waiter_max_attempts=max_polling_attempts or 120,
+            args={"QueryExecutionId": query_execution_id},
+            failure_message=f"Error while waiting for query {query_execution_id} to complete",
+            status_message=f"Query execution id: {query_execution_id}, "
+                           f"Query is still in non-terminal state",
+            status_args=["QueryExecution.Status.State"],
+        )
+
+    except AirflowException as error:
+        # Log the error and then raise it to allow caller to handle it
+        self.log.error("Failed to poll query status for query ID %s: %s", query_execution_id, error)
+        raise  # Propagates the exception for handling at a higher level
+        
+    return self.check_query_status(query_execution_id)
+
 
     def get_output_location(self, query_execution_id: str) -> str:
         """
