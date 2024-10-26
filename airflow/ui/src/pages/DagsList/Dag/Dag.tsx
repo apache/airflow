@@ -16,34 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useMemo, type PropsWithChildren } from "react";
-import { useLocalStorage } from "usehooks-ts";
+import { Box } from "@chakra-ui/react";
+import { useParams } from "react-router-dom";
 
-export type TimezoneContextType = {
-  selectedTimezone: string;
-  setSelectedTimezone: (timezone: string) => void;
-};
+export const Dag = () => {
+  const params = useParams();
 
-export const TimezoneContext = createContext<TimezoneContextType | undefined>(
-  undefined,
-);
-
-const TIMEZONE_KEY = "timezone";
-
-export const TimezoneProvider = ({ children }: PropsWithChildren) => {
-  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(
-    TIMEZONE_KEY,
-    "UTC",
-  );
-
-  const value = useMemo<TimezoneContextType>(
-    () => ({ selectedTimezone, setSelectedTimezone }),
-    [selectedTimezone, setSelectedTimezone],
-  );
-
-  return (
-    <TimezoneContext.Provider value={value}>
-      {children}
-    </TimezoneContext.Provider>
-  );
+  return <Box>{params.dagId}</Box>;
 };
