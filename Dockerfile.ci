@@ -1195,7 +1195,7 @@ ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 # NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
 # some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
 # not built using the "main" version of those dependencies.
-ARG DEPENDENCIES_EPOCH_NUMBER="11"
+ARG DEPENDENCIES_EPOCH_NUMBER="13"
 
 # Make sure noninteractive debian install is used and language variables set
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
@@ -1363,7 +1363,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 # Here we fix the versions so all subsequent commands will use the versions
 # from the sources
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.4.24
+ARG AIRFLOW_UV_VERSION=0.4.26
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION}

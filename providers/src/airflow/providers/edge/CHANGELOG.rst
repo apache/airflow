@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+0.4.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker uploads log file in chunks. Chunk size can be defined by push_log_chunk_size value in config.``
+
+0.3.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge Worker exports metrics``
+* ``State is set to unknown if worker heartbeat times out.``
+
+0.2.2re0
+.........
+
+Misc
+~~~~
+
+* ``Fixed type confusion for PID file paths (#43308)``
+
 0.2.1re0
 .........
 

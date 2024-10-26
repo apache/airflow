@@ -545,6 +545,3 @@ The telemetry data collected is limited to the following:
 - Operating system & machine architecture
 - Executor
 - Metadata DB type & its version
-- Number of DAGs
-- Number of Airflow plugins
-- Number of timetables, Flask blueprints, Flask AppBuilder views, and Flask Appbuilder menu items from Airflow plugins
