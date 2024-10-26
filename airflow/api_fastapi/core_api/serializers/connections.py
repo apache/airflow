@@ -24,7 +24,10 @@ from pydantic import BaseModel, Field, field_validator
 from airflow.utils.log.secrets_masker import redact
 
 
+# Response Models
 class ConnectionResponse(BaseModel):
+    """Connection serializer for responses."""
+
     """Connection serializer for responses."""
 
     connection_id: str = Field(serialization_alias="connection_id", validation_alias="conn_id")
@@ -55,3 +58,17 @@ class ConnectionCollectionResponse(BaseModel):
 
     connections: list[ConnectionResponse]
     total_entries: int
+
+
+# Request Models
+class ConnectionBody(BaseModel):
+    """Connection Serializer for requests body."""
+
+    connection_id: str = Field(serialization_alias="conn_id")
+    conn_type: str
+    description: str | None = Field(default=None)
+    host: str | None = Field(default=None)
+    login: str | None = Field(default=None)
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = Field(default=None)
+    extra: str | None = Field(default=None)

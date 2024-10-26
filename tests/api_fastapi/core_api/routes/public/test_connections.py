@@ -169,3 +169,64 @@ class TestGetConnections(TestConnectionEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
+
+
+class TestPostConnection(TestConnectionEndpoint):
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": "test-connection-id", "conn_type": "test_type"},
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None},
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{}"},
+            {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": '{"key": "value"}'},
+            {
+                "connection_id": "test-connection-id",
+                "conn_type": "test_type",
+                "description": "test_description",
+                "host": "test_host",
+                "login": "test_login",
+                "schema": "test_schema",
+                "port": 8080,
+                "extra": '{"key": "value"}',
+            },
+        ],
+    )
+    def test_post_should_respond_200(self, test_client, session, body):
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 201
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": "****", "conn_type": "test_type"},
+            {"connection_id": "test()", "conn_type": "test_type"},
+            {"connection_id": "this_^$#is_invalid", "conn_type": "test_type"},
+            {"connection_id": "iam_not@#$_connection_id", "conn_type": "test_type"},
+        ],
+    )
+    def test_post_should_respond_400_for_invalid_conn_id(self, test_client, body):
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 400
+        connection_id = body["connection_id"]
+        assert response.json() == {
+            "detail": f"The key '{connection_id}' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively",
+        }
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": "test-connection-id", "conn_type": "test_type"},
+        ],
+    )
+    def test_post_should_respond_already_exist(self, test_client, body):
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 201
+        # Another request
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 409
+        assert response.json() == {
+            "detail": "Connection with connection_id: `test-connection-id` already exists",
+        }
