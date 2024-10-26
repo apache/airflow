@@ -68,9 +68,10 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
-from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.db import clear_db_runs
+
+from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

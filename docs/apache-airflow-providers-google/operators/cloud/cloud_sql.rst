@@ -42,7 +42,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_create]
@@ -50,7 +50,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 
 Example request body:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_db_create_body]
     :end-before: [END howto_operator_cloudsql_db_create_body]
@@ -58,7 +58,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_create_template_fields]
@@ -87,7 +87,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_delete]
@@ -96,7 +96,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_delete_template_fields]
@@ -127,7 +127,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_db_patch]
@@ -135,7 +135,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 
 Example request body:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_db_patch_body]
     :end-before: [END howto_operator_cloudsql_db_patch_body]
@@ -143,7 +143,7 @@ Example request body:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_db_patch_template_fields]
@@ -174,7 +174,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_delete]
@@ -183,7 +183,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_delete_template_fields]
@@ -215,7 +215,7 @@ Arguments
 
 Example body defining the export operation:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_export_body]
     :end-before: [END howto_operator_cloudsql_export_body]
@@ -226,7 +226,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export]
@@ -234,7 +234,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export_async]
@@ -243,7 +243,7 @@ Also for all this action you can use operator in the deferrable mode:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_export_template_fields]
@@ -268,7 +268,7 @@ To grant the service account with the appropriate WRITE permissions for the GCS 
 you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
 as shown in the example:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
@@ -308,7 +308,7 @@ Arguments
 
 Example body defining the import operation:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_import_body]
     :end-before: [END howto_operator_cloudsql_import_body]
@@ -319,7 +319,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_import]
@@ -328,7 +328,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_import_template_fields]
@@ -353,7 +353,7 @@ To grant the service account with the appropriate READ permissions for the GCS o
 you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
 as shown in the example:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
@@ -379,7 +379,7 @@ Arguments
 
 Example body defining the instance with failover replica:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_create_body]
     :end-before: [END howto_operator_cloudsql_create_body]
@@ -390,7 +390,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_create]
@@ -399,7 +399,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_create_template_fields]
@@ -430,7 +430,7 @@ Arguments
 
 Example body defining the instance:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :start-after: [START howto_operator_cloudsql_patch_body]
     :end-before: [END howto_operator_cloudsql_patch_body]
@@ -441,7 +441,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing
 it will be retrieved from the Google Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_patch]
@@ -450,7 +450,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_patch_template_fields]
@@ -484,7 +484,7 @@ Using the operator
 You can create the operator with or without project id. If project id is missing it will be retrieved from the Google
 Cloud connection used. Both variants are shown:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_clone]
@@ -493,7 +493,7 @@ Cloud connection used. Both variants are shown:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_clone_template_fields]
@@ -558,14 +558,14 @@ NFS-like volumes in the same path for all the workers.
 Example connection definitions for all non-SSL connectivity. Note that all the components of the connection URI should
 be URL-encoded:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections]
     :end-before: [END howto_operator_cloudsql_query_connections]
 
 Similar connection definition for all SSL-enabled connectivity:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections]
     :end-before: [END howto_operator_cloudsql_query_connections]
@@ -574,12 +574,12 @@ It is also possible to configure a connection via environment variable (note tha
 matches the :envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase if you are using a standard AIRFLOW notation for
 defining connection via environment variables):
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections_env]
     :end-before: [END howto_operator_cloudsql_query_connections_env]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_connections_env]
     :end-before: [END howto_operator_cloudsql_query_connections_env]
@@ -593,7 +593,7 @@ or the connection configured via environment variable (note that the connection 
 :envvar:`AIRFLOW_CONN_{CONN_ID}` postfix uppercase if you are using a standard AIRFLOW notation for defining connection
 via environment variables):
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_operators]
     :end-before: [END howto_operator_cloudsql_query_operators]
@@ -603,7 +603,7 @@ will be overridden. One of the ways to do so is specifying paths to each certifi
 Note that these files will be copied into a temporary location with minimal required permissions for security
 reasons.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_operators_ssl]
     :end-before: [END howto_operator_cloudsql_query_operators_ssl]
@@ -614,7 +614,7 @@ format is:
 
   {"sslcert": "", "sslkey": "", "sslrootcert": ""}
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/cloud_sql/example_cloud_sql_query_ssl.py
     :language: python
     :start-after: [START howto_operator_cloudsql_query_operators_ssl_secret_id]
     :end-before: [END howto_operator_cloudsql_query_operators_ssl_secret_id]
@@ -622,7 +622,7 @@ format is:
 Templating
 """"""""""
 
-.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_sql.py
+.. literalinclude:: /../../providers/src/airflow/providers/google/cloud/operators/cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START gcp_sql_query_template_fields]

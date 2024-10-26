@@ -97,13 +97,6 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     "arrow-body-style": ERROR,
 
     /**
-     * Limit cyclomatic complexity to a maximum of 10.
-     *
-     * @see [complexity](https://eslint.org/docs/latest/rules/complexity)
-     */
-    complexity: [WARN, 10],
-
-    /**
      * Require curly around all control statements.
      *
      * @example
@@ -292,29 +285,11 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     ],
 
     /**
-     * Enforce a maximum number of 100 lines of code in a function.
-     * Need more? Move it to another function.
-     *
-     * @see [max-lines-per-function](https://eslint.org/docs/latest/rules/max-lines-per-function)
-     */
-    "max-lines-per-function": [
-      ERROR,
-      { max: 100, skipBlankLines: true, skipComments: true },
-    ],
-
-    /**
      * Enforce a maximum depth that callbacks can be nested to 3.
      *
      * @see [max-nested-callbacks](https://eslint.org/docs/latest/rules/max-nested-callbacks)
      */
     "max-nested-callbacks": [ERROR, { max: 3 }],
-
-    /**
-     * Enforce a maximum number of statements allowed in function blocks to 10.
-     *
-     * @see [max-statements](https://eslint.org/docs/latest/rules/max-statements)
-     */
-    "max-statements": [WARN, { max: 10 }],
 
     /**
      * Disallow use of `alert`, `confirm`, and `prompt`.

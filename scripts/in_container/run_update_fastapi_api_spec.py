@@ -23,7 +23,7 @@ from airflow.api_fastapi.app import create_app
 
 app = create_app()
 
-OPENAPI_SPEC_FILE = "airflow/api_fastapi/openapi/v1-generated.yaml"
+OPENAPI_SPEC_FILE = "airflow/api_fastapi/core_api/openapi/v1-generated.yaml"
 
 
 # The persisted openapi spec will list all endpoints (public and ui), this

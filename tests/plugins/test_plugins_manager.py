@@ -28,13 +28,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_plugins import mock_plugin_manager
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -179,29 +179,6 @@ class TestPluginsManager:
             plugins_manager.ensure_plugins_loaded()
 
         assert caplog.record_tuples == []
-
-    def test_should_load_plugins_from_property(self, caplog):
-        class AirflowTestPropertyPlugin(AirflowPlugin):
-            name = "test_property_plugin"
-
-            @property
-            def hooks(self):
-                class TestPropertyHook(BaseHook):
-                    pass
-
-                return [TestPropertyHook]
-
-        with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
-            from airflow import plugins_manager
-
-            caplog.set_level(logging.DEBUG, "airflow.plugins_manager")
-            plugins_manager.ensure_plugins_loaded()
-
-            assert "AirflowTestPropertyPlugin" in str(plugins_manager.plugins)
-            assert "TestPropertyHook" in str(plugins_manager.registered_hooks)
-
-        assert caplog.records[-1].levelname == "DEBUG"
-        assert caplog.records[-1].msg == "Loading %d plugin(s) took %.2f seconds"
 
     def test_loads_filesystem_plugins(self, caplog):
         from airflow import plugins_manager

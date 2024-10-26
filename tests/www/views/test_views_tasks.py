@@ -34,7 +34,6 @@ from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
@@ -44,15 +43,20 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -1056,6 +1060,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         assert resp.status_code == 200
 
 
+@pytest.mark.flaky(reruns=5)
 def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data

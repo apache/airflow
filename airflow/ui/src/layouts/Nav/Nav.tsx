@@ -16,15 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Flex,
-  Icon,
-  Link,
-  useColorMode,
-  useColorModeValue,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Flex, Icon, VStack } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import {
   FiBarChart2,
@@ -32,9 +24,7 @@ import {
   FiDatabase,
   FiGlobe,
   FiHome,
-  FiMoon,
   FiSettings,
-  FiSun,
 } from "react-icons/fi";
 
 import { AirflowPin } from "src/assets/AirflowPin";
@@ -42,81 +32,71 @@ import { DagIcon } from "src/assets/DagIcon";
 
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
+import { UserSettingsButton } from "./UserSettingsButton";
 
-export const Nav = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
-  const navBg = useColorModeValue("blue.100", "blue.900");
-
-  return (
-    <VStack
-      alignItems="center"
-      bg={navBg}
-      height="100%"
-      justifyContent="space-between"
-      left={0}
-      position="fixed"
-      py={3}
-      top={0}
-      width={24}
-      zIndex={1}
-    >
-      <Flex alignItems="center" flexDir="column" width="100%">
-        <Box
-          as={motion.div}
-          mb={3}
-          whileHover={{
-            transform: ["rotate(0)", "rotate(360deg)"],
-            transition: { duration: 1.5, ease: "linear", repeat: Infinity },
-          }}
-        >
-          <Icon as={AirflowPin} height="35px" width="35px" />
-        </Box>
-        <NavButton icon={<FiHome size="1.75rem" />} isDisabled title="Home" />
-        <NavButton
-          icon={<DagIcon height={7} width={7} />}
-          title="DAGs"
-          to="dags"
-        />
-        <NavButton
-          icon={<FiDatabase size="1.75rem" />}
-          isDisabled
-          title="Assets"
-        />
-        <NavButton
-          icon={<FiBarChart2 size="1.75rem" />}
-          isDisabled
-          title="DAG Runs"
-        />
-        <NavButton
-          icon={<FiGlobe size="1.75rem" />}
-          isDisabled
-          title="Browse"
-        />
-        <NavButton
-          icon={<FiSettings size="1.75rem" />}
-          isDisabled
-          title="Admin"
-        />
-      </Flex>
-      <Flex flexDir="column">
-        <NavButton
-          as={Link}
-          href={import.meta.env.VITE_LEGACY_API_URL}
-          icon={<FiCornerUpLeft size="1.5rem" />}
-          title="Return to legacy UI"
-        />
-        <DocsButton />
-        <NavButton
-          icon={
-            colorMode === "light" ? (
-              <FiMoon size="1.75rem" />
-            ) : (
-              <FiSun size="1.75rem" />
-            )
-          }
-          onClick={toggleColorMode}
-        />
-      </Flex>
-    </VStack>
-  );
-};
+export const Nav = () => (
+  <VStack
+    alignItems="center"
+    bg="blue.muted"
+    height="100%"
+    justifyContent="space-between"
+    left={0}
+    position="fixed"
+    py={3}
+    top={0}
+    width={24}
+    zIndex={1}
+  >
+    <Flex alignItems="center" flexDir="column" width="100%">
+      <Box
+        as={motion.div}
+        mb={3}
+        whileHover={{
+          transform: ["rotate(0)", "rotate(360deg)"],
+          transition: { duration: 1.5, ease: "linear", repeat: Infinity },
+        }}
+      >
+        <Icon as={AirflowPin} height="35px" width="35px" />
+      </Box>
+      <NavButton icon={<FiHome size="1.75rem" />} title="Home" to="/" />
+      <NavButton
+        icon={<DagIcon height={7} width={7} />}
+        title="Dags"
+        to="dags"
+      />
+      <NavButton
+        icon={<FiDatabase size="1.75rem" />}
+        isDisabled
+        title="Assets"
+        to="assets"
+      />
+      <NavButton
+        icon={<FiBarChart2 size="1.75rem" />}
+        isDisabled
+        title="Dag Runs"
+        to="dag_runs"
+      />
+      <NavButton
+        icon={<FiGlobe size="1.75rem" />}
+        isDisabled
+        title="Browse"
+        to="browse"
+      />
+      <NavButton
+        icon={<FiSettings size="1.75rem" />}
+        isDisabled
+        title="Admin"
+        to="admin"
+      />
+    </Flex>
+    <Flex flexDir="column">
+      <NavButton
+        icon={<FiCornerUpLeft size="1.5rem" />}
+        title="Return to legacy UI"
+        to={import.meta.env.VITE_LEGACY_API_URL}
+      />
+      <DocsButton />
+      <UserSettingsButton />
+    </Flex>
+  </VStack>
+);

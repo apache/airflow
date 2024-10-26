@@ -209,7 +209,7 @@ rerun in Breeze as you will (``-n auto`` will parallelize tests using ``pytest-x
 
 .. code-block:: bash
 
-    breeze shell --backend none --python 3.8
+    breeze shell --backend none --python 3.9
     > pytest tests --skip-db-tests -n auto
 
 
@@ -251,7 +251,7 @@ You can also run DB tests with ``breeze`` dockerized environment. You can choose
 ``--backend`` flag. The default is ``sqlite`` but you can also use others such as ``postgres`` or ``mysql``.
 You can also select backend version and Python version to use. You can specify the ``test-type`` to run -
 breeze will list the test types you can run with ``--help`` and provide auto-complete for them. Example
-below runs the ``Core`` tests with ``postgres`` backend and ``3.8`` Python version:
+below runs the ``Core`` tests with ``postgres`` backend and ``3.9`` Python version:
 
 We have a dedicated, opinionated ``breeze testing db-tests`` command as well that runs DB tests
 (it is also used in CI to run the DB tests, where you do not have to specify extra flags for
@@ -286,7 +286,7 @@ either by package/module/test or by test type - whatever ``pytest`` supports.
 
 .. code-block:: bash
 
-    breeze shell --backend postgres --python 3.8
+    breeze shell --backend postgres --python 3.9
     > pytest tests --run-db-tests-only
 
 As explained before, you cannot run DB tests in parallel using ``pytest-xdist`` plugin, but ``breeze`` has
@@ -296,7 +296,7 @@ you use ``breeze testing db-tests`` command):
 
 .. code-block:: bash
 
-    breeze testing tests --run-db-tests-only --backend postgres --python 3.8 --run-in-parallel
+    breeze testing tests --run-db-tests-only --backend postgres --python 3.9 --run-in-parallel
 
 Examples of marking test as DB test
 ...................................
@@ -320,8 +320,7 @@ Method level:
 
 
    @pytest.mark.db_test
-   def test_add_tagging(self, sentry, task_instance):
-       ...
+   def test_add_tagging(self, sentry, task_instance): ...
 
 Class level:
 
@@ -332,8 +331,7 @@ Class level:
 
 
    @pytest.mark.db_test
-   class TestDatabricksHookAsyncAadTokenSpOutside:
-       ...
+   class TestDatabricksHookAsyncAadTokenSpOutside: ...
 
 Module level (at the top of the module):
 
@@ -437,8 +435,7 @@ The fix for that is to sort the parameters in ``parametrize``. For example inste
 .. code-block:: python
 
    @pytest.mark.parametrize("status", ALL_STATES)
-   def test_method():
-       ...
+   def test_method(): ...
 
 
 do that:
@@ -447,8 +444,7 @@ do that:
 .. code-block:: python
 
    @pytest.mark.parametrize("status", sorted(ALL_STATES))
-   def test_method():
-       ...
+   def test_method(): ...
 
 Similarly if your parameters are defined as result of utcnow() or other dynamic method - you should
 avoid that, or assign unique IDs for those parametrized tests. Instead of this:
@@ -470,8 +466,7 @@ avoid that, or assign unique IDs for those parametrized tests. Instead of this:
            ),
        ],
    )
-   def test_end_date_gte_lte(url, expected_dag_run_ids):
-       ...
+   def test_end_date_gte_lte(url, expected_dag_run_ids): ...
 
 Do this:
 
@@ -494,8 +489,7 @@ Do this:
            ),
        ],
    )
-   def test_end_date_gte_lte(url, expected_dag_run_ids):
-       ...
+   def test_end_date_gte_lte(url, expected_dag_run_ids): ...
 
 
 
@@ -558,8 +552,7 @@ the test is marked as DB test:
                ),
            ],
        )
-       def test_from_json(self, input, request_class):
-           ...
+       def test_from_json(self, input, request_class): ...
 
 
 Instead - this will not break collection. The TaskInstance is not initialized when the module is parsed,
@@ -658,8 +651,7 @@ parametrize specification is being parsed - even if test is marked as DB test.
             ),
         ],
     )
-    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-        ...
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected): ...
 
 
 You can make the code conditional and mock out the Variable to avoid hitting the database.
@@ -704,8 +696,7 @@ You can make the code conditional and mock out the Variable to avoid hitting the
             ),
         ],
     )
-    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-        ...
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected): ...
 
 You can also use fixture to create object that needs database just like this.
 
@@ -778,7 +769,7 @@ Running Unit tests
 Running Unit Tests from PyCharm IDE
 ...................................
 
-To run unit tests from the PyCharm IDE, create the `local virtualenv <07_local_virtualenv.rst>`_,
+To run unit tests from the PyCharm IDE, create the `local virtualenv <../07_local_virtualenv.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
 .. image:: images/pycharm/configure_test_runner.png
@@ -952,7 +943,7 @@ will ask you to rebuild the image if it is needed and some new dependencies shou
 
 .. code-block:: bash
 
-     breeze testing tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
+     breeze testing tests providers/tests/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
@@ -1056,8 +1047,7 @@ Example of the ``postgres`` only test:
 .. code-block:: python
 
     @pytest.mark.backend("postgres")
-    def test_copy_expert(self):
-        ...
+    def test_copy_expert(self): ...
 
 
 Example of the ``postgres,mysql`` test (they are skipped with the ``sqlite`` backend):
@@ -1065,8 +1055,7 @@ Example of the ``postgres,mysql`` test (they are skipped with the ``sqlite`` bac
 .. code-block:: python
 
     @pytest.mark.backend("postgres", "mysql")
-    def test_celery_executor(self):
-        ...
+    def test_celery_executor(self): ...
 
 
 You can use the custom ``--backend`` switch in pytest to only run tests specific for that backend.
@@ -1133,7 +1122,7 @@ directly to the container.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Enter breeze environment by selecting the appropriate airflow version and choosing
    ``providers-and-tests`` option for ``--mount-sources`` flag.
@@ -1146,7 +1135,7 @@ directly to the container.
 
 .. code-block:: bash
 
-   pytest tests/providers/<provider>/test.py
+   pytest providers/tests/<provider>/test.py
 
 4. Iterate with the tests and providers. Both providers and tests are mounted from local sources so
    changes you do locally in both - tests and provider sources are immediately reflected inside the
@@ -1171,7 +1160,7 @@ are not part of the public API. We deal with it in one of the following ways:
 1) If the whole provider is supposed to only work for later airflow version, we remove the whole provider
    by excluding it from compatibility test configuration (see below)
 
-2) Some compatibility shims are defined in ``tests/test_utils/compat.py`` - and they can be used to make the
+2) Some compatibility shims are defined in ``tests_common.test_utils/compat.py`` - and they can be used to make the
    tests compatible - for example importing ``ParseImportError`` after the exception has been renamed from
    ``ImportError`` and it would fail in Airflow 2.9, but we have a fallback import in ``compat.py`` that
    falls back to old import automatically, so all tests testing / expecting ``ParseImportError`` should import
@@ -1184,7 +1173,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+  from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
   @pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="The tests should be skipped for Airflow < 2.8")
@@ -1196,6 +1185,9 @@ are not part of the public API. We deal with it in one of the following ways:
    to the test. For example:
 
 .. code-block:: python
+
+  from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+
 
   @pytest.mark.skipif(
       RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES, reason="Plugin initialization is done early in case of packages"
@@ -1241,7 +1233,7 @@ Herr id how to reproduce it.
 
 .. code-block:: bash
 
-   breeze ci-image build --python 3.8
+   breeze ci-image build --python 3.9
 
 2. Build providers from latest sources:
 
@@ -1280,7 +1272,7 @@ In case you want to reproduce canary run, you need to add ``--clean-airflow-inst
 
 .. code-block:: bash
 
-   pytest tests/providers/<provider>/test.py
+   pytest providers/tests/<provider>/test.py
 
 7. Iterate with the tests
 

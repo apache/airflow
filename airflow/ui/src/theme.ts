@@ -19,58 +19,67 @@
 import { tableAnatomy } from "@chakra-ui/anatomy";
 import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 
-// Chakra has bad types for this util, so is registered as unbound
-// eslint-disable-next-line @typescript-eslint/unbound-method
 const { defineMultiStyleConfig, definePartsStyle } =
   createMultiStyleConfigHelpers(tableAnatomy.keys);
 
-const baseStyle = definePartsStyle((props) => {
-  const { colorMode, colorScheme } = props;
-
-  return {
-    tbody: {
-      tr: {
-        "&:nth-of-type(even)": {
-          "th, td": {
-            borderBottomWidth: "0px",
-          },
+const baseStyle = definePartsStyle(() => ({
+  tbody: {
+    tr: {
+      "&:nth-of-type(even)": {
+        "th, td": {
+          borderBottomWidth: "0px",
         },
-        "&:nth-of-type(odd)": {
-          td: {
-            background:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
-          "th, td": {
-            borderBottomWidth: "0px",
-            borderColor:
-              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
-          },
+      },
+      "&:nth-of-type(odd)": {
+        td: {
+          background: "blue.minimal",
+        },
+        "th, td": {
+          borderBottomWidth: "0px",
+          borderColor: "blue.subtle",
         },
       },
     },
-    thead: {
-      tr: {
-        th: {
-          borderBottomWidth: 0,
-        },
+  },
+  thead: {
+    tr: {
+      th: {
+        borderBottomWidth: 0,
       },
     },
-  };
-});
+  },
+}));
 
 export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
 const theme = extendTheme({
-  components: {
-    Table: tableTheme,
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
-      },
+  colors: {
+    blue: {
+      950: "#0c142e",
     },
   },
+  components: {
+    Table: tableTheme,
+  },
   config: {
+    initialColorMode: "system",
     useSystemColorMode: true,
+  },
+  semanticTokens: {
+    colors: {
+      blue: {
+        /* eslint-disable perfectionist/sort-objects */
+        contrast: { _dark: "blue.200", _light: "blue.600" },
+        focusRing: "blue.500",
+        fg: { _dark: "blue.600", _light: "blue.400" },
+        emphasized: { _dark: "blue.700", _light: "blue.300" },
+        solid: { _dark: "blue.800", _light: "blue.200" },
+        muted: { _dark: "blue.900", _light: "blue.100" },
+        subtle: { _dark: "blue.950", _light: "blue.50" },
+        minimal: { _dark: "gray.900", _light: "blue.50" },
+        /* eslint-enable perfectionist/sort-objects */
+      },
+    },
   },
   styles: {
     global: {

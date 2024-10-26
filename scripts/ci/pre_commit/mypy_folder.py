@@ -31,7 +31,13 @@ from common_precommit_utils import (
 
 initialize_breeze_precommit(__name__, __file__)
 
-ALLOWED_FOLDERS = ["airflow", "airflow/providers", "dev", "docs"]
+ALLOWED_FOLDERS = [
+    "airflow",
+    "providers/src/airflow/providers",
+    "dev",
+    "docs",
+    "task_sdk/src/airflow/sdk",
+]
 
 if len(sys.argv) < 2:
     console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
@@ -43,12 +49,17 @@ if mypy_folder not in ALLOWED_FOLDERS:
     sys.exit(1)
 
 arguments = [mypy_folder]
-if mypy_folder == "airflow/providers":
+if mypy_folder == "providers/src/airflow/providers":
     arguments.extend(
         [
-            "tests/providers",
-            "tests/system/providers",
-            "tests/integration/providers",
+            "providers/tests",
+            "--namespace-packages",
+        ]
+    )
+if mypy_folder == "task_sdk/src/airflow/sdk":
+    arguments.extend(
+        [
+            "task_sdk/tests",
             "--namespace-packages",
         ]
     )
@@ -57,14 +68,6 @@ if mypy_folder == "airflow":
     arguments.extend(
         [
             "tests",
-            "--exclude",
-            "airflow/providers",
-            "--exclude",
-            "tests/providers",
-            "--exclude",
-            "tests/system/providers",
-            "--exclude",
-            "tests/integration/providers",
         ]
     )
 
@@ -102,6 +105,6 @@ if res.returncode != 0:
         "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
         " this command and try again:\n"
     )
-    console.print(f"breeze ci-image build --python 3.8{flag}\n")
+    console.print(f"breeze ci-image build --python 3.9{flag}\n")
     console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
 sys.exit(res.returncode)

@@ -75,8 +75,8 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
 
     _run_test(
         shell_params=ShellParams(test_type="Providers"),
-        extra_pytest_args=(f"--ignore=tests/providers/{fake_provider_name}",),
-        python_version="3.8",
+        extra_pytest_args=(f"--ignore=providers/tests/{fake_provider_name}",),
+        python_version="3.9",
         output=None,
         test_timeout=60,
         skip_docker_compose_down=True,
@@ -88,12 +88,12 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     arg_str = " ".join(run_cmd_call.args[0])
 
     # The command pattern we look for is "<container id> <tests directory arg> \
-    # <*other args we don't care about*> --ignore tests/providers/<provider name> \
-    # --ignore tests/system/providers/<provider name> --ignore tests/integration/providers/<provider name>"
+    # <*other args we don't care about*> --ignore providers/tests/<provider name> \
+    # --ignore providers/tests/system/<provider name> --ignore providers/tests/integration/<provider name>"
     # (the container id is simply to anchor the pattern so we know where we are starting; _run_tests should
     # be refactored to make arg testing easier but until then we have to regex-test the entire command string
     match_pattern = re.compile(
-        f" airflow tests/providers .+ --ignore=tests/providers/{fake_provider_name} --ignore=tests/system/providers/{fake_provider_name} --ignore=tests/integration/providers/{fake_provider_name}"
+        f" airflow providers/tests .+ --ignore=providers/tests/{fake_provider_name} --ignore=providers/tests/system/{fake_provider_name} --ignore=providers/tests/integration/{fake_provider_name}"
     )
 
     assert match_pattern.search(arg_str)
@@ -104,8 +104,8 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     test_provider_not_skipped = "ftp"
     _run_test(
         shell_params=ShellParams(test_type=f"Providers[{test_provider},{test_provider_not_skipped}]"),
-        extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
-        python_version="3.8",
+        extra_pytest_args=(f"--ignore=providers/tests/{test_provider}",),
+        python_version="3.9",
         output=None,
         test_timeout=60,
         skip_docker_compose_down=True,
@@ -116,13 +116,13 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     arg_str = " ".join(run_cmd_call.args[0])
 
     # The command pattern we look for is "<container id> --verbosity=0 \
-    # <*other args we don't care about*> --ignore=tests/providers/<provider name>"
-    # The tests/providers/http argument has been eliminated by the code that preps the args; this is a bug,
+    # <*other args we don't care about*> --ignore=providers/tests/<provider name>"
+    # The providers/tests/http argument has been eliminated by the code that preps the args; this is a bug,
     # bc without a directory or module arg, pytest tests everything (which we don't want!)
     # We check "--verbosity=0" to ensure nothing is between the airflow container id and the verbosity arg,
     # IOW that the primary test arg is removed
     match_pattern = re.compile(
-        f"airflow tests/providers/{test_provider_not_skipped} --verbosity=0 .+ --ignore=tests/providers/{test_provider}"
+        f"airflow providers/tests/{test_provider_not_skipped} --verbosity=0 .+ --ignore=providers/tests/{test_provider}"
     )
 
     assert match_pattern.search(arg_str)
@@ -135,8 +135,8 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
     ]  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     _run_test(
         shell_params=ShellParams(test_type=f"Providers[{','.join(test_providers)}]"),
-        extra_pytest_args=[f"--ignore=tests/providers/{provider}" for provider in test_providers],
-        python_version="3.8",
+        extra_pytest_args=[f"--ignore=providers/tests/{provider}" for provider in test_providers],
+        python_version="3.9",
         output=None,
         test_timeout=60,
         skip_docker_compose_down=True,

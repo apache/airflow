@@ -195,11 +195,17 @@ jobs:
         env:
           HATCH_ENV: "test"
         working-directory: ./clients/python
-      - name: "Prepare FAB provider packages: wheel"
+      - name: "Prepare FAB+standard provider packages: wheel"
         run: >
-            breeze release-management prepare-provider-packages fab --package-format wheel --skip-tag-check
+            breeze release-management prepare-provider-packages fab standard \
+              --package-format wheel --skip-tag-check
       - name: "Install Airflow with fab for webserver tests"
         run: pip install . dist/apache_airflow_providers_fab-*.whl
+      - name: "Prepare Standard provider packages: wheel"
+        run: >
+          breeze release-management prepare-provider-packages standard --package-format wheel --skip-tag-check
+      - name: "Install Airflow with standard provider for webserver tests"
+        run: pip install . dist/apache_airflow_providers_standard-*.whl
       - name: "Install Python client"
         run: pip install ./dist/apache_airflow_client-*.whl
       - name: "Initialize Airflow DB and start webserver"
@@ -353,6 +359,8 @@ jobs:
           --hook-stage manual
           update-build-dependencies
         if: always()
+        env:
+          SKIP_TROVE_CLASSIFIERS_ONLY: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run

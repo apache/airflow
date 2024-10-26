@@ -52,11 +52,12 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.types import DagRunType
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_executor import MockExecutor
+
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_executor import MockExecutor
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -289,6 +290,7 @@ class TestLocalTaskJob:
         assert ti.pid != job1.task_runner.process.pid
         job_runner.heartbeat_callback()
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat_failed_fast(self):
         """

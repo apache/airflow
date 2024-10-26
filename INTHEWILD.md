@@ -101,7 +101,7 @@ Currently, **officially** using Airflow:
 1. [Bombora Inc](https://bombora.com/) [[@jeffkpayne](https://github.com/jeffkpayne), [@pakelley](https://github.com/pakelley), [@dNavalta](https://github.com/dNavalta), [@austynh](https://github.com/austynh), [@TheOriginalAlex](https://github.com/TheOriginalAlex)]
 1. [Bonial International GmbH](https://www.bonial.com/)
 1. [Bonnier Broadcasting](http://www.bonnierbroadcasting.com) [[@wileeam](https://github.com/wileeam)]
-1. [Bosch (Robert Bosch GmbH)](https://www.bosch.com/stories/topics/automated-driving/) [[@jscheffl](https://github.com/jscheffl), [@clellmann](https://github.com/clellmann), [@wolfdn](https://github.com/wolfdn), [@AutomationDev85](https://github.com/AutomationDev85)]
+1. [Bosch (Robert Bosch GmbH)](https://www.bosch.com/stories/topics/automated-driving/) [[@jscheffl](https://github.com/jscheffl), [@clellmann](https://github.com/clellmann), [@wolfdn](https://github.com/wolfdn), [@AutomationDev85](https://github.com/AutomationDev85), [@majorosdonat](https://github.com/majorosdonat)]
 1. [BounceX](http://www.bouncex.com) [[@JoshFerge](https://github.com/JoshFerge), [@hudsonrio](https://github.com/hudsonrio), [@ronniekritou](https://github.com/ronniekritou)]
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
@@ -158,6 +158,7 @@ Currently, **officially** using Airflow:
 1. [Cryptalizer.com](https://www.cryptalizer.com/)
 1. [Currency](https://www.gocurrency.com/) [[@FCLI](https://github.com/FCLI) & [@alexbegg](https://github.com/alexbegg)]
 1. [Custom Ink](https://www.customink.com/) [[@david-dalisay](https://github.com/david-dalisay), [@dmartin11](https://github.com/dmartin11) & [@mpeteuil](https://github.com/mpeteuil)]
+1. [Cyberdino](https://www.cyberdino.io) [[@cyberdino-io](https://github.com/cyberdino-io)]
 1. [Cyscale](https://cyscale.com) [[@ocical](https://github.com/ocical)]
 1. [Dailymotion](http://www.dailymotion.com/fr) [[@germaintanguy](https://github.com/germaintanguy) & [@hc](https://github.com/hc)]
 1. [DANA](https://www.dana.id/) [[@imamdigmi](https://github.com/imamdigmi)]
@@ -428,6 +429,7 @@ Currently, **officially** using Airflow:
 1. [Revolut](https://www.revolut.com/) [[@sztanko](https://github.com/sztanko) & [@nautilus28](https://github.com/nautilus28)]
 1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
 1. [RushOwl](https://www.rushowl.sg) [[@songyanho](https://github.com/songyanho)]
+1. [SailPoint](https://www.sailpoint.com/) [[@andrew-stein-sp](https://github.com/andrew-stein-sp)]
 1. [Scaleway](https://scaleway.com) [[@kdeldycke](https://github.com/kdeldycke)]
 1. [Scribd](https://www.scribd.com) [[@houqp](https://github.com/houqp), [@dimonchik-suvorov](https://github.com/dimonchik-suvorov) & [@zbstof](https://github.com/zbstof)]
 1. [Seasoned](https://www.seasoned.co/) [[@joshuacano](https://github.com/joshuacano)] & [[@mmyers](https://github.com/mmyers5)] & [[@tjward](https://github.com/tjward)]

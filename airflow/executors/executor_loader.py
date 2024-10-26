@@ -21,7 +21,6 @@ from __future__ import annotations
 import functools
 import logging
 import os
-from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
@@ -171,7 +170,7 @@ class ExecutorLoader:
         """
         Externally set an executor to be the default.
 
-        This is used in rare cases such as dag.run which allows, as a user convenience, to provide
+        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
         the executor by cli/argument instead of Airflow configuration
         """
         exec_class_name = executor.__class__.__qualname__
@@ -284,17 +283,6 @@ class ExecutorLoader:
                 cls.validate_database_executor_compatibility(executor)
             return executor
 
-        if executor_name.connector_source == ConnectorSource.PLUGIN:
-            with suppress(ImportError, AttributeError):
-                # Load plugins here for executors as at that time the plugins might not have been
-                # initialized yet
-                from airflow import plugins_manager
-
-                plugins_manager.integrate_executor_plugins()
-                return (
-                    _import_and_validate(f"airflow.executors.{executor_name.module_path}"),
-                    ConnectorSource.PLUGIN,
-                )
         return _import_and_validate(executor_name.module_path), executor_name.connector_source
 
     @classmethod
