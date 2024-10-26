@@ -16,42 +16,39 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from pathlib import Path
+import logging
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from airflow.settings import AIRFLOW_PATH
-from airflow.www.extensions.init_dagbag import get_dag_bag
+from airflow.api_fastapi.core_api.app import init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+
+log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
 
 
-def init_dag_bag(app: FastAPI) -> None:
-    """
-    Create global DagBag for the FastAPI application.
-
-    To access it use ``request.app.state.dag_bag``.
-    """
-    app.state.dag_bag = get_dag_bag()
-
-
-def create_app() -> FastAPI:
+def create_app(apps: str = "all") -> FastAPI:
     from airflow.configuration import conf
 
+    apps_list = apps.split(",") if apps else ["all"]
+
     app = FastAPI(
+        title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
     )
 
-    init_dag_bag(app)
+    if "core" in apps_list or "all" in apps_list:
+        init_dag_bag(app)
+        init_views(app)
+        init_plugins(app)
 
-    init_views(app)
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app(app)
+        app.mount("/execution", task_exec_api_app)
 
     allow_origins = conf.getlist("api", "access_control_allow_origins")
     allow_methods = conf.getlist("api", "access_control_allow_methods")
@@ -69,43 +66,11 @@ def create_app() -> FastAPI:
     return app
 
 
-def init_views(app) -> None:
-    """Init views by registering the different routers."""
-    from airflow.api_fastapi.views.public import public_router
-    from airflow.api_fastapi.views.ui import ui_router
-
-    app.include_router(ui_router)
-    app.include_router(public_router)
-
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
-
-    directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
-
-    # During python tests or when the backend is run without having the frontend build
-    # those directories might not exist. App should not fail initializing in those scenarios.
-    Path(directory).mkdir(exist_ok=True)
-
-    templates = Jinja2Templates(directory=directory)
-
-    app.mount(
-        "/static",
-        StaticFiles(
-            directory=directory,
-            html=True,
-        ),
-        name="webapp_static_folder",
-    )
-
-    @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
-    def webapp(request: Request, rest_of_path: str):
-        return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
-
-
-def cached_app(config=None, testing=False) -> FastAPI:
-    """Return cached instance of Airflow UI app."""
+def cached_app(config=None, testing=False, apps="all") -> FastAPI:
+    """Return cached instance of Airflow API app."""
     global app
     if not app:
-        app = create_app()
+        app = create_app(apps=apps)
     return app
 
 

@@ -99,10 +99,11 @@ do not apply to Airflow, or have a different severity than some generic scoring 
 
 The Airflow Security Team will get back to you after assessing the report. You will usually get
 confirmation that the issue is being worked (or that we quickly assessed it as invalid) within several
-business days. Note that this is an Open-Source projects and members of the security team are volunteers
-so please make sure to be patient. If you do not get a response within a week or so, please send a
-kind reminder to the security team. We will usually let you know the CVE number that will be assigned
-to the issue and the severity of the issue as well as release the issue is scheduled to be fixed
+business days. Note that this is an Open-Source projects and members of the security team are volunteers,
+so please make sure to be patient. If you do not get a response within a week, please send a kind reminder
+to the security team about a lack of response; however, reminders should only be for the initial response
+and not for updates on the assessment or remediation. We will usually let you know the CVE number that will
+be assigned to the issue and the severity of the issue as well as release the issue is scheduled to be fixed
 after we assess the issue (which might take longer or shorter time depending on the issue complexity and
 potential impact, severity, whether we want to address a whole class issues in a single fix and a number
 of other factors). You should subscribe  and monitor the `users@airflow.apache.org` mailing

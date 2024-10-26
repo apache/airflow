@@ -100,8 +100,9 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
+
     from airflow.models.dag import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
     import pendulum
@@ -241,7 +242,7 @@ Example of a parameterized DAG:
     import pendulum
 
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(
         "example_parameterized_dag",

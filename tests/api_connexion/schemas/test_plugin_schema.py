@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 from flask import Blueprint
 from flask_appbuilder import BaseView
 
@@ -24,12 +26,9 @@ from airflow.api_connexion.schemas.plugin_schema import (
     plugin_collection_schema,
     plugin_schema,
 )
-from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
-from tests.test_utils.compat import BaseOperatorLink
 
-
-class PluginHook(BaseHook): ...
+from tests_common.test_utils.compat import BaseOperatorLink
 
 
 def plugin_macro(): ...
@@ -53,15 +52,17 @@ appbuilder_menu_items = {
     "href": "https://example.com",
 }
 
+app = MagicMock()
+
 
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
+    fastapi_apps = [{"app": app, "name": "App name", "url_prefix": "/some_prefix"}]
     appbuilder_views = [{"view": MockView()}]
     appbuilder_menu_items = [appbuilder_menu_items]
     global_operator_extra_links = [MockOperatorLink()]
     operator_extra_links = [MockOperatorLink()]
-    hooks = [PluginHook]
     macros = [plugin_macro]
 
 
@@ -80,10 +81,11 @@ class TestPluginSchema(TestPluginBase):
         assert deserialized_plugin == {
             "appbuilder_menu_items": [appbuilder_menu_items],
             "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-            "executors": [],
             "flask_blueprints": [str(bp)],
+            "fastapi_apps": [
+                {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
+            ],
             "global_operator_extra_links": [str(MockOperatorLink())],
-            "hooks": [str(PluginHook)],
             "macros": [str(plugin_macro)],
             "operator_extra_links": [str(MockOperatorLink())],
             "source": None,
@@ -104,10 +106,11 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
+                    "fastapi_apps": [
+                        {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
+                    ],
                     "global_operator_extra_links": [str(MockOperatorLink())],
-                    "hooks": [str(PluginHook)],
                     "macros": [str(plugin_macro)],
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
@@ -119,10 +122,11 @@ class TestPluginCollectionSchema(TestPluginBase):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": self.mock_plugin.appbuilder_views[0]["view"]}],
-                    "executors": [],
                     "flask_blueprints": [str(bp)],
+                    "fastapi_apps": [
+                        {"app": app, "name": "App name", "url_prefix": "/some_prefix"},
+                    ],
                     "global_operator_extra_links": [str(MockOperatorLink())],
-                    "hooks": [str(PluginHook)],
                     "macros": [str(plugin_macro)],
                     "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,

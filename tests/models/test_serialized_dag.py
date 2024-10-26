@@ -31,13 +31,14 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
+
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 
 pytestmark = pytest.mark.db_test
 

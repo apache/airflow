@@ -96,9 +96,12 @@ Exposing customized functionality to the Airflow's core:
 * ``filesystems`` - this field should contain the list of all the filesystem module names.
   See :doc:`apache-airflow:core-concepts/objectstorage` for description of the filesystems.
 
-* ``asset-uris`` - this field should contain the list of the URI schemes together with
+..
+  TODO: Change this from Dataset to Asset in Airflow 3.0
+
+* ``dataset-uris`` - this field should contain the list of the URI schemes together with
   class names implementing normalization functions.
-  See :doc:`apache-airflow:authoring-and-scheduling/assets` for description of the asset URIs.
+  See :doc:`apache-airflow:authoring-and-scheduling/datasets` for description of the dataset URIs.
 
 .. note:: Deprecated values
 

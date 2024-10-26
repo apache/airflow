@@ -76,9 +76,9 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -98,12 +98,13 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
+
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_connections, clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
+from tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -2272,7 +2273,7 @@ class TestTaskInstance:
     def test_outlet_assets(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        completes successfully, a AssetDagRunQueue is logged.
+        completes successfully, an AssetDagRunQueue is logged.
         """
         from airflow.example_dags import example_assets
         from airflow.example_dags.example_assets import dag1
@@ -2296,15 +2297,15 @@ class TestTaskInstance:
         # check that no other asset events recorded
         event = (
             session.query(AssetEvent)
-            .join(AssetEvent.dataset)
+            .join(AssetEvent.asset)
             .filter(AssetEvent.source_task_instance == ti)
             .one()
         )
         assert event
-        assert event.dataset
+        assert event.asset
 
         # check that one queue record created for each dag that depends on asset 1
-        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(asset_id=event.asset.id).order_by(
             AssetDagRunQueue.target_dag_id
         ).all() == [
             ("asset_consumes_1",),
@@ -2317,14 +2318,12 @@ class TestTaskInstance:
         ]
 
         # check that one event record created for asset1 and this TI
-        assert session.query(AssetModel.uri).join(AssetEvent.dataset).filter(
+        assert session.query(AssetModel.uri).join(AssetEvent.asset).filter(
             AssetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
         # check that the asset event has an earlier timestamp than the ADRQ's
-        adrq_timestamps = (
-            session.query(AssetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
-        )
+        adrq_timestamps = session.query(AssetDagRunQueue.created_at).filter_by(asset_id=event.asset.id).all()
         assert all(
             event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
         ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
@@ -2333,7 +2332,7 @@ class TestTaskInstance:
     def test_outlet_assets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        failed, a AssetDagRunQueue is not logged, and an AssetEvent is
+        failed, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets
@@ -2389,7 +2388,7 @@ class TestTaskInstance:
     def test_outlet_assets_skipped(self):
         """
         Verify that when we have an outlet asset on a task, and the task
-        is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
+        is skipped, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets
@@ -2449,13 +2448,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2521,13 +2520,13 @@ class TestTaskInstance:
         assert events["write1"].source_dag_id == dr.dag_id
         assert events["write1"].source_run_id == dr.run_id
         assert events["write1"].source_task_id == "write1"
-        assert events["write1"].dataset.uri == "test_outlet_asset_extra_1"
+        assert events["write1"].asset.uri == "test_outlet_asset_extra_1"
         assert events["write1"].extra == {"foo": "bar"}
 
         assert events["write2"].source_dag_id == dr.dag_id
         assert events["write2"].source_run_id == dr.run_id
         assert events["write2"].source_task_id == "write2"
-        assert events["write2"].dataset.uri == "test_outlet_asset_extra_2"
+        assert events["write2"].asset.uri == "test_outlet_asset_extra_2"
         assert events["write2"].extra == {"x": 1}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -2566,7 +2565,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert len(producer_event.source_aliases) == 1
         assert producer_event.extra == {}
         assert producer_event.source_aliases[0].name == alias_name_1
@@ -2576,8 +2575,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == alias_name_1
 
         asset_alias_obj = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == alias_name_1))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_asset_alias(self, dag_maker, session):
@@ -2625,7 +2624,7 @@ class TestTaskInstance:
             assert producer_event.source_dag_id == "producer_dag"
             assert producer_event.source_run_id == "test"
             assert producer_event.source_map_index == -1
-            assert producer_event.dataset.uri == asset_uri
+            assert producer_event.asset.uri == asset_uri
 
             if not producer_event.extra:
                 assert producer_event.extra == {}
@@ -2650,8 +2649,8 @@ class TestTaskInstance:
         asset_alias_objs = session.scalars(select(AssetAliasModel)).all()
         assert len(asset_alias_objs) == 3
         for asset_alias_obj in asset_alias_objs:
-            assert len(asset_alias_obj.datasets) == 1
-            assert asset_alias_obj.datasets[0].uri == asset_uri
+            assert len(asset_alias_obj.assets) == 1
+            assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
@@ -2685,7 +2684,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
@@ -2695,8 +2694,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
@@ -2725,7 +2724,7 @@ class TestTaskInstance:
         assert producer_event.source_dag_id == "producer_dag"
         assert producer_event.source_run_id == "test"
         assert producer_event.source_map_index == -1
-        assert producer_event.dataset.uri == asset_uri
+        assert producer_event.asset.uri == asset_uri
         assert producer_event.extra == {"key": "value"}
         assert len(producer_event.source_aliases) == 1
         assert producer_event.source_aliases[0].name == asset_alias_name
@@ -2735,8 +2734,8 @@ class TestTaskInstance:
         assert asset_obj.aliases[0].name == asset_alias_name
 
         asset_alias_obj = session.scalar(select(AssetAliasModel))
-        assert len(asset_alias_obj.datasets) == 1
-        assert asset_alias_obj.datasets[0].uri == asset_uri
+        assert len(asset_alias_obj.assets) == 1
+        assert asset_alias_obj.assets[0].uri == asset_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_asset_extra(self, dag_maker, session):
@@ -2799,7 +2798,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -2952,7 +2951,7 @@ class TestTaskInstance:
 
         asset_model = AssetModel(id=1, uri=asset_uri)
         asset_alias_model = AssetAliasModel(name=asset_alias_name)
-        asset_alias_model.datasets.append(asset_model)
+        asset_alias_model.assets.append(asset_model)
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
@@ -3195,19 +3194,19 @@ class TestTaskInstance:
         )
         dr = dag.create_dagrun(
             run_id="test2",
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             execution_date=execution_date,
             state=None,
             session=session,
             data_interval=(execution_date, execution_date),
             **triggered_by_kwargs,
         )
-        ds1_event = AssetEvent(dataset_id=1)
-        ds2_event_1 = AssetEvent(dataset_id=2)
-        ds2_event_2 = AssetEvent(dataset_id=2)
-        dr.consumed_dataset_events.append(ds1_event)
-        dr.consumed_dataset_events.append(ds2_event_1)
-        dr.consumed_dataset_events.append(ds2_event_2)
+        ds1_event = AssetEvent(asset_id=1)
+        ds2_event_1 = AssetEvent(asset_id=2)
+        ds2_event_2 = AssetEvent(asset_id=2)
+        dr.consumed_asset_events.append(ds1_event)
+        dr.consumed_asset_events.append(ds2_event_1)
+        dr.consumed_asset_events.append(ds2_event_2)
         session.commit()
 
         ti = dr.get_task_instance(task1.task_id, session=session)
@@ -5257,6 +5256,80 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
         middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
         assert middle_ti.state == State.SCHEDULED
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
+@pytest.mark.skip_if_database_isolation_mode
+def test_one_success_task_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
+    """Test that mini scheduler with one_success task"""
+    with dag_maker() as dag:
+        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "task_run")
+        task_run = BashOperator(task_id="task_run", bash_command="echo 0")
+        task_skip = BashOperator(task_id="task_skip", bash_command="echo 0")
+        task_1 = BashOperator(task_id="task_1", bash_command="echo 0")
+        task_one_success = BashOperator(
+            task_id="task_one_success", bash_command="echo 0", trigger_rule="one_success"
+        )
+        task_2 = BashOperator(task_id="task_2", bash_command="echo 0")
+
+        task_1 >> task_2
+        branch >> task_skip
+        branch >> task_run
+        task_run >> task_one_success
+        task_skip >> task_one_success
+        task_one_success >> task_2
+        task_skip >> task_2
+
+    dr = dag_maker.create_dagrun()
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    branch.state = State.SUCCESS
+    task_1.state = State.SUCCESS
+    task_skip.state = State.SKIPPED
+    session.merge(branch)
+    session.merge(task_1)
+    session.merge(task_skip)
+    session.commit()
+    task_1.refresh_from_task(dag.get_task("task_1"))
+    task_1.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.NONE
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.NONE
+    assert task_2.state == State.SKIPPED
+    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_run.state = State.SUCCESS
+    session.merge(task_run)
+    session.commit()
+    task_run.refresh_from_task(dag.get_task("task_run"))
+    task_run.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.SUCCESS
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.SCHEDULED
+    assert task_2.state == State.SKIPPED
+    assert "1 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

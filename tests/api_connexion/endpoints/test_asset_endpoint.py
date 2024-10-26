@@ -36,11 +36,12 @@ from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_assets, clear_db_runs
-from tests.test_utils.www import _check_last_log
+
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -260,9 +261,9 @@ class TestGetAssets(TestAssetEndpoint):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
-        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=asset1)
-        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=asset2)
-        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=asset3)
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
         session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
@@ -287,9 +288,9 @@ class TestGetAssets(TestAssetEndpoint):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
-        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=asset1)
-        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=asset2)
-        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=asset3)
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
         session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
@@ -377,7 +378,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
     def test_should_respond_200(self, session):
         d = self._create_asset(session)
         common = {
-            "dataset_id": 1,
+            "asset_id": 1,
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -401,13 +402,13 @@ class TestGetAssetEvents(TestAssetEndpoint):
                     "id": 1,
                     "timestamp": self.default_time,
                     **common,
-                    "dataset_uri": d.uri,
+                    "asset_uri": d.uri,
                 },
                 {
                     "id": 2,
                     "timestamp": self.default_time,
                     **common,
-                    "dataset_uri": d.uri,
+                    "asset_uri": d.uri,
                 },
             ],
             "total_entries": 2,
@@ -440,7 +441,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         events = [
             AssetEvent(
                 id=i,
-                dataset_id=i,
+                asset_id=i,
                 source_dag_id=f"dag{i}",
                 source_task_id=f"task{i}",
                 source_run_id=f"run{i}",
@@ -463,8 +464,8 @@ class TestGetAssetEvents(TestAssetEndpoint):
             "asset_events": [
                 {
                     "id": 2,
-                    "dataset_id": 2,
-                    "dataset_uri": assets[1].uri,
+                    "asset_id": 2,
+                    "asset_uri": assets[1].uri,
                     "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
@@ -481,7 +482,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 extra="{'foo': 'bar'}",
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -511,7 +512,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         self._create_asset(session)
         event = AssetEvent(
             id=1,
-            dataset_id=1,
+            asset_id=1,
             timestamp=timezone.parse(self.default_time),
         )
         session.add(event)
@@ -520,7 +521,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
         dagrun = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.DATASET_TRIGGERED,
+            run_type=DagRunType.ASSET_TRIGGERED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
@@ -541,8 +542,8 @@ class TestGetAssetEvents(TestAssetEndpoint):
             "asset_events": [
                 {
                     "id": 1,
-                    "dataset_id": 1,
-                    "dataset_uri": "s3://bucket/key",
+                    "asset_id": 1,
+                    "asset_uri": "s3://bucket/key",
                     "extra": {},
                     "source_dag_id": None,
                     "source_task_id": None,
@@ -590,8 +591,8 @@ class TestPostAssetEvents(TestAssetEndpoint):
         assert response_data == {
             "id": ANY,
             "created_dagruns": [],
-            "dataset_uri": event_payload["asset_uri"],
-            "dataset_id": ANY,
+            "asset_uri": event_payload["asset_uri"],
+            "asset_id": ANY,
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
             "source_task_id": None,
@@ -670,7 +671,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -692,7 +693,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -714,7 +715,7 @@ class TestGetAssetEventsEndpointPagination(TestAssetEndpoint):
         self._create_asset(session)
         events = [
             AssetEvent(
-                dataset_id=1,
+                asset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
                 source_run_id=f"run{i}",
@@ -745,7 +746,7 @@ class TestQueuedEventEndpoint(TestAssetEndpoint):
         freezer.stop()
 
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=asset_id)
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(adrq)
         session.commit()
         return adrq

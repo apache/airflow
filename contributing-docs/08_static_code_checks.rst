@@ -40,7 +40,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.8 locally.
+in our development workflow. To install and use it, you need at least Python 3.9 locally.
 
 Installing pre-commit hooks
 ---------------------------
@@ -152,8 +152,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-common-compat-used-for-openlineage                  | Check common.compat is used for OL deprecated classes  |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-compat-cache-on-methods                             | Check that compat cache do not use on class methods    |         |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core    |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-daysago-import-from-utils                           | days_ago imported from airflow.utils.dates             |         |
@@ -196,6 +194,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-merge-conflict                                      | Check that merge conflicts are not being committed     |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-min-python-version                                  | Check minimum Python version                           |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers             |         |
@@ -213,8 +213,6 @@ require Breeze Docker image to be built locally.
 | check-provider-docs-valid                                 | Validate provider doc files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-yaml-valid                                 | Validate provider.yaml files                           | *       |
-+-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-providers-init-file-missing                         | Provider init file is missing                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there               |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
@@ -328,6 +326,9 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | mypy-providers                                            | * Run mypy for providers                               | *       |
 |                                                           | * Run mypy for providers (manual)                      |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
+| mypy-task-sdk                                             | * Run mypy for Task SDK                                | *       |
+|                                                           | * Run mypy for Task SDK (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

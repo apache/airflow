@@ -23,7 +23,8 @@ from flask import session, url_for
 
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -36,7 +37,7 @@ def simple_app():
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE, "w") as file:
+        with open(SimpleAuthManager.get_generated_password_file(), "w") as file:
             user = {"test": "test"}
             file.write(json.dumps(user))
 

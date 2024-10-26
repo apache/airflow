@@ -22,7 +22,7 @@
 BashOperator
 ============
 
-Use the :class:`~airflow.operators.bash.BashOperator` to execute
+Use the :class:`~airflow.providers.standard.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell. The Bash command or script to execute is
 determined by:
 
@@ -231,70 +231,21 @@ Executing commands from files
 Both the ``BashOperator`` and ``@task.bash`` TaskFlow decorator enables you to execute Bash commands stored
 in files. The files **must** have a ``.sh`` or ``.bash`` extension.
 
-Note the space after the script name (more on this in the next section).
+With Jinja template
+"""""""""""""""""""
 
-.. tab-set::
+You can execute bash script which contains Jinja templates. When you do so, Airflow
+loads the content of your file, render the templates, and write the rendered script
+into a temporary file. By default, the file is placed in a temporary directory
+(under ``/tmp``). You can change this location with the ``cwd`` parameter.
 
-    .. tab-item:: @task.bash
-        :sync: taskflow
+.. caution::
 
-        .. code-block:: python
-            :emphasize-lines: 3
-
-            @task.bash
-            def run_command_from_script() -> str:
-                return "$AIRFLOW_HOME/scripts/example.sh "
-
-
-            run_script = run_command_from_script()
-
-    .. tab-item:: BashOperator
-        :sync: operator
-
-        .. code-block:: python
-            :emphasize-lines: 3
-
-            run_script = BashOperator(
-                task_id="run_command_from_script",
-                bash_command="$AIRFLOW_HOME/scripts/example.sh ",
-            )
+    Airflow must have write access to ``/tmp`` or the ``cwd`` directory, to be
+    able to write the temporary file to the disk.
 
 
-Jinja template not found
-""""""""""""""""""""""""
-
-If you encounter a "Template not found" exception when trying to execute a Bash script, add a space after the
-script name. This is because Airflow tries to apply a Jinja template to it, which will fail.
-
-.. tab-set::
-
-    .. tab-item:: @task.bash
-        :sync: taskflow
-
-        .. code-block:: python
-
-            @task.bash
-            def bash_example():
-                # This fails with 'Jinja template not found' error
-                # return "/home/batcher/test.sh",
-                # This works (has a space after)
-                return "/home/batcher/test.sh "
-
-    .. tab-item:: BashOperator
-        :sync: operator
-
-        .. code-block:: python
-
-            BashOperator(
-                task_id="bash_example",
-                # This fails with 'Jinja template not found' error
-                # bash_command="/home/batcher/test.sh",
-                # This works (has a space after)
-                bash_command="/home/batcher/test.sh ",
-            )
-
-However, if you want to use templating in your Bash script, do not add the space
-and instead put your Bash script in a location relative to the directory containing
+To execute a bash script, place it in a location relative to the directory containing
 the DAG file. So if your DAG file is in ``/usr/local/airflow/dags/test_dag.py``, you can
 move your ``test.sh`` file to any location under ``/usr/local/airflow/dags/`` (Example:
 ``/usr/local/airflow/dags/scripts/test.sh``) and pass the relative path to ``bash_command``
@@ -357,6 +308,75 @@ locations in the DAG constructor call.
                     bash_command="test.sh ",
                 )
 
+Without Jinja template
+""""""""""""""""""""""
+
+If your script doesn't contains any Jinja template, disable Airflow's rendering by
+adding a space after the script name.
+
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. code-block:: python
+            :emphasize-lines: 3
+
+            @task.bash
+            def run_command_from_script() -> str:
+                return "$AIRFLOW_HOME/scripts/example.sh "
+
+
+            run_script = run_command_from_script()
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. code-block:: python
+            :emphasize-lines: 3
+
+            run_script = BashOperator(
+                task_id="run_command_from_script",
+                bash_command="$AIRFLOW_HOME/scripts/example.sh ",
+            )
+
+
+Jinja template not found
+""""""""""""""""""""""""
+
+If you encounter a "Template not found" exception when trying to execute a Bash script, add a space after the
+script name. This is because Airflow tries to apply a Jinja template to it, which will fail.
+
+.. tab-set::
+
+    .. tab-item:: @task.bash
+        :sync: taskflow
+
+        .. code-block:: python
+
+            @task.bash
+            def bash_example():
+                # This fails with 'Jinja template not found' error
+                # return "/home/batcher/test.sh",
+                # This works (has a space after)
+                return "/home/batcher/test.sh "
+
+    .. tab-item:: BashOperator
+        :sync: operator
+
+        .. code-block:: python
+
+            BashOperator(
+                task_id="bash_example",
+                # This fails with 'Jinja template not found' error
+                # bash_command="/home/batcher/test.sh",
+                # This works (has a space after)
+                bash_command="/home/batcher/test.sh ",
+            )
+
+However, if you want to use templating in your Bash script, do not add the space
+and instead check the `bash script with Jinja template <#with-jinja-template>`_ section.
+
 Enriching Bash with Python
 --------------------------
 
@@ -390,7 +410,7 @@ There are numerous possibilities with this type of pre-execution enrichment.
 BashSensor
 ==========
 
-Use the :class:`~airflow.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
+Use the :class:`~airflow.providers.standard.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
 should return 0 when it succeeds, any other value otherwise.
 
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py

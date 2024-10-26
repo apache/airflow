@@ -267,6 +267,7 @@ export interface paths {
      * Get asset for a dag run.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents"
      */
     get: operations["get_upstream_asset_events"];
     parameters: {
@@ -299,19 +300,25 @@ export interface paths {
      * Get a queued asset event for a DAG.
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
      */
     get: operations["get_dag_asset_queued_event"];
     /**
      * Delete a queued Asset event for a DAG.
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
      */
     delete: operations["delete_dag_asset_queued_event"];
     parameters: {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
     };
@@ -321,12 +328,14 @@ export interface paths {
      * Get queued Asset events for a DAG.
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
      */
     get: operations["get_dag_asset_queued_events"];
     /**
      * Delete queued Asset events for a DAG.
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
      */
     delete: operations["delete_dag_asset_queued_events"];
     parameters: {
@@ -355,17 +364,23 @@ export interface paths {
      * Get queued Asset events for an Asset
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
      */
     get: operations["get_asset_queued_events"];
     /**
-     * Delete queued Asset events for a Asset.
+     * Delete queued Asset events for an Asset.
      *
      * *New in version 2.9.0*
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
      */
     delete: operations["delete_asset_queued_events"];
     parameters: {
       path: {
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
     };
@@ -783,22 +798,39 @@ export interface paths {
     get: operations["get_dag_warnings"];
   };
   "/assets": {
+    /** *Changed in 3.0.0*: The endpoint value was renamed from "/datasets" */
     get: operations["get_assets"];
   };
   "/assets/{uri}": {
-    /** Get an asset by uri. */
+    /**
+     * Get an asset by uri.
+     *
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/{uri}"
+     */
     get: operations["get_asset"];
     parameters: {
       path: {
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
     };
   };
   "/assets/events": {
-    /** Get asset events */
+    /**
+     * Get asset events
+     *
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+     */
     get: operations["get_asset_events"];
-    /** Create asset event */
+    /**
+     * Create asset event
+     *
+     * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+     */
     post: operations["create_asset_event"];
   };
   "/config": {
@@ -919,7 +951,7 @@ export interface components {
       /** @description To date of the backfill (exclusive). */
       to_date?: string | null;
       /** @description Dag run conf to be forwarded to the dag runs. */
-      dag_run_conf?: string | null;
+      dag_run_conf?: { [key: string]: unknown } | null;
       /** @description is_paused */
       is_paused?: boolean | null;
       /** @description max_active_runs */
@@ -1193,8 +1225,12 @@ export interface components {
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
-      /** @enum {string} */
-      run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
+      /**
+       * @description *Changed in 3.0.0*: The asset_triggered value was renamed from dataset_triggered.
+       *
+       * @enum {string}
+       */
+      run_type?: "backfill" | "manual" | "scheduled" | "asset_triggered";
       state?: components["schemas"]["DagState"];
       external_trigger?: boolean;
       /**
@@ -1263,7 +1299,7 @@ export interface components {
     };
     /** @description Collection of DAG warnings. */
     DagWarningCollection: {
-      import_errors?: components["schemas"]["DagWarning"][];
+      dag_warnings?: components["schemas"]["DagWarning"][];
     } & components["schemas"]["CollectionInfo"];
     SetDagRunNote: {
       /** @description Custom notes left by users for this Dag Run. */
@@ -1647,8 +1683,12 @@ export interface components {
        */
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
-      /** @description Nested asset any/all conditions */
-      dataset_expression?: { [key: string]: unknown } | null;
+      /**
+       * @description Nested asset any/all conditions
+       *
+       * *Changed in 3.0.0*: The asset_expression value was renamed from dataset_expression.
+       */
+      asset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -1762,6 +1802,8 @@ export interface components {
       macros?: (string | null)[];
       /** @description The flask blueprints */
       flask_blueprints?: (string | null)[];
+      /** @description The fastapi apps */
+      fastapi_apps?: ({ [key: string]: unknown } | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
@@ -1850,6 +1892,7 @@ export interface components {
      * @description An asset item.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from Dataset.
      */
     Asset: {
       /** @description The asset id */
@@ -1869,6 +1912,7 @@ export interface components {
      * @description An asset reference to an upstream task.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from TaskOutletDatasetReference.
      */
     TaskOutletAssetReference: {
       /** @description The DAG ID that updates the asset. */
@@ -1884,6 +1928,7 @@ export interface components {
      * @description An asset reference to a downstream DAG.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from DagScheduleDatasetReference.
      */
     DagScheduleAssetReference: {
       /** @description The DAG ID that depends on the asset. */
@@ -1897,20 +1942,31 @@ export interface components {
      * @description A collection of assets.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from DatasetCollection.
      */
     AssetCollection: {
+      /** @description *Changed in 3.0.0*: This was renamed from datasets. */
       assets?: components["schemas"]["Asset"][];
     } & components["schemas"]["CollectionInfo"];
     /**
      * @description An asset event.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from DatasetEvent.
      */
     AssetEvent: {
-      /** @description The asset id */
-      dataset_id?: number;
-      /** @description The URI of the asset */
-      dataset_uri?: string;
+      /**
+       * @description The asset id
+       *
+       * *Changed in 3.0.0*: This was renamed from dataset_id.
+       */
+      asset_id?: number;
+      /**
+       * @description The URI of the asset
+       *
+       * *Changed in 3.0.0*: This was renamed from dataset_uri.
+       */
+      asset_uri?: string;
       /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
       /** @description The DAG ID that updated the asset. */
@@ -1925,8 +1981,13 @@ export interface components {
       /** @description The asset event creation time */
       timestamp?: string;
     };
+    /** @description *Changed in 3.0.0*: This was renamed from CreateDatasetEvent. */
     CreateAssetEvent: {
-      /** @description The URI of the asset */
+      /**
+       * @description The URI of the asset
+       *
+       * *Changed in 3.0.0*: This was renamed from dataset_uri.
+       */
       asset_uri: string;
       /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
@@ -1986,8 +2047,10 @@ export interface components {
      * @description A collection of asset events.
      *
      * *New in version 2.4.0*
+     * *Changed in 3.0.0*: This was renamed from DatasetEventCollection.
      */
     AssetEventCollection: {
+      /** @description *Changed in 3.0.0*: This was renamed from dataset_events. */
       asset_events?: components["schemas"]["AssetEvent"][];
     } & components["schemas"]["CollectionInfo"];
     /** @description The option of configuration. */
@@ -2541,7 +2604,11 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The encoded Asset URI */
+    /**
+     * @description The encoded Asset URI
+     *
+     * *Changed in 3.0.0*: This was renamed from DatasetURI.
+     */
     AssetURI: string;
     /** @description The pool name. */
     PoolName: string;
@@ -2621,7 +2688,11 @@ export interface components {
      * *New in version 2.2.0*
      */
     FilterTags: string[];
-    /** @description The Asset ID that updated the asset. */
+    /**
+     * @description The Asset ID that updated the asset.
+     *
+     * *Changed in 3.0.0*: This was renamed from FilterDatasetID.
+     */
     FilterAssetID: number;
     /** @description The DAG ID that updated the asset. */
     FilterSourceDAGID: string;
@@ -2726,22 +2797,6 @@ export interface operations {
     };
   };
   create_backfill: {
-    parameters: {
-      query: {
-        /** Create dag runs for this dag. */
-        dag_id: string;
-        /** Create dag runs with logical dates from this date onward, including this date. */
-        from_date: string;
-        /** Create dag runs for logical dates up to but not including this date. */
-        to_date: string;
-        /** Maximum number of active DAG runs for the the backfill. */
-        max_active_runs?: number;
-        /** If true, run the dag runs in descending order of logical date. */
-        reverse?: boolean;
-        /** If true, run the dag runs in descending order of logical date. */
-        config?: string;
-      };
-    };
     responses: {
       /** Success. */
       200: {
@@ -2752,6 +2807,11 @@ export interface operations {
       400: components["responses"]["BadRequest"];
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Backfill"];
+      };
     };
   };
   get_backfill: {
@@ -3594,6 +3654,7 @@ export interface operations {
    * Get asset for a dag run.
    *
    * *New in version 2.4.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents"
    */
   get_upstream_asset_events: {
     parameters: {
@@ -3653,13 +3714,18 @@ export interface operations {
    * Get a queued asset event for a DAG.
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
    */
   get_dag_asset_queued_event: {
     parameters: {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
       query: {
@@ -3683,13 +3749,18 @@ export interface operations {
    * Delete a queued Asset event for a DAG.
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
    */
   delete_dag_asset_queued_event: {
     parameters: {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
       query: {
@@ -3710,6 +3781,7 @@ export interface operations {
    * Get queued Asset events for a DAG.
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
    */
   get_dag_asset_queued_events: {
     parameters: {
@@ -3738,6 +3810,7 @@ export interface operations {
    * Delete queued Asset events for a DAG.
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
    */
   delete_dag_asset_queued_events: {
     parameters: {
@@ -3783,11 +3856,16 @@ export interface operations {
    * Get queued Asset events for an Asset
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
    */
   get_asset_queued_events: {
     parameters: {
       path: {
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
       query: {
@@ -3808,14 +3886,19 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Asset events for a Asset.
+   * Delete queued Asset events for an Asset.
    *
    * *New in version 2.9.0*
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
    */
   delete_asset_queued_events: {
     parameters: {
       path: {
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
       query: {
@@ -4971,8 +5054,12 @@ export interface operations {
   get_dag_stats: {
     parameters: {
       query: {
+        /** The numbers of items to return. */
+        limit?: components["parameters"]["PageLimit"];
+        /** The number of items to skip before starting to collect the result set. */
+        offset?: components["parameters"]["PageOffset"];
         /** One or more DAG IDs separated by commas to filter relevant Dags. */
-        dag_ids: string;
+        dag_ids?: string;
       };
     };
     responses: {
@@ -5045,6 +5132,7 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
+  /** *Changed in 3.0.0*: The endpoint value was renamed from "/datasets" */
   get_assets: {
     parameters: {
       query: {
@@ -5080,11 +5168,19 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get an asset by uri. */
+  /**
+   * Get an asset by uri.
+   *
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/{uri}"
+   */
   get_asset: {
     parameters: {
       path: {
-        /** The encoded Asset URI */
+        /**
+         * The encoded Asset URI
+         *
+         * *Changed in 3.0.0*: This was renamed from DatasetURI.
+         */
         uri: components["parameters"]["AssetURI"];
       };
     };
@@ -5100,7 +5196,11 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Get asset events */
+  /**
+   * Get asset events
+   *
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+   */
   get_asset_events: {
     parameters: {
       query: {
@@ -5115,7 +5215,11 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
-        /** The Asset ID that updated the asset. */
+        /**
+         * The Asset ID that updated the asset.
+         *
+         * *Changed in 3.0.0*: This was renamed from FilterDatasetID.
+         */
         asset_id?: components["parameters"]["FilterAssetID"];
         /** The DAG ID that updated the asset. */
         source_dag_id?: components["parameters"]["FilterSourceDAGID"];
@@ -5139,7 +5243,11 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Create asset event */
+  /**
+   * Create asset event
+   *
+   * *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+   */
   create_asset_event: {
     responses: {
       /** Success. */
@@ -5529,7 +5637,7 @@ export type ListBackfillsVariables = CamelCasedPropertiesDeep<
   operations["list_backfills"]["parameters"]["query"]
 >;
 export type CreateBackfillVariables = CamelCasedPropertiesDeep<
-  operations["create_backfill"]["parameters"]["query"]
+  operations["create_backfill"]["requestBody"]["content"]["application/json"]
 >;
 export type GetBackfillVariables = CamelCasedPropertiesDeep<
   operations["get_backfill"]["parameters"]["path"]

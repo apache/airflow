@@ -61,9 +61,13 @@ def upgrade():
     # Add 'name' column. Set it to nullable for now.
     with op.batch_alter_table("dataset", schema=None) as batch_op:
         batch_op.add_column(sa.Column("name", _STRING_COLUMN_TYPE))
-        batch_op.add_column(sa.Column("group", _STRING_COLUMN_TYPE, default=str, nullable=False))
+        batch_op.add_column(
+            sa.Column("group", _STRING_COLUMN_TYPE, default=str, server_default="", nullable=False)
+        )
     # Fill name from uri column.
-    Session(bind=op.get_bind()).execute(sa.text("update dataset set name=uri"))
+    with Session(bind=op.get_bind()) as session:
+        session.execute(sa.text("update dataset set name=uri"))
+        session.commit()
     # Set the name column non-nullable.
     # Now with values in there, we can create the new unique constraint and index.
     # Due to MySQL restrictions, we are also reducing the length on uri.

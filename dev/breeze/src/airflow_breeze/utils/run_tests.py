@@ -25,7 +25,7 @@ from subprocess import DEVNULL
 from airflow_breeze.global_constants import PIP_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, TESTS_PROVIDERS_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
@@ -113,9 +113,9 @@ def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
     for providers in provider_folders:
         args.extend(
             [
-                f"--ignore=tests/providers/{providers}",
-                f"--ignore=tests/system/providers/{providers}",
-                f"--ignore=tests/integration/providers/{providers}",
+                f"--ignore=providers/tests/{providers}",
+                f"--ignore=providers/tests/system/{providers}",
+                f"--ignore=providers/tests/integration/{providers}",
             ]
         )
     return args
@@ -161,7 +161,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
         "--assert=plain",
     ],
-    "Providers": ["tests/providers"],
+    "Providers": ["providers/tests"],
     "PythonVenv": [
         "tests/operators/test_python.py::TestPythonVirtualenvOperator",
     ],
@@ -169,6 +169,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/serialization",
     ],
     "System": ["tests/system"],
+    "TaskSDK": ["task_sdk/tests"],
     "WWW": [
         "tests/www",
     ],
@@ -182,11 +183,10 @@ SYSTEM_TESTS = "tests/system"
 NO_RECURSE_DIRS = [
     "tests/_internals",
     "tests/dags_with_system_exit",
-    "tests/test_utils",
     "tests/dags_corrupted",
     "tests/dags",
-    "tests/system/providers/google/cloud/dataproc/resources",
-    "tests/system/providers/google/cloud/gcs/resources",
+    "providers/tests/system/google/cloud/dataproc/resources",
+    "providers/tests/system/google/cloud/gcs/resources",
 ]
 
 
@@ -255,16 +255,16 @@ def convert_test_type_to_pytest_args(
         providers_with_exclusions = TEST_TYPE_MAP_TO_PYTEST_ARGS["Providers"].copy()
         for excluded_provider in excluded_provider_list:
             providers_with_exclusions.append(
-                "--ignore=tests/providers/" + excluded_provider.replace(".", "/")
+                "--ignore=providers/tests/" + excluded_provider.replace(".", "/")
             )
         return providers_with_exclusions
     if test_type.startswith(PROVIDERS_LIST_PREFIX):
         provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
         providers_to_test = []
         for provider in provider_list:
-            provider_path = "tests/providers/" + provider.replace(".", "/")
-            if (AIRFLOW_SOURCES_ROOT / provider_path).is_dir():
-                providers_to_test.append(provider_path)
+            provider_path = TESTS_PROVIDERS_ROOT.joinpath(provider.replace(".", "/"))
+            if provider_path.is_dir():
+                providers_to_test.append(provider_path.relative_to(AIRFLOW_SOURCES_ROOT).as_posix())
             else:
                 get_console().print(
                     f"[error]Provider directory {provider_path} does not exist for {provider}. "
@@ -300,13 +300,10 @@ def generate_args_for_pytest(
     no_db_cleanup: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
-    if skip_db_tests:
-        if parallel_test_types_list:
-            args = convert_parallel_types_to_folders(
-                parallel_test_types_list, skip_provider_tests, python_version=python_version
-            )
-        else:
-            args = ["tests"] if test_type != "None" else []
+    if skip_db_tests and parallel_test_types_list:
+        args = convert_parallel_types_to_folders(
+            parallel_test_types_list, skip_provider_tests, python_version=python_version
+        )
     else:
         args = convert_test_type_to_pytest_args(
             test_type=test_type,
@@ -346,9 +343,9 @@ def generate_args_for_pytest(
     if run_db_tests_only:
         args.append("--run-db-tests-only")
     if test_type != "System":
-        args.append(f"--ignore={SYSTEM_TESTS}")
+        args.append(f"--ignore-glob=*/{SYSTEM_TESTS}")
     if test_type != "Integration":
-        args.append(f"--ignore={INTEGRATION_TESTS}")
+        args.append(f"--ignore-glob=*/{INTEGRATION_TESTS}")
     if test_type != "Helm":
         # do not produce warnings output for helm tests
         args.append(f"--warning-output-path={warnings_file}")
@@ -402,12 +399,12 @@ def convert_parallel_types_to_folders(
             )
         )
     # leave only folders, strip --pytest-args that exclude some folders with `-' prefix
-    folders = [arg for arg in args if arg.startswith("test")]
-    # remove specific provider sub-folders if "tests/providers" is already in the list
+    folders = [arg for arg in args if arg.startswith("test") or arg.startswith("providers/tests")]
+    # remove specific provider sub-folders if "providers/tests" is already in the list
     # This workarounds pytest issues where it will only run tests from specific subfolders
     # if both parent and child folders are in the list
     # The issue in Pytest (changed behaviour in Pytest 8.2 is tracked here
     # https://github.com/pytest-dev/pytest/issues/12605
-    if "tests/providers" in folders:
-        folders = [folder for folder in folders if not folder.startswith("tests/providers/")]
+    if "providers/tests" in folders:
+        folders = [folder for folder in folders if not folder.startswith("providers/tests/")]
     return folders

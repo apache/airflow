@@ -29,8 +29,9 @@ PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "migrations" / "versions"
 
-FAB_DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
-FAB_MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "providers" / "fab" / "migrations" / "versions"
+PROVIDERS_SRC = PROJECT_SOURCE_ROOT_DIR / "providers" / "src"
+FAB_DB_FILE = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
+FAB_MIGRATION_PATH = PROVIDERS_SRC / "airflow" / "providers" / "fab" / "migrations" / "versions"
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 

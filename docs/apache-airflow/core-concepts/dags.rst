@@ -574,7 +574,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     from airflow import DAG
     from airflow.decorators import task_group
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.operators.empty import EmptyOperator
 
     with DAG(
@@ -663,6 +663,7 @@ This is especially useful if your tasks are built dynamically from configuration
     """
     ### My great DAG
     """
+
     import pendulum
 
     dag = DAG(

@@ -42,14 +42,15 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from tests.test_utils.config import conf_vars
-from tests.test_utils.reset_warning_registry import reset_warning_registry
+
 from tests.utils.test_config import (
     remove_all_configurations,
     set_deprecated_options,
     set_sensitive_config_values,
     use_config,
 )
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -663,7 +664,7 @@ AIRFLOW_HOME = /root/airflow
                 test_conf.validate()
                 assert (
                     test_conf.get("api", "auth_backends")
-                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.providers.fab.auth_manager.api.auth.backend.session"
                 )
 
     def test_command_from_env(self):
@@ -1762,3 +1763,18 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
             write_default_airflow_configuration_if_needed()
+
+    @conf_vars({("mysection1", "mykey1"): "supersecret1", ("mysection2", "mykey2"): "supersecret2"})
+    @patch.object(
+        conf,
+        "sensitive_config_values",
+        new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
+    )
+    @patch("airflow.utils.log.secrets_masker.mask_secret")
+    def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
+        conf.mask_secrets()
+
+        mock_mask_secret.assert_any_call("supersecret1")
+        mock_mask_secret.assert_any_call("supersecret2")
+
+        assert mock_mask_secret.call_count == 2

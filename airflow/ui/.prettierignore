@@ -3,3 +3,5 @@ templates/**/*.html
 dist/
 *.md
 *.yaml
+coverage/*
+.pnpm-store

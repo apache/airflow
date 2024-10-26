@@ -99,7 +99,7 @@ Apache Airflow is tested with:
 
 |            | Main version (dev)         | Stable version (2.10.2)    |
 |------------|----------------------------|----------------------------|
-| Python     | 3.8, 3.9, 3.10, 3.11, 3.12 | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| Python     | 3.9, 3.10, 3.11, 3.12      | 3.8, 3.9, 3.10, 3.11, 3.12 |
 | Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
 | Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
 | PostgreSQL | 12, 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
@@ -178,14 +178,14 @@ them to the appropriate format and workflow that your tool requires.
 
 ```bash
 pip install 'apache-airflow==2.10.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.8.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
 pip install 'apache-airflow[postgres,google]==2.10.2' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.8.txt"
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.2/constraints-3.9.txt"
 ```
 
 For information on installing provider packages, check
@@ -219,7 +219,7 @@ Those are - in the order of most common ways people install Airflow:
 - [PyPI releases](https://pypi.org/project/apache-airflow/) to install Airflow using standard `pip` tool
 - [Docker Images](https://hub.docker.com/r/apache/airflow) to install airflow via
   `docker` tool, use them in Kubernetes, Helm Charts, `docker-compose`, `docker swarm`, etc. You can
-  read more about using, customising, and extending the images in the
+  read more about using, customizing, and extending the images in the
   [Latest docs](https://airflow.apache.org/docs/docker-stack/index.html), and
   learn details on the internals in the [images](https://airflow.apache.org/docs/docker-stack/index.html) document.
 - [Tags in GitHub](https://github.com/apache/airflow/tags) to retrieve the git project sources that
@@ -313,7 +313,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for Kubernetes, a
    version stays supported by Airflow if two major cloud providers still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.8 it
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.9 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 

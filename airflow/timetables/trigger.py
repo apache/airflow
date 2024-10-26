@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils import timezone
+from airflow.utils.timezone import coerce_datetime, utcnow
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
@@ -43,6 +43,24 @@ class CronTriggerTimetable(CronMixin, Timetable):
     for one data interval to pass.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+
+    :param cron: cron string that defines when to run
+    :param timezone: Which timezone to use to interpret the cron string
+    :param interval: timedelta that defines the data interval start. Default 0.
+
+    *run_immediately* controls, if no *start_time* is given to the DAG, when
+    the first run of the DAG should be scheduled. It has no effect if there
+    already exist runs for this DAG.
+
+    * If *True*, always run immediately the most recent possible DAG run.
+    * If *False*, wait to run until the next scheduled time in the future.
+    * If passed a ``timedelta``, will run the most recent possible DAG run
+      if that run's ``data_interval_end`` is within timedelta of now.
+    * If *None*, the timedelta is calculated as 10% of the time between the
+      most recent past scheduled time and the next scheduled time. E.g. if
+      running every hour, this would run the previous time if less than 6
+      minutes had past since the previous run time, otherwise it would wait
+      until the next hour.
     """
 
     def __init__(
@@ -51,9 +69,11 @@ class CronTriggerTimetable(CronMixin, Timetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
+        run_immediately: bool | datetime.timedelta = False,
     ) -> None:
         super().__init__(cron, timezone)
         self._interval = interval
+        self.run_immediately = run_immediately
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -64,7 +84,21 @@ class CronTriggerTimetable(CronMixin, Timetable):
             interval = decode_relativedelta(data["interval"])
         else:
             interval = datetime.timedelta(seconds=data["interval"])
-        return cls(data["expression"], timezone=decode_timezone(data["timezone"]), interval=interval)
+
+        immediate: bool | datetime.timedelta
+        if "immediate" not in data:
+            immediate = False
+        elif isinstance(data["immediate"], float):
+            immediate = datetime.timedelta(seconds=data["interval"])
+        else:
+            immediate = data["immediate"]
+
+        return cls(
+            data["expression"],
+            timezone=decode_timezone(data["timezone"]),
+            interval=interval,
+            run_immediately=immediate,
+        )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
@@ -75,7 +109,17 @@ class CronTriggerTimetable(CronMixin, Timetable):
         else:
             interval = encode_relativedelta(self._interval)
         timezone = encode_timezone(self._timezone)
-        return {"expression": self._expression, "timezone": timezone, "interval": interval}
+        immediate: bool | float
+        if isinstance(self.run_immediately, datetime.timedelta):
+            immediate = self.run_immediately.total_seconds()
+        else:
+            immediate = self.run_immediately
+        return {
+            "expression": self._expression,
+            "timezone": timezone,
+            "interval": interval,
+            "run_immediately": immediate,
+        }
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval(
@@ -95,13 +139,16 @@ class CronTriggerTimetable(CronMixin, Timetable):
             if last_automated_data_interval is not None:
                 next_start_time = self._get_next(last_automated_data_interval.end)
             elif restriction.earliest is None:
-                return None  # Don't know where to catch up from, give up.
+                next_start_time = self._calc_first_run()
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_prev(timezone.coerce_datetime(timezone.utcnow()))]
+            start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
+            elif restriction.earliest is None:
+                # Run immediately has no effect if there is restriction on earliest
+                start_time_candidates.append(self._calc_first_run())
             if restriction.earliest is not None:
                 start_time_candidates.append(self._align_to_next(restriction.earliest))
             next_start_time = max(start_time_candidates)
@@ -113,3 +160,27 @@ class CronTriggerTimetable(CronMixin, Timetable):
             next_start_time - self._interval,  # type: ignore[arg-type]
             next_start_time,
         )
+
+    def _calc_first_run(self):
+        """
+        If no start_time is set, determine the start.
+
+        If True, always prefer past run, if False, never. If None, if within 10% of next run,
+        if timedelta, if within that timedelta from past run.
+        """
+        now = coerce_datetime(utcnow())
+        past_run_time = self._align_to_prev(now)
+        next_run_time = self._align_to_next(now)
+        if self.run_immediately is True:  # not truthy, actually set to True
+            return past_run_time
+
+        gap_between_runs = next_run_time - past_run_time
+        gap_to_past = now - past_run_time
+        if isinstance(self.run_immediately, datetime.timedelta):
+            buffer_between_runs = self.run_immediately
+        else:
+            buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
+        if gap_to_past <= buffer_between_runs:
+            return past_run_time
+        else:
+            return next_run_time

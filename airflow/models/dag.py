@@ -28,7 +28,6 @@ import pickle
 import sys
 import time
 import traceback
-import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
@@ -88,13 +87,11 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.asset import (
     AssetDagRunQueue,
@@ -113,7 +110,6 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
-from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -272,12 +268,12 @@ def get_asset_triggered_next_run_info(
             .join(
                 ADRQ,
                 and_(
-                    ADRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    ADRQ.asset_id == DagScheduleAssetReference.asset_id,
                     ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
-            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.dataset_id)
+            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.asset_id)
             .group_by(DagScheduleAssetReference.dag_id)
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
@@ -305,6 +301,7 @@ def _create_orm_dagrun(
     dag_hash,
     creating_job_id,
     data_interval,
+    backfill_id,
     session,
     triggered_by,
 ):
@@ -321,10 +318,11 @@ def _create_orm_dagrun(
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        backfill_id=backfill_id,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
-    run.consumed_dataset_events = []
+    run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
@@ -378,7 +376,7 @@ class DAG(LoggingMixin):
 
     .. versionadded:: 2.4
         The *schedule* argument to specify either time-based scheduling logic
-        (timetable), or dataset-driven triggers.
+        (timetable), or asset-driven triggers.
 
     .. versionchanged:: 3.0
         The default value of *schedule* has been changed to *None* (no schedule).
@@ -794,6 +792,9 @@ class DAG(LoggingMixin):
         """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
+
+        from airflow.providers.fab import __version__ as FAB_VERSION
+
         updated_access_control = {}
         for role, perms in access_control.items():
             if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
@@ -1281,28 +1282,6 @@ class DAG(LoggingMixin):
             active_dates.append(run.execution_date)
 
         return active_dates
-
-    @provide_session
-    def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
-        """
-        Return the number of active "running" dag runs.
-
-        :param external_trigger: True for externally triggered active dag runs
-        :param session:
-        :return: number greater than 0 for active dag runs
-        """
-        query = select(func.count()).where(DagRun.dag_id == self.dag_id)
-        if only_running:
-            query = query.where(DagRun.state == DagRunState.RUNNING)
-        else:
-            query = query.where(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
-
-        if external_trigger is not None:
-            query = query.where(
-                DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
-            )
-
-        return session.scalar(query)
 
     @staticmethod
     @internal_api_call
@@ -2292,85 +2271,6 @@ class DAG(LoggingMixin):
 
         self.task_count = len(self.task_dict)
 
-    def run(
-        self,
-        start_date=None,
-        end_date=None,
-        mark_success=False,
-        local=False,
-        donot_pickle=airflow_conf.getboolean("core", "donot_pickle"),
-        ignore_task_deps=False,
-        ignore_first_depends_on_past=True,
-        pool=None,
-        delay_on_limit_secs=1.0,
-        verbose=False,
-        conf=None,
-        rerun_failed_tasks=False,
-        run_backwards=False,
-        run_at_least_once=False,
-        continue_on_failures=False,
-        disable_retry=False,
-    ):
-        """
-        Run the DAG.
-
-        :param start_date: the start date of the range to run
-        :param end_date: the end date of the range to run
-        :param mark_success: True to mark jobs as succeeded without running them
-        :param local: True to run the tasks using the LocalExecutor
-        :param donot_pickle: True to avoid pickling DAG object and send to workers
-        :param ignore_task_deps: True to skip upstream tasks
-        :param ignore_first_depends_on_past: True to ignore depends_on_past
-            dependencies for the first set of tasks only
-        :param pool: Resource pool to use
-        :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
-            dag run when max_active_runs limit has been reached
-        :param verbose: Make logging output more verbose
-        :param conf: user defined dictionary passed from CLI
-        :param rerun_failed_tasks:
-        :param run_backwards:
-        :param run_at_least_once: If true, always run the DAG at least once even
-            if no logical run exists within the time range.
-        """
-        warnings.warn(
-            "`DAG.run()` is deprecated and will be removed in Airflow 3.0. Consider "
-            "using `DAG.test()` instead, or trigger your dag via API.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-
-        from airflow.executors.executor_loader import ExecutorLoader
-        from airflow.jobs.backfill_job_runner import BackfillJobRunner
-
-        if local:
-            from airflow.executors.local_executor import LocalExecutor
-
-            ExecutorLoader.set_default_executor(LocalExecutor())
-
-        from airflow.jobs.job import Job
-
-        job = Job()
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=self,
-            start_date=start_date,
-            end_date=end_date,
-            mark_success=mark_success,
-            donot_pickle=donot_pickle,
-            ignore_task_deps=ignore_task_deps,
-            ignore_first_depends_on_past=ignore_first_depends_on_past,
-            pool=pool,
-            delay_on_limit_secs=delay_on_limit_secs,
-            verbose=verbose,
-            conf=conf,
-            rerun_failed_tasks=rerun_failed_tasks,
-            run_backwards=run_backwards,
-            run_at_least_once=run_at_least_once,
-            continue_on_failures=continue_on_failures,
-            disable_retry=disable_retry,
-        )
-        run_job(job=job, execute_callable=job_runner._execute)
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
@@ -2459,8 +2359,7 @@ class DAG(LoggingMixin):
             tasks = self.task_dict
             self.log.debug("starting dagrun")
             # Instead of starting a scheduler, we run the minimal loop possible to check
-            # for task readiness and dependency management. This is notably faster
-            # than creating a BackfillJob and allows us to surface logs to the user
+            # for task readiness and dependency management.
 
             # ``Dag.test()`` works in two different modes depending on ``use_executor``:
             # - if ``use_executor`` is False, runs the task locally with no executor using ``_run_task``
@@ -2545,6 +2444,7 @@ class DAG(LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
+        backfill_id: int | None = None,
     ):
         """
         Create a dag run from this dag including the tasks associated with this dag.
@@ -2563,6 +2463,7 @@ class DAG(LoggingMixin):
         :param session: database session
         :param dag_hash: Hash of Serialized DAG
         :param data_interval: Data interval of the DagRun
+        :param backfill_id: id of the backfill run if one exists
         """
         logical_date = timezone.coerce_datetime(execution_date)
 
@@ -2612,6 +2513,8 @@ class DAG(LoggingMixin):
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"
                 )
 
+        # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
+
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
         copied_params.update(conf or {})
@@ -2629,6 +2532,7 @@ class DAG(LoggingMixin):
             run_type=run_type,
             dag_hash=dag_hash,
             creating_job_id=creating_job_id,
+            backfill_id=backfill_id,
             data_interval=data_interval,
             session=session,
             triggered_by=triggered_by,
@@ -2667,6 +2571,7 @@ class DAG(LoggingMixin):
         orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
+        asset_op.add_asset_active_references(orm_assets.values(), session=session)
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
@@ -2770,9 +2675,9 @@ class DAG(LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             exclusion_list = {
-                "schedule_dataset_references",
-                "schedule_dataset_alias_references",
-                "task_outlet_dataset_references",
+                "schedule_asset_references",
+                "schedule_asset_alias_references",
+                "task_outlet_asset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
                 "last_loaded",
@@ -2937,8 +2842,8 @@ class DagModel(Base):
     timetable_summary = Column(Text, nullable=True)
     # Timetable description
     timetable_description = Column(String(1000), nullable=True)
-    # Dataset expression based on dataset triggers
-    dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    # Asset expression based on asset triggers
+    asset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view
@@ -2947,7 +2852,7 @@ class DagModel(Base):
     )
 
     max_active_tasks = Column(Integer, nullable=False)
-    max_active_runs = Column(Integer, nullable=True)
+    max_active_runs = Column(Integer, nullable=True)  # todo: should not be nullable if we have a default
     max_consecutive_failed_dag_runs = Column(Integer, nullable=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
@@ -2965,18 +2870,18 @@ class DagModel(Base):
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
-    schedule_dataset_references = relationship(
+    schedule_asset_references = relationship(
         "DagScheduleAssetReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_dataset_alias_references = relationship(
+    schedule_asset_alias_references = relationship(
         "DagScheduleAssetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
-    task_outlet_dataset_references = relationship(
+    schedule_assets = association_proxy("schedule_asset_references", "asset")
+    task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )
@@ -3116,6 +3021,18 @@ class DagModel(Base):
     def dag_display_name(self) -> str:
         return self._dag_display_property_value or self.dag_id
 
+    @dag_display_name.expression  # type: ignore[no-redef]
+    def dag_display_name(self) -> str:
+        """
+        Expression part of the ``dag_display`` name hybrid property.
+
+        :meta private:
+        """
+        return case(
+            (self._dag_display_property_value.isnot(None), self._dag_display_property_value),
+            else_=self.dag_id,
+        )
+
     @classmethod
     @internal_api_call
     @provide_session
@@ -3176,7 +3093,7 @@ class DagModel(Base):
         del all_records
         dag_statuses = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.dataset.uri: True for x in records}
+            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
         ser_dags = session.scalars(
             select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
         ).all()
@@ -3188,27 +3105,27 @@ class DagModel(Base):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
-        dataset_triggered_dag_info = {}
+        asset_triggered_dag_info = {}
         for dag_id, records in by_dag.items():
             times = sorted(x.created_at for x in records)
-            dataset_triggered_dag_info[dag_id] = (times[0], times[-1])
+            asset_triggered_dag_info[dag_id] = (times[0], times[-1])
         del by_dag
-        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
-        if dataset_triggered_dag_ids:
+        asset_triggered_dag_ids = set(asset_triggered_dag_info.keys())
+        if asset_triggered_dag_ids:
             exclusion_list = set(
                 session.scalars(
                     select(DagModel.dag_id)
                     .join(DagRun.dag_model)
                     .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
-                    .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .where(DagModel.dag_id.in_(asset_triggered_dag_ids))
                     .group_by(DagModel.dag_id)
                     .having(func.count() >= func.max(DagModel.max_active_runs))
                 )
             )
             if exclusion_list:
-                dataset_triggered_dag_ids -= exclusion_list
-                dataset_triggered_dag_info = {
-                    k: v for k, v in dataset_triggered_dag_info.items() if k not in exclusion_list
+                asset_triggered_dag_ids -= exclusion_list
+                asset_triggered_dag_info = {
+                    k: v for k, v in asset_triggered_dag_info.items() if k not in exclusion_list
                 }
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
@@ -3220,7 +3137,7 @@ class DagModel(Base):
                 cls.has_import_errors == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
-                    cls.dag_id.in_(dataset_triggered_dag_ids),
+                    cls.dag_id.in_(asset_triggered_dag_ids),
                 ),
             )
             .order_by(cls.next_dagrun_create_after)
@@ -3229,7 +3146,7 @@ class DagModel(Base):
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),
-            dataset_triggered_dag_info,
+            asset_triggered_dag_info,
         )
 
     def calculate_dagrun_date_fields(
@@ -3269,7 +3186,7 @@ class DagModel(Base):
 
     @provide_session
     def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
-        if self.dataset_expression is None:
+        if self.asset_expression is None:
             return None
 
         # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns

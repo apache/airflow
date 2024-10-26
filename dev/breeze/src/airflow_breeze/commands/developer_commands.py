@@ -22,9 +22,9 @@ import shlex
 import shutil
 import sys
 import threading
+from collections.abc import Iterable
 from signal import SIGTERM
 from time import sleep
-from typing import Iterable
 
 import click
 
