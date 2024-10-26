@@ -47,6 +47,7 @@ from airflow.exceptions import (
     UnknownExecutorException,
 )
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
@@ -1070,54 +1071,47 @@ class TestDag:
             .all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
 
-    def test_bulk_write_to_db_unorphan_assets(self):
+    @staticmethod
+    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
+        assets = session.execute(
+            select(AssetModel, AssetActive)
+            .outerjoin(
+                AssetActive,
+                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
+            )
+            .order_by(AssetModel.uri)
+        ).all()
+        return [a for a, v in assets if not v], [a for a, v in assets if v]
+
+    def test_bulk_write_to_db_does_not_activate(self, dag_maker, session):
         """
-        Assets can lose their last reference and be orphaned, but then if a reference to them reappears, we
-        need to un-orphan those assets
+        Assets are not activated on write, but later in the scheduler by the SchedulerJob.
         """
-        with create_session() as session:
-            # Create four assets - two that have references and two that are unreferenced and marked as
-            # orphans
-            asset1 = Asset(uri="ds1")
-            asset2 = Asset(uri="ds2")
-            session.add(AssetModel(uri=asset2.uri))
-            asset3 = Asset(uri="ds3")
-            asset4 = Asset(uri="ds4")
-            session.add(AssetModel(uri=asset4.uri))
-            session.flush()
+        # Create four assets - two that have references and two that are unreferenced and marked as
+        # orphans
+        asset1 = Asset(uri="ds1")
+        asset2 = Asset(uri="ds2")
+        asset3 = Asset(uri="ds3")
+        asset4 = Asset(uri="ds4")
 
-            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            DAG.bulk_write_to_db([dag1], session=session)
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [asset1, asset3]
+        assert session.scalars(select(AssetActive)).all() == []
 
-            # Double check
-            non_orphaned_assets = [
-                asset.uri
-                for asset in session.query(AssetModel.uri)
-                .filter(AssetModel.active.has())
-                .order_by(AssetModel.uri)
-            ]
-            assert non_orphaned_assets == ["ds1", "ds3"]
-            orphaned_assets = [
-                asset.uri
-                for asset in session.query(AssetModel.uri)
-                .filter(~AssetModel.active.has())
-                .order_by(AssetModel.uri)
-            ]
-            assert orphaned_assets == ["ds2", "ds4"]
+        dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
+        BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
+        DAG.bulk_write_to_db([dag1], session=session)
 
-            # Now add references to the two unreferenced assets
-            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
-
-            DAG.bulk_write_to_db([dag1], session=session)
-
-            # and count the orphans and non-orphans
-            non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-            assert non_orphaned_asset_count == 4
-            orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-            assert orphaned_asset_count == 0
+        assert session.scalars(select(AssetModel).order_by(AssetModel.uri)).all() == [
+            asset1,
+            asset2,
+            asset3,
+            asset4,
+        ]
+        assert session.scalars(select(AssetActive)).all() == []
 
     def test_bulk_write_to_db_asset_aliases(self):
         """
