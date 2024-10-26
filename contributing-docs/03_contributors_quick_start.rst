@@ -470,7 +470,7 @@ Installing pre-commit is best done with ``pipx``:
 
     pipx install pre-commit
 
-You can still add uv support for pre-commit if you use pipx
+You can still add uv support for pre-commit if you use pipx using the commands:
 
 .. code-block:: bash
 
