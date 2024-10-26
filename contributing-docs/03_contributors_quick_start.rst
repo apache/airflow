@@ -478,7 +478,7 @@ You can still add uv support for pre-commit if you use pipx using the commands:
     pipx inject
     pipx inject pre-commit pre-commit-uv
 
-Also, if you already use ``uvx`` instead of ``pipx``:
+Also, if you already use ``uvx`` instead of ``pipx``, use this command:
 
 .. code-block:: bash
 
