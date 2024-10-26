@@ -73,9 +73,9 @@ export const DagCard = ({ dag }: Props) => (
       <HStack>
         <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
         <TriggerDAGModal
-            dagDisplayName={dag.dag_display_name}
-            dagId={dag.dag_id}
-          />
+        dagDisplayName={dag.dag_display_name}
+        dagId={dag.dag_id}
+      />
       </HStack>
     </Flex>
     <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
