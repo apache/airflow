@@ -230,6 +230,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-python-slugify>=8.0.2.20240310",
         "types-pytz>=2024.1.0.20240417",
         "types-redis>=4.6.0.20240425",
+        # aiobotocore>=2.9.0 requires urllib<2. types-requests>=2.31.0.7 uses urllib>2.
+        # hence, 2.31.0.6 is required for aiobotocore>=2.9.0
         "types-requests>=2.31.0.6",
         "types-setuptools>=69.5.0.20240423",
         "types-tabulate",
