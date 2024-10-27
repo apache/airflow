@@ -72,7 +72,8 @@
 /providers/src/airflow/providers/slack/ @eladkal
 /providers/src/airflow/providers/smtp/ @hussein-awala
 /providers/src/airflow/providers/snowflake/ @potiuk @mik-laj
-/providers/src/airflow/providers/tabular/ @Fokko
+/providers/src/airflow/providers/apache/iceberg/ @Fokko
+/providers/tests/apache/iceberg/ @Fokko
 /docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 /docs/apache-airflow-providers-common-sql/ @eladkal
