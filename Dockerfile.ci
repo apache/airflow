@@ -1362,7 +1362,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 
 # Here we fix the versions so all subsequent commands will use the versions
 # from the sources
-ARG AIRFLOW_PIP_VERSION=24.2
+ARG AIRFLOW_PIP_VERSION=24.3
 ARG AIRFLOW_UV_VERSION=0.4.27
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
