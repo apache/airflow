@@ -230,7 +230,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-python-slugify>=8.0.2.20240310",
         "types-pytz>=2024.1.0.20240417",
         "types-redis>=4.6.0.20240425",
-        "types-requests>=2.32.0.20240523",
+        "types-requests>=2.31.0.6",
         "types-setuptools>=69.5.0.20240423",
         "types-tabulate",
         "types-termcolor",
