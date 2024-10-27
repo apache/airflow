@@ -233,8 +233,16 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- if $containerLifecycleHooks  }}
+          # In order to make the multirepo sync change work ,
+          # postStart LifeCycle Hook is created
+          # Check the airflow.dags_poststart in _helpers.yaml
+          {{- if or $containerLifecycleHooks .Values.dags.gitSync.enabled }}
+          {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{ include "airflow.dags_poststart" . | nindent 12 }}
+          {{- else }}
+          lifecycle: {{ include "airflow.dags_poststart" . | nindent 12 }}
+          {{- end }}
           {{- end }}
           {{- if .Values.workers.command }}
           command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
@@ -411,17 +419,21 @@ spec:
         - name: kerberos-ccache
           emptyDir: {}
         {{- end }}
+        # multirepo gitSync , separate volumes for each containers
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
             claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
-        - name: dags
-          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
+        {{- range $repo := .Values.dags.gitSync.repositories }}
+        - name: repo-volume-{{ $repo.containerName }}
+          emptyDir: {{- toYaml (default (dict) $repo.emptyDirConfig) | nindent 12 }}
+        {{- if or $repo.sshKeySecret $repo.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
+        {{- end }}
+        # end of multirepo gitSync changes
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
