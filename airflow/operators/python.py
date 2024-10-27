@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 
 def is_venv_installed() -> bool:
     """
-    Check if the virtualenv package is installed by importing `venv`.
+    Check if the virtualenv package is installed by importing `virtualenv`.
 
     :return: True if no `ModuleNotFoundError` is raised, False otherwise. 
     """
