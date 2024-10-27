@@ -739,13 +739,12 @@ class DatabricksRunNowOperator(BaseOperator):
 
     :param job_parameters: A dict from keys to values that override or augment the job's
         parameters for this run. Job parameters are passed to any of the job's tasks that
-        accept key-value parameters. Job parameters supersede notebook_params, python_params,
-        python_named_parameters, jar_params, spark_submit_params, and they cannot be used in
+        accept key-value parameters. Job parameters supersede ``notebook_params``, ``python_params``,
+        ``python_named_parameters``, ``jar_params``, ``spark_submit_params``, and they cannot be used in
         combination.
         This field will be templated.
 
         .. seealso::
-            For more information about job parameters see :ref:`concepts:job-parameters`.
             https://docs.databricks.com/en/workflows/jobs/settings.html#add-parameters-for-all-job-tasks
 
     :param json: A JSON object containing API parameters which will be passed
@@ -759,11 +758,10 @@ class DatabricksRunNowOperator(BaseOperator):
             For more information about templating see :ref:`concepts:jinja-templating`.
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
-    :param dbt_commands: A list containing the dbt commands to run using dbt command line
-        interface(CLI). This field will be templated.
+    :param dbt_commands: A list containing the dbt commands to run using the dbt command line
+        interface. This field will be templated.
 
         .. seealso::
-            For full details on the dbt CLI, see :ref:`concepts:dbt-commands`.
             https://docs.databricks.com/en/jobs/dbt.html
 
     :param notebook_params: A dict from keys to values for jobs with notebook task,
