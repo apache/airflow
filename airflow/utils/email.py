@@ -249,6 +249,14 @@ def send_mime_email(
             from airflow.hooks.base import BaseHook
 
             airflow_conn = BaseHook.get_connection(conn_id)
+
+            e_from = airflow_conn.extra_dejson['from_email']
+            smtp_host = airflow_conn.host
+            smtp_port = airflow_conn.port
+            smtp_starttls = not airflow_conn.extra_dejson['disable_tls']
+            smtp_ssl = not airflow_conn.extra_dejson['disable_ssl']
+            smtp_retry_limit = airflow_conn.extra_dejson['retry_limit']
+            smtp_timeout = airflow_conn.extra_dejson['timeout']
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
         except AirflowException:
