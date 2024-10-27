@@ -59,7 +59,7 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
         based on sql result.
     :param custom_value_transform_delegate: The delegate to manually convert
         field into GCS's schema instead of default.
-    :param custom_field_to_bigquer_delegate: The delegate to manually convert
+    :param custom_field_to_bigquery_delegate: The delegate to manually convert
         incoming value into desired shape.
 
     **Example**:
@@ -69,9 +69,9 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
 
     .. code-block:: python
 
-        export_customers = BigQuerySqlToGCSOperator(
+        task = BigQuerySqlToGCSOperator(
             task_id="sql_json_raw",
-            sql='''
+            sql=\"""
                 SELECT
                 True as _BOOL,
                 CODE_POINTS_TO_BYTES([65, 98, 67, 100]) as _BYTES,
@@ -85,7 +85,7 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
                 "str" as _STRING,
                 TIME '12:30:00.45' as _TIME,
                 TIMESTAMP '2014-09-27 12:30:00.45-08' as _TIMESTAMP
-            ''',
+            \""",
             bucket="bq-sql-export",
             filename="example/manual.csv",
             export_format="csv",
@@ -108,7 +108,7 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
         self.use_legacy_sql = use_legacy_sql
         self.override_schema_from_cursor = override_schema_from_cursor
         self.custom_value_transform_delegate = custom_value_transform_delegate
-        self.custom_field_to_bigquer_delegate = custom_field_to_bigquer_delegate
+        self.custom_field_to_bigquery_delegate = custom_field_to_bigquer_delegate
 
     def query(self):
         hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, use_legacy_sql=self.use_legacy_sql)
@@ -121,8 +121,8 @@ class BigQuerySqlToGCSOperator(BaseSQLToGCSOperator):
         return _BigQueryCursorWrapper(cursor)
     
     def field_to_bigquery(self, field) -> dict[str, str]:
-        if self.custom_field_to_bigquer_delegate is not None:
-            return self.custom_field_to_bigquer_delegate(self, field)
+        if self.custom_field_to_bigquery_delegate is not None:
+            return self.custom_field_to_bigquery_delegate(self, field)
         field_type = field[1] if field[1] is not None else "STRING"
         return {
             "name": field[0],

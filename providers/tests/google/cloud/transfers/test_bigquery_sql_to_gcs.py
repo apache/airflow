@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-import decimal
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -80,13 +79,150 @@ class TestBigQuerySqlToGCSOperator:
         assert op.custom_value_transform_delegate == custom_value_transform_delegate
         assert op.custom_field_to_bigquer_delegate == custom_field_to_bigquer_delegate
 
+    @mock.patch("_BigQueryCursorWrapper")
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
+    def test_query_default(self, gcs_hook_mock_class, cursor_wrapper_mock):
+        sql = "mock sql"
+        schema = "mock schema"
+        field = "mock field"
+        incoming_gcp_conn_id = None
+        incoming_use_legacy_sql = None
+        mock_hook = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.description = [field]
+        mock_hook.get_conn.return_value.cursor.return_value = mock_cursor
+
+        def hook_constructor(gcp_conn_id=None, use_legacy_sql=None):
+            global incoming_gcp_conn_id
+            global incoming_use_legacy_sql
+            incoming_gcp_conn_id = gcp_conn_id
+            incoming_use_legacy_sql = use_legacy_sql
+            return mock_hook
+
+        gcs_hook_mock_class.side_effect = hook_constructor
+
+        incoming_sql = None
+        execute_call_count = 0
+
+        def execute(query):
+            global incoming_sql
+            global execute_call_count
+            incoming_sql = query
+            execute_call_count += 1
+
+        mock_cursor.execute.side_effect = execute
+
+        create_wrapper_call_count = 0
+        incoming_cursor = None
+
+        def create_wrapper(cursor):
+            global create_wrapper_call_count
+            global incoming_cursor
+            incoming_cursor = cursor
+            create_wrapper_call_count += 1
+
+        cursor_wrapper_mock.side_effect = create_wrapper
+
+        field_to_bigquery_call_counter = 0
+        incoming_field = None
+
+        def mock_field_to_bigquery(field):
+            global incoming_field
+            global field_to_bigquery_call_counter
+            incoming_field = field
+            field_to_bigquery_call_counter += 1
+
+        op = BigQuerySqlToGCSOperator(
+            task_id=TASK_ID,
+            sql=sql,
+            bucket=TEST_BUCKET,
+            filename=TEST_FILE_NAME,
+            export_format="CSV",
+            custom_field_to_bigquer_delegate=lambda _: schema,
+            schema=None,
+        )
+
+        op.query()
+
+        assert incoming_gcp_conn_id is not None
+        assert incoming_use_legacy_sql is not None
+        assert execute_call_count == 1
+        assert incoming_sql == sql
+        assert op.schema == schema
+        assert create_wrapper_call_count == 1
+        assert incoming_cursor == mock_cursor
+        assert field_to_bigquery_call_counter == 1
+        assert incoming_field == field
+
+    @mock.patch("_BigQueryCursorWrapper")
+    @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
+    def test_query_no_override_schema(self, gcs_hook_mock_class, cursor_wrapper_mock):
+        sql = "mock sql"
+        schema = "mock schema"
+        incoming_gcp_conn_id = None
+        incoming_use_legacy_sql = None
+        mock_hook = MagicMock()
+        mock_cursor = MagicMock()
+        mock_hook.get_conn.return_value.cursor.return_value = mock_cursor
+
+        def hook_constructor(gcp_conn_id=None, use_legacy_sql=None):
+            global incoming_gcp_conn_id
+            global incoming_use_legacy_sql
+            incoming_gcp_conn_id = gcp_conn_id
+            incoming_use_legacy_sql = use_legacy_sql
+            return mock_hook
+
+        gcs_hook_mock_class.side_effect = hook_constructor
+
+        incoming_sql = None
+        execute_call_count = 0
+
+        def execute(query):
+            global incoming_sql
+            global execute_call_count
+            incoming_sql = query
+            execute_call_count += 1
+
+        mock_cursor.execute.side_effect = execute
+
+        create_wrapper_call_count = 0
+        incoming_cursor = None
+
+        def create_wrapper(cursor):
+            global create_wrapper_call_count
+            global incoming_cursor
+            incoming_cursor = cursor
+            create_wrapper_call_count += 1
+
+        cursor_wrapper_mock.side_effect = create_wrapper
+
+        op = BigQuerySqlToGCSOperator(
+            task_id=TASK_ID,
+            sql=sql,
+            bucket=TEST_BUCKET,
+            filename=TEST_FILE_NAME,
+            export_format="CSV",
+            override_schema_from_cursor=False,
+            schema=schema,
+        )
+
+        op.query()
+
+        assert incoming_gcp_conn_id is not None
+        assert incoming_use_legacy_sql is not None
+        assert execute_call_count == 1
+        assert incoming_sql == sql
+        assert op.schema == schema
+        assert create_wrapper_call_count == 1
+        assert incoming_cursor ==  mock_cursor
+
     @pytest.mark.parametrize(
         "value, field, expected",
         [
-            (("n", "t", None, None, None, None, True), {"name":"n", "type": "t", "mode": "NULLABLE"}),
-            (("n", "t", None, None, None, None, False), {"name":"n", "type": "t", "mode": "REQUIRED"}),
-            (("n", None, None, None, None, None, True), {"name":"n", "type": "STRING", "mode": "NULLABLE"}),
-            (("n", None, None, None, None, None, False), {"name":"n", "type": "STRING", "mode": "REQUIRED"}),
+            (("n", "t", None, None, None, None, True), {"name": "n", "type": "t", "mode": "NULLABLE"}),
+            (("n", "t", None, None, None, None, False), {"name": "n", "type": "t", "mode": "REQUIRED"}),
+            (("n", None, None, None, None, None, True), {"name": "n", "type": "STRING", "mode": "NULLABLE"}),
+            (("n", None, None, None, None, None, False), {"name": "n", "type": "STRING", "mode": "REQUIRED"}),
         ],
     )
     def test_field_to_bigquery_default(self, field, expected):
@@ -105,9 +241,11 @@ class TestBigQuerySqlToGCSOperator:
         """Tests redirecting to custom convertation of field to BQ schema."""
         call_count = 0
         mock_result = "mock result"
+
         def custom(_):
             call_count += 1
             return mock_result
+
         op = BigQuerySqlToGCSOperator(
             task_id=TASK_ID,
             sql=TEST_SQL,
@@ -152,9 +290,11 @@ class TestBigQuerySqlToGCSOperator:
         """Tests redirecting to custom convertation of type."""
         call_count = 0
         mock_result = "mock result"
+
         def custom(**_):
             call_count += 1
             return mock_result
+
         op = BigQuerySqlToGCSOperator(
             task_id=TASK_ID,
             sql=TEST_SQL,
