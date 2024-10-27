@@ -49,6 +49,7 @@ from airflow_breeze.utils.packages import (
     refresh_provider_metadata_with_provider_id,
     render_template,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.versions import get_version_tag
@@ -186,11 +187,14 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
-def _get_git_log_command(from_commit: str | None = None, to_commit: str | None = None) -> list[str]:
+def _get_git_log_command(
+    folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
+) -> list[str]:
     """Get git command to run for the current repo from the current folder.
 
     The current directory should always be the package folder.
 
+    :param folder_paths: list of folder paths to check for changes
     :param from_commit: if present - base commit from which to start the log from
     :param to_commit: if present - final commit which should be the start of the log
     :return: git command to run
@@ -207,7 +211,8 @@ def _get_git_log_command(from_commit: str | None = None, to_commit: str | None =
         git_cmd.append(from_commit)
     elif to_commit:
         raise ValueError("It makes no sense to specify to_commit without from_commit.")
-    git_cmd.extend(["--", "."])
+    folders = [folder_path.as_posix() for folder_path in folder_paths] if folder_paths else ["."]
+    git_cmd.extend(["--", *folders])
     return git_cmd
 
 
@@ -307,18 +312,24 @@ def _get_all_changes_for_package(
         get_console().print(f"[info]Checking if tag '{current_tag_no_suffix}' exist.")
     result = run_command(
         ["git", "rev-parse", current_tag_no_suffix],
-        cwd=provider_details.source_provider_package_path,
+        cwd=AIRFLOW_SOURCES_ROOT,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
     )
+    providers_folder_paths = [
+        provider_details.source_provider_package_path,
+        provider_details.old_source_provider_package_path,
+    ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
             get_console().print(f"[info]The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         result = run_command(
-            _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(
+                providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -333,8 +344,10 @@ def _get_all_changes_for_package(
                 last_doc_only_hash = doc_only_change_file.read_text().strip()
                 try:
                     result = run_command(
-                        _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash),
-                        cwd=provider_details.source_provider_package_path,
+                        _get_git_log_command(
+                            providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                        ),
+                        cwd=AIRFLOW_SOURCES_ROOT,
                         capture_output=True,
                         text=True,
                         check=True,
@@ -387,8 +400,8 @@ def _get_all_changes_for_package(
     for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         result = run_command(
-            _get_git_log_command(next_version_tag, version_tag),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(providers_folder_paths, next_version_tag, version_tag),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -402,7 +415,7 @@ def _get_all_changes_for_package(
         next_version_tag = version_tag
         current_version = version
     result = run_command(
-        _get_git_log_command(next_version_tag),
+        _get_git_log_command(providers_folder_paths, next_version_tag),
         cwd=provider_details.source_provider_package_path,
         capture_output=True,
         text=True,
