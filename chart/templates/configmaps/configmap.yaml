@@ -52,9 +52,13 @@ data:
     {{- tpl .Values.airflowLocalSettings . | nindent 4 }}
   {{- end }}
 
-  {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.knownHosts }}
+  {{- if .Values.dags.gitSync.enabled }}
   known_hosts: |-
-    {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
+    {{- range $repo := .Values.dags.gitSync.repositories }}
+    {{- if $repo.knownHosts }}
+      {{- $repo.knownHosts | nindent 4 }}
+    {{- end }}
+    {{- end }}
   {{- end }}
 
 {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
