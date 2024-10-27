@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-26T19:41:59.017189
+# This constraints file was automatically generated on 2024-10-27T02:14:00.143132
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -410,7 +410,7 @@ pbr==6.1.0
 pdpyras==5.3.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.5
+pgvector==0.3.6
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
