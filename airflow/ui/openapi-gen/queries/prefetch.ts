@@ -8,6 +8,7 @@ import {
   DagService,
   DagsService,
   DashboardService,
+  EventLogService,
   MonitorService,
   PluginService,
   PoolService,
@@ -511,4 +512,23 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Get Event Log
+ * @param data The data for the request.
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseEventLogServiceGetEventLog = (
+  queryClient: QueryClient,
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn({ eventLogId }),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });

@@ -13,6 +13,7 @@ import {
   DagService,
   DagsService,
   DashboardService,
+  EventLogService,
   MonitorService,
   PluginService,
   PoolService,
@@ -661,6 +662,34 @@ export const useVersionServiceGetVersion = <
   useQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Get Event Log
+ * @param data The data for the request.
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLog = <
+  TData = Common.EventLogServiceGetEventLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
+      { eventLogId },
+      queryKey,
+    ),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
     ...options,
   });
 /**
