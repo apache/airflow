@@ -115,8 +115,8 @@ def provide_bucket_name(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs) -> Callable:
             bound_args = function_signature.bind(*args, **kwargs)
-
-            if "bucket_name" not in bound_args.arguments:
+            '''Check if `bucket_name` is either missing or has a None/empty (falsy) value'''
+            if not bound_args.arguments.get("bucket_name"):
                 self = args[0]
 
                 if "bucket_name" in self.service_config:
