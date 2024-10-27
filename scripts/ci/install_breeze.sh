@@ -25,7 +25,7 @@ if [[ ${PYTHON_VERSION=} != "" ]]; then
     PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
 fi
 
-python -m pip install --upgrade pip==24.3
+python -m pip install --upgrade pip==24.3.1
 python -m pip install "pipx>=1.4.1"
 python -m pipx uninstall apache-airflow-breeze >/dev/null 2>&1 || true
 # shellcheck disable=SC2086
