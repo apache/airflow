@@ -73,7 +73,7 @@ def is_venv_installed() -> bool:
     :return: True if no `ModuleNotFoundError` is raised, False otherwise. 
     """
     try:
-        import venv
+        import virtualenv
         return True
     except ModuleNotFoundError:
         return False
