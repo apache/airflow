@@ -354,6 +354,14 @@ export type DagTagPydantic = {
 export type DagWarningType = "asset conflict" | "non-existent pool";
 
 /**
+ * Event Log Collection Response.
+ */
+export type EventLogCollectionResponse = {
+  event_logs: Array<EventLogResponse>;
+  total_entries: number;
+};
+
+/**
  * Event Log Response.
  */
 export type EventLogResponse = {
@@ -856,6 +864,25 @@ export type GetEventLogData = {
 };
 
 export type GetEventLogResponse = EventLogResponse;
+
+export type GetEventLogsData = {
+  after?: string | null;
+  before?: string | null;
+  dagId?: string | null;
+  event?: string | null;
+  excludedEvents?: Array<string> | null;
+  includedEvents?: Array<string> | null;
+  limit?: number;
+  mapIndex?: number | null;
+  offset?: number;
+  orderBy?: string;
+  owner?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
+  tryNumber?: number | null;
+};
+
+export type GetEventLogsResponse = EventLogCollectionResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -1600,6 +1627,21 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/eventLogs/": {
+    get: {
+      req: GetEventLogsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: EventLogCollectionResponse;
         /**
          * Validation Error
          */

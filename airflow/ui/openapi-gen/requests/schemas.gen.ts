@@ -1580,6 +1580,26 @@ This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
 } as const;
 
+export const $EventLogCollectionResponse = {
+  properties: {
+    event_logs: {
+      items: {
+        $ref: "#/components/schemas/EventLogResponse",
+      },
+      type: "array",
+      title: "Event Logs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["event_logs", "total_entries"],
+  title: "EventLogCollectionResponse",
+  description: "Event Log Collection Response.",
+} as const;
+
 export const $EventLogResponse = {
   properties: {
     event_log_id: {

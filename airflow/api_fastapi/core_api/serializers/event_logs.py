@@ -38,3 +38,10 @@ class EventLogResponse(BaseModel):
     extra: str | None
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class EventLogCollectionResponse(BaseModel):
+    """Event Log Collection Response."""
+
+    event_logs: list[EventLogResponse]
+    total_entries: int

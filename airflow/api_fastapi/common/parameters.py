@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, List, Literal, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
@@ -218,6 +218,55 @@ class SortParam(BaseParam[str]):
             return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
 
         return inner
+
+
+_filter_options = Literal["in", "not_in", "eq", "ne", "lt", "le", "gt", "ge"]
+
+
+class FilterParam(BaseParam[T]):
+    """Filter on attribute."""
+
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        value: T | None = None,
+        filter_option: _filter_options = "eq",
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value: T | None = value
+        self.filter_option: _filter_options = filter_option
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if isinstance(self.value, list):
+            if self.filter_option == "in":
+                return select.where(self.attribute.in_(self.value))
+            if self.filter_option == "not_in":
+                return select.where(self.attribute.notin_(self.value))
+            raise ValueError(f"Invalid filter option {self.filter_option} for list value {self.value}")
+
+        if self.filter_option == "eq":
+            return select.where(self.attribute == self.value)
+        if self.filter_option == "ne":
+            return select.where(self.attribute != self.value)
+        if self.filter_option == "lt":
+            return select.where(self.attribute < self.value)
+        if self.filter_option == "le":
+            return select.where(self.attribute <= self.value)
+        if self.filter_option == "gt":
+            return select.where(self.attribute > self.value)
+        if self.filter_option == "ge":
+            return select.where(self.attribute >= self.value)
+        raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
+
+    def depends(self, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError(
+            "Construct FilterParam directly within the router handler, depends is not implemented."
+        )
 
 
 class _TagsFilter(BaseParam[List[str]]):

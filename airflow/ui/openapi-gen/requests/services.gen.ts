@@ -51,6 +51,8 @@ import type {
   GetDagSourceResponse,
   GetEventLogData,
   GetEventLogResponse,
+  GetEventLogsData,
+  GetEventLogsResponse,
   GetHealthResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
@@ -806,6 +808,55 @@ export class EventLogService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Event Logs
+   * Get all Event Logs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.runId
+   * @param data.mapIndex
+   * @param data.tryNumber
+   * @param data.owner
+   * @param data.event
+   * @param data.excludedEvents
+   * @param data.includedEvents
+   * @param data.before
+   * @param data.after
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns EventLogCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getEventLogs(
+    data: GetEventLogsData = {},
+  ): CancelablePromise<GetEventLogsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/eventLogs/",
+      query: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        run_id: data.runId,
+        map_index: data.mapIndex,
+        try_number: data.tryNumber,
+        owner: data.owner,
+        event: data.event,
+        excluded_events: data.excludedEvents,
+        included_events: data.includedEvents,
+        before: data.before,
+        after: data.after,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
         422: "Validation Error",
       },
     });
