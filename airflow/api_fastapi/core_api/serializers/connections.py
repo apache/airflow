@@ -28,8 +28,6 @@ from airflow.utils.log.secrets_masker import redact
 class ConnectionResponse(BaseModel):
     """Connection serializer for responses."""
 
-    """Connection serializer for responses."""
-
     connection_id: str = Field(serialization_alias="connection_id", validation_alias="conn_id")
     conn_type: str
     description: str | None
