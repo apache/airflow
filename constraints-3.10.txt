@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-28T14:01:24.223136
+# This constraints file was automatically generated on 2024-10-28T19:55:04.280296
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -319,7 +319,7 @@ gevent==24.10.3
 gitdb==4.0.11
 google-ads==25.1.0
 google-analytics-admin==0.23.1
-google-api-core==2.21.0
+google-api-core==2.22.0
 google-api-python-client==2.149.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
@@ -332,7 +332,7 @@ google-cloud-batch==0.17.30
 google-cloud-bigquery-datatransfer==3.17.0
 google-cloud-bigquery==3.26.0
 google-cloud-bigtable==2.26.0
-google-cloud-build==3.26.0
+google-cloud-build==3.27.0
 google-cloud-compute==1.20.0
 google-cloud-container==2.53.0
 google-cloud-core==2.4.1
@@ -476,7 +476,7 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi-key-dict==2.0.3
 multidict==6.1.0
-mypy-boto3-appflow==1.35.39
+mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.46
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.46
@@ -744,7 +744,7 @@ uvloop==0.21.0
 validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.27.0
+virtualenv==20.27.1
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
