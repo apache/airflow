@@ -1044,16 +1044,9 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                 "No databricks_task_key provided. Generating task key by concatenation of dag_id and task_id."
             )
             self._databricks_task_key = f"{self.dag_id}__{self.task_id.replace('.', '__')}"
-
-        if len(self._databricks_task_key) > 100:
-            self.log.warning(
-                "The databricks_task_key '%s' exceeds 100 characters and will be truncated by the Databricks API. "
-                "This will cause failure when trying to monitor the task. Hence, task key will be hashed.",
-                self._databricks_task_key,
-            )
-            return hashlib.md5(self._databricks_task_key.encode()).hexdigest()
-
-        return self._databricks_task_key
+        task_key = hashlib.md5(self._databricks_task_key.encode()).hexdigest()
+        self.log.info("Hashed databricks task key: %s", task_key)
+        return task_key
 
     def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
