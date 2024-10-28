@@ -507,12 +507,16 @@ class TestDag:
         )
 
         ti1 = TI(task=test_task, run_id=dr1.run_id)
+        ti1.refresh_from_db()
         ti1.state = None
         ti2 = TI(task=test_task, run_id=dr2.run_id)
+        ti2.refresh_from_db()
         ti2.state = State.RUNNING
         ti3 = TI(task=test_task, run_id=dr3.run_id)
+        ti3.refresh_from_db()
         ti3.state = State.QUEUED
         ti4 = TI(task=test_task, run_id=dr4.run_id)
+        ti4.refresh_from_db()
         ti4.state = State.RUNNING
         session = settings.Session()
         session.merge(ti1)
@@ -1794,6 +1798,7 @@ class TestDag:
         session.merge(dagrun_1)
 
         task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=State.RUNNING)
+        task_instance_1.refresh_from_db()
         session.merge(task_instance_1)
         session.commit()
 
@@ -2006,7 +2011,7 @@ my_postgres_conn:
         self._clean_up(dag_id)
         task_id = "t1"
         dag = DAG(dag_id, schedule=None, start_date=DEFAULT_DATE, max_active_runs=1)
-        t_1 = EmptyOperator(task_id=task_id, dag=dag)
+        _ = EmptyOperator(task_id=task_id, dag=dag)
 
         session = settings.Session()  # type: ignore
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
@@ -2020,7 +2025,8 @@ my_postgres_conn:
         )
         session.merge(dagrun_1)
 
-        task_instance_1 = TI(t_1, run_id=dagrun_1.run_id, state=ti_state_begin)
+        task_instance_1 = dagrun_1.get_task_instance(task_id)
+        task_instance_1.state = ti_state_begin
         task_instance_1.job_id = 123
         session.merge(task_instance_1)
         session.commit()

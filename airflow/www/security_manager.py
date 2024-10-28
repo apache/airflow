@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
@@ -199,16 +198,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_dag_id_from_task_instance(resource_pk):
             if not resource_pk:
                 return None
-            composite_pk = json.loads(resource_pk)
             dag_id = session.scalar(
-                select(TaskInstance.dag_id)
-                .where(
-                    TaskInstance.dag_id == composite_pk[0],
-                    TaskInstance.task_id == composite_pk[1],
-                    TaskInstance.run_id == composite_pk[2],
-                    TaskInstance.map_index >= composite_pk[3],
-                )
-                .limit(1)
+                select(TaskInstance.dag_id).where(TaskInstance.id == resource_pk).limit(1)
             )
             if not dag_id:
                 raise AirflowException("Task instance not found")
