@@ -2233,6 +2233,13 @@ export interface components {
       end_date_lte?: string;
     };
     ListTaskInstanceForm: {
+      /** @description The number of items to skip before starting to collect the result set. */
+      page_offset?: number;
+      /**
+       * @description The numbers of items to return.
+       * @default 100
+       */
+      page_limit?: number;
       /**
        * @description Return objects with specific DAG IDs.
        * The value can be repeated to retrieve multiple matching values (OR condition).

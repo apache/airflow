@@ -453,6 +453,9 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     ti_query = base_query.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
+
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
+
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
 
