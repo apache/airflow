@@ -313,6 +313,7 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
 
     dr = dag_maker.create_dagrun()
     ti = TaskInstance(task=task, run_id=dr.run_id)
+    ti.refresh_from_db()
     ti.state = State.QUEUED
     session.merge(ti)
     session.commit()

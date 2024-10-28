@@ -1153,8 +1153,8 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
-        ti1 = TaskInstance(task1, run_id=dr1.run_id)
-        ti2 = TaskInstance(task1, run_id=dr2.run_id)
+        ti1 = dr1.get_task_instance(task1.task_id)
+        ti2 = dr2.get_task_instance(task1.task_id)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
         session.merge(ti1)
