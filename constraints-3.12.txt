@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-27T07:58:06.445325
+# This constraints file was automatically generated on 2024-10-28T09:21:01.681902
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,7 +80,7 @@ alabaster==0.7.16
 alembic==1.13.3
 alibabacloud-adb20211201==2.0.0
 alibabacloud-tea==0.4.0
-alibabacloud_credentials==0.3.5
+alibabacloud_credentials==0.3.6
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.2
 alibabacloud_openapi_util==0.2.2
@@ -720,9 +720,9 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.322.0
+yandexcloud==0.323.0
 yarl==1.16.0
-ydb==3.18.5
+ydb==3.18.6
 zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
