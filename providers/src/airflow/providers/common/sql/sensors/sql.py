@@ -81,7 +81,7 @@ class SqlSensor(BaseSensorOperator):
         self.parameters = parameters
         self.success = success
         self.failure = failure
-        self.selector = selector or itemgetter(0)
+        self.selector = selector
         self.fail_on_empty = fail_on_empty
         self.hook_params = hook_params
         super().__init__(**kwargs)
