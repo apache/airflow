@@ -259,7 +259,13 @@ class _EdgeWorkerCli:
             else EdgeWorkerState.IDLE
         )
         sysinfo = self._get_sysinfo()
-        self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        result: EdgeWorker.SetStateReturn = EdgeWorker.set_state(
+            self.hostname, state, len(self.jobs), sysinfo
+        )
+        if not self.drain and result.version_mismatch:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            self.drain = True
+        self.queues = result.queues
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""

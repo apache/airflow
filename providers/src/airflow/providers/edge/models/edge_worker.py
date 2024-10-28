@@ -144,6 +144,12 @@ class EdgeWorker(BaseModel, LoggingMixin):
     sysinfo: str
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
+    class SetStateReturn(BaseModel):
+        """Defines return type of set_state function."""
+
+        queues: list[str] | None = None
+        version_mismatch: bool = False
+
     @staticmethod
     def set_metrics(
         worker_name: str,
@@ -263,9 +269,8 @@ class EdgeWorker(BaseModel, LoggingMixin):
         jobs_active: int,
         sysinfo: dict[str, str],
         session: Session = NEW_SESSION,
-    ) -> list[str] | None:
+    ) -> EdgeWorker.SetStateReturn:
         """Set state of worker and returns the current assigned queues."""
-        EdgeWorker.assert_version(sysinfo)
         query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
         worker: EdgeWorkerModel = session.scalar(query)
         worker.state = state
@@ -283,7 +288,14 @@ class EdgeWorker(BaseModel, LoggingMixin):
             concurrency=int(sysinfo["concurrency"]),
             queues=worker.queues,
         )
-        return worker.queues
+
+        version_mismatch = False
+        try:
+            EdgeWorker.assert_version(sysinfo=sysinfo)
+        except EdgeWorkerVersionException:
+            version_mismatch = True
+
+        return EdgeWorker.SetStateReturn(queues=worker.queues, version_mismatch=version_mismatch)
 
     @staticmethod
     @provide_session

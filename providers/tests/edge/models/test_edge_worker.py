@@ -95,7 +95,14 @@ class TestEdgeWorker:
         else:
             assert worker[0].queues is None
 
-    def test_set_state(self, session: Session, cli_worker: _EdgeWorkerCli):
+    @pytest.mark.parametrize(
+        "version_mismatch",
+        [
+            pytest.param(False, id="matching_version"),
+            pytest.param(True, id="version_mismatch"),
+        ],
+    )
+    def test_set_state(self, session: Session, cli_worker: _EdgeWorkerCli, version_mismatch: bool):
         queues = ["default", "default2"]
         rwm = EdgeWorkerModel(
             worker_name="test2_worker",
@@ -106,16 +113,22 @@ class TestEdgeWorker:
         session.add(rwm)
         session.commit()
 
-        return_queues = EdgeWorker.set_state(
-            "test2_worker", EdgeWorkerState.RUNNING, 1, cli_worker._get_sysinfo()
-        )
+        sysinfo = cli_worker._get_sysinfo()
+        if version_mismatch:
+            sysinfo["edge_provider_version"] = "Wrong"
+
+        result = EdgeWorker.set_state("test2_worker", EdgeWorkerState.RUNNING, 1, sysinfo=sysinfo)
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert worker[0].state == EdgeWorkerState.RUNNING
         assert worker[0].queues == queues
-        assert return_queues == ["default", "default2"]
+        assert result.queues == ["default", "default2"]
+        if version_mismatch:
+            assert result.version_mismatch
+        else:
+            assert not result.version_mismatch
 
     @pytest.mark.parametrize(
         "add_queues, remove_queues, expected_queues",

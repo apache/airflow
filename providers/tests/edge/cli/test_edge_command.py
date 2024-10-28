@@ -245,19 +245,24 @@ class TestEdgeWorkerCli:
         assert calls[2] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log3")
 
     @pytest.mark.parametrize(
-        "drain, jobs, expected_state",
+        "drain, jobs, expected_state, version_mismatch",
         [
-            pytest.param(False, True, EdgeWorkerState.RUNNING, id="running_jobs"),
-            pytest.param(True, True, EdgeWorkerState.TERMINATING, id="shutting_down"),
-            pytest.param(False, False, EdgeWorkerState.IDLE, id="idle"),
+            pytest.param(False, True, EdgeWorkerState.RUNNING, False, id="running_jobs"),
+            pytest.param(True, True, EdgeWorkerState.TERMINATING, False, id="shutting_down"),
+            pytest.param(False, False, EdgeWorkerState.IDLE, False, id="idle"),
+            pytest.param(False, False, EdgeWorkerState.IDLE, True, id="version_mismatch"),
         ],
     )
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
-    def test_heartbeat(self, mock_set_state, drain, jobs, expected_state, worker_with_job: _EdgeWorkerCli):
+    def test_heartbeat(
+        self, mock_set_state, drain, jobs, expected_state, version_mismatch, worker_with_job: _EdgeWorkerCli
+    ):
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
-        mock_set_state.return_value = ["queue1", "queue2"]
+        mock_set_state.return_value = EdgeWorker.SetStateReturn(
+            queues=["queue1", "queue2"], version_mismatch=version_mismatch
+        )
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
@@ -265,6 +270,7 @@ class TestEdgeWorkerCli:
         assert len(queue_list) == 2
         assert "queue1" in (queue_list)
         assert "queue2" in (queue_list)
+        assert version_mismatch or drain == worker_with_job.drain
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
