@@ -1797,6 +1797,11 @@ def _handle_reschedule(
     return ti
 
 
+def uuid7() -> str:
+    """Generate a new UUID7 string."""
+    return str(uuid6.uuid7())
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1820,7 +1825,7 @@ class TaskInstance(Base, LoggingMixin):
     id = Column(
         String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
         primary_key=True,
-        default=lambda: str(uuid6.uuid7()),
+        default=uuid7,
         nullable=False,
     )
     task_id = Column(StringID(), nullable=False)
@@ -1950,7 +1955,7 @@ class TaskInstance(Base, LoggingMixin):
         self.try_number = 0
         self.max_tries = self.task.retries
         if not self.id:
-            self.id = str(uuid6.uuid7())
+            self.id = uuid7()
         self.unixname = getuser()
         if state:
             self.state = state

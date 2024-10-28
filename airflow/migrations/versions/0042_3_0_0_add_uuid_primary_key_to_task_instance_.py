@@ -38,6 +38,13 @@ branch_labels = "None"
 depends_on = None
 airflow_version = "3.0.0"
 
+######
+# The following functions to create UUID v7 are solely for the purpose of this migration.
+# This is done for production databases that do not support UUID v7 natively (Postgres, MySQL)
+# and used instead of uuids from
+# python libraries like uuid6.uuid7() for performance reasons since the task_instance table
+# can be very large.
+######
 
 # PostgreSQL-specific UUID v7 function
 pg_uuid7_fn = """
@@ -140,7 +147,7 @@ ti_table = "task_instance"
 ti_fk_cols = ["dag_id", "task_id", "run_id", "map_index"]
 
 # Foreign key constraints from other tables to task_instance
-ti_fk_constrains = [
+ti_fk_constraints = [
     {"table": "rendered_task_instance_fields", "fk": "rtif_ti_fkey"},
     {"table": "task_fail", "fk": "task_fail_ti_fkey"},
     {"table": "task_instance_history", "fk": "task_instance_history_ti_fkey"},
@@ -191,8 +198,9 @@ def upgrade():
             WHERE id IS NULL
         """)
 
+        # Drop this function as it is no longer needed
         op.execute(mysql_uuid7_fn_drop)
-        for fk in ti_fk_constrains:
+        for fk in ti_fk_constraints:
             op.drop_constraint(fk["fk"], fk["table"], type_="foreignkey")
         with op.batch_alter_table("task_instance") as batch_op:
             batch_op.drop_constraint("task_instance_pkey", type_="primary")
@@ -224,7 +232,7 @@ def upgrade():
         batch_op.create_primary_key("task_instance_pkey", ["id"])
 
     # Create foreign key constraints
-    for fk in ti_fk_constrains:
+    for fk in ti_fk_constraints:
         with op.batch_alter_table(fk["table"]) as batch_op:
             batch_op.create_foreign_key(
                 constraint_name=fk["fk"],
@@ -245,7 +253,7 @@ def downgrade():
         op.execute(pg_uuid7_fn_drop)
 
     elif dialect_name == "mysql":
-        for fk in ti_fk_constrains:
+        for fk in ti_fk_constraints:
             op.drop_constraint(fk["fk"], fk["table"], type_="foreignkey")
 
         with op.batch_alter_table("task_instance") as batch_op:
@@ -262,7 +270,7 @@ def downgrade():
         batch_op.create_primary_key("task_instance_pkey", ti_fk_cols)
 
     # Re-add foreign key constraints
-    for fk in ti_fk_constrains:
+    for fk in ti_fk_constraints:
         with op.batch_alter_table(fk["table"]) as batch_op:
             batch_op.create_foreign_key(
                 constraint_name=fk["fk"],
