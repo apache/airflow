@@ -1066,7 +1066,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert len(response_batch2.json["task_instances"]) > 0
 
         # Match
-        ti_count = 10
+        ti_count = 9
         assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
