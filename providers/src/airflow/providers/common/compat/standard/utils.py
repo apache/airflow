@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 else:
     try:
         from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-    except ImportError:
+    except ModuleNotFoundError:
         from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 

@@ -34,9 +34,8 @@ else:
             ShortCircuitOperator,
             get_current_context,
         )
-    except ImportError:
+    except ModuleNotFoundError:
         from airflow.operators.python import (
-            _SERIALIZERS,
             PythonOperator,
             ShortCircuitOperator,
             get_current_context,

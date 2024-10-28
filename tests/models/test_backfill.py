@@ -36,7 +36,6 @@ from airflow.models.backfill import (
     _create_backfill,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.state import DagRunState
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
