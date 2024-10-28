@@ -39,7 +39,8 @@ services:
       - 38080:38080
     restart: always
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./keycloak/keycloak-entrypoint.sh:/opt/keycloak/keycloak-entrypoint.sh
 

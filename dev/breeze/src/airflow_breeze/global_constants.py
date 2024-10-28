@@ -64,7 +64,8 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that invalid configuration
 # Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
+POSTGRES_BACKEND = "postgres"
+ALLOWED_BACKENDS = ["sqlite", "mysql", POSTGRES_BACKEND, "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
@@ -85,7 +86,8 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage", "keycloak"]
+KEYCLOAK_INTEGRATION = "keycloak"
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage", KEYCLOAK_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
