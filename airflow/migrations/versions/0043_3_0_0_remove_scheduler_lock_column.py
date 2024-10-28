@@ -20,7 +20,7 @@
 remove scheduler_lock column.
 
 Revision ID: 486ac7936b78
-Revises: 05234396c6fc
+Revises: d59cbbef95eb
 Create Date: 2024-10-23 07:48:52.494396
 
 """
