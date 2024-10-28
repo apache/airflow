@@ -149,6 +149,8 @@ class DbtCloudRunJobOperator(BaseOperator):
                 self.run_id = non_terminal_runs[0]["id"]
                 job_run_url = non_terminal_runs[0]["href"]
 
+        is_retry = context["task_instance"].try_number != 1
+
         if not self.reuse_existing_run or not non_terminal_runs:
             trigger_job_response = self.hook.trigger_job_run(
                 account_id=self.account_id,
@@ -156,7 +158,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 cause=self.trigger_reason,
                 steps_override=self.steps_override,
                 schema_override=self.schema_override,
-                retry_from_failure=self.retry_from_failure,
+                retry_from_failure=is_retry and self.retry_from_failure,
                 additional_run_config=self.additional_run_config,
             )
             self.run_id = trigger_job_response.json()["data"]["id"]
