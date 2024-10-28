@@ -28,7 +28,7 @@ An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, tha
 
 Airflow has a very extensive set of operators available, with some built-in to the core or pre-installed providers. Some popular operators from core include:
 
-- :class:`~airflow.operators.bash.BashOperator` - executes a bash command
+- :class:`~airflow.providers.standard.operators.bash.BashOperator` - executes a bash command
 - :class:`~airflow.operators.python.PythonOperator` - calls an arbitrary Python function
 - :class:`~airflow.operators.email.EmailOperator` - sends an email
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
@@ -42,11 +42,7 @@ For a list of all core operators, see: :doc:`Core Operators and Hooks Reference 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
 - :class:`~airflow.providers.http.operators.http.HttpOperator`
-- :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
-- :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
-- :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
-- :class:`~airflow.providers.oracle.operators.oracle.OracleOperator`
-- :class:`~airflow.providers.jdbc.operators.jdbc.JdbcOperator`
+- :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
 - :class:`~airflow.providers.docker.operators.docker.DockerOperator`
 - :class:`~airflow.providers.apache.hive.operators.hive.HiveOperator`
 - :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`
@@ -86,9 +82,33 @@ For example, say you want to pass the start of the data interval as an environme
 
 Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of the ``BashOperator`` is templated with Jinja, the data interval's start date will be available as an environment variable named ``DATA_INTERVAL_START`` in your Bash script.
 
-You can use Jinja templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
+You can also pass in a callable instead when Python is more readable than a Jinja template. The callable must accept two named arguments ``context`` and ``jinja_env``:
 
-You can also use Jinja templating with nested fields, as long as these nested fields are marked as templated in the structure they belong to: fields registered in ``template_fields`` property will be submitted to template substitution, like the ``path`` field in the example below:
+.. code-block:: python
+
+    def build_complex_command(context, jinja_env):
+        with open("file.csv") as f:
+            return do_complex_things(f)
+
+
+    t = BashOperator(
+        task_id="complex_templated_echo",
+        bash_command=build_complex_command,
+        dag=dag,
+    )
+
+Since each template field is only rendered once, the callable's return value will not go through rendering again. Therefore, the callable must manually render any templates. This can be done by calling ``render_template()`` on the current task like this:
+
+.. code-block:: python
+
+    def build_complex_command(context, jinja_env):
+        with open("file.csv") as f:
+            data = do_complex_things(f)
+        return context["task"].render_template(data, context, jinja_env)
+
+You can use templating with every parameter that is marked as "templated" in the documentation. Template substitution occurs just before the ``pre_execute`` function of your operator is called.
+
+You can also use templating with nested fields, as long as these nested fields are marked as templated in the structure they belong to: fields registered in ``template_fields`` property will be submitted to template substitution, like the ``path`` field in the example below:
 
 .. code-block:: python
 
@@ -211,34 +231,9 @@ Alternatively, if you want to prevent Airflow from treating a value as a referen
 Rendering Fields as Native Python Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, all the ``template_fields`` are rendered as strings.
-
-Example, let's say ``extract`` task pushes a dictionary
-(Example: ``{"1001": 301.27, "1002": 433.21, "1003": 502.22}``) to :ref:`XCom <concepts:xcom>` table.
-Now, when the following task is run, ``order_data`` argument is passed a string, example:
-``'{"1001": 301.27, "1002": 433.21, "1003": 502.22}'``.
+By default, all Jinja templates in ``template_fields`` are rendered as strings. This however is not always desired. For example, let's say an ``extract`` task pushes a dictionary ``{"1001": 301.27, "1002": 433.21, "1003": 502.22}`` to :ref:`XCom <concepts:xcom>`:
 
 .. code-block:: python
-
-    transform = PythonOperator(
-        task_id="transform",
-        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
-        python_callable=transform,
-    )
-
-If you instead want the rendered template field to return a Native Python object (``dict`` in our example),
-you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
-
-.. code-block:: python
-
-    dag = DAG(
-        dag_id="example_template_as_python_object",
-        schedule=None,
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
-        render_template_as_native_obj=True,
-    )
-
 
     @task(task_id="extract")
     def extract():
@@ -246,29 +241,55 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         return json.loads(data_string)
 
 
+If a task depends on ``extract``, ``order_data`` argument is passed a string ``"{'1001': 301.27, '1002': 433.21, '1003': 502.22}"``:
+
+.. code-block:: python
+
     def transform(order_data):
-        print(type(order_data))
-        total_order_value = 0
-        for value in order_data.values():
-            total_order_value += value
+        total_order_value = sum(order_data.values())  # Fails because order_data is a str :(
         return {"total_order_value": total_order_value}
 
 
-    extract_task = extract()
-
-    transform_task = PythonOperator(
+    transform = PythonOperator(
         task_id="transform",
-        op_kwargs={"order_data": "{{ti.xcom_pull('extract')}}"},
+        op_kwargs={"order_data": "{{ ti.xcom_pull('extract') }}"},
         python_callable=transform,
     )
 
-    extract_task >> transform_task
+    extract() >> transform
 
-In this case, ``order_data`` argument is passed: ``{"1001": 301.27, "1002": 433.21, "1003": 502.22}``.
+There are two solutions if we want to get the actual dict instead. The first is to use a callable:
 
-Airflow uses Jinja's `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_
-when ``render_template_as_native_obj`` is set to ``True``.
-With ``NativeEnvironment``, rendering a template produces a native Python type.
+.. code-block:: python
+
+    def render_transform_op_kwargs(context, jinja_env):
+        order_data = context["ti"].xcom_pull("extract")
+        return {"order_data": order_data}
+
+
+    transform = PythonOperator(
+        task_id="transform",
+        op_kwargs=render_transform_op_kwargs,
+        python_callable=transform,
+    )
+
+Alternatively, Jinja can also be instructed to render a native Python object. This is done by passing ``render_template_as_native_obj=True`` to the DAG. This makes Airflow use `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_ instead of the default ``SandboxedEnvironment``:
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="example_template_as_python_object",
+        schedule=None,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        render_template_as_native_obj=True,
+    ):
+        transform = PythonOperator(
+            task_id="transform",
+            op_kwargs={"order_data": "{{ ti.xcom_pull('extract') }}"},
+            python_callable=transform,
+        )
+
 
 .. _concepts:reserved-keywords:
 

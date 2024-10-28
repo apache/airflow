@@ -53,7 +53,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/kafka/index>
+    System Tests <_api/tests/system/apache/kafka/index>
 
 
 .. toctree::
@@ -61,7 +61,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/tests/system/providers/apache/kafka>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kafka/|version|/providers/tests/system/apache/kafka>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kafka/>
     Installing from sources <installing-providers-from-sources>
 
@@ -82,7 +82,7 @@ apache-airflow-providers-apache-kafka package
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.4.0
+Release: 1.6.1
 
 Provider package
 ----------------
@@ -100,12 +100,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.7.0``
-``asgiref``
-``confluent-kafka``  ``>=1.8.2``
+``apache-airflow``   ``>=2.8.0``
+``asgiref``          ``>=2.3.0``
+``confluent-kafka``  ``>=2.3.0``
 ===================  ==================

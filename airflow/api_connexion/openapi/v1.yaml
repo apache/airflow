@@ -176,7 +176,7 @@ info:
     `airflow config get-value api auth_backends` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.
 
@@ -245,6 +245,155 @@ servers:
     description: Apache Airflow Stable API.
 
 paths:
+  # Database entities
+  /backfills:
+    get:
+      summary: List backfills
+      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+      operationId: list_backfills
+      tags: [Backfill]
+      parameters:
+        - name: dag_id
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            List backfills for this dag.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
+    post:
+      summary: Create a backfill job.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+      operationId: create_backfill
+      tags: [Backfill]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Backfill"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Backfill"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
+  /backfills/{backfill_id}:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    get:
+        summary: Get a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: get_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+
+  /backfills/{backfill_id}/pause:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Pause a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: pause_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
+  /backfills/{backfill_id}/unpause:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Pause a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: unpause_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
+  /backfills/{backfill_id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Cancel a backfill
+        description: |
+          When a backfill is cancelled, all queued dag runs will be marked as failed.
+          Running dag runs will be allowed to continue.
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: cancel_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
   # Database entities
   /connections:
     get:
@@ -679,6 +828,71 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
       - $ref: "#/components/parameters/DAGID"
@@ -922,26 +1136,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
     get:
-      summary: Get dataset events for a DAG run
+      summary: Get asset events for a DAG run
       description: |
-        Get datasets for a dag run.
+        Get asset for a dag run.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents"
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: get_upstream_dataset_events
-      tags: [DAGRun, Dataset]
+      operationId: get_upstream_asset_events
+      tags: [DAGRun, Asset]
       responses:
         "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -986,22 +1201,23 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent/{uri}:
+  /dags/{dag_id}/assets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
-      summary: Get a queued Dataset event for a DAG
+      summary: Get a queued asset event for a DAG
       description: |
-        Get a queued Dataset event for a DAG.
+        Get a queued asset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queued_event
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1017,16 +1233,17 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete a queued Dataset event for a DAG.
+      summary: Delete a queued Asset event for a DAG.
       description: |
-        Delete a queued Dataset event for a DAG.
+        Delete a queued Asset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queued_event
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent/{uri}"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1039,21 +1256,22 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent:
+  /dags/{dag_id}/assets/queuedEvent:
     parameters:
       - $ref: "#/components/parameters/DAGID"
 
     get:
-      summary: Get queued Dataset events for a DAG.
+      summary: Get queued Asset events for a DAG.
       description: |
-        Get queued Dataset events for a DAG.
+        Get queued Asset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queued_events
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_dag_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1069,16 +1287,17 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete queued Dataset events for a DAG.
+      summary: Delete queued Asset events for a DAG.
       description: |
-        Delete queued Dataset events for a DAG.
+        Delete queued Asset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queued_events
+        *Changed in 3.0.0*: The endpoint value was renamed from "/dags/{dag_id}/datasets/queuedEvent"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_dag_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1091,21 +1310,43 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/queuedEvent/{uri}:
+  /parseDagFile/{file_token}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/FileToken"
+
+    put:
+      summary: Request re-parsing of a DAG file
+      description: >
+        Request re-parsing of existing DAG files using a file token.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dag_file
+      tags: [ DAG ]
+      responses:
+        "201":
+          description: Success.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /assets/queuedEvent/{uri}:
+    parameters:
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
-      summary: Get queued Dataset events for a Dataset.
+      summary: Get queued Asset events for an Asset.
       description: |
-        Get queued Dataset events for a Dataset
+        Get queued Asset events for an Asset
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_queued_events
+        *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1121,16 +1362,17 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete queued Dataset events for a Dataset.
+      summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Dataset events for a Dataset.
+        Delete queued Asset events for an Asset.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dataset_queued_events
+        *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: delete_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1157,6 +1399,8 @@ paths:
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
         - $ref: "#/components/parameters/FilterRunID"
+        - $ref: "#/components/parameters/FilterMapIndex"
+        - $ref: "#/components/parameters/FilterTryNumber"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
@@ -1417,6 +1661,7 @@ paths:
       - $ref: "#/components/parameters/FilterState"
       - $ref: "#/components/parameters/FilterPool"
       - $ref: "#/components/parameters/FilterQueue"
+      - $ref: "#/components/parameters/FilterExecutor"
     get:
       summary: List task instances
       description: >
@@ -1428,6 +1673,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1585,7 +1831,8 @@ paths:
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
-        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterExecutor"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1631,6 +1878,129 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
+    get:
+      summary: get taskinstance try
+      description: |
+        Get details of a task instance try.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_try_details
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/TaskTryNumber"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries:
+    get:
+      summary: List task instance tries
+      description: |
+        Get details of all task instance tries.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_tries
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries:
+    get:
+      summary: List mapped task instance tries
+      description: |
+        Get details of all task instance tries.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_tries
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/MapIndex"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}:
+    get:
+      summary: get mapped taskinstance try
+      description: |
+        Get details of a mapped task instance try.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_try_details
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/MapIndex"
+        - $ref: "#/components/parameters/TaskTryNumber"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 
   /variables:
     get:
@@ -1814,6 +2184,21 @@ paths:
             This parameter is not meaningful when using the default XCom backend.
 
             *New in version 2.4.0*
+        - in: query
+          name: stringify
+          schema:
+            type: boolean
+            default: true
+          required: false
+          description: |
+            Whether to convert the XCom value to be a string. XCom values can be of Any data type.
+
+            If set to true (default) the Any value will be returned as string, e.g. a Python representation
+            of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+
+            This parameter is not meaningful when using XCom pickling, then it is always returned as string.
+
+            *New in version 2.10.0*
       responses:
         "200":
           description: Success.
@@ -1999,6 +2384,34 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dagStats:
+    get:
+      summary: List Dag statistics
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_stats_endpoint
+      operationId: get_dag_stats
+      tags: [DagStats]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - name: dag_ids
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more DAG IDs separated by commas to filter relevant Dags.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DagStatsCollectionSchema"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
   /dagSources/{file_token}:
     parameters:
       - $ref: "#/components/parameters/FileToken"
@@ -2068,12 +2481,14 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets:
+  /assets:
     get:
-      summary: List datasets
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_datasets
-      tags: [Dataset]
+      summary: List assets
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_assets
+      tags: [Asset]
+      description: |
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets"
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
@@ -2084,14 +2499,14 @@ paths:
             type: string
           required: false
           description: |
-            If set, only return datasets with uris matching this pattern.
+            If set, only return assets with uris matching this pattern.
         - name: dag_ids
           in: query
           schema:
             type: string
           required: false
           description: |
-            One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+            One or more DAG IDs separated by commas to filter assets by associated DAGs either consuming or producing.
 
             *New in version 2.9.0*
       responses:
@@ -2100,28 +2515,31 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetCollection"
+                $ref: "#/components/schemas/AssetCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets/{uri}:
+  /assets/{uri}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
     get:
-      summary: Get a dataset
-      description: Get a dataset by uri.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset
-      tags: [Dataset]
+      summary: Get an asset
+      description: |
+        Get an asset by uri.
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/{uri}"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset
+      tags: [Asset]
       responses:
         "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2129,18 +2547,21 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/events:
+  /assets/events:
     get:
-      summary: Get dataset events
-      description: Get dataset events
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_events
-      tags: [Dataset]
+      summary: Get asset events
+      description: |
+        Get asset events
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: get_asset_events
+      tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
         - $ref: "#/components/parameters/OrderBy"
-        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterAssetID"
         - $ref: "#/components/parameters/FilterSourceDAGID"
         - $ref: "#/components/parameters/FilterSourceTaskID"
         - $ref: "#/components/parameters/FilterSourceRunID"
@@ -2151,7 +2572,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2159,24 +2580,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     post:
-      summary: Create dataset event
-      description: Create dataset event
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: create_dataset_event
-      tags: [Dataset]
+      summary: Create asset event
+      description: |
+        Create asset event
+
+        *Changed in 3.0.0*: The endpoint value was renamed from "/datasets/events"
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
+      operationId: create_asset_event
+      tags: [Asset]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDatasetEvent'
+              $ref: '#/components/schemas/CreateAssetEvent'
       responses:
         '200':
           description: Success.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEvent'
+                $ref: '#/components/schemas/AssetEvent'
         "400":
           $ref: "#/components/responses/BadRequest"
         '401':
@@ -2338,316 +2762,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /roles:
-    get:
-      deprecated: true
-      summary: List roles
-      description: |
-        Get a list of roles.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_roles
-      tags: [Role]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-        - $ref: "#/components/parameters/OrderBy"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoleCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      deprecated: true
-      summary: Create a role
-      description: |
-        Create a new role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: post_role
-      tags: [Role]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Role"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /roles/{role_name}:
-    parameters:
-      - $ref: "#/components/parameters/RoleName"
-
-    get:
-      deprecated: true
-      summary: Get a role
-      description: |
-        Get a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_role
-      tags: [Role]
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    patch:
-      deprecated: true
-      summary: Update a role
-      description: |
-        Update a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: patch_role
-      tags: [Role]
-      parameters:
-        - $ref: "#/components/parameters/UpdateMask"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Role"
-
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    delete:
-      deprecated: true
-      summary: Delete a role
-      description: |
-        Delete a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: delete_role
-      tags: [Role]
-      responses:
-        "204":
-          description: Success.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  /permissions:
-    get:
-      deprecated: true
-      summary: List permissions
-      description: |
-        Get a list of permissions.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_permissions
-      tags: [Permission]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ActionCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /users:
-    get:
-      deprecated: true
-      summary: List users
-      description: |
-        Get a list of users.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_users
-      tags: [User]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-        - $ref: "#/components/parameters/OrderBy"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      deprecated: true
-      summary: Create a user
-      description: |
-        Create a new user with unique username and email.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: post_user
-      tags: [User]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "409":
-          $ref: "#/components/responses/AlreadyExists"
-
-  /users/{username}:
-    parameters:
-      - $ref: "#/components/parameters/Username"
-    get:
-      deprecated: true
-      summary: Get a user
-      description: |
-        Get a user with a specific username.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_user
-      tags: [User]
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollectionItem"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    patch:
-      deprecated: true
-      summary: Update a user
-      description: |
-        Update fields for a user.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: patch_user
-      tags: [User]
-      parameters:
-        - $ref: "#/components/parameters/UpdateMask"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollectionItem"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    delete:
-      deprecated: true
-      summary: Delete a user
-      description: |
-        Delete a user with a specific username.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: delete_user
-      tags: [User]
-      responses:
-        "204":
-          description: Success.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
 components:
   # Reusable schemas (data models)
   schemas:
@@ -2759,6 +2873,66 @@ components:
                 $ref: "#/components/schemas/UserCollectionItem"
         - $ref: "#/components/schemas/CollectionInfo"
 
+    Backfill:
+      description: >
+        Backfill entity object.
+
+        Represents one backfill run / request.
+      type: object
+      properties:
+        id:
+          type: integer
+          description: id
+        dag_id:
+          type: string
+          description: The dag_id for the backfill.
+        from_date:
+          type: string
+          nullable: true
+          description: From date of the backfill (inclusive).
+        to_date:
+          type: string
+          nullable: true
+          description: To date of the backfill (exclusive).
+        dag_run_conf:
+          type: object
+          nullable: true
+          description: Dag run conf to be forwarded to the dag runs.
+        is_paused:
+          type: boolean
+          nullable: true
+          description: is_paused
+        max_active_runs:
+          type: integer
+          nullable: true
+          description: max_active_runs
+        created_at:
+          type: string
+          nullable: true
+          description: created_at
+        completed_at:
+          type: string
+          nullable: true
+          description: completed_at
+        updated_at:
+          type: string
+          nullable: true
+          description: updated_at
+
+
+    BackfillCollection:
+      type: object
+      description: |
+        Collection of backfill entities.
+      allOf:
+        - type: object
+          properties:
+            backfills:
+              type: array
+              items:
+                $ref: "#/components/schemas/Backfill"
+        - $ref: "#/components/schemas/CollectionInfo"
+
     ConnectionCollectionItem:
       description: >
         Connection collection item.
@@ -2854,11 +3028,6 @@ components:
             Human centric display text for the DAG.
 
             *New in version 2.9.0*
-        root_dag_id:
-          type: string
-          readOnly: true
-          nullable: true
-          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null.
         is_paused:
           type: boolean
           nullable: true
@@ -2873,10 +3042,6 @@ components:
           nullable: true
           readOnly: true
           type: boolean
-        is_subdag:
-          description: Whether the DAG is SubDAG.
-          type: boolean
-          readOnly: true
         last_parsed_time:
           type: string
           format: date-time
@@ -2952,14 +3117,20 @@ components:
           description: >
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
-        schedule_interval:
-          $ref: "#/components/schemas/ScheduleInterval"
+        timetable_summary:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Timetable summary.
+
+            *New in version 3.0.0*
         timetable_description:
           type: string
           readOnly: true
           nullable: true
           description: |
-            Timetable/Schedule Interval description.
+            Timetable description.
 
             *New in version 2.3.0*
         tags:
@@ -3037,6 +3208,14 @@ components:
             Earliest time at which this ``next_dagrun`` can be created.
 
             *New in version 2.3.0*
+        max_consecutive_failed_dag_runs:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: |
+            (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+
+            *New in version 2.9.0*
 
     DAGCollection:
       description: |
@@ -3138,7 +3317,9 @@ components:
             - backfill
             - manual
             - scheduled
-            - dataset_triggered
+            - asset_triggered
+          description: |
+            *Changed in 3.0.0*: The asset_triggered value was renamed from dataset_triggered.
         state:
           $ref: "#/components/schemas/DagState"
         external_trigger:
@@ -3158,6 +3339,7 @@ components:
 
             *New in version 2.5.0*
           nullable: true
+
 
     UpdateDagRunState:
       type: object
@@ -3189,6 +3371,46 @@ components:
                 $ref: "#/components/schemas/DAGRun"
         - $ref: "#/components/schemas/CollectionInfo"
 
+    DagStatsCollectionSchema:
+      type: object
+      description: |
+        Collection of Dag statistics.
+
+      allOf:
+        - type: object
+          properties:
+            dags:
+              type: array
+              items:
+                $ref: "#/components/schemas/DagStatsCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
+
+    DagStatsCollectionItem:
+      description: DagStats entry collection item.
+
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID.
+        stats:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/DagStatsStateCollectionItem"
+
+    DagStatsStateCollectionItem:
+      description: DagStatsState entry collection item.
+
+      type: object
+      properties:
+        state:
+          type: string
+          description: The DAG state.
+        count:
+          type: integer
+          description: The DAG state count.
+
     DagWarning:
       type: object
       properties:
@@ -3218,7 +3440,7 @@ components:
       allOf:
         - type: object
           properties:
-            import_errors:
+            dag_warnings:
               type: array
               items:
                 $ref: "#/components/schemas/DagWarning"
@@ -3259,6 +3481,16 @@ components:
           type: string
           readOnly: true
           nullable: true
+        map_index:
+          description: The Map Index
+          type: integer
+          readOnly: true
+          nullable: true
+        try_number:
+          description: The Try Number
+          type: integer
+          readOnly: true
+          nullable: true
         event:
           description: A key describing the type of event.
           type: string
@@ -3273,6 +3505,7 @@ components:
         owner:
           description: Name of the user who triggered these events a.
           type: string
+          nullable: true
           readOnly: true
         extra:
           description: |
@@ -3287,6 +3520,7 @@ components:
         Collection of event logs.
 
         *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+        *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
       allOf:
         - type: object
           properties:
@@ -3315,7 +3549,7 @@ components:
         stack_trace:
           type: string
           readOnly: true
-          description: The full stackstrace..
+          description: The full stackstrace.
 
     ImportErrorCollection:
       type: object
@@ -3535,6 +3769,22 @@ components:
           type: integer
           nullable: true
 
+    TaskFailedDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+
+    TaskInstanceDependencyCollection:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskFailedDependency"
+
     Job:
       type: object
       nullable: true
@@ -3640,6 +3890,13 @@ components:
         pid:
           type: integer
           nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
         executor_config:
           type: string
         sla_miss:
@@ -3799,8 +4056,16 @@ components:
         - type: object
           properties:
             value:
-              type: string
-              description: The value
+              anyOf:
+                - type: string
+                - type: number
+                - type: integer
+                - type: boolean
+                - type: array
+                  items: {}
+                - type: object
+                  nullable: true
+              description: The value(s),
 
     # Python objects
     # Based on
@@ -3843,9 +4108,12 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
-            dataset_expression:
+            asset_expression:
               type: object
-              description: Nested dataset any/all conditions
+              description: |
+                Nested asset any/all conditions
+
+                *Changed in 3.0.0*: The asset_expression value was renamed from dataset_expression.
               nullable: true
             doc_md:
               type: string
@@ -3948,6 +4216,7 @@ components:
           type: string
           format: "date-time"
           readOnly: true
+          nullable: true
         end_date:
           type: string
           format: "date-time"
@@ -3976,6 +4245,10 @@ components:
           type: number
           readOnly: true
         queue:
+          type: string
+          readOnly: true
+          nullable: true
+        executor:
           type: string
           readOnly: true
           nullable: true
@@ -4013,6 +4286,14 @@ components:
           readOnly: true
           items:
             type: string
+        doc_md:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Task documentation in markdown.
+
+            *New in version 2.10.0*
 
     TaskCollection:
       type: object
@@ -4058,6 +4339,12 @@ components:
             type: string
             nullable: true
           description: The flask blueprints
+        fastapi_apps:
+          type: array
+          items:
+            type: object
+            nullable: true
+          description: The fastapi apps
         appbuilder_views:
           type: array
           items:
@@ -4206,133 +4493,146 @@ components:
           $ref: "#/components/schemas/Resource"
           description: The permission resource
 
-    Dataset:
+    Asset:
       description: |
-        A dataset item.
+        An asset item.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from Dataset.
       type: object
       properties:
         id:
           type: integer
-          description: The dataset id
+          description: The asset id
         uri:
           type: string
-          description: The dataset uri
+          description: The asset uri
           nullable: false
         extra:
           type: object
-          description: The dataset extra
+          description: The asset extra
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
         consuming_dags:
           type: array
           items:
-            $ref: "#/components/schemas/DagScheduleDatasetReference"
+            $ref: "#/components/schemas/DagScheduleAssetReference"
         producing_tasks:
           type: array
           items:
-            $ref: "#/components/schemas/TaskOutletDatasetReference"
+            $ref: "#/components/schemas/TaskOutletAssetReference"
 
-    TaskOutletDatasetReference:
+    TaskOutletAssetReference:
       description: |
-        A datasets reference to an upstream task.
+        An asset reference to an upstream task.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from TaskOutletDatasetReference.
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that updates the dataset.
+          description: The DAG ID that updates the asset.
           nullable: true
         task_id:
           type: string
-          description: The task ID that updates the dataset.
+          description: The task ID that updates the asset.
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
 
-    DagScheduleDatasetReference:
+    DagScheduleAssetReference:
       description: |
-        A datasets reference to a downstream DAG.
+        An asset reference to a downstream DAG.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DagScheduleDatasetReference.
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that depends on the dataset.
+          description: The DAG ID that depends on the asset.
           nullable: true
         created_at:
           type: string
-          description: The dataset reference creation time
+          description: The asset reference creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset reference update time
+          description: The asset reference update time
           nullable: false
 
-    DatasetCollection:
+    AssetCollection:
       description: |
-        A collection of datasets.
+        A collection of assets.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetCollection.
       type: object
       allOf:
         - type: object
           properties:
-            datasets:
+            assets:
               type: array
               items:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
+              description: |
+                *Changed in 3.0.0*: This was renamed from datasets.
         - $ref: "#/components/schemas/CollectionInfo"
 
-    DatasetEvent:
+    AssetEvent:
       description: |
-        A dataset event.
+        An asset event.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetEvent.
       type: object
       properties:
-        dataset_id:
+        asset_id:
           type: integer
-          description: The dataset id
-        dataset_uri:
+          description: |
+            The asset id
+
+            *Changed in 3.0.0*: This was renamed from dataset_id.
+        asset_uri:
           type: string
-          description: The URI of the dataset
+          description: |
+            The URI of the asset
+
+            *Changed in 3.0.0*: This was renamed from dataset_uri.
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
         source_dag_id:
           type: string
-          description: The DAG ID that updated the dataset.
+          description: The DAG ID that updated the asset.
           nullable: true
         source_task_id:
           type: string
-          description: The task ID that updated the dataset.
+          description: The task ID that updated the asset.
           nullable: true
         source_run_id:
           type: string
-          description: The DAG run ID that updated the dataset.
+          description: The DAG run ID that updated the asset.
           nullable: true
         source_map_index:
           type: integer
-          description: The task map index that updated the dataset.
+          description: The task map index that updated the asset.
           nullable: true
         created_dagruns:
           type: array
@@ -4340,21 +4640,26 @@ components:
             $ref: "#/components/schemas/BasicDAGRun"
         timestamp:
           type: string
-          description: The dataset event creation time
+          description: The asset event creation time
           nullable: false
 
-    CreateDatasetEvent:
+    CreateAssetEvent:
       type: object
       required:
-        - dataset_uri
+        - asset_uri
+      description: |
+        *Changed in 3.0.0*: This was renamed from CreateDatasetEvent.
       properties:
-        dataset_uri:
+        asset_uri:
           type: string
-          description: The URI of the dataset
+          description: |
+            The URI of the asset
+
+            *Changed in 3.0.0*: This was renamed from dataset_uri.
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
 
     QueuedEvent:
@@ -4362,7 +4667,7 @@ components:
       properties:
         uri:
           type: string
-          description: The datata uri.
+          description: The asset uri.
         dag_id:
           type: string
           description: The DAG ID.
@@ -4373,14 +4678,14 @@ components:
 
     QueuedEventCollection:
       description: |
-        A collection of Dataset Dag Run Queues.
+        A collection of asset Dag Run Queues.
 
         *New in version 2.9.0*
       type: object
       allOf:
         - type: object
           properties:
-            datasets:
+            queued_events:
               type: array
               items:
                 $ref: "#/components/schemas/QueuedEvent"
@@ -4436,19 +4741,22 @@ components:
         state:
           $ref: "#/components/schemas/DagState"
 
-    DatasetEventCollection:
+    AssetEventCollection:
       description: |
-        A collection of dataset events.
+        A collection of asset events.
 
         *New in version 2.4.0*
+        *Changed in 3.0.0*: This was renamed from DatasetEventCollection.
       type: object
       allOf:
         - type: object
           properties:
-            dataset_events:
+            asset_events:
               type: array
+              description: |
+                *Changed in 3.0.0*: This was renamed from dataset_events.
               items:
-                $ref: "#/components/schemas/DatasetEvent"
+                $ref: "#/components/schemas/AssetEvent"
         - $ref: "#/components/schemas/CollectionInfo"
 
     # Configuration
@@ -4546,14 +4854,6 @@ components:
           description: Only clear running tasks.
           type: boolean
           default: false
-
-        include_subdags:
-          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
-          type: boolean
-
-        include_parentdag:
-          description: Clear tasks in the parent dag of the subdag.
-          type: boolean
 
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
@@ -4832,21 +5132,23 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        executor:
+          type: array
+          items:
+            type: string
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order. `order_by` defaults to
+            `map_index` when unspecified.
+            Supported field names: `state`, `duration`, `start_date`, `end_date`
+            and `map_index`.
+
+            *New in version 3.0.0*
 
     # Common data type
-    ScheduleInterval:
-      description: |
-        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-      nullable: true
-      readOnly: true
-      anyOf:
-        - $ref: "#/components/schemas/TimeDelta"
-        - $ref: "#/components/schemas/RelativeDelta"
-        - $ref: "#/components/schemas/CronExpression"
-      discriminator:
-        propertyName: __type
-
     TimeDelta:
       description: Time delta
       type: object
@@ -5084,6 +5386,36 @@ components:
 
   # Reusable path, query, header and cookie parameters
   parameters:
+
+    BackfillIdPath:
+      in: path
+      name: backfill_id
+      schema:
+        type: integer
+      required: true
+      description: |
+        The integer id identifying the backfill entity.
+
+    FromDate:
+      in: query
+      name: from_date
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        From date.
+
+    ToDate:
+      in: query
+      name: to_date
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        To date.
+
     # Pagination parameters
     PageOffset:
       in: query
@@ -5220,14 +5552,17 @@ components:
       required: true
       description: The import error ID.
 
-    DatasetURI:
+    AssetURI:
       in: path
       name: uri
       schema:
         type: string
         format: path
       required: true
-      description: The encoded Dataset URI
+      description: |
+        The encoded Asset URI
+
+        *Changed in 3.0.0*: This was renamed from DatasetURI.
 
     PoolName:
       in: path
@@ -5388,7 +5723,14 @@ components:
         items:
           type: string
       description: The value can be repeated to retrieve multiple matching values (OR condition).
-
+    FilterExecutor:
+      in: query
+      name: executor
+      schema:
+        type: array
+        items:
+          type: string
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterTags:
       in: query
       name: tags
@@ -5401,40 +5743,43 @@ components:
 
         *New in version 2.2.0*
 
-    FilterDatasetID:
+    FilterAssetID:
       in: query
-      name: dataset_id
+      name: asset_id
       schema:
         type: integer
-      description: The Dataset ID that updated the dataset.
+      description: |
+        The Asset ID that updated the asset.
+
+        *Changed in 3.0.0*: This was renamed from FilterDatasetID.
 
     FilterSourceDAGID:
       in: query
       name: source_dag_id
       schema:
         type: string
-      description: The DAG ID that updated the dataset.
+      description: The DAG ID that updated the asset.
 
     FilterSourceTaskID:
       in: query
       name: source_task_id
       schema:
         type: string
-      description: The task ID that updated the dataset.
+      description: The task ID that updated the asset.
 
     FilterSourceRunID:
       in: query
       name: source_run_id
       schema:
         type: string
-      description: The DAG run ID that updated the dataset.
+      description: The DAG run ID that updated the asset.
 
     FilterSourceMapIndex:
       in: query
       name: source_map_index
       schema:
         type: integer
-      description: The map index that updated the dataset.
+      description: The map index that updated the asset.
 
     FilterMapIndex:
       in: query
@@ -5442,6 +5787,28 @@ components:
       schema:
         type: integer
       description: Filter on map index for mapped task.
+
+    FilterTryNumber:
+      in: query
+      name: try_number
+      schema:
+        type: integer
+      description: Filter on try_number for task instance.
+
+    TaskInstanceOrderBy:
+      in: query
+      name: order_by
+      schema:
+        type: string
+      required: false
+      description: |
+        The name of the field to order the results by. Prefix a field name
+        with `-` to reverse the sort order. `order_by` defaults to
+        `map_index` when unspecified.
+        Supported field names: `state`, `duration`, `start_date`, `end_date`
+        and `map_index`.
+
+        *New in version 3.0.0*
 
     OrderBy:
       in: query
@@ -5621,6 +5988,13 @@ components:
           schema:
             $ref: "#/components/schemas/Error"
     # 409
+    "Conflict":
+      description: There is some kind of conflict with the request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    # 409
     "AlreadyExists":
       description: An existing resource conflicts with the request.
       content:
@@ -5663,12 +6037,12 @@ components:
 security: []
 
 tags:
+  - name: Asset
   - name: Config
   - name: Connection
   - name: DAG
   - name: DAGRun
   - name: DagWarning
-  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring

@@ -26,7 +26,8 @@ import pytest
 
 from airflow.security import kerberos
 from airflow.security.kerberos import renew_from_kt
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.integration("kerberos")

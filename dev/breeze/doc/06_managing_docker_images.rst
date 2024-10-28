@@ -22,7 +22,7 @@ Managing Docker images
 This document describes how to manage Breeze images CI and PROD - used to run containerized
 Airflow development environment and tests.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 CI Image tasks
 --------------
@@ -140,10 +140,10 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.8 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.9 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.8.
+Same as above but uses python 3.9.
 
 Building PROD image
 ...................

@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/papermill/index>
+    System Tests <_api/tests/system/papermill/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/tests/system/providers/papermill>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-papermill/|version|/providers/tests/system/papermill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-papermill package
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.7.0
+Release: 3.8.1
 
 Provider package
 ----------------
@@ -95,13 +95,15 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-==================  ==================
+==================  =========================================
 PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.7.0``
-``papermill[all]``  ``>=2.4.0``
+==================  =========================================
+``apache-airflow``  ``>=2.8.0``
+``papermill[all]``  ``>=2.6.0``
 ``scrapbook[all]``
 ``ipykernel``
-==================  ==================
+``pandas``          ``>=2.1.2,<2.2; python_version >= "3.9"``
+``pandas``          ``>=1.5.3,<2.2; python_version < "3.9"``
+==================  =========================================

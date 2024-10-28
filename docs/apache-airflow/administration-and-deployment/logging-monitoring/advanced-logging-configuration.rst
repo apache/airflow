@@ -161,3 +161,22 @@ Example of custom logger name:
               }
           },
       )
+
+If you want to limit the log size of the tasks, you can add the handlers.task.max_bytes parameter.
+
+Example of limiting the size of tasks:
+
+    .. code-block:: python
+
+      from copy import deepcopy
+      from pydantic.utils import deep_update
+      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+
+      LOGGING_CONFIG = deep_update(
+          deepcopy(DEFAULT_LOGGING_CONFIG),
+          {
+              "handlers": {
+                  "task": {"max_bytes": 104857600, "backup_count": 1}  # 100MB and keep 1 history rotate log.
+              }
+          },
+      )

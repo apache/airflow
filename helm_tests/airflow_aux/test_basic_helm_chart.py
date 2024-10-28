@@ -29,6 +29,45 @@ from tests.charts.helm_template_generator import render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
+DEFAULT_OBJECTS_STD_NAMING = {
+    ("ServiceAccount", "test-basic-airflow-create-user-job"),
+    ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
+    ("ServiceAccount", "test-basic-airflow-redis"),
+    ("ServiceAccount", "test-basic-airflow-scheduler"),
+    ("ServiceAccount", "test-basic-airflow-statsd"),
+    ("ServiceAccount", "test-basic-airflow-triggerer"),
+    ("ServiceAccount", "test-basic-airflow-webserver"),
+    ("ServiceAccount", "test-basic-airflow-worker"),
+    ("Secret", "test-basic-airflow-metadata"),
+    ("Secret", "test-basic-broker-url"),
+    ("Secret", "test-basic-fernet-key"),
+    ("Secret", "test-basic-airflow-webserver-secret-key"),
+    ("Secret", "test-basic-redis-password"),
+    ("Secret", "test-basic-postgresql"),
+    ("ConfigMap", "test-basic-airflow-config"),
+    ("ConfigMap", "test-basic-airflow-statsd"),
+    ("Role", "test-basic-airflow-pod-launcher-role"),
+    ("Role", "test-basic-airflow-pod-log-reader-role"),
+    ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
+    ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
+    ("Service", "test-basic-airflow-redis"),
+    ("Service", "test-basic-airflow-statsd"),
+    ("Service", "test-basic-airflow-triggerer"),
+    ("Service", "test-basic-airflow-webserver"),
+    ("Service", "test-basic-airflow-worker"),
+    ("Service", "test-basic-postgresql"),
+    ("Service", "test-basic-postgresql-hl"),
+    ("Deployment", "test-basic-airflow-scheduler"),
+    ("Deployment", "test-basic-airflow-statsd"),
+    ("Deployment", "test-basic-airflow-webserver"),
+    ("StatefulSet", "test-basic-airflow-redis"),
+    ("StatefulSet", "test-basic-airflow-worker"),
+    ("StatefulSet", "test-basic-airflow-triggerer"),
+    ("StatefulSet", "test-basic-postgresql"),
+    ("Job", "test-basic-airflow-create-user"),
+    ("Job", "test-basic-airflow-run-airflow-migrations"),
+}
+
 
 class TestBaseChartTest:
     """Tests basic helm chart tests."""
@@ -104,7 +143,7 @@ class TestBaseChartTest:
         if version == "default":
             expected.add(("Service", "test-basic-triggerer"))
         assert list_of_kind_names_tuples == expected
-        assert expected_object_count_in_basic_deployment == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment
         for k8s_object in k8s_objects:
             labels = jmespath.search("metadata.labels", k8s_object) or {}
             if "helm.sh/chart" in labels:
@@ -123,48 +162,21 @@ class TestBaseChartTest:
             "test-basic",
             {"useStandardNaming": True},
         )
-        list_of_kind_names_tuples = {
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
+        actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
+        assert actual == DEFAULT_OBJECTS_STD_NAMING
+
+    def test_basic_deployment_with_rpc_server(self):
+        extra_objects = {
+            ("Deployment", "test-basic-airflow-rpc-server"),
+            ("Service", "test-basic-airflow-rpc-server"),
+            ("ServiceAccount", "test-basic-airflow-rpc-server"),
         }
-        expected = {
-            ("ServiceAccount", "test-basic-airflow-create-user-job"),
-            ("ServiceAccount", "test-basic-airflow-migrate-database-job"),
-            ("ServiceAccount", "test-basic-airflow-redis"),
-            ("ServiceAccount", "test-basic-airflow-scheduler"),
-            ("ServiceAccount", "test-basic-airflow-statsd"),
-            ("ServiceAccount", "test-basic-airflow-triggerer"),
-            ("ServiceAccount", "test-basic-airflow-webserver"),
-            ("ServiceAccount", "test-basic-airflow-worker"),
-            ("Secret", "test-basic-airflow-metadata"),
-            ("Secret", "test-basic-broker-url"),
-            ("Secret", "test-basic-fernet-key"),
-            ("Secret", "test-basic-airflow-webserver-secret-key"),
-            ("Secret", "test-basic-redis-password"),
-            ("Secret", "test-basic-postgresql"),
-            ("ConfigMap", "test-basic-airflow-config"),
-            ("ConfigMap", "test-basic-airflow-statsd"),
-            ("Role", "test-basic-airflow-pod-launcher-role"),
-            ("Role", "test-basic-airflow-pod-log-reader-role"),
-            ("RoleBinding", "test-basic-airflow-pod-launcher-rolebinding"),
-            ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
-            ("Service", "test-basic-airflow-redis"),
-            ("Service", "test-basic-airflow-statsd"),
-            ("Service", "test-basic-airflow-triggerer"),
-            ("Service", "test-basic-airflow-webserver"),
-            ("Service", "test-basic-airflow-worker"),
-            ("Service", "test-basic-postgresql"),
-            ("Service", "test-basic-postgresql-hl"),
-            ("Deployment", "test-basic-airflow-scheduler"),
-            ("Deployment", "test-basic-airflow-statsd"),
-            ("Deployment", "test-basic-airflow-webserver"),
-            ("StatefulSet", "test-basic-airflow-redis"),
-            ("StatefulSet", "test-basic-airflow-worker"),
-            ("StatefulSet", "test-basic-airflow-triggerer"),
-            ("StatefulSet", "test-basic-postgresql"),
-            ("Job", "test-basic-airflow-create-user"),
-            ("Job", "test-basic-airflow-run-airflow-migrations"),
-        }
-        assert list_of_kind_names_tuples == expected
+        k8s_objects = render_chart(
+            "test-basic",
+            values={"_rpcServer": {"enabled": True}, "useStandardNaming": True},
+        )
+        actual = {(x["kind"], x["metadata"]["name"]) for x in k8s_objects}
+        assert actual == (DEFAULT_OBJECTS_STD_NAMING | extra_objects)
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
@@ -259,7 +271,7 @@ class TestBaseChartTest:
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
         assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
-        assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 2
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_statsd(self, version):
@@ -276,7 +288,7 @@ class TestBaseChartTest:
         assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
-        assert expected_object_count_in_basic_deployment - 4 == len(k8s_objects)
+        assert len(k8s_objects) == expected_object_count_in_basic_deployment - 4
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
@@ -511,7 +523,30 @@ class TestBaseChartTest:
             image: str = obj["image"]
             if image.startswith(image_repo):
                 # Make sure that a command is not specified
-                assert "command" not in obj
+                if obj["name"] == "rpc-server":
+                    assert obj["command"] == ["bash"]
+                else:
+                    assert "command" not in obj
+
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "LocalExecutor",
+            "LocalKubernetesExecutor",
+            "CeleryExecutor",
+            "KubernetesExecutor",
+            "CeleryKubernetesExecutor",
+            "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
+            "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
+        ],
+    )
+    def test_supported_executor(self, executor):
+        render_chart(
+            "test-basic",
+            {
+                "executor": executor,
+            },
+        )
 
     def test_unsupported_executor(self):
         with pytest.raises(CalledProcessError) as ex_ctx:
@@ -524,7 +559,9 @@ class TestBaseChartTest:
         assert (
             'executor must be one of the following: "LocalExecutor", '
             '"LocalKubernetesExecutor", "CeleryExecutor", '
-            '"KubernetesExecutor", "CeleryKubernetesExecutor"' in ex_ctx.value.stderr.decode()
+            '"KubernetesExecutor", "CeleryKubernetesExecutor", '
+            '"airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor", '
+            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"' in ex_ctx.value.stderr.decode()
         )
 
     @pytest.mark.parametrize(

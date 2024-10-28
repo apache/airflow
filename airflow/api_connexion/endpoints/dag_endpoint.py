@@ -39,6 +39,7 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -51,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag(
@@ -69,6 +71,7 @@ def get_dag(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag_details(
@@ -89,6 +92,7 @@ def get_dag_details(
     return dag_detail_schema.dump(dag_model)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -106,7 +110,7 @@ def get_dags(
 ) -> APIResponse:
     """Get all DAGs."""
     allowed_attrs = ["dag_id"]
-    dags_query = select(DagModel).where(~DagModel.is_subdag)
+    dags_query = select(DagModel)
     if only_active:
         dags_query = dags_query.where(DagModel.is_active)
     if paused is not None:
@@ -139,6 +143,7 @@ def get_dags(
         raise BadRequest("DAGCollectionSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT")
 @action_logging
 @provide_session
@@ -162,6 +167,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     return dag_schema.dump(dag)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT")
 @format_parameters({"limit": check_limit})
 @action_logging
@@ -179,10 +185,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         update_mask = update_mask[0]
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
+    dags_query = select(DagModel)
     if only_active:
-        dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
-    else:
-        dags_query = select(DagModel).where(~DagModel.is_subdag)
+        dags_query = dags_query.where(DagModel.is_active)
 
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
@@ -211,6 +216,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("DELETE")
 @action_logging
 @provide_session

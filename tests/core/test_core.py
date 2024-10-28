@@ -27,14 +27,15 @@ from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -78,7 +79,7 @@ class TestCore:
             except Exception:
                 pass
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             op = PythonOperator(
                 task_id="test_timeout",
                 execution_timeout=timedelta(seconds=1),
@@ -90,7 +91,7 @@ class TestCore:
 
     def test_task_fail_duration(self, dag_maker):
         """If a task fails, the duration should be recorded in TaskFail"""
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             op1 = BashOperator(task_id="pass_sleepy", bash_command="sleep 3")
             op2 = BashOperator(
                 task_id="fail_sleepy",
@@ -134,7 +135,7 @@ class TestCore:
         execution_ds = execution_date.strftime("%Y-%m-%d")
         execution_ds_nodash = execution_ds.replace("-", "")
 
-        with dag_maker(schedule=timedelta(weeks=1)):
+        with dag_maker(schedule=timedelta(weeks=1), serialized=True):
             task = EmptyOperator(task_id="test_externally_triggered_dag_context")
         dr = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
@@ -144,6 +145,7 @@ class TestCore:
         task.run(start_date=execution_date, end_date=execution_date)
 
         ti = TI(task=task, run_id=dr.run_id)
+        ti.refresh_from_db()
         context = ti.get_template_context()
 
         # next_ds should be the execution date for manually triggered runs
@@ -163,6 +165,7 @@ class TestCore:
         with dag_maker(
             schedule=timedelta(weeks=1),
             params={"key_1": "value_1", "key_2": "value_2_old"},
+            serialized=True,
         ):
             task1 = EmptyOperator(
                 task_id="task1",
@@ -177,6 +180,8 @@ class TestCore:
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti1 = TI(task=task1, run_id=dr.run_id)
         ti2 = TI(task=task2, run_id=dr.run_id)
+        ti1.refresh_from_db()
+        ti2.refresh_from_db()
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 

@@ -20,7 +20,7 @@
 {{ version }}
 {{ version_header }}
 
-{%- if WITH_BREAKING_CHANGES %}
+{%- if WITH_BREAKING_CHANGES and classified_changes.breaking_changes %}
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -29,7 +29,8 @@ Breaking changes
 {%- endfor %}
 {%- endif %}
 
-{%- if MAYBE_WITH_NEW_FEATURES %}
+
+{%- if MAYBE_WITH_NEW_FEATURES and classified_changes.features %}
 
 Features
 ~~~~~~~~
@@ -38,20 +39,31 @@ Features
 {%- endfor %}
 {%- endif %}
 
+
+{%- if classified_changes and classified_changes.fixes %}
+
 Bug Fixes
 ~~~~~~~~~
 {% for fix in classified_changes.fixes %}
 * ``{{ fix.message_without_backticks | safe }}``
 {%- endfor %}
+{%- endif %}
+
+
+{%- if classified_changes and classified_changes.misc %}
 
 Misc
 ~~~~
 {% for misc in classified_changes.misc %}
 * ``{{ misc.message_without_backticks | safe }}``
 {%- endfor %}
+{%- endif %}
+
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+{%- if classified_changes and classified_changes.other %}
    {%- for other in classified_changes.other %}
    * ``{{ other.message_without_backticks | safe }}``
    {%- endfor %}
+{%- endif %}

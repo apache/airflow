@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/kylin/index>
+    System Tests <_api/tests/system/apache/kylin/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/tests/system/providers/apache/kylin>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kylin/|version|/providers/tests/system/apache/kylin>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kylin/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-apache-kylin package
 `Apache Kylin <https://kylin.apache.org/>`__
 
 
-Release: 3.6.0
+Release: 3.7.0
 
 Provider package
 ----------------
@@ -94,11 +94,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
-``kylinpy``         ``>=2.6``
+``apache-airflow``  ``>=2.8.0``
+``kylinpy``         ``>=2.7.0``
 ==================  ==================

@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Use libyaml for YAML dump/load operations where possible.
+"""
+Use libyaml for YAML dump/load operations where possible.
 
 If libyaml is available we will use it -- it is significantly faster.
 

@@ -28,6 +28,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag to set for the image"
         required: true
         type: string
+      canary-run:
+        description: "Whether this is a canary run"
+        required: true
+        type: string
       default-python-version:
         description: "Which version of python should be used by default"
         required: true
@@ -43,7 +47,11 @@ on:  # yamllint disable-line rule:truthy
       providers-compatibility-checks:
         description: >
           JSON-formatted array of providers compatibility checks in the form of array of dicts
-          (airflow-version, python-versions, remove-providers)
+          (airflow-version, python-versions, remove-providers, run-tests)
+        required: true
+        type: string
+      providers-test-types-list-as-string:
+        description: "List of parallel provider test types as string"
         required: true
         type: string
       skip-provider-tests:
@@ -100,6 +108,10 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: Remove Python 3.9-incompatible provider packages
+        run: |
+          echo "Removing Python 3.9-incompatible provider: cloudant"
+          rm -vf dist/apache_airflow_providers_cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -205,6 +217,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
+      CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
     if: inputs.skip-provider-tests != 'true'
     steps:
       - name: "Cleanup repo"
@@ -228,8 +241,10 @@ jobs:
           Remove incompatible Airflow
           ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }} provider packages
         run: |
-          rm -vf ${{ matrix.remove-providers }}
-        working-directory: ./dist
+          for provider in ${{ matrix.remove-providers }}; do
+            echo "Removing incompatible provider: ${provider}"
+            rm -vf dist/apache_airflow_providers_${provider/./_}*
+          done
         if: matrix.remove-providers != ''
       - name: "Download airflow package: wheel"
         run: |
@@ -237,6 +252,9 @@ jobs:
       - name: >
           Install and verify all provider packages and airflow on
           Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+        # We do not need to run import check if we run tests, the tests should cover all the import checks
+        # automatically
+        if: matrix.run-tests != 'true'
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
@@ -245,3 +263,17 @@ jobs:
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
           --install-airflow-with-constraints
+      - name: >
+          Run provider unit tests on
+          Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
+        if: matrix.run-tests == 'true'
+        run: >
+          breeze testing tests --run-in-parallel
+          --parallel-test-types "${{ inputs.providers-test-types-list-as-string }}"
+          --use-packages-from-dist
+          --package-format wheel
+          --use-airflow-version "${{ matrix.airflow-version }}"
+          --airflow-constraints-reference constraints-${{matrix.airflow-version}}
+          --install-airflow-with-constraints
+          --providers-skip-constraints
+          --skip-providers "${{ matrix.remove-providers }}"

@@ -24,6 +24,10 @@ Java Database Connectivity (JDBC) is an application programming interface
 (API) for the programming language Java, which defines how a client may
 access a database.
 
+.. warning::
+    Previously, JdbcOperator was used to perform this kind of operation. But at the moment JdbcOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
+
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -63,13 +67,13 @@ database is listening for new connections.
 
 Usage
 ^^^^^
-Use the :class:`~airflow.providers.jdbc.operators.jdbc` to execute
+Use the :class:`~airflow.providers.common.sql.operators.SQLExecuteQueryOperator` to execute
 commands against a database (or data storage) accessible via a JDBC driver.
 
 The :doc:`JDBC Connection <connections/jdbc>` must be passed as
-``jdbc_conn_id``.
+``conn_id``.
 
-.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
+.. exampleinclude:: /../../providers/tests/system/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc]
     :end-before: [END howto_operator_jdbc]
@@ -87,7 +91,7 @@ Templating
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
-.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
+.. exampleinclude:: /../../providers/tests/system/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc_template]
     :end-before: [END howto_operator_jdbc_template]

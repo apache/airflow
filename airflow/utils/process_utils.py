@@ -162,14 +162,17 @@ def reap_process_group(
     return returncodes
 
 
-def execute_in_subprocess(cmd: list[str], cwd: str | None = None) -> None:
+def execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict | None = None) -> None:
     """
     Execute a process and stream output to logger.
 
     :param cmd: command and arguments to run
     :param cwd: Current working directory passed to the Popen constructor
+    :param env: Additional environment variables to set for the subprocess. If None,
+        the subprocess will inherit the current environment variables of the parent process
+        (``os.environ``)
     """
-    execute_in_subprocess_with_kwargs(cmd, cwd=cwd)
+    execute_in_subprocess_with_kwargs(cmd, cwd=cwd, env=env)
 
 
 def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
@@ -329,7 +332,8 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
 
 
 def set_new_process_group() -> None:
-    """Try to set current process to a new process group.
+    """
+    Try to set current process to a new process group.
 
     That makes it easy to kill all sub-process of this at the OS-level,
     rather than having to iterate the child processes.

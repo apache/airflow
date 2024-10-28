@@ -22,7 +22,7 @@ Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow tes
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Running tests
 -------------
@@ -207,6 +207,27 @@ Here is the detailed set of options for the ``breeze testing non-db-tests`` comm
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_non-db-tests.svg
   :width: 100%
   :alt: Breeze testing non-db-tests
+
+
+Using ``breeze testing task-sdk-tests`` command
+............................................
+
+The ``breeze testing task-sdk-tests`` command is simplified version of the ``breeze testing tests`` command
+that allows you to run tests for Task SDK without initializing database. The Task SDK should not need
+database to be started so this acts as a good check to see if the Task SDK tests are working properly.
+
+Run all Task SDK tests:
+
+.. code-block:: bash
+
+   breeze testing task-sdk-tests
+
+Here is the detailed set of options for the ``breeze testing task-sdk-tests`` command.
+
+.. image:: ./images/output_testing_task-sdk-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_task-sdk-tests.svg
+  :width: 100%
+  :alt: Breeze testing task-sdk-tests
 
 
 Running integration tests

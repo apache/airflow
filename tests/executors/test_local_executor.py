@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestLocalExecutor:

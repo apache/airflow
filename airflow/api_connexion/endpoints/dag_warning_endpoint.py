@@ -50,7 +50,8 @@ def get_dag_warnings(
     order_by: str = "timestamp",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get DAG warnings.
+    """
+    Get DAG warnings.
 
     :param dag_id: the dag_id to optionally filter by
     :param warning_type: the warning type to optionally filter by

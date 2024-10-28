@@ -19,11 +19,12 @@
 name: Tests
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '28 0 * * *'
+    - cron: '28 1,7,13,19 * * *'
   push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
+    branches: ['v[0-9]+-[0-9]+-test']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+  workflow_dispatch:
 permissions:
   # All other permissions are set to none
   contents: read
@@ -38,6 +39,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
 concurrency:
@@ -55,6 +57,7 @@ jobs:
     outputs:
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
       affected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -74,9 +77,14 @@ jobs:
       default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
       default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
       default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
+      force-pip: ${{ steps.selective-checks.outputs.force-pip }}
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      providers-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+      separate-test-types-list-as-string: >-
+        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
       include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
@@ -84,13 +92,15 @@ jobs:
       skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+      run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+      run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
-      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
+      mypy-checks: ${{ steps.selective-checks.outputs.mypy-checks }}
       needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
       needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
@@ -100,11 +110,14 @@ jobs:
       docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
+      excluded-providers-as-string: ${{ steps.selective-checks.outputs.excluded-providers-as-string }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+      runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
       runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
       runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
@@ -118,6 +131,7 @@ jobs:
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+      testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -160,6 +174,7 @@ jobs:
     uses: ./.github/workflows/basic-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: ${{needs.build-info.outputs.default-python-version}}
@@ -167,6 +182,7 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+      enable-aip-44: "false"
 
   build-ci-images:
     name: >
@@ -190,10 +206,11 @@ jobs:
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
+      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -250,10 +267,12 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
 
 
   generate-constraints:
@@ -278,9 +297,10 @@ jobs:
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      mypy-checks: ${{ needs.build-info.outputs.mypy-checks }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -304,17 +324,19 @@ jobs:
       packages: read
     secrets: inherit
     if: >
-      needs.build-info.outputs.skip-providers-tests != 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true' &&
       needs.build-info.outputs.latest-versions-only != 'true'
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
       providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
 
   tests-helm:
     name: "Helm tests"
@@ -351,6 +373,7 @@ jobs:
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -375,6 +398,7 @@ jobs:
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -401,6 +425,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       # No versions for sqlite
       backend-versions: "['']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -427,6 +452,7 @@ jobs:
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       # No versions for non-db
       backend-versions: "['']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -453,7 +479,9 @@ jobs:
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -467,17 +495,43 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
       skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
+
+  tests-with-lowest-direct-resolution:
+    name: "Lowest direct dependency resolution tests"
+    needs: [build-info, wait-for-ci-images]
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    if: >
+      needs.build-info.outputs.run-tests == 'true'
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      test-name: "LowestDeps-Postgres"
+      force-lowest-dependencies: "true"
+      test-scope: "All"
+      backend: "postgres"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+      excludes: "[]"
+      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      monitor-delay-time-in-seconds: 120
 
   build-prod-images:
     name: >
@@ -504,12 +558,13 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
-      use-uv: ${{ needs.build-info.outputs.default-branch == 'main' && 'true' || 'false' }}
+      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
 
   wait-for-prod-images:
     timeout-minutes: 80
@@ -566,6 +621,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -590,6 +646,24 @@ jobs:
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true')
 
+  tests-task-sdk:
+    name: "Task SDK tests"
+    uses: ./.github/workflows/task-sdk-tests.yml
+    needs: [build-info, wait-for-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
+    if: >
+      ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
+      needs.build-info.outputs.run-tests == 'true')
+
   finalize-tests:
     name: Finalize tests
     permissions:
@@ -607,7 +681,6 @@ jobs:
       - tests-postgres
       - tests-non-db
       - tests-integration
-      - tests-special
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
@@ -622,4 +695,43 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+
+  notify-slack-failure:
+    name: "Notify Slack on Failure"
+    needs:
+      - basic-tests
+      - additional-ci-image-checks
+      - providers
+      - tests-helm
+      - tests-special
+      - tests-with-lowest-direct-resolution
+      - additional-prod-image-tests
+      - tests-kubernetes
+      - finalize-tests
+    if: github.event_name == 'schedule' && failure()
+    runs-on: ["ubuntu-22.04"]
+    steps:
+      - name: Notify Slack
+        id: slack
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: 'internal-airflow-ci-cd'
+          # yamllint disable rule:line-length
+          payload: |
+            {
+              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  }
+                }
+              ]
+            }
+          # yamllint enable rule:line-length
+        env:
+          SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

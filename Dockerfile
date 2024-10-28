@@ -45,12 +45,17 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.9.0"
+ARG AIRFLOW_VERSION="2.10.2"
 
-ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.35
+
+# You can swap comments between those two args to test pip from the main version
+# When you attempt to test if the version of `pip` from specified branch works for our builds
+# Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
+ARG AIRFLOW_PIP_VERSION=24.3.1
+# ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
+ARG AIRFLOW_UV_VERSION=0.4.27
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -124,11 +129,7 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
-    else
-        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
-    fi
+    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -177,19 +178,6 @@ function install_debian_dev_dependencies() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        echo
-        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
-        echo
-        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
-        echo
-        echo "Replaced bullseye dev apt dependencies"
-        echo "${ADDITIONAL_DEV_APT_COMMAND}"
-        echo
-    fi
-
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
@@ -532,8 +520,6 @@ function common::get_colors() {
 }
 
 function common::get_packaging_tool() {
-    : "${AIRFLOW_PIP_VERSION:?Should be set}"
-    : "${AIRFLOW_UV_VERSION:?Should be set}"
     : "${AIRFLOW_USE_UV:?Should be set}"
 
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
@@ -555,6 +541,8 @@ function common::get_packaging_tool() {
         fi
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
         export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -627,7 +615,12 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
         echo
     fi
-    if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_PIP_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest pip version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade pip
+    elif [[ ! ${AIRFLOW_PIP_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
         echo
@@ -640,11 +633,15 @@ function common::install_packaging_tools() {
             echo
             echo "${COLOR_BLUE}(Re)Installing pip version: ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
             echo
-            # shellcheck disable=SC2086
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ! ${AIRFLOW_UV_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade uv
+    elif [[ ! ${AIRFLOW_UV_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing uv version from spec ${AIRFLOW_UV_VERSION}${COLOR_RESET}"
         echo
@@ -879,11 +876,31 @@ COPY <<"EOF" /install_airflow.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
+    # Remove mysql from extras if client is not going to be installed
+    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
+        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
+    fi
+    # Remove postgres from extras if client is not going to be installed
+    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
+        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
+        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
+    fi
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # We need _a_ file in there otherwise the editable install doesn't include anything in the .pth file
+        mkdir -p ./providers/src/airflow/providers/
+        touch ./providers/src/airflow/providers/__init__.py
+
+        # Similarly we need _a_ file for task_sdk too
+        mkdir -p ./task_sdk/src/airflow/sdk/
+        touch ./task_sdk/src/airflow/__init__.py
+
+        trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
+
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers --editable ./task_sdk"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
@@ -895,16 +912,6 @@ function install_airflow() {
         echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
         echo
         exit 1
-    fi
-    # Remove mysql from extras if client is not going to be installed
-    if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
-        echo "${COLOR_YELLOW}MYSQL client installation is disabled. Extra 'mysql' installations were therefore omitted.${COLOR_RESET}"
-    fi
-    # Remove postgres from extras if client is not going to be installed
-    if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
-        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
-        echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
     if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
@@ -1028,27 +1035,6 @@ common::show_packaging_tool_version_and_location
 create_prod_venv
 common::install_packaging_tools
 EOF
-
-# The content below is automatically copied from scripts/docker/create_prod_venv.sh
-COPY <<"EOF" /create_prod_venv.sh
-#!/usr/bin/env bash
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-function create_prod_venv() {
-    echo
-    echo "${COLOR_BLUE}Removing ${HOME}/.local and re-creating it as virtual environment.${COLOR_RESET}"
-    rm -rf ~/.local
-    python -m venv ~/.local
-    echo "${COLOR_BLUE}The ${HOME}/.local virtualenv created.${COLOR_RESET}"
-}
-
-common::get_colors
-common::get_packaging_tool
-common::show_packaging_tool_version_and_location
-create_prod_venv
-common::install_packaging_tools
-EOF
-
 
 
 # The content below is automatically copied from scripts/docker/entrypoint_prod.sh

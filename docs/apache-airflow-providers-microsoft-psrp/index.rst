@@ -70,7 +70,7 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 2.7.0
+Release: 2.8.0
 
 Provider package
 ----------------
@@ -88,11 +88,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ``pypsrp``          ``>=0.8.0``
 ==================  ==================

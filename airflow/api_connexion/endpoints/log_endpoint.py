@@ -30,6 +30,7 @@ from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_sch
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
 from airflow.models import TaskInstance, Trigger
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -75,6 +76,7 @@ def get_log(
 
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
+
     query = (
         select(TaskInstance)
         .where(
@@ -87,6 +89,16 @@ def get_log(
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
     ti = session.scalar(query)
+    if ti is None:
+        query = select(TaskInstanceHistory).where(
+            TaskInstanceHistory.task_id == task_id,
+            TaskInstanceHistory.dag_id == dag_id,
+            TaskInstanceHistory.run_id == dag_run_id,
+            TaskInstanceHistory.map_index == map_index,
+            TaskInstanceHistory.try_number == task_try_number,
+        )
+        ti = session.scalar(query)
+
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")

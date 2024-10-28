@@ -29,6 +29,7 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.traces.tracer import Trace, add_span
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
@@ -59,6 +60,7 @@ class SequentialExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
 
+    @add_span
     def execute_async(
         self,
         key: TaskInstanceKey,
@@ -68,6 +70,14 @@ class SequentialExecutor(BaseExecutor):
     ) -> None:
         self.validate_airflow_tasks_run_command(command)
         self.commands_to_run.append((key, command))
+
+        span = Trace.get_current_span()
+        if span.is_recording():
+            span.set_attribute("dag_id", key.dag_id)
+            span.set_attribute("run_id", key.run_id)
+            span.set_attribute("task_id", key.task_id)
+            span.set_attribute("try_number", key.try_number)
+            span.set_attribute("commands_to_run", str(self.commands_to_run))
 
     def sync(self) -> None:
         for key, command in self.commands_to_run:

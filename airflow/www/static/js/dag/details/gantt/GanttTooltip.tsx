@@ -21,10 +21,15 @@ import React from "react";
 import { Box, Text } from "@chakra-ui/react";
 import { getDuration, formatDuration } from "src/datetime_utils";
 import Time from "src/components/Time";
-import type { Task, TaskInstance } from "src/types";
+import type { Task, API } from "src/types";
+
+type Instance = Pick<
+  API.TaskInstance,
+  "startDate" | "endDate" | "tryNumber" | "queuedWhen"
+>;
 
 interface Props {
-  instance: TaskInstance;
+  instance: Instance;
   task: Task;
 }
 
@@ -35,20 +40,18 @@ const GanttTooltip = ({ task, instance }: Props) => {
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
   const queuedDuration =
-    instance?.queuedDttm &&
-    (instance?.startDate ? instance.queuedDttm < instance.startDate : true)
-      ? getDuration(instance.queuedDttm, instance?.startDate)
+    instance?.queuedWhen &&
+    (instance?.startDate ? instance.queuedWhen < instance.startDate : true)
+      ? getDuration(instance.queuedWhen, instance?.startDate)
       : 0;
   return (
     <Box>
       <Text>
         Task{isGroup ? " Group" : ""}: {task.label}
       </Text>
-      {!!instance?.tryNumber && instance.tryNumber > 1 && (
-        <Text>Try Number: {instance.tryNumber}</Text>
-      )}
+      {!!instance?.tryNumber && <Text>Try Number: {instance.tryNumber}</Text>}
       <br />
-      {instance?.queuedDttm && (
+      {instance?.queuedWhen && (
         <Text>
           {isMappedOrGroupSummary && "Total "}Queued Duration:{" "}
           {formatDuration(queuedDuration)}
@@ -59,10 +62,10 @@ const GanttTooltip = ({ task, instance }: Props) => {
         {formatDuration(taskDuration)}
       </Text>
       <br />
-      {instance?.queuedDttm && (
+      {instance?.queuedWhen && (
         <Text>
           {isMappedOrGroupSummary && "Earliest "}Queued At:{" "}
-          <Time dateTime={instance?.queuedDttm} />
+          <Time dateTime={instance?.queuedWhen} />
         </Text>
       )}
       {instance?.startDate && (

@@ -39,6 +39,7 @@ function start_arm_instance() {
         --region "${REGION}" \
         --image-id "${ARM_AMI}" \
         --count 1 \
+        --block-device-mappings "[{\"DeviceName\":\"/dev/xvda\",\"Ebs\":{\"VolumeSize\":16}}]" \
         --instance-type "${INSTANCE_TYPE}" \
         --user-data "file://${USER_DATA_FILE}" \
         --instance-market-options "${MARKET_OPTIONS}" \

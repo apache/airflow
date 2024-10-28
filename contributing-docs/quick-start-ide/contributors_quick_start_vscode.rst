@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Setup your project
 ##################
@@ -72,8 +72,7 @@ Setting up debugging
 
 
     if __name__ == "__main__":
-        dag.clear()
-        dag.run()
+        dag.test()
 
 - Add ``"AIRFLOW__CORE__EXECUTOR": "DebugExecutor"`` to the ``"env"`` field of Debug configuration.
 

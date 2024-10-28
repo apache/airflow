@@ -35,14 +35,71 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.2
+.....
+
+Latest change: 2024-10-08
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+=================================================================================================  ===========  ==================================================================
+
+1.4.1
+.....
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`7a75f0a2bc <https://github.com/apache/airflow/commit/7a75f0a2bc6f964a943db98946ce652c43942180>`_  2024-09-01   ``Protect against None components of universal pathlib xcom backend (#41921)``
+=================================================================================================  ===========  ==============================================================================
+
+1.4.0
+.....
+
+Latest change: 2024-08-03
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`0206a4cbcf <https://github.com/apache/airflow/commit/0206a4cbcfbf85ab035c25533b12f022c22cae3a>`_  2024-07-23   ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+`8a912f9fa0 <https://github.com/apache/airflow/commit/8a912f9fa00bf25763e70323f15eef5f94826495>`_  2024-07-23   ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+`0212f67192 <https://github.com/apache/airflow/commit/0212f671921fc5da15085eefbde8b0a76db40fd9>`_  2024-07-22   ``openlineage: add support for hook lineage for S3Hook (#40819)``
+`ee2be505ec <https://github.com/apache/airflow/commit/ee2be505ec25eb26a7928a5a5ae2b04c7efa8513>`_  2024-07-16   ``openlineage: add file dataset type support into common.io provider (#40817)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ===============================================================================
+
+1.3.2
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`61710518ab <https://github.com/apache/airflow/commit/61710518abf5a59e45201f8ff8850c104f12c903>`_  2024-05-22   ``fix: OpenLineage in FileTransferOperator for Airflow 2.8 (#39755)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  =====================================================================
+
 1.3.1
 .....
 
-Latest change: 2024-04-02
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `62f948cd30 <https://github.com/apache/airflow/commit/62f948cd309f4adeb6b15a2b634a66bfc87159cc>`_  2024-04-02   ``Improve XComObjectStorageBackend implementation (#38608)``
 `0371ea8f4e <https://github.com/apache/airflow/commit/0371ea8f4e6b53580a0c0ed3cd553b800028d53d>`_  2024-03-29   ``Rename to XComObjectStorageBackend (#38607)``
 `2227414489 <https://github.com/apache/airflow/commit/2227414489877cb19cceac16aa3cc2be89a31a60>`_  2024-03-27   ``Turn common.io xcom exception into OptionalProviderFeatureException (#38543)``

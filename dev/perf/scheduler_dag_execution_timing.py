@@ -29,6 +29,7 @@ from operator import attrgetter
 import rich_click as click
 
 from airflow.jobs.job import run_job
+from airflow.utils.types import DagRunTriggeredByType
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -106,7 +107,7 @@ def get_executor_under_test(dotted_path):
     from airflow.executors.executor_loader import ExecutorLoader
 
     if dotted_path == "MockExecutor":
-        from tests.test_utils.mock_executor import MockExecutor as executor
+        from tests_common.test_utils.mock_executor import MockExecutor as executor
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)
@@ -177,6 +178,7 @@ def create_dag_runs(dag, num_runs, session):
             state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         last_dagrun_data_interval = next_info.data_interval
 

@@ -25,16 +25,18 @@ import os
 import sys
 import traceback
 import warnings
+from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable
 
 import pluggy
+from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from airflow import policies
+from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -60,6 +62,14 @@ except Exception:
 
 log.info("Configured default timezone %s", TIMEZONE)
 
+if conf.has_option("database", "sql_alchemy_session_maker"):
+    log.info(
+        '[Warning] Found config "sql_alchemy_session_maker", make sure you know what you are doing.\n'
+        "[Warning] Improper configuration of sql_alchemy_session_maker can lead to serious issues, "
+        "including data corruption, unrecoverable application crashes.\n"
+        "[Warning] Please review the SQLAlchemy documentation for detailed guidance on "
+        "proper configuration and best practices."
+    )
 
 HEADER = "\n".join(
     [
@@ -106,7 +116,6 @@ STATE_COLORS = {
     "up_for_reschedule": "turquoise",
     "up_for_retry": "gold",
     "upstream_failed": "orange",
-    "shutdown": "blue",
 }
 
 
@@ -121,16 +130,19 @@ def _get_rich_console(file):
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
     """Print rich and visible warnings."""
     # Delay imports until we need it
+    import re2
     from rich.markup import escape
 
+    re2_escape_regex = re2.compile(r"(\\*)(\[[a-z#/@][^[]*?])").sub
     msg = f"[bold]{line}" if line else f"[bold][yellow]{filename}:{lineno}"
-    msg += f" {category.__name__}[/bold]: {escape(str(message))}[/yellow]"
+    msg += f" {category.__name__}[/bold]: {escape(str(message), _escape=re2_escape_regex)}[/yellow]"
     write_console = _get_rich_console(file or sys.stderr)
     write_console.print(msg, soft_wrap=True)
 
 
 def replace_showwarning(replacement):
-    """Replace ``warnings.showwarning``, returning the original.
+    """
+    Replace ``warnings.showwarning``, returning the original.
 
     This is useful since we want to "reset" the ``showwarning`` hook on exit to
     avoid lazy-loading issues. If a warning is emitted after Python cleaned up
@@ -207,6 +219,31 @@ def configure_vars():
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
+def _run_openlineage_runtime_check():
+    """
+    Ensure compatibility of OpenLineage provider package and Airflow version.
+
+    Airflow 2.10.0 introduced some core changes (#39336) that made versions <= 1.8.0 of OpenLineage
+    provider incompatible with future Airflow versions (>= 2.10.0).
+    """
+    ol_package = "apache-airflow-providers-openlineage"
+    try:
+        ol_version = metadata.version(ol_package)
+    except metadata.PackageNotFoundError:
+        return
+
+    if ol_version and Version(ol_version) < Version("1.8.0.dev0"):
+        raise RuntimeError(
+            f"You have installed `{ol_package}` == `{ol_version}` that is not compatible with "
+            f"`apache-airflow` == `{airflow_version}`. "
+            f"For `apache-airflow` >= `2.10.0` you must use `{ol_package}` >= `1.8.0`."
+        )
+
+
+def run_providers_custom_runtime_checks():
+    _run_openlineage_runtime_check()
+
+
 class SkipDBTestsSession:
     """
     This fake session is used to skip DB tests when `_AIRFLOW_SKIP_DB_TESTS` is set.
@@ -226,6 +263,25 @@ class SkipDBTestsSession:
     def remove(*args, **kwargs):
         pass
 
+    def get_bind(
+        self,
+        mapper=None,
+        clause=None,
+        bind=None,
+        _sa_skip_events=None,
+        _sa_skip_for_implicit_returning=False,
+    ):
+        pass
+
+
+def get_cleaned_traceback(stack_summary: traceback.StackSummary) -> str:
+    clened_traceback = [
+        frame
+        for frame in stack_summary[:-2]
+        if "/_pytest" not in frame.filename and "/pluggy" not in frame.filename
+    ]
+    return "".join(traceback.format_list(clened_traceback))
+
 
 class TracebackSession:
     """
@@ -244,24 +300,138 @@ class TracebackSession:
             "TracebackSession object was used but internal API is enabled. "
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was created."
-            + "\n".join(traceback.format_list(self.traceback))
+            + get_cleaned_traceback(self.traceback)
         )
 
     def remove(*args, **kwargs):
         pass
 
 
+AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
+AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
+AIRFLOW_SETTINGS_PATH = os.path.join(AIRFLOW_PATH, "airflow", "settings.py")
+AIRFLOW_UTILS_SESSION_PATH = os.path.join(AIRFLOW_PATH, "airflow", "utils", "session.py")
+AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(AIRFLOW_PATH, "airflow", "models", "baseoperator.py")
+
+
+class TracebackSessionForTests:
+    """
+    Session that throws error when you try to create a session outside of the test code.
+
+    When we run our tests in "db isolation" mode we expect that "airflow" code will never create
+    a session on its own and internal_api server is used for all calls but the test code might use
+    the session to setup and teardown in the DB so that the internal API server accesses it.
+
+    :meta private:
+    """
+
+    db_session_class = None
+    allow_db_access = False
+    """For pytests to create/prepare stuff where explicit DB access it needed"""
+
+    def __init__(self):
+        self.current_db_session = TracebackSessionForTests.db_session_class()
+        self.created_traceback = traceback.extract_stack()
+
+    def __getattr__(self, item):
+        test_code, frame_summary = self.is_called_from_test_code()
+        if self.allow_db_access or test_code:
+            return getattr(self.current_db_session, item)
+        raise RuntimeError(
+            "TracebackSessionForTests object was used but internal API is enabled. "
+            "Only test code is allowed to use this object.\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
+            f"     {frame_summary.line}\n\n"
+            "You'll need to ensure you are making only RPC calls with this object. "
+            "The stack list below will show where the TracebackSession object was called:\n"
+            + get_cleaned_traceback(self.traceback)
+            + "\n\nThe stack list below will show where the TracebackSession object was created:\n"
+            + get_cleaned_traceback(self.created_traceback)
+        )
+
+    def remove(*args, **kwargs):
+        pass
+
+    @staticmethod
+    def set_allow_db_access(session, flag: bool):
+        """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
+        if isinstance(session, TracebackSessionForTests):
+            session.allow_db_access = flag
+
+    def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
+        """
+        Check if the traceback session was used from the test code.
+
+        This is done by checking if the first "airflow" filename in the traceback
+        is "airflow/tests" or "regular airflow".
+
+        :meta: private
+        :return: True if the object was created from test code, False otherwise.
+        """
+        self.traceback = traceback.extract_stack()
+        airflow_frames = [
+            tb
+            for tb in self.traceback
+            if tb.filename.startswith(AIRFLOW_PATH)
+            and not tb.filename == AIRFLOW_SETTINGS_PATH
+            and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
+        ]
+        if any(
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
+            for filename, _, _, _ in airflow_frames
+        ):
+            # This is a fixture call or testing utilities
+            return True, None
+        if (
+            len(airflow_frames) >= 2
+            and airflow_frames[-2].filename.startswith(AIRFLOW_TESTS_PATH)
+            and airflow_frames[-1].filename == AIRFLOW_MODELS_BASEOPERATOR_PATH
+            and airflow_frames[-1].name == "run"
+        ):
+            # This is baseoperator run method that is called directly from the test code and this is
+            # usual pattern where we create a session in the test code to create dag_runs for tests.
+            # If `run` code will be run inside a real "airflow" code the stack trace would be longer
+            # and it would not be directly called from the test code. Also if subsequently any of the
+            # run_task() method called later from the task code will attempt to execute any DB
+            # method, the stack trace will be longer and we will catch it as "illegal" call.
+            return True, None
+        for tb in airflow_frames[::-1]:
+            if tb.filename.startswith(AIRFLOW_PATH):
+                if tb.filename.startswith(AIRFLOW_TESTS_PATH):
+                    # this is a session created directly in the test code
+                    return True, None
+                else:
+                    return False, tb
+        # if it is from elsewhere.... Why???? We should return False in order to crash to find out
+        # The traceback line will be always 3rd (two bottom ones are Airflow)
+        return False, self.traceback[-2]
+
+
+def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
+    """Determine whether the database connection URI specifies a relative path."""
+    # Check for non-empty connection string:
+    if not sqla_conn_str:
+        return False
+    # Check for the right URI scheme:
+    if not sqla_conn_str.startswith("sqlite"):
+        return False
+    # In-memory is not useful for production, but useful for writing tests against Airflow for extensions
+    if sqla_conn_str == "sqlite://":
+        return False
+    # Check for absolute path:
+    if sqla_conn_str.startswith(abs_prefix := "sqlite:///") and os.path.isabs(
+        sqla_conn_str[len(abs_prefix) :]
+    ):
+        return False
+    return True
+
+
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
 
-    if (
-        SQL_ALCHEMY_CONN
-        and SQL_ALCHEMY_CONN.startswith("sqlite")
-        and not SQL_ALCHEMY_CONN.startswith("sqlite:////")
-        # In memory is not useful for production, but useful for writing tests against Airflow for extensions
-        and SQL_ALCHEMY_CONN != "sqlite://"
-    ):
+    if _is_sqlite_db_path_relative(SQL_ALCHEMY_CONN):
         from airflow.exceptions import AirflowConfigException
 
         raise AirflowConfigException(
@@ -271,16 +441,15 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    from airflow.api_internal.internal_api_call import InternalApiConfig
-
-    if InternalApiConfig.get_use_internal_api():
-        Session = TracebackSession
-        engine = None
-        return
-    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
+        return
+    if conf.get("database", "sql_alchemy_conn") == "none://":
+        from airflow.api_internal.internal_api_call import InternalApiConfig
+
+        InternalApiConfig.set_use_internal_api("ORM reconfigured in forked process.")
         return
     log.debug("Setting up DB connection pool (PID %s)", os.getpid())
     engine_args = prepare_engine_args(disable_connection_pool, pool_class)
@@ -296,14 +465,38 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     setup_event_handlers(engine)
 
-    Session = scoped_session(
-        sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=engine,
-            expire_on_commit=False,
-        )
-    )
+    if conf.has_option("database", "sql_alchemy_session_maker"):
+        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+    else:
+
+        def _session_maker(_engine):
+            return sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=_engine,
+                expire_on_commit=False,
+            )
+
+    Session = scoped_session(_session_maker(engine))
+
+
+def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
+    log.info("Forcing TracebackSession for untrusted components.")
+    global Session
+    global engine
+    if allow_tests_to_use_db:
+        old_session_class = Session
+        Session = TracebackSessionForTests
+        TracebackSessionForTests.db_session_class = old_session_class
+    else:
+        try:
+            dispose_orm()
+        except NameError:
+            # This exception might be thrown in case the ORM has not been initialized yet.
+            pass
+        else:
+            Session = TracebackSession
+        engine = None
 
 
 DEFAULT_ENGINE_ARGS = {
@@ -461,11 +654,8 @@ def configure_action_logging() -> None:
     """Any additional configuration (register callback) for airflow.utils.action_loggers module."""
 
 
-def prepare_syspath():
-    """Ensure certain subfolders of AIRFLOW_HOME are on the classpath."""
-    if DAGS_FOLDER not in sys.path:
-        sys.path.append(DAGS_FOLDER)
-
+def prepare_syspath_for_config_and_plugins():
+    """Update sys.path for the config and plugins directories."""
     # Add ./config/ for loading custom log parsers etc, or
     # airflow_local_settings etc.
     config_path = os.path.join(AIRFLOW_HOME, "config")
@@ -476,28 +666,16 @@ def prepare_syspath():
         sys.path.append(PLUGINS_FOLDER)
 
 
+def prepare_syspath_for_dags_folder():
+    """Update sys.path to include the DAGs folder."""
+    if DAGS_FOLDER not in sys.path:
+        sys.path.append(DAGS_FOLDER)
+
+
 def get_session_lifetime_config():
     """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
-    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        "webserver", "force_log_out_after", fallback=None
-    )
-
     minutes_per_day = 24 * 60
-    default_lifetime_minutes = "43200"
-    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
-        warnings.warn(
-            "`session_lifetime_days` option from `[webserver]` section has been "
-            "renamed to `session_lifetime_minutes`. The new option allows to configure "
-            "session lifetime in minutes. The `force_log_out_after` option has been removed "
-            "from `[webserver]` section. Please update your configuration.",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if session_lifetime_days:
-            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
-
     if not session_lifetime_minutes:
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
@@ -529,16 +707,6 @@ def import_local_settings():
         else:
             names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
-        if "policy" in names and "task_policy" not in names:
-            warnings.warn(
-                "Using `policy` in airflow_local_settings.py is deprecated. "
-                "Please rename your `policy` to `task_policy`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            setattr(airflow_local_settings, "task_policy", airflow_local_settings.policy)
-            names.remove("policy")
-
         plugin_functions = policies.make_plugin_from_local_settings(
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
@@ -557,12 +725,13 @@ def import_local_settings():
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
-    prepare_syspath()
+    prepare_syspath_for_config_and_plugins()
     configure_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)
     import_local_settings()
+    prepare_syspath_for_dags_folder()
     global LOGGING_CLASS_PATH
     LOGGING_CLASS_PATH = configure_logging()
     State.state_color.update(STATE_COLORS)
@@ -572,8 +741,21 @@ def initialize():
     configure_orm()
     configure_action_logging()
 
+    # mask the sensitive_config_values
+    conf.mask_secrets()
+
+    # Run any custom runtime checks that needs to be executed for providers
+    run_providers_custom_runtime_checks()
+
     # Ensure we close DB connections at scheduler and gunicorn worker terminations
     atexit.register(dispose_orm)
+
+
+def is_usage_data_collection_enabled() -> bool:
+    """Check if data collection is enabled."""
+    return conf.getboolean("usage_data_collection", "enabled", fallback=True) and (
+        os.getenv("SCARF_ANALYTICS", "").strip().lower() != "false"
+    )
 
 
 # Const stuff
@@ -581,7 +763,6 @@ def initialize():
 KILOBYTE = 1024
 MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
-
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
 # write rate.
@@ -603,9 +784,6 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
 )
 
 ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
-
-# Whether or not to check each dagrun against defined SLAs
-CHECK_SLAS = conf.getboolean("core", "check_slas", fallback=True)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

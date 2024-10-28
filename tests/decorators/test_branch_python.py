@@ -29,6 +29,7 @@ class Test_BranchPythonDecoratedOperator:
     # when run in "Parallel" test run environment, sometimes this test runs for a long time
     # because creating virtualenv and starting new Python interpreter creates a lot of IO/contention
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.execution_timeout(180)
     @pytest.mark.parametrize("branch_task_name", ["task_1", "task_2"])
     def test_branch_one(self, dag_maker, branch_task_name):

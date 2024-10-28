@@ -33,7 +33,7 @@ from airflow.utils.cli import setup_locations
 console = Console(width=400, color_system="standard")
 
 
-class _ComonCLIGunicornTestClass:
+class _CommonCLIGunicornTestClass:
     main_process_regexp: str = "process_to_look_for"
 
     @pytest.fixture(autouse=True)
@@ -146,3 +146,13 @@ class _ComonCLIGunicornTestClass:
                     console.print(proc.as_dict(attrs=["pid", "name", "cmdline"]))
                 pids.append(proc.pid)
         return pids
+
+    def _terminate_multiple_process(self, pid_list):
+        process = []
+        for pid in pid_list:
+            proc = psutil.Process(pid)
+            proc.terminate()
+            process.append(proc)
+        gone, alive = psutil.wait_procs(process, timeout=120)
+        for p in alive:
+            p.kill()

@@ -24,13 +24,21 @@ from unittest import mock
 import pytest
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.mock_operators import (
+    AirflowLink,
+    EmptyExtraLinkTestOperator,
+    EmptyNoExtraLinkTestOperator,
+)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +70,8 @@ class FooBarLink(BaseOperatorLink):
 
 
 class DummyTestOperator(BaseOperator):
-    operator_extra_links = (
+    # We need to ignore type check here due to 2.7 compatibility import
+    operator_extra_links = (  # type: ignore[assignment]
         RaiseErrorLink(),
         NoResponseLink(),
         FooBarLink(),
@@ -72,18 +81,20 @@ class DummyTestOperator(BaseOperator):
 
 @pytest.fixture(scope="module")
 def dag():
-    return DAG("dag", start_date=DEFAULT_DATE)
+    return DAG("dag", start_date=DEFAULT_DATE, schedule="0 0 * * *")
 
 
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
     def _create_dag_run(*, execution_date, session):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
             data_interval=(execution_date, execution_date),
             run_type=DagRunType.MANUAL,
             session=session,
+            **triggered_by_kwargs,
         )
 
     return _create_dag_run
@@ -95,7 +106,7 @@ def dag_run(create_dag_run, session):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def patched_app(app, dag):
+def _patched_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = dag
         yield
@@ -108,16 +119,16 @@ def task_1(dag):
 
 @pytest.fixture(scope="module", autouse=True)
 def task_2(dag):
-    return Dummy2TestOperator(task_id="some_dummy_task_2", dag=dag)
+    return EmptyExtraLinkTestOperator(task_id="some_dummy_task_2", dag=dag)
 
 
 @pytest.fixture(scope="module", autouse=True)
 def task_3(dag):
-    return Dummy3TestOperator(task_id="some_dummy_task_3", dag=dag)
+    return EmptyNoExtraLinkTestOperator(task_id="some_dummy_task_3", dag=dag)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def init_blank_task_instances():
+def _init_blank_task_instances():
     """Make sure there are no runs before we test anything.
 
     This really shouldn't be needed, but tests elsewhere leave the db dirty.
@@ -126,7 +137,7 @@ def init_blank_task_instances():
 
 
 @pytest.fixture(autouse=True)
-def reset_task_instances():
+def _reset_task_instances():
     yield
     clear_db_runs()
 

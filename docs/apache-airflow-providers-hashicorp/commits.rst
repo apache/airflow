@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.7.0
+3.8.0
 .....
 
-Latest change: 2024-04-27
+Latest change: 2024-08-12
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
+3.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`f411c147cd <https://github.com/apache/airflow/commit/f411c147cd7d7b21295b152e37566a159ddf94fe>`_  2024-05-15   ``inherit key "verify" from env into session so that kv_client can read it properly (#38614)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ==============================================================================================
+
+3.7.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `a3f0d83679 <https://github.com/apache/airflow/commit/a3f0d836796c34d3643842f1674f1d5b04bb34bd>`_  2024-04-27   ``Add assume_role_kwargs in hashicorp backend config (#39279)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `d08f893f25 <https://github.com/apache/airflow/commit/d08f893f25c2267198916f013dd41c900aa3f3af>`_  2024-04-25   ``Expose AWS IAM missing param in Hashicorp secret (#38536)``

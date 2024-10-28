@@ -60,7 +60,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/weaviate/index>
+    System Tests <_api/tests/system/weaviate/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -79,7 +79,7 @@ apache-airflow-providers-weaviate package
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.4.0
+Release: 2.1.0
 
 Provider package
 ----------------
@@ -97,12 +97,14 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-===================  ==================
+===================  =========================================
 PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.7.0``
-``weaviate-client``  ``>=3.24.2``
-``pandas``           ``>=1.2.5,<2.2``
-===================  ==================
+===================  =========================================
+``apache-airflow``   ``>=2.8.0``
+``httpx``            ``>=0.25.0``
+``weaviate-client``  ``>=4.4.0``
+``pandas``           ``>=2.1.2,<2.2; python_version >= "3.9"``
+``pandas``           ``>=1.5.3,<2.2; python_version < "3.9"``
+===================  =========================================

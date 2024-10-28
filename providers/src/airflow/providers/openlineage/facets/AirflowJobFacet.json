@@ -1,0 +1,40 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "AirflowJobFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "taskTree": {
+                "description": "The hierarchical structure of tasks in the DAG.",
+                "type": "object",
+                "additionalProperties": true
+              },
+              "taskGroups": {
+                "description": "Information about all task groups within the DAG.",
+                "type": "object",
+                "additionalProperties": true
+              },
+              "tasks": {
+                "description": "Details of all individual tasks within the DAG.",
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "required": ["taskTree", "taskGroups", "tasks"]
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "airflow": {
+        "$ref": "#/$defs/AirflowJobFacet"
+      }
+    }
+  }

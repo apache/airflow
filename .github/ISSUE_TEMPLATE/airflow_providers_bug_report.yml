@@ -33,6 +33,7 @@ body:
         - apache-flink
         - apache-hdfs
         - apache-hive
+        - apache-iceberg
         - apache-impala
         - apache-kafka
         - apache-kylin
@@ -48,6 +49,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - cohere
+        - common-compat
         - common-io
         - common-sql
         - databricks
@@ -56,6 +58,7 @@ body:
         - dingding
         - discord
         - docker
+        - edge
         - elasticsearch
         - exasol
         - fab
@@ -103,14 +106,15 @@ body:
         - snowflake
         - sqlite
         - ssh
+        - standard
         - tableau
-        - tabular
         - telegram
         - teradata
         - trino
         - vertica
         - weaviate
         - yandex
+        - ydb
         - zendesk
     validations:
       required: true

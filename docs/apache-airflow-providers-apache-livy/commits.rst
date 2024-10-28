@@ -35,14 +35,68 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.2
+.....
+
+Latest change: 2024-10-15
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`c941484066 <https://github.com/apache/airflow/commit/c9414840660f58996cd86351538e6ac77afd696b>`_  2024-10-15   ``pin in  providers (#43001)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+3.9.1
+.....
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`c5aeeff412 <https://github.com/apache/airflow/commit/c5aeeff412a7b10951e46ba9aaefe10980cbb30e>`_  2024-09-04   ``bugfix/livy-set-base-url (#41658)``
+=================================================================================================  ===========  =======================================================
+
+3.9.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
+3.8.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
 3.8.0
 .....
 
-Latest change: 2024-04-27
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `04caa6eceb <https://github.com/apache/airflow/commit/04caa6eceb631528adb988092322b2d41a516869>`_  2024-04-27   ``Update docstring 'LivyOperator' retry_args and deferrable docs (#39266)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `bf5ab8fc46 <https://github.com/apache/airflow/commit/bf5ab8fc462b1f35a45b5cfc8940d06fb0e698dd>`_  2024-04-14   ``Fix bug in LivyOperator when its trigger times out (#38916)``

@@ -33,7 +33,7 @@ You can further process the result using
 
 An example of Listing all Repositories owned by a user, **client.get_user().get_repos()** can be implemented as following:
 
-.. exampleinclude:: /../../tests/system/providers/github/example_github.py
+.. exampleinclude:: /../../providers/tests/system/github/example_github.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_repos_github]
@@ -43,7 +43,7 @@ An example of Listing all Repositories owned by a user, **client.get_user().get_
 
 An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='apache/airflow').get_tags()** can be implemented as following:
 
-.. exampleinclude:: /../../tests/system/providers/github/example_github.py
+.. exampleinclude:: /../../providers/tests/system/github/example_github.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_list_tags_github]
@@ -51,7 +51,7 @@ An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='a
 
 
 Sensors
-=======
+========
 
 You can build your own sensor  using :class:`~airflow.providers.github.sensors.GithubSensor`,
 
@@ -64,7 +64,7 @@ a Tag in `GitHub <https://www.github.com/>`__.
 
 An example for tag **v1.0**:
 
-.. exampleinclude:: /../../tests/system/providers/github/example_github.py
+.. exampleinclude:: /../../providers/tests/system/github/example_github.py
     :language: python
     :dedent: 4
     :start-after: [START howto_tag_sensor_github]
@@ -73,7 +73,7 @@ An example for tag **v1.0**:
 Similar Functionality can be achieved by directly using
 :class:`~from airflow.providers.github.sensors.github.GithubSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/github/example_github.py
+.. exampleinclude:: /../../providers/tests/system/github/example_github.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_github]

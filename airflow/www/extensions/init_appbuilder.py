@@ -131,19 +131,6 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        update_perms=conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ),
-        auth_rate_limited=conf.getboolean(
-            "fab",
-            "AUTH_RATE_LIMITED",
-            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        ),
-        auth_rate_limit=conf.get(
-            "fab",
-            "AUTH_RATE_LIMIT",
-            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
-        ),
     ):
         """
         App-builder constructor.
@@ -160,14 +147,11 @@ class AirflowAppBuilder:
             optional, your override for the global static folder
         :param static_url_path:
             optional, your override for the global static url path
-        :param update_perms:
-            optional, update permissions flag (Boolean) you can use
-            FAB_UPDATE_PERMS config key also
-        :param auth_rate_limited:
-            optional, rate limit authentication attempts if set to True (defaults to True)
-        :param auth_rate_limit:
-            optional, rate limit authentication attempts configuration (defaults "to 5 per 40 second")
         """
+        from airflow.providers_manager import ProvidersManager
+
+        providers_manager = ProvidersManager()
+        providers_manager.initialize_providers_configuration()
         self.baseviews = []
         self._addon_managers = []
         self.addon_managers = {}
@@ -177,9 +161,9 @@ class AirflowAppBuilder:
         self.static_folder = static_folder
         self.static_url_path = static_url_path
         self.app = app
-        self.update_perms = update_perms
-        self.auth_rate_limited = auth_rate_limited
-        self.auth_rate_limit = auth_rate_limit
+        self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
+        self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
+        self.auth_rate_limit = conf.get("fab", "AUTH_RATE_LIMIT")
         if app is not None:
             self.init_app(app, session)
 
@@ -295,7 +279,8 @@ class AirflowAppBuilder:
 
     @property
     def require_confirmation_dag_change(self):
-        """Get the value of the require_confirmation_dag_change configuration.
+        """
+        Get the value of the require_confirmation_dag_change configuration.
 
         The logic is:
          - return True, in page dag.html, when user trigger/pause the dag from UI.
@@ -357,7 +342,12 @@ class AirflowAppBuilder:
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
-        self.sm.register_views()
+
+        try:
+            get_auth_manager().register_views()
+        except AttributeError:
+            # TODO: remove when min airflow version >= 3
+            self.sm.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
@@ -395,7 +385,8 @@ class AirflowAppBuilder:
         category_label="",
         menu_cond=None,
     ):
-        """Add your views associated with menus using this method.
+        """
+        Add your views associated with menus using this method.
 
         :param baseview:
             A BaseView type class instantiated or not.
@@ -492,7 +483,8 @@ class AirflowAppBuilder:
         baseview=None,
         cond=None,
     ):
-        """Add your own links to menu using this method.
+        """
+        Add your own links to menu using this method.
 
         :param name:
             The string name that identifies the menu.
@@ -538,7 +530,8 @@ class AirflowAppBuilder:
                 self._add_permissions_menu(category)
 
     def add_separator(self, category, cond=None):
-        """Add a separator to the menu, you will sequentially create the menu.
+        """
+        Add a separator to the menu, you will sequentially create the menu.
 
         :param category:
             The menu category where the separator will be included.
@@ -572,7 +565,8 @@ class AirflowAppBuilder:
         return baseview
 
     def security_cleanup(self):
-        """Clean up security.
+        """
+        Clean up security.
 
         This method is useful if you have changed the name of your menus or
         classes. Changing them leaves behind permissions that are not associated
@@ -589,7 +583,8 @@ class AirflowAppBuilder:
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
-        """Migrates all permissions to the new names on all the Roles.
+        """
+        Migrates all permissions to the new names on all the Roles.
 
         This method is useful when you use:
 
@@ -677,17 +672,4 @@ def init_appbuilder(app: Flask) -> AirflowAppBuilder:
         app=app,
         session=settings.Session,
         base_template="airflow/main.html",
-        update_perms=conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ),
-        auth_rate_limited=conf.getboolean(
-            "fab",
-            "AUTH_RATE_LIMITED",
-            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        ),
-        auth_rate_limit=conf.get(
-            "fab",
-            "AUTH_RATE_LIMIT",
-            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
-        ),
     )

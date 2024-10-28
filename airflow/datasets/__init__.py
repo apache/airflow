@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,228 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# We do not use "from __future__ import annotations" here because it is not supported
+# by Pycharm when we want to make sure all imports in airflow work from namespace packages
+# Adding it automatically is excluded in pyproject.toml via I002 ruff rule exclusion
+
+# Make `airflow` a namespace package, supporting installing
+# airflow.providers.* in different locations (i.e. one in site, and one in user
+# lib.)  This is required by some IDEs to resolve the import paths.
 from __future__ import annotations
 
-import os
-import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator
 
-import attr
+from airflow.assets import AssetAlias as DatasetAlias, Dataset
 
-if TYPE_CHECKING:
-    from urllib.parse import SplitResult
+# TODO: Remove this module in Airflow 3.2
 
-__all__ = ["Dataset", "DatasetAll", "DatasetAny"]
-
-
-def normalize_noop(parts: SplitResult) -> SplitResult:
-    """Place-hold a :class:`~urllib.parse.SplitResult`` normalizer.
-
-    :meta private:
-    """
-    return parts
+warnings.warn(
+    "Import from the airflow.dataset module is deprecated and "
+    "will be removed in the Airflow 3.2. Please import it from 'airflow.assets'.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
-def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
-    if scheme == "file":
-        return normalize_noop
-    from airflow.providers_manager import ProvidersManager
-
-    return ProvidersManager().dataset_uri_handlers.get(scheme)
-
-
-def _sanitize_uri(uri: str) -> str:
-    """Sanitize a dataset URI.
-
-    This checks for URI validity, and normalizes the URI if needed. A fully
-    normalized URI is returned.
-    """
-    if not uri:
-        raise ValueError("Dataset URI cannot be empty")
-    if uri.isspace():
-        raise ValueError("Dataset URI cannot be just whitespace")
-    if not uri.isascii():
-        raise ValueError("Dataset URI must only consist of ASCII characters")
-    parsed = urllib.parse.urlsplit(uri)
-    if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
-        return uri
-    normalized_scheme = parsed.scheme.lower()
-    if normalized_scheme.startswith("x-"):
-        return uri
-    if normalized_scheme == "airflow":
-        raise ValueError("Dataset scheme 'airflow' is reserved")
-    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
-    if auth_exists:
-        # TODO: Collect this into a DagWarning.
-        warnings.warn(
-            "A dataset URI should not contain auth info (e.g. username or "
-            "password). It has been automatically dropped.",
-            UserWarning,
-            stacklevel=3,
-        )
-    if parsed.query:
-        normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
-    else:
-        normalized_query = ""
-    parsed = parsed._replace(
-        scheme=normalized_scheme,
-        netloc=normalized_netloc,
-        path=parsed.path.rstrip("/") or "/",  # Remove all trailing slashes.
-        query=normalized_query,
-        fragment="",  # Ignore any fragments.
-    )
-    if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
-        parsed = normalizer(parsed)
-    return urllib.parse.urlunsplit(parsed)
-
-
-def coerce_to_uri(value: str | Dataset) -> str:
-    """Coerce a user input into a sanitized URI.
-
-    If the input value is a string, it is treated as a URI and sanitized. If the
-    input is a :class:`Dataset`, the URI it contains is considered sanitized and
-    returned directly.
-
-    :meta private:
-    """
-    if isinstance(value, Dataset):
-        return value.uri
-    return _sanitize_uri(str(value))
-
-
-class BaseDataset:
-    """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
-
-    :meta private:
-    """
-
-    def __or__(self, other: BaseDataset) -> DatasetAny:
-        if not isinstance(other, BaseDataset):
-            return NotImplemented
-        return DatasetAny(self, other)
-
-    def __and__(self, other: BaseDataset) -> DatasetAll:
-        if not isinstance(other, BaseDataset):
-            return NotImplemented
-        return DatasetAll(self, other)
-
-    def as_expression(self) -> Any:
-        """Serialize the dataset into its scheduling expression.
-
-        The return value is stored in DagModel for display purposes. It must be
-        JSON-compatible.
-
-        :meta private:
-        """
-        raise NotImplementedError
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        raise NotImplementedError
-
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
-        raise NotImplementedError
-
-
-@attr.define()
-class Dataset(os.PathLike, BaseDataset):
-    """A representation of data dependencies between workflows."""
-
-    uri: str = attr.field(
-        converter=_sanitize_uri,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
-    )
-    extra: dict[str, Any] | None = None
-
-    __version__: ClassVar[int] = 1
-
-    def __fspath__(self) -> str:
-        return self.uri
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, self.__class__):
-            return self.uri == other.uri
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.uri)
-
-    def as_expression(self) -> Any:
-        """Serialize the dataset into its scheduling expression.
-
-        :meta private:
-        """
-        return self.uri
-
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
-        yield self.uri, self
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return statuses.get(self.uri, False)
-
-
-class _DatasetBooleanCondition(BaseDataset):
-    """Base class for dataset boolean logic."""
-
-    agg_func: Callable[[Iterable], bool]
-
-    def __init__(self, *objects: BaseDataset) -> None:
-        if not all(isinstance(o, BaseDataset) for o in objects):
-            raise TypeError("expect dataset expressions in condition")
-        self.objects = objects
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
-
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
-        seen = set()  # We want to keep the first instance.
-        for o in self.objects:
-            for k, v in o.iter_datasets():
-                if k in seen:
-                    continue
-                yield k, v
-                seen.add(k)
-
-
-class DatasetAny(_DatasetBooleanCondition):
-    """Use to combine datasets schedule references in an "and" relationship."""
-
-    agg_func = any
-
-    def __or__(self, other: BaseDataset) -> DatasetAny:
-        if not isinstance(other, BaseDataset):
-            return NotImplemented
-        # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
-        return DatasetAny(*self.objects, other)
-
-    def __repr__(self) -> str:
-        return f"DatasetAny({', '.join(map(str, self.objects))})"
-
-    def as_expression(self) -> dict[str, Any]:
-        """Serialize the dataset into its scheduling expression.
-
-        :meta private:
-        """
-        return {"any": [o.as_expression() for o in self.objects]}
-
-
-class DatasetAll(_DatasetBooleanCondition):
-    """Use to combine datasets schedule references in an "or" relationship."""
-
-    agg_func = all
-
-    def __and__(self, other: BaseDataset) -> DatasetAll:
-        if not isinstance(other, BaseDataset):
-            return NotImplemented
-        # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
-        return DatasetAll(*self.objects, other)
-
-    def __repr__(self) -> str:
-        return f"DatasetAll({', '.join(map(str, self.objects))})"
-
-    def as_expression(self) -> Any:
-        """Serialize the dataset into its scheduling expression.
-
-        :meta private:
-        """
-        return {"all": [o.as_expression() for o in self.objects]}
+__all__ = [
+    "Dataset",
+    "DatasetAlias",
+]

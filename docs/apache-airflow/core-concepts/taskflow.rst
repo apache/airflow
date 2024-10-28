@@ -41,17 +41,17 @@ TaskFlow takes care of moving inputs and outputs between your Tasks using XComs 
     email_info = compose_email(get_ip())
 
     EmailOperator(
-        task_id='send_email',
+        task_id='send_email_notification',
         to='example@example.com',
         subject=email_info['subject'],
         html_content=email_info['body']
     )
 
-Here, there are three tasks - ``get_ip``, ``compose_email``, and ``send_email``.
+Here, there are three tasks - ``get_ip``, ``compose_email``, and ``send_email_notification``.
 
 The first two are declared using TaskFlow, and automatically pass the return value of ``get_ip`` into ``compose_email``, not only linking the XCom across, but automatically declaring that ``compose_email`` is *downstream* of ``get_ip``.
 
-``send_email`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
+``send_email_notification`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
 
 You can also use a plain value or variable to call a TaskFlow function - for example, this will work as you expect (but, of course, won't run the code inside the task until the DAG is executed - the ``name`` value is persisted as a task parameter until that time)::
 
@@ -88,6 +88,8 @@ To use logging from your task functions, simply import and use Python's logging 
 
 Every logging line created this way will be recorded in the task log.
 
+.. _concepts:arbitrary-arguments:
+
 Passing Arbitrary Objects As Arguments
 --------------------------------------
 
@@ -96,11 +98,11 @@ Passing Arbitrary Objects As Arguments
 As mentioned TaskFlow uses XCom to pass variables to each task. This requires that variables that are used as arguments
 need to be able to be serialized. Airflow out of the box supports all built-in types (like int or str) and it
 supports objects that are decorated with ``@dataclass`` or ``@attr.define``. The following example shows the use of
-a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
+a ``Asset``, which is ``@attr.define`` decorated, together with TaskFlow.
 
 .. note::
 
-    An additional benefit of using ``Dataset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``dataset`` or a ``list[Dataset]]``.
+    An additional benefit of using ``Asset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``Asset`` or a ``list[Asset]]``.
 
 
 .. code-block:: python
@@ -109,10 +111,10 @@ a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
     import pendulum
     import requests
 
-    from airflow import Dataset
+    from airflow import Asset
     from airflow.decorators import dag, task
 
-    SRC = Dataset(
+    SRC = Asset(
         "https://www.ncei.noaa.gov/access/monitoring/climate-at-a-glance/global/time-series/globe/land_ocean/ytd/12/1880-2022.json"
     )
     now = pendulum.now()
@@ -121,7 +123,7 @@ a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
     @dag(start_date=now, schedule="@daily", catchup=False)
     def etl():
         @task()
-        def retrieve(src: Dataset) -> dict:
+        def retrieve(src: Asset) -> dict:
             resp = requests.get(url=src.uri)
             data = resp.json()
             return data["data"]
@@ -135,14 +137,14 @@ a ``Dataset``, which is ``@attr.define`` decorated, together with TaskFlow.
             return ret
 
         @task()
-        def load(fahrenheit: dict[int, float]) -> Dataset:
+        def load(fahrenheit: dict[int, float]) -> Asset:
             filename = "/tmp/fahrenheit.json"
             s = json.dumps(fahrenheit)
             f = open(filename, "w")
             f.write(s)
             f.close()
 
-            return Dataset(f"file:///{filename}")
+            return Asset(f"file:///{filename}")
 
         data = retrieve(SRC)
         fahrenheit = to_fahrenheit(data)

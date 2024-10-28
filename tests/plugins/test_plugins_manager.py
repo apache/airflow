@@ -28,13 +28,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_plugins import mock_plugin_manager
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -73,6 +73,7 @@ def mock_metadata_distribution(mocker):
     return wrapper
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
@@ -103,6 +104,7 @@ class TestPluginsRBAC:
         link = links[0]
         assert link.name == v_appbuilder_package["category"]
         assert link.childs[0].name == v_appbuilder_package["name"]
+        assert link.childs[0].label == v_appbuilder_package["label"]
 
     def test_flaskappbuilder_menu_links(self):
         from tests.plugins.test_plugin import appbuilder_mitem, appbuilder_mitem_toplevel
@@ -144,6 +146,7 @@ class TestPluginsRBAC:
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package
@@ -177,36 +180,13 @@ class TestPluginsManager:
 
         assert caplog.record_tuples == []
 
-    def test_should_load_plugins_from_property(self, caplog):
-        class AirflowTestPropertyPlugin(AirflowPlugin):
-            name = "test_property_plugin"
-
-            @property
-            def hooks(self):
-                class TestPropertyHook(BaseHook):
-                    pass
-
-                return [TestPropertyHook]
-
-        with mock_plugin_manager(plugins=[AirflowTestPropertyPlugin()]):
-            from airflow import plugins_manager
-
-            caplog.set_level(logging.DEBUG, "airflow.plugins_manager")
-            plugins_manager.ensure_plugins_loaded()
-
-            assert "AirflowTestPropertyPlugin" in str(plugins_manager.plugins)
-            assert "TestPropertyHook" in str(plugins_manager.registered_hooks)
-
-        assert caplog.records[-1].levelname == "DEBUG"
-        assert caplog.records[-1].msg == "Loading %d plugin(s) took %.2f seconds"
-
     def test_loads_filesystem_plugins(self, caplog):
         from airflow import plugins_manager
 
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 7 == len(plugins_manager.plugins)
+            assert len(plugins_manager.plugins) == 9
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert "postload" == plugin.name
@@ -225,7 +205,7 @@ class TestPluginsManager:
             with conf_vars({("core", "plugins_folder"): os.fspath(tmp_path)}):
                 plugins_manager.load_plugins_from_plugin_directory()
 
-            assert plugins_manager.plugins == []
+            assert len(plugins_manager.plugins) == 3  # three are loaded from examples
 
             received_logs = caplog.text
             assert "Failed to import plugin" in received_logs
@@ -385,6 +365,7 @@ class TestPluginsManager:
             listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
             # sort names as order of listeners is not guaranteed
             assert [
+                "airflow.example_dags.plugins.event_listener",
                 "tests.listeners.class_listener.ClassBasedListener",
                 "tests.listeners.empty_listener",
             ] == sorted(listener_names)
@@ -413,7 +394,7 @@ class TestPluginsManager:
             assert len(plugins_manager.plugins) == 0
             plugins_manager.load_entrypoint_plugins()
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) == 2
+            assert len(plugins_manager.plugins) == 4
 
 
 class TestPluginsDirectorySource:

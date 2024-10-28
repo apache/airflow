@@ -29,7 +29,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow @ https://github.com/potiuk/airflow/archive/main.tar.gz" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --build-arg CONSTRAINTS_GITHUB_REPOSITORY="potiuk/airflow" \

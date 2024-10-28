@@ -17,11 +17,14 @@
 
 .. _howto/operator:TrinoOperator:
 
-TrinoOperator
-=============
+Connect to Trino using SQLExecuteQueryOperator
+==============================================
 
-Use the :class:`TrinoOperator <airflow.providers.trino.operators.trino>` to execute
+Use the :class:`SQLExecuteQueryOperator <airflow.providers.common.sql.operators.sql>` to execute
 SQL commands in a `Trino <https://trino.io/>`__ query engine.
+
+.. warning::
+   TrinoOperator is deprecated in favor of SQLExecuteQueryOperator. If you are using TrinoOperator you should migrate as soon as possible.
 
 
 Using the Operator
@@ -29,9 +32,9 @@ Using the Operator
 
 Use the ``trino_conn_id`` argument to connect to your Trino instance
 
-An example usage of the TrinoOperator is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to Trino is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/trino/example_trino.py
+.. exampleinclude:: /../../providers/tests/system/trino/example_trino.py
     :language: python
     :start-after: [START howto_operator_trino]
     :end-before: [END howto_operator_trino]

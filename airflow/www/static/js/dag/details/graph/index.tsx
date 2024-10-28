@@ -18,7 +18,7 @@
  */
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { Box, useTheme, Select, Text } from "@chakra-ui/react";
+import { Box, useTheme, Select, Text, Switch, Flex } from "@chakra-ui/react";
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
@@ -30,7 +30,14 @@ import ReactFlow, {
   Viewport,
 } from "reactflow";
 
-import { useDatasets, useGraphData, useGridData } from "src/api";
+import {
+  useDagDetails,
+  useAssetEvents,
+  useAssets,
+  useGraphData,
+  useGridData,
+  useUpstreamAssetEvents,
+} from "src/api";
 import useSelection from "src/dag/useSelection";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
@@ -51,82 +58,187 @@ interface Props {
 
 const dagId = getMetaValue("dag_id");
 
+type AssetExpression = {
+  all?: (string | AssetExpression)[];
+  any?: (string | AssetExpression)[];
+};
+
+const getUpstreamAssets = (
+  assetExpression: AssetExpression,
+  firstChildId: string,
+  level = 0
+) => {
+  let edges: WebserverEdge[] = [];
+  let nodes: DepNode[] = [];
+  let type: DepNode["value"]["class"] | undefined;
+  const assetIds: string[] = [];
+  let nestedExpression: AssetExpression | undefined;
+  if (assetExpression?.any) {
+    type = "or-gate";
+    assetExpression.any.forEach((de) => {
+      if (typeof de === "string") assetIds.push(de);
+      else nestedExpression = de;
+    });
+  } else if (assetExpression?.all) {
+    type = "and-gate";
+    assetExpression.all.forEach((de) => {
+      if (typeof de === "string") assetIds.push(de);
+      else nestedExpression = de;
+    });
+  }
+
+  if (type && assetIds.length) {
+    edges.push({
+      sourceId: `${type}-${level}`,
+      // Point upstream assets to the first task
+      targetId: firstChildId,
+      isSourceAsset: level === 0,
+    });
+    nodes.push({
+      id: `${type}-${level}`,
+      value: {
+        class: type,
+        label: "",
+      },
+    });
+    assetIds.forEach((d: string) => {
+      nodes.push({
+        id: d,
+        value: {
+          class: "asset",
+          label: d,
+        },
+      });
+      edges.push({
+        sourceId: d,
+        targetId: `${type}-${level}`,
+      });
+    });
+
+    if (nestedExpression) {
+      const data = getUpstreamAssets(
+        nestedExpression,
+        `${type}-${level}`,
+        (level += 1)
+      );
+      edges = [...edges, ...data.edges];
+      nodes = [...nodes, ...data.nodes];
+    }
+  }
+  return {
+    nodes,
+    edges,
+  };
+};
+
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
+  const { selected } = useSelection();
+  const [showAssets, setShowAssets] = useState(true);
 
   const {
     data: { dagRuns, groups },
   } = useGridData();
 
+  const { data: dagDetails } = useDagDetails();
+
   useEffect(() => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
-  const { data: datasetsCollection } = useDatasets({
+  const { data: assetsCollection } = useAssets({
     dagIds: [dagId],
   });
 
-  const rawNodes =
-    data?.nodes && datasetsCollection?.datasets?.length
-      ? {
-          ...data.nodes,
-          children: [
-            ...(data.nodes.children || []),
-            ...(datasetsCollection?.datasets || []).map(
-              (dataset) =>
-                ({
-                  id: dataset?.id?.toString() || "",
-                  value: {
-                    class: "dataset",
-                    label: dataset.uri,
-                  },
-                } as DepNode)
-            ),
-          ],
-        }
-      : data?.nodes;
+  let assetNodes: DepNode[] = [];
+  let assetEdges: WebserverEdge[] = [];
 
-  const datasetEdges: WebserverEdge[] = [];
-
-  datasetsCollection?.datasets?.forEach((dataset) => {
-    const producingTask = dataset?.producingTasks?.find(
-      (t) => t.dagId === dagId
+  const { nodes: upstreamAssetNodes, edges: upstreamAssetEdges } =
+    getUpstreamAssets(
+      dagDetails.assetExpression as AssetExpression,
+      data?.nodes?.children?.[0]?.id ?? ""
     );
-    const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
-    if (dataset.id) {
-      // check that the task is in the graph
-      if (
-        producingTask?.taskId &&
-        getTask({ taskId: producingTask?.taskId, task: groups })
-      ) {
-        datasetEdges.push({
-          sourceId: producingTask.taskId,
-          targetId: dataset.id.toString(),
-        });
-      }
-      if (consumingDag && data?.nodes?.children?.length) {
-        datasetEdges.push({
-          sourceId: dataset.id.toString(),
-          // Point upstream datasets to the first task
-          targetId: data.nodes?.children[0].id,
-          isSourceDataset: true,
-        });
-      }
-    }
+
+  const {
+    data: { assetEvents: upstreamAssetEvents = [] },
+  } = useUpstreamAssetEvents({
+    dagId,
+    dagRunId: selected.runId || "",
+    options: {
+      enabled: !!upstreamAssetNodes.length && !!selected.runId && showAssets,
+    },
   });
 
+  const {
+    data: { assetEvents: downstreamAssetEvents = [] },
+  } = useAssetEvents({
+    sourceDagId: dagId,
+    sourceRunId: selected.runId || undefined,
+    options: { enabled: !!selected.runId && showAssets },
+  });
+
+  if (showAssets) {
+    assetNodes = [...upstreamAssetNodes];
+    assetEdges = [...upstreamAssetEdges];
+    assetsCollection?.assets?.forEach((asset) => {
+      const producingTask = asset?.producingTasks?.find(
+        (t) => t.dagId === dagId
+      );
+      if (asset.uri) {
+        // check that the task is in the graph
+        if (
+          producingTask?.taskId &&
+          getTask({ taskId: producingTask?.taskId, task: groups })
+        ) {
+          assetEdges.push({
+            sourceId: producingTask.taskId,
+            targetId: asset.uri,
+          });
+          assetNodes.push({
+            id: asset.uri,
+            value: {
+              class: "asset",
+              label: asset.uri,
+            },
+          });
+        }
+      }
+    });
+
+    // Check if there is an asset event even though we did not find an asset
+    downstreamAssetEvents.forEach((de) => {
+      const hasNode = assetNodes.find((node) => node.id === de.assetUri);
+      if (!hasNode && de.sourceTaskId && de.assetUri) {
+        assetEdges.push({
+          sourceId: de.sourceTaskId,
+          targetId: de.assetUri,
+        });
+        assetNodes.push({
+          id: de.assetUri,
+          value: {
+            class: "asset",
+            label: de.assetUri,
+          },
+        });
+      }
+    });
+  }
+
   const { data: graphData } = useGraphLayout({
-    edges: [...(data?.edges || []), ...datasetEdges],
-    nodes: rawNodes,
+    edges: [...(data?.edges || []), ...assetEdges],
+    nodes: data?.nodes
+      ? {
+          ...data.nodes,
+          children: [...(data?.nodes.children || []), ...assetNodes],
+        }
+      : data?.nodes,
     openGroupIds,
     arrange,
   });
-
-  const { selected } = useSelection();
 
   const { colors } = useTheme();
   const { getZoom, fitView } = useReactFlow();
@@ -151,6 +263,9 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         groups,
         hoveredTaskState,
         isZoomedOut,
+        assetEvents: selected.runId
+          ? [...upstreamAssetEvents, ...downstreamAssetEvents]
+          : [],
       }),
     [
       graphData?.children,
@@ -161,6 +276,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       groups,
       hoveredTaskState,
       isZoomedOut,
+      upstreamAssetEvents,
+      downstreamAssetEvents,
     ]
   );
 
@@ -216,11 +333,25 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           }}
         >
           <Panel position="top-right">
-            <Box bg="#ffffffdd" p={1}>
-              <Text>Layout:</Text>
+            <Box bg={colors.whiteAlpha[800]} p={1}>
+              {!!assetsCollection?.assets?.length && (
+                <Flex display="flex" alignItems="center">
+                  <Text fontSize="sm" mr={1}>
+                    Show assets:
+                  </Text>
+                  <Switch
+                    id="show-assets"
+                    isChecked={showAssets}
+                    onChange={() => setShowAssets(!showAssets)}
+                  />
+                </Flex>
+              )}
+              <Text fontSize="sm">Layout:</Text>
               <Select
                 value={arrange}
                 onChange={(e) => setArrange(e.target.value)}
+                fontSize="sm"
+                size="sm"
               >
                 <option value="LR">Left -&gt; Right</option>
                 <option value="RL">Right -&gt; Left</option>

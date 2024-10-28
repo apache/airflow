@@ -26,7 +26,6 @@ from airflow.api_connexion.schemas.common_schema import (
     TimeDeltaSchema,
     WeightRuleField,
 )
-from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.models.mappedoperator import MappedOperator
 
 if TYPE_CHECKING:
@@ -61,10 +60,10 @@ class TaskSchema(Schema):
     ui_color = ColorField(dump_only=True)
     ui_fgcolor = ColorField(dump_only=True)
     template_fields = fields.List(fields.String(), dump_only=True)
-    sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
     params = fields.Method("_get_params", dump_only=True)
     is_mapped = fields.Method("_get_is_mapped", dump_only=True)
+    doc_md = fields.String(dump_only=True)
 
     @staticmethod
     def _get_class_reference(obj):

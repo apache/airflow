@@ -19,8 +19,8 @@
 ---
 apiVersion: v2
 name: airflow
-version: 1.14.0
-appVersion: 2.9.0
+version: 1.16.0-dev
+appVersion: 2.10.2
 description: The official Helm chart to deploy Apache Airflow, a platform to
   programmatically author, schedule, and monitor workflows
 home: https://airflow.apache.org/
@@ -44,40 +44,101 @@ type: application
 annotations:
   artifacthub.io/links: |
     - name: Documentation
-      url: https://airflow.apache.org/docs/helm-chart/1.14.0/
+      url: https://airflow.apache.org/docs/helm-chart/1.16.0/
   artifacthub.io/screenshots: |
     - title: DAGs View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/dags.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/dags.png
     - title: Datasets View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/datasets.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/datasets.png
     - title: Grid View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/grid.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/grid.png
     - title: Graph View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/graph.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/graph.png
     - title: Calendar View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/calendar.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/calendar.png
     - title: Variable View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/variable_hidden.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/variable_hidden.png
     - title: Gantt Chart
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/gantt.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/gantt.png
     - title: Task Duration
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/duration.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/duration.png
     - title: Code View
-      url: https://airflow.apache.org/docs/apache-airflow/2.9.0/_images/code.png
+      url: https://airflow.apache.org/docs/apache-airflow/2.10.2/_images/code.png
   artifacthub.io/changes: |
-    - description: Don't overwrite ``.Values.airflowPodAnnotations``
-      kind: fixed
+    - description: Add git-sync container lifecycle hooks
+      kind: added
       links:
-      - name: '#37917'
-        url: https://github.com/apache/airflow/pull/37917
-    - description: Fix cluster-wide RBAC naming clash when using multiple ``multiNamespace``
-        releases with the same name
-      kind: fixed
+      - name: '#40369'
+        url: https://github.com/apache/airflow/pull/40369
+    - description: Add init containers for jobs
+      kind: added
       links:
-      - name: '#37197'
-        url: https://github.com/apache/airflow/pull/37197
-    - description: 'Misc: Default airflow version to 2.8.3'
+      - name: '#40454'
+        url: https://github.com/apache/airflow/pull/40454
+    - description: Add persistent volume claim retention policy
+      kind: added
+      links:
+      - name: '#40271'
+        url: https://github.com/apache/airflow/pull/40271
+    - description: Add annotations for Redis StatefulSet
+      kind: added
+      links:
+      - name: '#40281'
+        url: https://github.com/apache/airflow/pull/40281
+    - description: Add ``dags.gitSync.sshKey``, which allows the git-sync private key
+        to be configured in the values file directly
+      kind: added
+      links:
+      - name: '#39936'
+        url: https://github.com/apache/airflow/pull/39936
+    - description: Link in ``UIAlert`` to production guide when a dynamic webserver secret
+        is used now opens in a new tab
       kind: changed
       links:
-      - name: '#38036'
-        url: https://github.com/apache/airflow/pull/38036
+      - name: '#40635'
+        url: https://github.com/apache/airflow/pull/40635
+    - description: Support disabling helm hooks on ``extraConfigMaps`` and ``extraSecrets``
+      kind: changed
+      links:
+      - name: '#40294'
+        url: https://github.com/apache/airflow/pull/40294
+    - description: Add git-sync ssh secret to DAG processor
+      kind: fixed
+      links:
+      - name: '#40691'
+        url: https://github.com/apache/airflow/pull/40691
+    - description: Fix duplicated ``safeToEvict`` annotations
+      kind: fixed
+      links:
+      - name: '#40554'
+        url: https://github.com/apache/airflow/pull/40554
+    - description: Add missing ``triggerer.keda.usePgbouncer`` to values.yaml
+      kind: fixed
+      links:
+      - name: '#40614'
+        url: https://github.com/apache/airflow/pull/40614
+    - description: Trim leading ``//`` character using mysql backend
+      kind: fixed
+      links:
+      - name: '#40401'
+        url: https://github.com/apache/airflow/pull/40401
+    - description: 'Docs: Updating chart download link to use the Apache download CDN'
+      kind: changed
+      links:
+      - name: '#40618'
+        url: https://github.com/apache/airflow/pull/40618
+    - description: 'Misc: Update PgBouncer exporter image to ``airflow-pgbouncer-exporter-2024.06.18-0.17.0``'
+      kind: changed
+      links:
+      - name: '#40318'
+        url: https://github.com/apache/airflow/pull/40318
+    - description: 'Misc: Default airflow version to 2.9.3'
+      kind: changed
+      links:
+      - name: '#40816'
+        url: https://github.com/apache/airflow/pull/40816
+    - description: 'Misc: Fix ``startupProbe`` timing comment'
+      kind: changed
+      links:
+      - name: '#40412'
+        url: https://github.com/apache/airflow/pull/40412

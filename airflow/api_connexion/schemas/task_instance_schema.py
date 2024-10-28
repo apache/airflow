@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -26,14 +26,11 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
-from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -53,7 +50,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     end_date = auto_field()
     duration = auto_field()
     state = TaskInstanceStateField()
-    _try_number = auto_field(data_key="try_number")
+    try_number = auto_field()
     max_tries = auto_field()
     task_display_name = fields.String(attribute="task_display_name", dump_only=True)
     hostname = auto_field()
@@ -65,30 +62,56 @@ class TaskInstanceSchema(SQLAlchemySchema):
     operator = auto_field()
     queued_dttm = auto_field(data_key="queued_when")
     pid = auto_field()
+    executor = auto_field()
     executor_config = auto_field()
     note = auto_field()
-    sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
-        if attr == "sla_miss":
-            # Object is a tuple of task_instance and slamiss
-            # and the get_value expects a dict with key, value
-            # corresponding to the attr.
-            slamiss_instance = {"sla_miss": obj[1]}
-            return get_value(slamiss_instance, attr, default)
-        elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-        return get_value(obj[0], attr, default)
+        if attr == "rendered_fields":
+            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+        return get_value(obj, attr, default)
+
+
+class TaskInstanceHistorySchema(SQLAlchemySchema):
+    """Task instance schema."""
+
+    class Meta:
+        """Meta."""
+
+        model = TaskInstanceHistory
+
+    task_id = auto_field()
+    dag_id = auto_field()
+    run_id = auto_field(data_key="dag_run_id")
+    map_index = auto_field()
+    start_date = auto_field()
+    end_date = auto_field()
+    duration = auto_field()
+    state = TaskInstanceStateField()
+    try_number = auto_field()
+    max_tries = auto_field()
+    task_display_name = fields.String(attribute="task_display_name", dump_only=True)
+    hostname = auto_field()
+    unixname = auto_field()
+    pool = auto_field()
+    pool_slots = auto_field()
+    queue = auto_field()
+    priority_weight = auto_field()
+    operator = auto_field()
+    queued_dttm = auto_field(data_key="queued_when")
+    pid = auto_field()
+    executor = auto_field()
+    executor_config = auto_field()
 
 
 class TaskInstanceCollection(NamedTuple):
     """List of task instances with metadata."""
 
-    task_instances: list[tuple[TaskInstance, SlaMiss | None]]
+    task_instances: list[TaskInstance | None]
     total_entries: int
 
 
@@ -96,6 +119,20 @@ class TaskInstanceCollectionSchema(Schema):
     """Task instance collection schema."""
 
     task_instances = fields.List(fields.Nested(TaskInstanceSchema))
+    total_entries = fields.Int()
+
+
+class TaskInstanceHistoryCollection(NamedTuple):
+    """List of task instances history with metadata."""
+
+    task_instances: list[TaskInstanceHistory | None]
+    total_entries: int
+
+
+class TaskInstanceHistoryCollectionSchema(Schema):
+    """Task instance collection schema."""
+
+    task_instances = fields.List(fields.Nested(TaskInstanceHistorySchema))
     total_entries = fields.Int()
 
 
@@ -118,6 +155,8 @@ class TaskInstanceBatchFormSchema(Schema):
     state = fields.List(fields.Str(allow_none=True), load_default=None)
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
+    executor = fields.List(fields.Str(), load_default=None)
+    order_by = fields.Str(load_default=None)
 
 
 class ClearTaskInstanceFormSchema(Schema):
@@ -128,8 +167,6 @@ class ClearTaskInstanceFormSchema(Schema):
     end_date = fields.DateTime(load_default=None, validate=validate_istimezone)
     only_failed = fields.Boolean(load_default=True)
     only_running = fields.Boolean(load_default=False)
-    include_subdags = fields.Boolean(load_default=False)
-    include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
     dag_run_id = fields.Str(load_default=None)
@@ -220,8 +257,22 @@ class SetTaskInstanceNoteFormSchema(Schema):
     note = fields.String(allow_none=True, validate=validate.Length(max=1000))
 
 
+class TaskDependencySchema(Schema):
+    """Schema for task scheduling dependencies."""
+
+    name = fields.String()
+    reason = fields.String()
+
+
+class TaskDependencyCollectionSchema(Schema):
+    """Task scheduling dependencies collection schema."""
+
+    dependencies = fields.List(fields.Nested(TaskDependencySchema))
+
+
 task_instance_schema = TaskInstanceSchema()
 task_instance_collection_schema = TaskInstanceCollectionSchema()
+task_dependencies_collection_schema = TaskDependencyCollectionSchema()
 task_instance_batch_form = TaskInstanceBatchFormSchema()
 clear_task_instance_form = ClearTaskInstanceFormSchema()
 set_task_instance_state_form = SetTaskInstanceStateFormSchema()
@@ -229,3 +280,5 @@ set_single_task_instance_state_form = SetSingleTaskInstanceStateFormSchema()
 task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
 set_task_instance_note_form_schema = SetTaskInstanceNoteFormSchema()
+task_instance_history_schema = TaskInstanceHistorySchema()
+task_instance_history_collection_schema = TaskInstanceHistoryCollectionSchema()

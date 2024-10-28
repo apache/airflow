@@ -35,14 +35,97 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.11.1
+......
+
+Latest change: 2024-10-15
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`c941484066 <https://github.com/apache/airflow/commit/c9414840660f58996cd86351538e6ac77afd696b>`_  2024-10-15   ``pin in  providers (#43001)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+3.11.0
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`04ba8ee300 <https://github.com/apache/airflow/commit/04ba8ee30095adbf8a70373b96739b02aad9b1fb>`_  2024-10-08   ``Simplify code for recent dbt provider change (#42840)``
+`c57be2ffc5 <https://github.com/apache/airflow/commit/c57be2ffc533a3002c0c05d9045c77717c8a0e36>`_  2024-10-08   ``Add ability to provide proxy for dbt Cloud connection (#42737)``
+=================================================================================================  ===========  ==================================================================
+
+3.10.1
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  =======================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+=================================================================================================  ===========  =======================================================
+
+3.10.0
+......
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
+3.9.0
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`83c118413c <https://github.com/apache/airflow/commit/83c118413cef8c140276489b408c4b46ea0a30b5>`_  2024-06-04   ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+`5d227860ad <https://github.com/apache/airflow/commit/5d227860ad38db8afd724fb9d3d9607c9888683e>`_  2024-06-04   ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+=================================================================================================  ===========  ===================================================================================================
+
+3.8.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`7550a11f1d <https://github.com/apache/airflow/commit/7550a11f1d094b768942f28698b87c4f69fad7f5>`_  2024-05-07   ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
+`c528090335 <https://github.com/apache/airflow/commit/c528090335c7063cf4112a59ba8cc3353364e8ce>`_  2024-05-06   ``Validate dbt 'cause' field to be less than 255 characters (#38896)``
+=================================================================================================  ===========  ==================================================================================
+
 3.8.0
 .....
 
-Latest change: 2024-04-30
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `d4bdffc45c <https://github.com/apache/airflow/commit/d4bdffc45cd2e55783bba1e7442c346aef7ca573>`_  2024-04-30   ``migrate to dbt v3 api for project endpoints (#39214)``
 `79b5443d40 <https://github.com/apache/airflow/commit/79b5443d40545d16f219f4f7dc260257fdf45bbd>`_  2024-04-30   ``fix(dbt): fix wrong payload set when reuse_existing_run set to True in DbtCloudRunJobOperator (#39271)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``

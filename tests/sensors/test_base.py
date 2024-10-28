@@ -57,7 +57,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from tests.test_utils import db
+
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -68,7 +69,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 DUMMY_OP = "dummy_op"
 SENSOR_OP = "sensor_op"
-DEV_NULL = "dev/null"
+DEV_NULL = "/dev/null"
 
 
 @pytest.fixture
@@ -108,6 +109,7 @@ class DummySensorWithXcomValue(BaseSensorOperator):
         return PokeReturnValue(self.return_value, self.xcom_value)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestBaseSensor:
     @staticmethod
     def clean_db():
@@ -192,15 +194,49 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
+        (ValueError,),
+    )
+    def test_soft_fail_with_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, soft_fail=True)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+        with pytest.raises(ValueError):
+            self._run(sensor)
+
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.FAILED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
         (
             AirflowSensorTimeout,
             AirflowTaskTimeout,
             AirflowFailException,
-            Exception,
         ),
     )
-    def test_soft_fail_with_non_skip_exception(self, make_sensor, exception_cls):
+    def test_soft_fail_with_skip_exception(self, make_sensor, exception_cls):
         sensor, dr = make_sensor(False, soft_fail=True)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+
+        self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.SKIPPED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
+        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception),
+    )
+    def test_never_fail_with_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, never_fail=True)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
 
         self._run(sensor)
@@ -297,7 +333,17 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
 
+        sensor_ti, dummy_ti = _get_tis()
+        assert dummy_ti.state == State.NONE
+        assert sensor_ti.state == State.NONE
+
+        # ordinarily the scheduler does this
+        sensor_ti.state = State.SCHEDULED
+        sensor_ti.try_number += 1  # first TI run
+        session.commit()
+
         self._run(sensor, session=session)
+
         sensor_ti, dummy_ti = _get_tis()
         assert sensor_ti.state == State.UP_FOR_RESCHEDULE
         assert dummy_ti.state == State.NONE
@@ -326,6 +372,9 @@ class TestBaseSensor:
         # first poke returns False and task is re-scheduled
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
+        sensor_ti, dummy_ti = _get_tis()
+        sensor_ti.try_number += 1  # second TI run
+        session.commit()
         self._run(sensor)
         sensor_ti, dummy_ti = _get_tis()
         assert sensor_ti.state == State.UP_FOR_RESCHEDULE
@@ -359,6 +408,9 @@ class TestBaseSensor:
         # first poke returns False and task is re-scheduled
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
+        sensor_ti, dummy_ti = _get_tis()
+        sensor_ti.try_number += 1  # first TI run
+        session.commit()
         self._run(sensor)
         sensor_ti, dummy_ti = _get_tis()
         assert sensor_ti.state == State.UP_FOR_RESCHEDULE
@@ -382,9 +434,12 @@ class TestBaseSensor:
         # Task is cleared
         sensor.clear()
         sensor_ti, dummy_ti = _get_tis()
-        assert sensor_ti.try_number == 2
+        assert sensor_ti.try_number == 1
         assert sensor_ti.max_tries == 2
 
+        sensor_ti, dummy_ti = _get_tis()
+        sensor_ti.try_number += 1  # second TI run
+        session.commit()
         # third poke returns False and task is rescheduled again
         date3 = date1 + timedelta(seconds=sensor.poke_interval) * 2 + sensor.retry_delay
         time_machine.coordinates.shift(sensor.poke_interval + sensor.retry_delay.total_seconds())
@@ -402,6 +457,71 @@ class TestBaseSensor:
         # fourth poke return True and task succeeds
 
         time_machine.coordinates.shift(sensor.poke_interval)
+        self._run(sensor)
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert sensor_ti.state == State.SUCCESS
+        assert dummy_ti.state == State.NONE
+
+    def test_ok_with_reschedule_and_exponential_backoff(
+        self, make_sensor, time_machine, task_reschedules_for_ti, session
+    ):
+        sensor, dr = make_sensor(
+            return_value=None,
+            poke_interval=10,
+            timeout=36000,
+            mode="reschedule",
+            exponential_backoff=True,
+        )
+
+        def _get_tis():
+            tis = dr.get_task_instances(session=session)
+            assert len(tis) == 2
+            yield next(x for x in tis if x.task_id == SENSOR_OP)
+            yield next(x for x in tis if x.task_id == DUMMY_OP)
+
+        false_count = 10
+        sensor.poke = Mock(side_effect=[False] * false_count + [True])
+
+        task_start_date = timezone.utcnow()
+
+        time_machine.move_to(task_start_date, tick=False)
+        curr_date = task_start_date
+
+        def run_duration():
+            return (timezone.utcnow() - task_start_date).total_seconds()
+
+        new_interval = 0
+
+        sensor_ti, dummy_ti = _get_tis()
+        assert dummy_ti.state == State.NONE
+        assert sensor_ti.state == State.NONE
+
+        # ordinarily the scheduler does this
+        sensor_ti.state = State.SCHEDULED
+        sensor_ti.try_number += 1  # first TI run
+        session.commit()
+
+        # loop poke returns false
+        for _poke_count in range(1, false_count + 1):
+            curr_date = curr_date + timedelta(seconds=new_interval)
+            time_machine.coordinates.shift(new_interval)
+            self._run(sensor)
+            sensor_ti, dummy_ti = _get_tis()
+            assert sensor_ti.state == State.UP_FOR_RESCHEDULE
+            # verify another row in task_reschedule table
+            task_reschedules = task_reschedules_for_ti(sensor_ti)
+            assert len(task_reschedules) == _poke_count
+            old_interval = new_interval
+            new_interval = sensor._get_next_poke_interval(task_start_date, run_duration, _poke_count)
+            assert old_interval < new_interval  # actual test
+            assert task_reschedules[-1].start_date == curr_date
+            assert task_reschedules[-1].reschedule_date == curr_date + timedelta(seconds=new_interval)
+            assert dummy_ti.state == State.NONE
+
+        # last poke returns True and task succeeds
+        curr_date = curr_date + timedelta(seconds=new_interval)
+        time_machine.coordinates.shift(new_interval)
         self._run(sensor)
 
         sensor_ti, dummy_ti = _get_tis()
@@ -687,9 +807,15 @@ class TestBaseSensor:
             tis = dr.get_task_instances(session=session)
             return next(x for x in tis if x.task_id == SENSOR_OP)
 
+        def _increment_try_number():
+            sensor_ti = _get_sensor_ti()
+            sensor_ti.try_number += 1
+            session.commit()
+
         # first poke returns False and task is re-scheduled
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
+        _increment_try_number()  # first TI run
         self._run(sensor)
         sensor_ti = _get_sensor_ti()
         assert sensor_ti.try_number == 1
@@ -701,12 +827,13 @@ class TestBaseSensor:
         with pytest.raises(RuntimeError):
             self._run(sensor)
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 2
+        assert sensor_ti.try_number == 1
         assert sensor_ti.max_tries == 2
         assert sensor_ti.state == State.UP_FOR_RETRY
 
         # third poke returns False and task is rescheduled again
         time_machine.coordinates.shift(sensor.retry_delay + timedelta(seconds=1))
+        _increment_try_number()  # second TI run
         self._run(sensor)
         sensor_ti = _get_sensor_ti()
         assert sensor_ti.try_number == 2
@@ -718,19 +845,22 @@ class TestBaseSensor:
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 3
+        assert sensor_ti.try_number == 2
         assert sensor_ti.max_tries == 2
         assert sensor_ti.state == State.FAILED
 
         # Clear the failed sensor
         sensor.clear()
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 3
+        # clearing does not change the try_number
+        assert sensor_ti.try_number == 2
+        # but it does change the max_tries
         assert sensor_ti.max_tries == 4
         assert sensor_ti.state is None
 
         time_machine.coordinates.shift(20)
 
+        _increment_try_number()  # third TI run
         for _ in range(3):
             time_machine.coordinates.shift(sensor.poke_interval)
             self._run(sensor)
@@ -744,7 +874,7 @@ class TestBaseSensor:
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 4
+        assert sensor_ti.try_number == 3
         assert sensor_ti.max_tries == 4
         assert sensor_ti.state == State.FAILED
 
@@ -794,13 +924,16 @@ class TestBaseSensor:
         # first poke returns False and task is re-scheduled
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
+        sensor_ti = _get_sensor_ti()
+        sensor_ti.try_number += 1  # first TI run
         self._run(sensor)
+
         sensor_ti = _get_sensor_ti()
         assert sensor_ti.try_number == 1
         assert sensor_ti.max_tries == 2
         assert sensor_ti.state == State.UP_FOR_RESCHEDULE
 
-        # second poke raises RuntimeError and task instance is re-scheduled again
+        # second poke raises reschedule exception and task instance is re-scheduled again
         time_machine.coordinates.shift(sensor.poke_interval)
         self._run(sensor)
         sensor_ti = _get_sensor_ti()
@@ -821,19 +954,21 @@ class TestBaseSensor:
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 2
+        assert sensor_ti.try_number == 1
         assert sensor_ti.max_tries == 2
         assert sensor_ti.state == State.FAILED
 
         # Clear the failed sensor
         sensor.clear()
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 2
+        assert sensor_ti.try_number == 1
         assert sensor_ti.max_tries == 3
         assert sensor_ti.state == State.NONE
 
         time_machine.coordinates.shift(20)
 
+        sensor_ti.try_number += 1  # second TI run
+        session.commit()
         for _ in range(3):
             time_machine.coordinates.shift(sensor.poke_interval)
             self._run(sensor)
@@ -847,7 +982,7 @@ class TestBaseSensor:
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
         sensor_ti = _get_sensor_ti()
-        assert sensor_ti.try_number == 3
+        assert sensor_ti.try_number == 2
         assert sensor_ti.max_tries == 3
         assert sensor_ti.state == State.FAILED
 
@@ -983,7 +1118,7 @@ class TestAsyncSensor:
             (False, AirflowException),
         ],
     )
-    def test_fail_after_resuming_deffered_sensor(self, soft_fail, expected_exception):
+    def test_fail_after_resuming_deferred_sensor(self, soft_fail, expected_exception):
         async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
         ti = TaskInstance(task=async_sensor)
         ti.next_method = "execute_complete"

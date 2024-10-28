@@ -47,7 +47,9 @@ metadata:
   annotations: {{- toYaml .Values.webserver.annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.webserver.hpa.enabled }}
   replicas: {{ .Values.webserver.replicas }}
+  {{- end}}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
@@ -127,6 +129,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       restartPolicy: Always
+      terminationGracePeriodSeconds: {{ .Values.webserver.terminationGracePeriodSeconds }}
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -163,7 +166,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
-          {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.webserver.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: webserver
@@ -276,7 +279,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if  .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}

@@ -58,6 +58,8 @@ def get_event_logs(
     dag_id: str | None = None,
     task_id: str | None = None,
     run_id: str | None = None,
+    map_index: int | None = None,
+    try_number: int | None = None,
     owner: str | None = None,
     event: str | None = None,
     excluded_events: str | None = None,
@@ -90,6 +92,10 @@ def get_event_logs(
         query = query.where(Log.task_id == task_id)
     if run_id:
         query = query.where(Log.run_id == run_id)
+    if map_index:
+        query = query.where(Log.map_index == map_index)
+    if try_number:
+        query = query.where(Log.try_number == try_number)
     if owner:
         query = query.where(Log.owner == owner)
     if event:

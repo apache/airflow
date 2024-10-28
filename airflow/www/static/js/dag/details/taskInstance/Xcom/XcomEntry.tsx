@@ -17,9 +17,12 @@
  * under the License.
  */
 
-import { Alert, AlertIcon, Spinner, Td, Text, Tr } from "@chakra-ui/react";
+import { Alert, AlertIcon, Spinner, Td, Tr } from "@chakra-ui/react";
 import React from "react";
+
 import { useTaskXcomEntry } from "src/api";
+import ErrorAlert from "src/components/ErrorAlert";
+import RenderedJsonField from "src/components/RenderedJsonField";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 
 interface Props {
@@ -52,16 +55,11 @@ const XcomEntry = ({
     tryNumber: tryNumber || 1,
   });
 
-  let content = <Text fontFamily="monospace">{xcom?.value}</Text>;
+  let content = null;
   if (isLoading) {
     content = <Spinner />;
   } else if (error) {
-    content = (
-      <Alert status="error">
-        <AlertIcon />
-        Error loading XCom entry
-      </Alert>
-    );
+    content = <ErrorAlert error={error} />;
   } else if (!xcom) {
     content = (
       <Alert status="info">
@@ -69,6 +67,25 @@ const XcomEntry = ({
         No value found for XCom key
       </Alert>
     );
+  } else if (xcom.value === undefined || xcom.value === null) {
+    content = (
+      <Alert status="info">
+        <AlertIcon />
+        Value is NULL
+      </Alert>
+    );
+  } else {
+    let xcomString = "";
+    if (typeof xcom.value !== "string") {
+      try {
+        xcomString = JSON.stringify(xcom.value);
+      } catch (e) {
+        // skip
+      }
+    } else {
+      xcomString = xcom.value as string;
+    }
+    content = <RenderedJsonField content={xcomString} />;
   }
 
   return (

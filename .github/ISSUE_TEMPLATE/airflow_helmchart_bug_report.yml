@@ -28,7 +28,9 @@ body:
         What Apache Airflow Helm Chart version are you using?
       multiple: false
       options:
-        - "1.13.1 (latest released)"
+        - "1.15.0 (latest released)"
+        - "1.14.0"
+        - "1.13.1"
         - "1.13.0"
         - "1.12.0"
         - "1.11.0"

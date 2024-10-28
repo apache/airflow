@@ -50,7 +50,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 def create_context(task) -> Context:
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     execution_date = timezone.datetime(
         2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam")
     )
@@ -62,6 +62,7 @@ def create_context(task) -> Context:
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
+    task_instance.try_number = 1
     task_instance.xcom_push = mock.Mock()  # type: ignore
     return Context(
         dag=dag,
@@ -1345,7 +1346,7 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     task = KubernetesPodOperator(
         task_id="dry_run_demo",
         name="hello-dry-run",
-        image="python:3.8-slim-buster",
+        image="python:3.9-slim-buster",
         cmds=["printenv"],
         env_vars=[
             V1EnvVar(name="password", value="{{ password }}"),

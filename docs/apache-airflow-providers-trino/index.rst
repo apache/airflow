@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/trino/index>
+    System Tests <_api/tests/system/trino/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-trino/|version|/tests/system/providers/trino>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-trino/|version|/providers/tests/system/trino>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-trino/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,7 +78,7 @@ apache-airflow-providers-trino package
 `Trino <https://trino.io/>`__
 
 
-Release: 5.7.0
+Release: 5.8.1
 
 Provider package
 ----------------
@@ -96,16 +96,17 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-=======================================  ==================
+=======================================  =========================================
 PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.7.0``
+=======================================  =========================================
+``apache-airflow``                       ``>=2.8.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``pandas``                               ``>=1.2.5,<2.2``
+``pandas``                               ``>=2.1.2,<2.2; python_version >= "3.9"``
+``pandas``                               ``>=1.5.3,<2.2; python_version < "3.9"``
 ``trino``                                ``>=0.318.0``
-=======================================  ==================
+=======================================  =========================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -134,5 +135,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-trino 5.7.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.7.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.7.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.7.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-trino 5.7.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.7.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.7.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.7.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-trino 5.8.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-trino 5.8.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.8.1-py3-none-any.whl.sha512>`__)

@@ -37,6 +37,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.stats import Stats
+from airflow.traces.tracer import Trace, add_span
 from airflow.triggers.base import TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
@@ -362,26 +363,43 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             if not self.trigger_runner.is_alive():
                 self.log.error("Trigger runner thread has died! Exiting.")
                 break
-            # Clean out unused triggers
-            Trigger.clean_unused()
-            # Load/delete triggers
-            self.load_triggers()
-            # Handle events
-            self.handle_events()
-            # Handle failed triggers
-            self.handle_failed_triggers()
-            perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
-            # Collect stats
-            self.emit_metrics()
+            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as span:
+                # Clean out unused triggers
+                if span.is_recording():
+                    span.add_event(name="Trigger.clean_unused")
+                Trigger.clean_unused()
+                # Load/delete triggers
+                if span.is_recording():
+                    span.add_event(name="load_triggers")
+                self.load_triggers()
+                # Handle events
+                if span.is_recording():
+                    span.add_event(name="handle_events")
+                self.handle_events()
+                # Handle failed triggers
+                if span.is_recording():
+                    span.add_event(name="handle_failed_triggers")
+                self.handle_failed_triggers()
+                if span.is_recording():
+                    span.add_event(name="perform_heartbeat")
+                perform_heartbeat(
+                    self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                )
+                # Collect stats
+                if span.is_recording():
+                    span.add_event(name="emit_metrics")
+                self.emit_metrics()
             # Idle sleep
             time.sleep(1)
 
+    @add_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
         ids = Trigger.ids_for_triggerer(self.job.id)
         self.trigger_runner.update_triggers(set(ids))
 
+    @add_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.trigger_runner.events:
@@ -392,6 +410,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
+    @add_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -405,11 +424,21 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Emit stat event
             Stats.incr("triggers.failed")
 
+    @add_span
     def emit_metrics(self):
         Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers))
         Stats.gauge(
             "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
         )
+
+        capacity_left = self.capacity - len(self.trigger_runner.triggers)
+        Stats.gauge(f"triggerer.capacity_left.{self.job.hostname}", capacity_left)
+        Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
+
+        span = Trace.get_current_span()
+        span.set_attribute("trigger host", self.job.hostname)
+        span.set_attribute("triggers running", len(self.trigger_runner.triggers))
+        span.set_attribute("capacity left", capacity_left)
 
 
 class TriggerDetails(TypedDict):
@@ -676,6 +705,20 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.failed_triggers.append((new_id, e))
+                continue
+
+            # If new_trigger_orm.task_instance is None, this means the TaskInstance
+            # row was updated by either Trigger.submit_event or Trigger.submit_failure
+            # and can happen when a single trigger Job is being run on multiple TriggerRunners
+            # in a High-Availability setup.
+            if new_trigger_orm.task_instance is None:
+                self.log.info(
+                    (
+                        "TaskInstance for Trigger ID %s is None. It was likely updated by another trigger job. "
+                        "Skipping trigger instantiation."
+                    ),
+                    new_id,
+                )
                 continue
 
             try:

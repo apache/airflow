@@ -23,33 +23,30 @@ import signal
 import threading
 import time
 import zipfile
-from contextlib import redirect_stderr, redirect_stdout, suppress
-from datetime import timedelta
-from typing import TYPE_CHECKING, Iterable, Iterator
+from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Generator, Iterable
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, event, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
-    SlaCallbackRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models import SlaMiss
+from airflow.exceptions import AirflowException
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
+from airflow.models.taskinstance import TaskInstance, _run_finished_callback
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import iter_airflow_imports, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
@@ -65,6 +62,28 @@ if TYPE_CHECKING:
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.models.operator import Operator
+
+
+@dataclass
+class _QueryCounter:
+    queries_number: int = 0
+
+    def inc(self):
+        self.queries_number += 1
+
+
+@contextmanager
+def count_queries(session: Session) -> Generator[_QueryCounter, None, None]:
+    # using list allows to read the updated counter from what context manager returns
+    counter: _QueryCounter = _QueryCounter()
+
+    @event.listens_for(session, "do_orm_execute")
+    def _count_db_queries(orm_execute_state):
+        nonlocal counter
+        counter.inc()
+
+    yield counter
+    event.remove(session, "do_orm_execute", _count_db_queries)
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
@@ -98,7 +117,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         # The process that was launched to process the given .
         self._process: multiprocessing.process.BaseProcess | None = None
         # The result of DagFileProcessor.process_file(file_path).
-        self._result: tuple[int, int] | None = None
+        self._result: tuple[int, int, int] | None = None
         # Whether the process is done running.
         self._done = False
         # When the process started.
@@ -161,7 +180,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
             log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
             dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
-            result: tuple[int, int] = dag_file_processor.process_file(
+            result: tuple[int, int, int] = dag_file_processor.process_file(
                 file_path=file_path,
                 pickle_dags=pickle_dags,
                 callback_requests=callback_requests,
@@ -349,7 +368,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         return False
 
     @property
-    def result(self) -> tuple[int, int] | None:
+    def result(self) -> tuple[int, int, int] | None:
         """Result of running ``DagFileProcessor.process_file()``."""
         if not self.done:
             raise AirflowException("Tried to get the result before it's done!")
@@ -414,180 +433,7 @@ class DagFileProcessor(LoggingMixin):
         self._log = log
         self._dag_directory = dag_directory
         self.dag_warnings: set[tuple[str, str]] = set()
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def manage_slas(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
-        """
-        Find all tasks that have SLAs defined, and send alert emails when needed.
-
-        New SLA misses are also recorded in the database.
-
-        We are assuming that the scheduler runs often, so we only check for
-        tasks that should have succeeded in the past hour.
-        """
-        dagbag = DagFileProcessor._get_dagbag(dag_folder)
-        dag = dagbag.get_dag(dag_id)
-        cls.logger().info("Running SLA Checks for %s", dag.dag_id)
-        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
-            cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
-            return
-        qry = (
-            select(TI.task_id, func.max(DR.execution_date).label("max_ti"))
-            .join(TI.dag_run)
-            .where(TI.dag_id == dag.dag_id)
-            .where(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
-            .where(TI.task_id.in_(dag.task_ids))
-            .group_by(TI.task_id)
-            .subquery("sq")
-        )
-        # get recorded SlaMiss
-        recorded_slas_query = set(
-            session.execute(
-                select(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).where(
-                    SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
-                )
-            )
-        )
-        max_tis: Iterator[TI] = session.scalars(
-            select(TI)
-            .join(TI.dag_run)
-            .where(TI.dag_id == dag.dag_id, TI.task_id == qry.c.task_id, DR.execution_date == qry.c.max_ti)
-        )
-
-        ts = timezone.utcnow()
-
-        for ti in max_tis:
-            task = dag.get_task(ti.task_id)
-            if not task.sla:
-                continue
-
-            if not isinstance(task.sla, timedelta):
-                raise TypeError(
-                    f"SLA is expected to be timedelta object, got "
-                    f"{type(task.sla)} in {task.dag_id}:{task.task_id}"
-                )
-
-            sla_misses = []
-            next_info = dag.next_dagrun_info(dag.get_run_data_interval(ti.dag_run), restricted=False)
-            while next_info and next_info.logical_date < ts:
-                next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
-
-                if next_info is None:
-                    break
-                if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
-                    continue
-                if next_info.logical_date + task.sla < ts:
-                    sla_miss = SlaMiss(
-                        task_id=ti.task_id,
-                        dag_id=ti.dag_id,
-                        execution_date=next_info.logical_date,
-                        timestamp=ts,
-                    )
-                    sla_misses.append(sla_miss)
-                    Stats.incr("sla_missed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
-            if sla_misses:
-                session.add_all(sla_misses)
-        session.commit()
-        slas: list[SlaMiss] = session.scalars(
-            select(SlaMiss).where(~SlaMiss.notification_sent, SlaMiss.dag_id == dag.dag_id)
-        ).all()
-        if slas:
-            sla_dates: list[datetime] = [sla.execution_date for sla in slas]
-            fetched_tis: list[TI] = session.scalars(
-                select(TI).where(
-                    TI.dag_id == dag.dag_id,
-                    TI.execution_date.in_(sla_dates),
-                    TI.state != TaskInstanceState.SUCCESS,
-                )
-            ).all()
-            blocking_tis: list[TI] = []
-            for ti in fetched_tis:
-                if ti.task_id in dag.task_ids:
-                    ti.task = dag.get_task(ti.task_id)
-                    blocking_tis.append(ti)
-                else:
-                    session.delete(ti)
-                    session.commit()
-
-            task_list = "\n".join(sla.task_id + " on " + sla.execution_date.isoformat() for sla in slas)
-            blocking_task_list = "\n".join(
-                ti.task_id + " on " + ti.execution_date.isoformat() for ti in blocking_tis
-            )
-            # Track whether email or any alert notification sent
-            # We consider email or the alert callback as notifications
-            email_sent = False
-            notification_sent = False
-            if dag.sla_miss_callback:
-                # Execute the alert callback
-                callbacks = (
-                    dag.sla_miss_callback
-                    if isinstance(dag.sla_miss_callback, list)
-                    else [dag.sla_miss_callback]
-                )
-                for callback in callbacks:
-                    cls.logger().info("Calling SLA miss callback %s", callback)
-                    try:
-                        callback(dag, task_list, blocking_task_list, slas, blocking_tis)
-                        notification_sent = True
-                    except Exception:
-                        Stats.incr(
-                            "sla_callback_notification_failure",
-                            tags={
-                                "dag_id": dag.dag_id,
-                                "func_name": callback.__name__,
-                            },
-                        )
-                        cls.logger().exception(
-                            "Could not call sla_miss_callback(%s) for DAG %s",
-                            callback.__name__,
-                            dag.dag_id,
-                        )
-            email_content = f"""\
-            Here's a list of tasks that missed their SLAs:
-            <pre><code>{task_list}\n<code></pre>
-            Blocking tasks:
-            <pre><code>{blocking_task_list}<code></pre>
-            Airflow Webserver URL: {conf.get(section='webserver', key='base_url')}
-            """
-
-            tasks_missed_sla = []
-            for sla in slas:
-                try:
-                    task = dag.get_task(sla.task_id)
-                except TaskNotFound:
-                    # task already deleted from DAG, skip it
-                    cls.logger().warning(
-                        "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.", sla.task_id
-                    )
-                else:
-                    tasks_missed_sla.append(task)
-
-            emails: set[str] = set()
-            for task in tasks_missed_sla:
-                if task.email:
-                    if isinstance(task.email, str):
-                        emails.update(get_email_address_list(task.email))
-                    elif isinstance(task.email, (list, tuple)):
-                        emails.update(task.email)
-            if emails:
-                try:
-                    send_email(emails, f"[airflow] SLA miss on DAG={dag.dag_id}", email_content)
-                    email_sent = True
-                    notification_sent = True
-                except Exception:
-                    Stats.incr("sla_email_notification_failure", tags={"dag_id": dag.dag_id})
-                    cls.logger().exception(
-                        "Could not send SLA Miss email notification for DAG %s", dag.dag_id
-                    )
-            # If we sent any notification, update the sla_miss table
-            if notification_sent:
-                for sla in slas:
-                    sla.email_sent = email_sent
-                    sla.notification_sent = True
-                    session.merge(sla)
-            session.commit()
+        self._last_num_of_db_queries = 0
 
     @staticmethod
     @internal_api_call
@@ -604,8 +450,8 @@ class DagFileProcessor(LoggingMixin):
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
-
-        :param dagbag: DagBag containing DAGs with import errors
+        :param file_last_changed: Dictionary containing the last changed time of the files
+        :param import_errors: Dictionary containing the import errors
         :param session: session for ORM operations
         """
         files_without_error = file_last_changed - import_errors.keys()
@@ -629,6 +475,10 @@ class DagFileProcessor(LoggingMixin):
                     {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
+                # sending notification when an existing dag import error occurs
+                get_listener_manager().hook.on_existing_dag_import_error(
+                    filename=filename, stacktrace=stacktrace
+                )
             else:
                 session.add(
                     ParseImportError(
@@ -638,6 +488,8 @@ class DagFileProcessor(LoggingMixin):
                         processor_subdir=processor_subdir,
                     )
                 )
+                # sending notification when a new dag import error occurs
+                get_listener_manager().hook.on_new_dag_import_error(filename=filename, stacktrace=stacktrace)
             (
                 session.query(DagModel)
                 .filter(DagModel.fileloc == filename)
@@ -645,54 +497,68 @@ class DagFileProcessor(LoggingMixin):
             )
 
         session.commit()
+        session.flush()
 
-    @provide_session
-    def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
+    @classmethod
+    def update_dag_warnings(cla, *, dagbag: DagBag) -> None:
         """Validate and raise exception if any task in a dag is using a non-existent pool."""
+
+        def get_pools(dag) -> dict[str, set[str]]:
+            return {dag.dag_id: {task.pool for task in dag.tasks}}
+
+        pool_dict: dict[str, set[str]] = {}
+        for dag in dagbag.dags.values():
+            pool_dict.update(get_pools(dag))
+        dag_ids = {dag.dag_id for dag in dagbag.dags.values()}
+        return DagFileProcessor._validate_task_pools_and_update_dag_warnings(pool_dict, dag_ids)
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def _validate_task_pools_and_update_dag_warnings(
+        cls, pool_dict: dict[str, set[str]], dag_ids: set[str], session: Session = NEW_SESSION
+    ) -> None:
         from airflow.models.pool import Pool
 
-        def check_pools(dag):
-            task_pools = {task.pool for task in dag.tasks}
-            nonexistent_pools = task_pools - pools
+        all_pools = {p.pool for p in Pool.get_pools(session)}
+        warnings: set[DagWarning] = set()
+        for dag_id, dag_pools in pool_dict.items():
+            nonexistent_pools = dag_pools - all_pools
             if nonexistent_pools:
-                return f"Dag '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}"
+                warnings.add(
+                    DagWarning(
+                        dag_id,
+                        DagWarningType.NONEXISTENT_POOL,
+                        f"Dag '{dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}",
+                    )
+                )
 
-        pools = {p.pool for p in Pool.get_pools(session)}
-        for dag in dagbag.dags.values():
-            message = check_pools(dag)
-            if message:
-                self.dag_warnings.add(DagWarning(dag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
-            for subdag in dag.subdags:
-                message = check_pools(subdag)
-                if message:
-                    self.dag_warnings.add(DagWarning(subdag.dag_id, DagWarningType.NONEXISTENT_POOL, message))
+        stored_warnings = set(
+            session.scalars(
+                select(DagWarning).where(
+                    DagWarning.dag_id.in_(dag_ids),
+                    DagWarning.warning_type == DagWarningType.NONEXISTENT_POOL,
+                )
+            )
+        )
 
-    def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
-        """
-        Update any import warnings to be displayed in the UI.
-
-        For the DAGs in the given DagBag, record any associated configuration warnings and clear
-        warnings for files that no longer have them. These are usually displayed through the
-        Airflow UI so that users know that there are issues parsing DAGs.
-
-        :param session: session for ORM operations
-        :param dagbag: DagBag containing DAGs with configuration warnings
-        """
-        self._validate_task_pools(dagbag=dagbag)
-
-        stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all())
-
-        for warning_to_delete in stored_warnings - self.dag_warnings:
+        for warning_to_delete in stored_warnings - warnings:
             session.delete(warning_to_delete)
 
-        for warning_to_add in self.dag_warnings:
+        for warning_to_add in warnings:
             session.merge(warning_to_add)
-
+        session.flush()
         session.commit()
 
+    @classmethod
+    @internal_api_call
     @provide_session
     def execute_callbacks(
-        self, dagbag: DagBag, callback_requests: list[CallbackRequest], session: Session = NEW_SESSION
+        cls,
+        dagbag: DagBag,
+        callback_requests: list[CallbackRequest],
+        unit_test_mode: bool,
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         Execute on failure callbacks.
@@ -702,27 +568,30 @@ class DagFileProcessor(LoggingMixin):
         :param dagbag: Dag Bag of dags
         :param callback_requests: failure callbacks to execute
         :param session: DB session.
+
+        :return: number of queries executed
         """
         for request in callback_requests:
-            self.log.debug("Processing Callback Request: %s", request)
+            cls.logger().debug("Processing Callback Request: %s", request)
             try:
                 if isinstance(request, TaskCallbackRequest):
-                    self._execute_task_callbacks(dagbag, request, session=session)
-                elif isinstance(request, SlaCallbackRequest):
-                    DagFileProcessor.manage_slas(dagbag.dag_folder, request.dag_id, session=session)
+                    cls._execute_task_callbacks(dagbag, request, unit_test_mode, session=session)
                 elif isinstance(request, DagCallbackRequest):
-                    self._execute_dag_callbacks(dagbag, request, session)
+                    cls._execute_dag_callbacks(dagbag, request, session=session)
             except Exception:
-                self.log.exception(
+                cls.logger().exception(
                     "Error executing %s callback for file: %s",
                     request.__class__.__name__,
                     request.full_filepath,
                 )
-
         session.flush()
+        session.commit()
 
+    @classmethod
+    @internal_api_call
+    @provide_session
     def execute_callbacks_without_dag(
-        self, callback_requests: list[CallbackRequest], session: Session
+        cls, callback_requests: list[CallbackRequest], unit_test_mode: bool, session: Session = NEW_SESSION
     ) -> None:
         """
         Execute what callbacks we can as "best effort" when the dag cannot be found/had parse errors.
@@ -731,18 +600,20 @@ class DagFileProcessor(LoggingMixin):
         error don't get stuck in queued state.
         """
         for request in callback_requests:
-            self.log.debug("Processing Callback Request: %s", request)
+            cls.logger().debug("Processing Callback Request: %s", request)
             if isinstance(request, TaskCallbackRequest):
-                self._execute_task_callbacks(None, request, session)
+                cls._execute_task_callbacks(None, request, unit_test_mode, session)
             else:
-                self.log.info(
+                cls.logger().info(
                     "Not executing %s callback for file %s as there was a dag parse error",
                     request.__class__.__name__,
                     request.full_filepath,
                 )
+        session.flush()
+        session.commit()
 
-    @provide_session
-    def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
+    @classmethod
+    def _execute_dag_callbacks(cls, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
         callbacks, context = DAG.fetch_callback(
             dag=dag,
@@ -755,8 +626,31 @@ class DagFileProcessor(LoggingMixin):
         if callbacks and context:
             DAG.execute_callback(callbacks, context, dag.dag_id)
 
-    def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
-        if not request.is_failure_callback:
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def _execute_task_callbacks(
+        cls, dagbag: DagBag | None, request: TaskCallbackRequest, unit_test_mode: bool, session: Session
+    ) -> None:
+        """
+        Execute the task callbacks.
+
+        :param dagbag: the DagBag to use to get the task instance
+        :param request: the task callback request
+        :param session: the session to use
+        """
+        try:
+            callback_type = TaskInstanceState(request.task_callback_type)
+        except ValueError:
+            callback_type = None
+        is_remote = callback_type in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED)
+
+        # previously we ignored any request besides failures. now if given callback type directly,
+        # then we respect it and execute it. additionally because in this scenario the callback
+        # is submitted remotely, we assume there is no need to mess with state; we simply run
+        # the callback
+
+        if not is_remote and not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
@@ -767,6 +661,7 @@ class DagFileProcessor(LoggingMixin):
             map_index=simple_ti.map_index,
             session=session,
         )
+
         if not ti:
             return
 
@@ -788,8 +683,16 @@ class DagFileProcessor(LoggingMixin):
         if task:
             ti.refresh_from_task(task)
 
-        ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE, session=session)
-        self.log.info("Executed failure callback for %s in state %s", ti, ti.state)
+        if callback_type is TaskInstanceState.SUCCESS:
+            context = ti.get_template_context(session=session)
+            if TYPE_CHECKING:
+                assert ti.task
+            callbacks = ti.task.on_success_callback
+            _run_finished_callback(callbacks=callbacks, context=context)
+            cls.logger().info("Executed callback for %s in state %s", ti, ti.state)
+        elif not is_remote or callback_type is TaskInstanceState.FAILED:
+            ti.handle_failure(error=request.msg, test_mode=unit_test_mode, session=session)
+            cls.logger().info("Executed callback for %s in state %s", ti, ti.state)
         session.flush()
 
     @classmethod
@@ -808,7 +711,7 @@ class DagFileProcessor(LoggingMixin):
         callback_requests: list[CallbackRequest],
         pickle_dags: bool = False,
         session: Session = NEW_SESSION,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         """
         Process a Python file containing Airflow DAGs.
 
@@ -825,64 +728,66 @@ class DagFileProcessor(LoggingMixin):
         :param callback_requests: failure callback to execute
         :param pickle_dags: whether serialize the DAGs found in the file and
             save them to the db
-        :param session: Sqlalchemy ORM Session
-        :return: number of dags found, count of import errors
+        :return: number of dags found, count of import errors, last number of db queries
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
 
-        try:
-            dagbag = DagFileProcessor._get_dagbag(file_path)
-        except Exception:
-            self.log.exception("Failed at reloading the DAG file %s", file_path)
-            Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
-            return 0, 0
+        with count_queries(session) as query_counter:
+            try:
+                dagbag = DagFileProcessor._get_dagbag(file_path)
+            except Exception:
+                self.log.exception("Failed at reloading the DAG file %s", file_path)
+                Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
+                return 0, 0, self._cache_last_num_of_db_queries(query_counter)
 
-        if dagbag.dags:
-            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
-        else:
-            self.log.warning("No viable dags retrieved from %s", file_path)
-            DagFileProcessor.update_import_errors(
-                file_last_changed=dagbag.file_last_changed,
-                import_errors=dagbag.import_errors,
-                processor_subdir=self._dag_directory,
-                session=session,
+            if dagbag.dags:
+                self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
+            else:
+                self.log.warning("No viable dags retrieved from %s", file_path)
+                DagFileProcessor.update_import_errors(
+                    file_last_changed=dagbag.file_last_changed,
+                    import_errors=dagbag.import_errors,
+                    processor_subdir=self._dag_directory,
+                )
+                if callback_requests:
+                    # If there were callback requests for this file but there was a
+                    # parse error we still need to progress the state of TIs,
+                    # otherwise they might be stuck in queued/running for ever!
+                    DagFileProcessor.execute_callbacks_without_dag(callback_requests, self.UNIT_TEST_MODE)
+                return 0, len(dagbag.import_errors), self._cache_last_num_of_db_queries(query_counter)
+
+            self.execute_callbacks(dagbag, callback_requests, self.UNIT_TEST_MODE)
+
+            serialize_errors = DagFileProcessor.save_dag_to_db(
+                dags=dagbag.dags,
+                dag_directory=self._dag_directory,
+                pickle_dags=pickle_dags,
             )
-            if callback_requests:
-                # If there were callback requests for this file but there was a
-                # parse error we still need to progress the state of TIs,
-                # otherwise they might be stuck in queued/running for ever!
-                self.execute_callbacks_without_dag(callback_requests, session)
-            return 0, len(dagbag.import_errors)
 
-        self.execute_callbacks(dagbag, callback_requests, session)
-        session.commit()
+            dagbag.import_errors.update(dict(serialize_errors))
 
-        serialize_errors = DagFileProcessor.save_dag_to_db(
-            dags=dagbag.dags,
-            dag_directory=self._dag_directory,
-            pickle_dags=pickle_dags,
-        )
+            # Record import errors into the ORM
+            try:
+                DagFileProcessor.update_import_errors(
+                    file_last_changed=dagbag.file_last_changed,
+                    import_errors=dagbag.import_errors,
+                    processor_subdir=self._dag_directory,
+                )
+            except Exception:
+                self.log.exception("Error logging import errors!")
 
-        dagbag.import_errors.update(dict(serialize_errors))
+            # Record DAG warnings in the metadatabase.
+            try:
+                self.update_dag_warnings(dagbag=dagbag)
+            except Exception:
+                self.log.exception("Error logging DAG warnings.")
 
-        # Record import errors into the ORM
-        try:
-            DagFileProcessor.update_import_errors(
-                file_last_changed=dagbag.file_last_changed,
-                import_errors=dagbag.import_errors,
-                processor_subdir=self._dag_directory,
-                session=session,
-            )
-        except Exception:
-            self.log.exception("Error logging import errors!")
+        return len(dagbag.dags), len(dagbag.import_errors), self._cache_last_num_of_db_queries(query_counter)
 
-        # Record DAG warnings in the metadatabase.
-        try:
-            self.update_dag_warnings(session=session, dagbag=dagbag)
-        except Exception:
-            self.log.exception("Error logging DAG warnings.")
-
-        return len(dagbag.dags), len(dagbag.import_errors)
+    def _cache_last_num_of_db_queries(self, query_counter: _QueryCounter | None = None):
+        if query_counter:
+            self._last_num_of_db_queries = query_counter.queries_number
+        return self._last_num_of_db_queries
 
     @staticmethod
     @internal_api_call

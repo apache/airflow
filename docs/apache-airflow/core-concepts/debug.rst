@@ -36,8 +36,38 @@ To set up ``dag.test``, add these two lines to the bottom of your dag file:
   if __name__ == "__main__":
       dag.test()
 
-and that's it! You can add argument such as ``execution_date`` if you want to test argument-specific DAG runs, but otherwise
-you can run or debug DAGs as needed.
+and that's it! You can add optional arguments to fine tune the testing but otherwise you can run or debug DAGs as
+needed. Here are some examples of arguments:
+
+* ``execution_date`` if you want to test argument-specific DAG runs
+* ``use_executor`` if you want to test the DAG using an executor. By default ``dag.test`` runs the DAG without an
+  executor, it just runs all the tasks locally.
+  By providing this argument, the DAG is executed using the executor configured in the Airflow environment.
+
+Conditionally skipping tasks
+----------------------------
+
+If you don't wish to execute some subset of tasks in your local environment (e.g. dependency check sensors or cleanup steps),
+you can automatically mark them successful supplying a pattern matching their ``task_id`` in the ``mark_success_pattern`` argument.
+
+In the following example, testing the dag won't wait for either of the upstream dags to complete. Instead, testing data
+is manually ingested. The cleanup step is also skipped, making the intermediate csv is available for inspection.
+
+.. code-block:: python
+
+  with DAG("example_dag", default_args=default_args) as dag:
+      sensor = ExternalTaskSensor(task_id="wait_for_ingestion_dag", external_dag_id="ingest_raw_data")
+      sensor2 = ExternalTaskSensor(task_id="wait_for_dim_dag", external_dag_id="ingest_dim")
+      collect_stats = PythonOperator(task_id="extract_stats_csv", python_callable=extract_stats_csv)
+      # ... run other tasks
+      cleanup = PythonOperator(task_id="cleanup", python_callable=Path.unlink, op_args=[collect_stats.output])
+
+      [sensor, sensor2] >> collect_stats >> cleanup
+
+  if __name__ == "__main__":
+      ingest_testing_data()
+      run = dag.test(mark_success_pattern="wait_for_.*|cleanup")
+      print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_id='collect_stats')}")
 
 Comparison with DebugExecutor
 -----------------------------
@@ -92,18 +122,9 @@ For more information on setting the configuration, see :doc:`../../howto/set-con
 
 1. Add ``main`` block at the end of your DAG file to make it runnable.
 
-It will run a backfill job:
-
 .. code-block:: python
 
   if __name__ == "__main__":
-      from airflow.utils.state import State
+      dag.test()
 
-      dag.clear()
-      dag.run()
-
-
-2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
-   this step you should also setup all environment variables required by your DAG.
-
-3. Run / debug the DAG file.
+2. Run / debug the DAG file.

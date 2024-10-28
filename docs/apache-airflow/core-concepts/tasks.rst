@@ -18,7 +18,7 @@
 Tasks
 =====
 
-A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`dags`, and then have upstream and downstream dependencies set between them into order to express the order they should run in.
+A Task is the basic unit of execution in Airflow. Tasks are arranged into :doc:`dags`, and then have upstream and downstream dependencies set between them in order to express the order they should run in.
 
 There are three basic kinds of Task:
 
@@ -149,82 +149,11 @@ is periodically executed and rescheduled until it succeeds.
         mode="reschedule",
     )
 
-If you merely want to be notified if a task runs over but still let it run to completion, you want :ref:`concepts:slas` instead.
-
-
-.. _concepts:slas:
 
 SLAs
 ----
 
-An SLA, or a Service Level Agreement, is an expectation for the maximum time a Task should be completed relative to the Dag Run start time. If a task takes longer than this to run, it is then visible in the "SLA Misses" part of the user interface, as well as going out in an email of all tasks that missed their SLA.
-
-Tasks over their SLA are not cancelled, though - they are allowed to run to completion. If you want to cancel a task after a certain runtime is reached, you want :ref:`concepts:timeouts` instead.
-
-To set an SLA for a task, pass a ``datetime.timedelta`` object to the Task/Operator's ``sla`` parameter.  You can also supply an ``sla_miss_callback`` that will be called when the SLA is missed if you want to run your own logic.
-
-If you want to disable SLA checking entirely, you can set ``check_slas = False`` in Airflow's ``[core]`` configuration.
-
-To read more about configuring the emails, see :doc:`/howto/email-config`.
-
-.. note::
-
-    Manually-triggered tasks and tasks in event-driven DAGs will not be checked for an SLA miss. For more information on DAG ``schedule`` values see :doc:`DAG Run <dag-run>`.
-
-.. _concepts:sla_miss_callback:
-
-sla_miss_callback
-~~~~~~~~~~~~~~~~~
-
-You can also supply an ``sla_miss_callback`` that will be called when the SLA is missed if you want to run your own logic.
-The function signature of an ``sla_miss_callback`` requires 5 parameters.
-
-#. ``dag``
-
-    * Parent :ref:`DAG <concepts-dags>` Object for the :doc:`DAGRun <dag-run>` in which tasks missed their
-      :ref:`SLA <concepts:slas>`.
-
-#. ``task_list``
-
-    * String list (new-line separated, \\n) of all tasks that missed their :ref:`SLA <concepts:slas>`
-      since the last time that the ``sla_miss_callback`` ran.
-
-#. ``blocking_task_list``
-
-    * Any task in the :doc:`DAGRun(s)<dag-run>` (with the same ``execution_date`` as a task that missed
-      :ref:`SLA <concepts:slas>`) that is not in a **SUCCESS** state at the time that the ``sla_miss_callback``
-      runs. i.e. 'running', 'failed'.  These tasks are described as tasks that are blocking itself or another
-      task from completing before its SLA window is complete.
-
-#. ``slas``
-
-    * List of :py:mod:`SlaMiss<airflow.models.slamiss>` objects associated with the tasks in the
-      ``task_list`` parameter.
-
-#. ``blocking_tis``
-
-    * List of the :ref:`TaskInstance <concepts:task-instances>` objects that are associated with the tasks
-      in the ``blocking_task_list`` parameter.
-
-Examples of ``sla_miss_callback`` function signature:
-
-.. code-block:: python
-
-    def my_sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis):
-        ...
-
-.. code-block:: python
-
-    def my_sla_miss_callback(*args):
-        ...
-
-Example DAG:
-
-.. exampleinclude:: /../../airflow/example_dags/example_sla_dag.py
-    :language: python
-    :start-after: [START howto_task_sla]
-    :end-before: [END howto_task_sla]
-
+The SLA feature from Airflow 2 has been removed in 3.0 and will be replaced with a new implementation in Airflow 3.1
 
 Special Exceptions
 ------------------
@@ -245,7 +174,12 @@ No system runs perfectly, and task instances are expected to die once in a while
 
 * *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
   (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
-  periodically, clean them up, and either fail or retry the task depending on its settings.
+  periodically, clean them up, and either fail or retry the task depending on its settings. Tasks can become zombies for
+  many reasons, including:
+
+    * The Airflow worker ran out of memory and was OOMKilled.
+    * The Airflow worker failed its liveness probe, so the system (for example, Kubernetes) restarted the worker.
+    * The system (for example, Kubernetes) scaled down and moved an Airflow worker from one node to another.
 
 * *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
   Instances via the UI. Airflow will find them periodically and terminate them.
@@ -255,8 +189,8 @@ Below is the code snippet from the Airflow scheduler that runs periodically to d
 
 .. exampleinclude:: /../../airflow/jobs/scheduler_job_runner.py
     :language: python
-    :start-after: [START find_zombies]
-    :end-before: [END find_zombies]
+    :start-after: [START find_and_purge_zombies]
+    :end-before: [END find_and_purge_zombies]
 
 
 The explanation of the criteria used in the above snippet to detect zombie tasks is as below:
@@ -302,7 +236,7 @@ If you'd like to reproduce zombie tasks for development/testing processes, follo
 .. code-block:: python
 
     from airflow.decorators import dag
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from datetime import datetime
 
 

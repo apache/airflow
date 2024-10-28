@@ -48,20 +48,26 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_runs,
+    drop_tables_with_prefix,
+)
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_dags()
     yield  # Test runs here
     clear_db_dags()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_runs()
 
 
@@ -297,10 +303,6 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
-    @pytest.mark.filterwarnings(
-        # This test case might import some deprecated modules, ignore it
-        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
-    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -324,9 +326,13 @@ class TestDBCleanup:
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
+            "backfill",  # todo: AIP-78
+            "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
-            "dataset",  # not good way to know if "stale"
+            "asset_active",  # not good way to know if "stale"
+            "asset",  # not good way to know if "stale"
+            "asset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
@@ -337,13 +343,16 @@ class TestDBCleanup:
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
             "slot_pool",  # leave alone
-            "dag_schedule_dataset_reference",  # leave alone for now
-            "task_outlet_dataset_reference",  # leave alone for now
-            "dataset_dag_run_queue",  # self-managed
-            "dataset_event_dag_run",  # foreign keys
+            "dag_schedule_asset_reference",  # leave alone for now
+            "dag_schedule_asset_alias_reference",  # leave alone for now
+            "task_outlet_asset_reference",  # leave alone for now
+            "asset_dag_run_queue",  # self-managed
+            "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
+            "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
+            # significant source of data.
         }
 
         from airflow.utils.db_cleanup import config_dict

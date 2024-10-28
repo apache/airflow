@@ -169,8 +169,8 @@ interface RunLabelProps {
 
 const getDagRunLabel = ({
   dagRun,
-  ordering = ["dataIntervalEnd", "executionDate"],
-}: RunLabelProps) => dagRun[ordering[0]] ?? dagRun[ordering[1]];
+  ordering = ["executionDate"],
+}: RunLabelProps) => dagRun[ordering[0]];
 
 const getStatusBackgroundColor = (color: string, hasNote: boolean) =>
   hasNote
@@ -188,8 +188,15 @@ const toSentenceCase = (camelCase: string): string => {
 const highlightByKeywords = (
   parsedLine: string,
   errorKeywords: string[],
-  warningKeywords: string[]
+  warningKeywords: string[],
+  logGroupStart: RegExp,
+  logGroupEnd: RegExp
 ): string => {
+  // Don't color log marker lines that are already highlighted.
+  if (logGroupStart.test(parsedLine) || logGroupEnd.test(parsedLine)) {
+    return parsedLine;
+  }
+
   const lowerParsedLine = parsedLine.toLowerCase();
   const red = (line: string) => `\x1b[1m\x1b[31m${line}\x1b[39m\x1b[0m`;
   const yellow = (line: string) => `\x1b[1m\x1b[33m${line}\x1b[39m\x1b[0m`;

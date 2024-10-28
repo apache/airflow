@@ -95,6 +95,13 @@
       <p>Triggers will not run, and any deferred operator will remain deferred until it times out and fails.</p>
     {% endcall %}
   {% endif %}
+
+  {% if auth_manager.is_logged_in() %}
+    {% call show_message(category='info', dismissible=true) %}
+      <span>We have a new UI for Airflow 3.0</span>
+      <a href="http://localhost:29091/webapp">Check it out now!</a>
+    {% endcall %}
+  {% endif %}
 {% endblock %}
 
 {% block footer %}
@@ -114,7 +121,6 @@
 
 {% block tail_js %}
   {{ super() }}
-
   <script>
     // below variables are used in main.js
     // keep as var, changing to const or let breaks other code
@@ -130,6 +136,7 @@
   <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('toggleTheme.js') }}"></script>
 
   {% if analytics_tool is defined and analytics_tool %}
     {% include "analytics/" + analytics_tool + ".html" %}

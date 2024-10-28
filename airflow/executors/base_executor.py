@@ -20,8 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
-import warnings
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
@@ -29,8 +28,12 @@ import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models import Log
 from airflow.stats import Stats
+from airflow.traces import NO_TRACE_ID
+from airflow.traces.tracer import Trace, add_span, gen_context
+from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -129,6 +132,16 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
+        self._task_event_logs: deque[Log] = deque()
+        """
+        Deque for storing task event log messages.
+
+        This attribute is only internally public and should not be manipulated
+        directly by subclasses.
+
+        :meta private:
+        """
+
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
@@ -136,6 +149,10 @@ class BaseExecutor(LoggingMixin):
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
+
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+        """Add an event to the log table."""
+        self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_command(
         self,
@@ -209,6 +226,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -219,29 +237,75 @@ class BaseExecutor(LoggingMixin):
         num_running_tasks = len(self.running)
         num_queued_tasks = len(self.queued_tasks)
 
-        self.log.debug("%s running task instances", num_running_tasks)
-        self.log.debug("%s in queue", num_queued_tasks)
-        self.log.debug("%s open slots", open_slots)
-
-        Stats.gauge(
-            "executor.open_slots", value=open_slots, tags={"status": "open", "name": self.__class__.__name__}
-        )
-        Stats.gauge(
-            "executor.queued_tasks",
-            value=num_queued_tasks,
-            tags={"status": "queued", "name": self.__class__.__name__},
-        )
-        Stats.gauge(
-            "executor.running_tasks",
-            value=num_running_tasks,
-            tags={"status": "running", "name": self.__class__.__name__},
-        )
-
+        self._emit_metrics(open_slots, num_running_tasks, num_queued_tasks)
         self.trigger_tasks(open_slots)
 
         # Calling child class sync method
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
+
+    def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
+        """
+        Emit metrics relevant to the Executor.
+
+        In the case of multiple executors being configured, the metric names include the name of
+        executor to differentiate them from metrics from other executors.
+
+        If only one executor is configured, the metric names will not be changed.
+        """
+        name = self.__class__.__name__
+        multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
+        if multiple_executors_configured:
+            metric_suffix = name
+
+        open_slots_metric_name = (
+            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
+        )
+        queued_tasks_metric_name = (
+            f"executor.queued_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.queued_tasks"
+        )
+        running_tasks_metric_name = (
+            f"executor.running_tasks.{metric_suffix}"
+            if multiple_executors_configured
+            else "executor.running_tasks"
+        )
+
+        span = Trace.get_current_span()
+        if span.is_recording():
+            span.add_event(
+                name="executor",
+                attributes={
+                    open_slots_metric_name: open_slots,
+                    queued_tasks_metric_name: num_queued_tasks,
+                    running_tasks_metric_name: num_running_tasks,
+                },
+            )
+
+        self.log.debug("%s running task instances for executor %s", num_running_tasks, name)
+        self.log.debug("%s in queue for executor %s", num_queued_tasks, name)
+        if open_slots == 0:
+            if self.parallelism:
+                self.log.info("Executor parallelism limit reached. 0 open slots.")
+        else:
+            self.log.debug("%s open slots for executor %s", open_slots, name)
+
+        Stats.gauge(
+            open_slots_metric_name,
+            value=open_slots,
+            tags={"status": "open", "name": name},
+        )
+        Stats.gauge(
+            queued_tasks_metric_name,
+            value=num_queued_tasks,
+            tags={"status": "queued", "name": name},
+        )
+        Stats.gauge(
+            running_tasks_metric_name,
+            value=num_running_tasks,
+            tags={"status": "running", "name": name},
+        )
 
     def order_queued_tasks_by_priority(self) -> list[tuple[TaskInstanceKey, QueuedTaskInstanceType]]:
         """
@@ -255,12 +319,14 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
+    @add_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
+        span = Trace.get_current_span()
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
 
@@ -283,9 +349,20 @@ class BaseExecutor(LoggingMixin):
                     # if it hasn't been much time since first check, let it be checked again next time
                     self.log.info("queued but still running; attempt=%s task=%s", attempt.total_tries, key)
                     continue
+
                 # Otherwise, we give up and remove the task from the queue.
                 self.log.error(
-                    "could not queue task %s (still running after %d attempts)", key, attempt.total_tries
+                    "could not queue task %s (still running after %d attempts).",
+                    key,
+                    attempt.total_tries,
+                )
+                self.log_task_event(
+                    event="task launch failure",
+                    extra=(
+                        "Task was in running set and could not be queued "
+                        f"after {attempt.total_tries} attempts."
+                    ),
+                    ti_key=key,
                 )
                 del self.attempts[key]
                 del self.queued_tasks[key]
@@ -293,29 +370,58 @@ class BaseExecutor(LoggingMixin):
                 if key in self.attempts:
                     del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
+                if span.is_recording():
+                    span.add_event(
+                        name="task to trigger",
+                        attributes={"command": str(command), "conf": str(ti.executor_config)},
+                    )
 
         if task_tuples:
             self._process_tasks(task_tuples)
 
+    @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
+            task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            links = [{"trace_id": trace_id, "span_id": span_id}]
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
+            # assuming that the span_id will very likely be unique inside the trace
+            with Trace.start_span(
+                span_name=f"{key.dag_id}.{key.task_id}",
+                component="BaseExecutor",
+                span_id=span_id,
+                links=links,
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("command", str(command))
+                span.set_attribute("queue", str(queue))
+                span.set_attribute("executor_config", str(executor_config))
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.running.add(key)
+
+    def change_state(
+        self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
+    ) -> None:
         """
         Change state of the task.
 
-        :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         :param state: State to set for the task.
+        :param info: Executor information for the task instance
+        :param remove_running: Whether or not to remove the TI key from running set
         """
         self.log.debug("Changing state: %s", key)
-        try:
-            self.running.remove(key)
-        except KeyError:
-            self.log.debug("Could not find key: %s", key)
+        if remove_running:
+            try:
+                self.running.remove(key)
+            except KeyError:
+                self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
@@ -325,6 +431,20 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="fail",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+                span.set_attribute("error", True)
+
         self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
@@ -334,6 +454,19 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
+        trace_id = Trace.get_current_span().get_span_context().trace_id
+        if trace_id != NO_TRACE_ID:
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
+            with Trace.start_span(
+                span_name="success",
+                component="BaseExecutor",
+                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
+            ) as span:
+                span.set_attribute("dag_id", key.dag_id)
+                span.set_attribute("run_id", key.run_id)
+                span.set_attribute("task_id", key.task_id)
+                span.set_attribute("try_number", key.try_number)
+
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def queued(self, key: TaskInstanceKey, info=None) -> None:
@@ -344,6 +477,15 @@ class BaseExecutor(LoggingMixin):
         :param key: Unique key for the task instance
         """
         self.change_state(key, TaskInstanceState.QUEUED, info)
+
+    def running_state(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set running state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.RUNNING, info, remove_running=False)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -395,11 +537,11 @@ class BaseExecutor(LoggingMixin):
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
@@ -435,21 +577,10 @@ class BaseExecutor(LoggingMixin):
         else:
             return sys.maxsize
 
-    @staticmethod
-    def validate_command(command: list[str]) -> None:
-        """
-        Back-compat method to Check if the command to execute is airflow command.
-
-        :param command: command to check
-        """
-        warnings.warn(
-            """
-            The `validate_command` method is deprecated. Please use ``validate_airflow_tasks_run_command``
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        BaseExecutor.validate_airflow_tasks_run_command(command)
+    @property
+    def slots_occupied(self):
+        """Number of tasks this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks)
 
     @staticmethod
     def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
@@ -488,7 +619,8 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Send callback for execution.
+        """
+        Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -500,7 +632,8 @@ class BaseExecutor(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        """Vends CLI commands to be included in Airflow CLI.
+        """
+        Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
@@ -510,7 +643,8 @@ class BaseExecutor(LoggingMixin):
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:
-        """Generate documentation; used by Sphinx argparse.
+        """
+        Generate documentation; used by Sphinx argparse.
 
         :meta private:
         """

@@ -42,14 +42,231 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.18.0
+10.25.0
 .......
 
-Latest change: 2024-04-30
+Latest change: 2024-10-25
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`b4363f4684 <https://github.com/apache/airflow/commit/b4363f4684b4a878c04ce100b260d783f4d96d81>`_  2024-10-25   ``Add a debug log for creating batch workloads in dataproc (#43265)``
+`cc762293ca <https://github.com/apache/airflow/commit/cc762293ca5ce20d475af787822ea48b6d3c874f>`_  2024-10-23   ``feat: add Hook Level Lineage support for GCSHook (#42507)``
+`ca2c809b30 <https://github.com/apache/airflow/commit/ca2c809b30607af7ee320510587fe93b1ab90218>`_  2024-10-23   ``feat: sensor to check status of Dataform action (#43055)``
+`014808b362 <https://github.com/apache/airflow/commit/014808b3622d8791ea0b28a1e59a8b2d2a610bfc>`_  2024-10-20   ``Fix outdated CloudRunExecuteJobOperator docs (#43195)``
+`424cf507a8 <https://github.com/apache/airflow/commit/424cf507a849a0bf3239f1055beda7d7f36c785b>`_  2024-10-18   ``add min version to plyvel (#43129)``
+`aeb7e90f0e <https://github.com/apache/airflow/commit/aeb7e90f0e680d32ad78216e7de3cf2d135fdbf5>`_  2024-10-17   ``Fix TestTranslationLegacyModelPredictLink dataset_id error (#42463)``
+`f587edf2ee <https://github.com/apache/airflow/commit/f587edf2ee74169f1da6a408a04d7ed3c372d270>`_  2024-10-17   ``vertex ai training operators: add display_name to rendered fields (#43028)``
+`f1f9201a21 <https://github.com/apache/airflow/commit/f1f9201a2199c7fd78c7146ca3a02ab25ca8de91>`_  2024-10-15   ``Create Operators for Google Cloud Vertex AI Context Caching (#43008)``
+`732e0564d4 <https://github.com/apache/airflow/commit/732e0564d47813dfb05b22b9b30a108d4668a3e5>`_  2024-10-15   ``Make google provider pyarrow dependency explicit (#42996)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`70b8e50ddc <https://github.com/apache/airflow/commit/70b8e50ddce305582802b6d08b1c948fa3ef086a>`_  2024-10-10   ``Remove dag.run() method (#42761)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+10.24.0
+.......
+
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`2ffc389574 <https://github.com/apache/airflow/commit/2ffc389574042939f11fcae75a35a8b697583b8d>`_  2024-10-04   ``Add 'retry_if_resource_not_ready' logic for DataprocCreateClusterOperator and DataprocCreateBatchOperator (#42703)``
+`8a255f3e1e <https://github.com/apache/airflow/commit/8a255f3e1e32d5084623527053116777cc4f72f9>`_  2024-10-04   ``Publish Dataproc Serverless Batch link after it starts if batch_id was provided (#41153)``
+`9ec21405c0 <https://github.com/apache/airflow/commit/9ec21405c0abe23f6de2e0acd704faa6631fbe76>`_  2024-10-03   ``fix PubSubAsyncHook in PubsubPullTrigger to use gcp_conn_id (#42671)``
+`64e972c977 <https://github.com/apache/airflow/commit/64e972c977fd4fa03b8db9df23410adb9862d5eb>`_  2024-10-02   ``Fix consistent return response from PubSubPullSensor (#42080)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+`5689d64911 <https://github.com/apache/airflow/commit/5689d64911fbfd5176fc129f06e7483cc5e4ed03>`_  2024-09-27   ``Undo partition exclusion from the table name when splitting a full BigQuery table name (#42541)``
+`dc43d31c5a <https://github.com/apache/airflow/commit/dc43d31c5a80b1b58cb1c2be4f6b1e0079d579fa>`_  2024-09-27   ``Fix gcp text to speech uri fetch (#42309)``
+`56ab422a97 <https://github.com/apache/airflow/commit/56ab422a97768f59dc7ff4dc4f3262c0bb11002c>`_  2024-09-27   ``Deprecate AutoMLBatchPredictOperator and refactor AutoMl system tests (#42260)``
+`b0234cbaf7 <https://github.com/apache/airflow/commit/b0234cbaf73bdf28640b77e2f1c378d5c489b26a>`_  2024-09-27   ``Refactor ''bucket.get_blob'' calls in ''GCSHook'' to handle validation for non-existent objects. (#42474)``
+`eed1d0d254 <https://github.com/apache/airflow/commit/eed1d0d2548a98bc3cd66d469ff09e1e2bc0945e>`_  2024-09-24   ``Bugfix/dataflow job location passing (#41887)``
+=================================================================================================  ===========  ======================================================================================================================
+
+10.23.0
+.......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  ====================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`c051d0aa4c <https://github.com/apache/airflow/commit/c051d0aa4c7215b35a4390822aa6ece3ac945900>`_  2024-09-20   ``Add ability to create Flink Jobs in dataproc cluster (#42342)``
+`f278e62255 <https://github.com/apache/airflow/commit/f278e62255e513c26f26c76e41a8734ec36fb07a>`_  2024-09-19   ``Minor fixes to ensure successful Vertex AI LLMops pipeline (#41997)``
+`d7343816b3 <https://github.com/apache/airflow/commit/d7343816b3406470dd7f963e1959171c32ef956f>`_  2024-09-19   ``Mark VertexAI AutoMLText deprecation (#42251)``
+`567926535a <https://github.com/apache/airflow/commit/567926535a719f7ea93565e3fee3f2fbd9a03cb9>`_  2024-09-19   ``Add new Google Search 360 Reporting Operators (#42255)``
+`73f7d89158 <https://github.com/apache/airflow/commit/73f7d891583b023239c73a926cf1fdc69069176b>`_  2024-09-11   ``Exclude partition from BigQuery table name (#42130)``
+`1a255f53e4 <https://github.com/apache/airflow/commit/1a255f53e40b5b1dd7f3db7bf74328f8bc8c5787>`_  2024-09-09   ``Add return_immediately as argument to the PubSubPullSensor class (#41842)``
+`96640a7580 <https://github.com/apache/airflow/commit/96640a758065224d6d0e4fcc35ab2ef205956634>`_  2024-09-09   ``Add parent_model param in 'UploadModelOperator' (#42091)``
+`a2ea35ba49 <https://github.com/apache/airflow/commit/a2ea35ba49eee12cdc0a846587478d12960f48c9>`_  2024-09-04   ``Exclude google-cloud-spanner 3.49.0 (#42011)``
+`7d3a402f48 <https://github.com/apache/airflow/commit/7d3a402f4882387c9ca31a435ef41441254304bc>`_  2024-09-02   ``Add DataflowStartYamlJobOperator (#41576)``
+`7f9f923d64 <https://github.com/apache/airflow/commit/7f9f923d6469760d298a2a0525a1cb098eb1cd99>`_  2024-09-02   ``[Fix #41763]: Redundant forward slash in SFTPToGCSOperator when destination_path is not specified or have default value (#41928)``
+`d59db11cb5 <https://github.com/apache/airflow/commit/d59db11cb5cc9764cbbee753141c533898a37bf7>`_  2024-09-02   ``Add RunEvaluationOperator for Google Vertex AI Rapid Evaluation API (#41940)``
+`f52bfd987e <https://github.com/apache/airflow/commit/f52bfd987e75612ddb837d63d8a82f3c1a992c78>`_  2024-09-02   ``Remove system test for derepcated Google analytics operators (#41946)``
+`7cf54a734e <https://github.com/apache/airflow/commit/7cf54a734e1eefa04ab710cb2eb364d529c6b1b1>`_  2024-09-01   ``Add CountTokensOperator for Google Generative AI CountTokensAPI (#41908)``
+`2823acd125 <https://github.com/apache/airflow/commit/2823acd1257494cdd69588f421363873ba3b795d>`_  2024-09-01   ``Fix poll_interval in GKEJobTrigger (#41712)``
+`9a66882ed5 <https://github.com/apache/airflow/commit/9a66882ed5bad1f08c716ecf3db10c1a6aa8406f>`_  2024-09-01   ``update pattern for dataflow job id extraction (#41794)``
+`86e3d2919c <https://github.com/apache/airflow/commit/86e3d2919c74e01905029c8c6c912effb8af0dec>`_  2024-09-01   ``Enforce deprecation message format with EOL for google provider package (#41637)``
+`35ce2f1566 <https://github.com/apache/airflow/commit/35ce2f1566e1c61e12876a7513345d778309a3dc>`_  2024-08-30   ``Add Supervised Fine Tuning Train Operator, Hook, Tests, Docs (#41807)``
+`bbb0085603 <https://github.com/apache/airflow/commit/bbb0085603ae679c2bf4cc90c3509349ac8933e6>`_  2024-08-30   ``Update min version of google-cloud-bigquery package (#41882)``
+`2af908db00 <https://github.com/apache/airflow/commit/2af908db003343d299cb1ac64eddd49a71d9349d>`_  2024-08-29   ``Unpin google-cloud-bigquery package version for Google provider (#41839)``
+`ef80f6b028 <https://github.com/apache/airflow/commit/ef80f6b028f215574b08b124c44d8c28d719635b>`_  2024-08-28   ``Move away from deprecated DAG.following_schedule() method (#41773)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+`170b9ce907 <https://github.com/apache/airflow/commit/170b9ce90793191f7c97c6dbd09adab492082970>`_  2024-08-22   ``Fix 'do_xcom_push' and 'get_logs' functionality for KubernetesJobOperator (#40814)``
+`2727d5db92 <https://github.com/apache/airflow/commit/2727d5db9261e9bdec6f6488adc67fe11b3cddc8>`_  2024-08-21   ``Update the version of google-ads (#41638)``
+`716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
+=================================================================================================  ===========  ====================================================================================================================================
+
+10.22.0
+.......
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`55d49cc12f <https://github.com/apache/airflow/commit/55d49cc12f31f669a5bd2b3a4b8e66e97a406077>`_  2024-08-16   ``Refactor DataprocCreateBatchOperator and Dataproc system tests (#41527)``
+`b1e506b1a7 <https://github.com/apache/airflow/commit/b1e506b1a7dd49ecdbefe0463a05e3dbbcb02f31>`_  2024-08-13   ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`0aad0c8107 <https://github.com/apache/airflow/commit/0aad0c81078530a3512612d6424e1dcbd01f6752>`_  2024-08-10   ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+`16abb911e8 <https://github.com/apache/airflow/commit/16abb911e8f6a8b44fff519612b75ef612a58c79>`_  2024-08-06   ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+=================================================================================================  ===========  ====================================================================================================
+
+10.21.1
+.......
+
+Latest change: 2024-08-03
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`8f616551ca <https://github.com/apache/airflow/commit/8f616551cadbaee53b1bb5952936c163093b0b40>`_  2024-07-30   ``Fix cloudsql-query system tests (#41092)``
+`7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
+`6e3bc84905 <https://github.com/apache/airflow/commit/6e3bc84905f7671ea60aa7e612ddf8c4095b70b8>`_  2024-07-26   ``fix unnecessary imports for CloudSQL hook (#41009)``
+`95b5a0a2ac <https://github.com/apache/airflow/commit/95b5a0a2ac457ff5b0258845eb3e2c790cfaea41>`_  2024-07-24   ``Refactor dataproc system tests (#40720)``
+`0eaa6117bf <https://github.com/apache/airflow/commit/0eaa6117bf0310be798ad2be5c82905bd6fa30b5>`_  2024-07-24   ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
+`0206a4cbcf <https://github.com/apache/airflow/commit/0206a4cbcfbf85ab035c25533b12f022c22cae3a>`_  2024-07-23   ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+`67befb71bf <https://github.com/apache/airflow/commit/67befb71bfcebf6288f960a6b6986d7db6cfe3c0>`_  2024-07-18   ``Resolve CloudSQLDatabaseHook deprecation warning (#40834)``
+`519b0d028c <https://github.com/apache/airflow/commit/519b0d028c4bd8a27dbd10785139a260fb98154b>`_  2024-07-16   ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+`f09b2201fa <https://github.com/apache/airflow/commit/f09b2201fa1d7370cb4ba4d3c80f79acb4f91970>`_  2024-07-13   ``Fix Custom Training Job operators to accept results without managed model (#40685)``
+`c29eeb18ec <https://github.com/apache/airflow/commit/c29eeb18ec0f4ba260775f71968e5d75291b208f>`_  2024-07-10   ``Fix behavior for reattach_state parameter in BigQueryInsertJobOperator (#40664)``
+=================================================================================================  ===========  ========================================================================================================
+
+10.21.0
+.......
+
+Latest change: 2024-07-09
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`f12714d0c7 <https://github.com/apache/airflow/commit/f12714d0c7d0f6a8a5d7b6b6910c23dce4d8c71a>`_  2024-07-08   ``Update dataproc.py (#40643)``
+`be271827e0 <https://github.com/apache/airflow/commit/be271827e04d91ef65fbf51eb2d2f105482177db>`_  2024-07-07   ``Resolve google deprecations in tests (#40629)``
+`9c9706730c <https://github.com/apache/airflow/commit/9c9706730c06c1f4eecd5e72efa5cac1a8d95d83>`_  2024-07-04   ``Update Google Cloud Generative Model Hooks/Operators to bring parity with Vertex AI API (#40484)``
+`93488d09f9 <https://github.com/apache/airflow/commit/93488d09f9754d7652824f2fe43743d6f9cd4b08>`_  2024-07-04   ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
+`3c1120afd9 <https://github.com/apache/airflow/commit/3c1120afd9e63a5faf637b8d36aea0f5a27e31b2>`_  2024-07-04   ``Resolve google vertex ai deprecations in tests (#40506)``
+`3583329c1b <https://github.com/apache/airflow/commit/3583329c1b53530c4c2e551e37affe78761ed3e5>`_  2024-07-03   ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
+`c5c50cc07f <https://github.com/apache/airflow/commit/c5c50cc07f6fcd704981139beb54095d8b9938c7>`_  2024-07-03   ``Revert "Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)" (#40577)``
+`7e80dc6afa <https://github.com/apache/airflow/commit/7e80dc6afa665bed166f4b78a439ba8ce225dc28>`_  2024-07-03   ``Add support for query parameters to BigQueryCheckOperator (#40556) (#40558)``
+`bd7306455e <https://github.com/apache/airflow/commit/bd7306455ee289b1290a9845d1ed59c0dfc5ed1f>`_  2024-07-02   ``40559: fix add project_id to submit_batch_job hook (#40560)``
+`db16eeb6ef <https://github.com/apache/airflow/commit/db16eeb6efd6006efc94d2ec9f7740fe96edf37c>`_  2024-07-02   ``fix BigQueryInsertJobOperator's return value and openlineage extraction in deferrable mode (#40457)``
+`47e7e254ba <https://github.com/apache/airflow/commit/47e7e254ba171fc950a69c41d94cb80019d83661>`_  2024-07-01   ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`68a87f7676 <https://github.com/apache/airflow/commit/68a87f7676a32c5646792b916fcf82135bbc0edc>`_  2024-06-23   ``Added chunk_size parameter to LocalFilesystemToGCSOperator  (#40379)``
+=================================================================================================  ===========  =======================================================================================================
+
+10.20.0
+.......
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`2f2796f675 <https://github.com/apache/airflow/commit/2f2796f675e238e0b266b8d6e4fdfe5c0b7d1bf3>`_  2024-06-21   ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)``
+`19fc7d2e73 <https://github.com/apache/airflow/commit/19fc7d2e7336d31d2c7d01097096fb50f14b52f5>`_  2024-06-20   ``feat: added OL support for AzureBlobStorageToGCSOperator in google provider package (#40290)``
+`ca7e2a05b5 <https://github.com/apache/airflow/commit/ca7e2a05b597bbb5a74b7a2f06a401013e730a38>`_  2024-06-20   ``Fix replace parameter for BigQueryToPostgresOperator (#40278)``
+`81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
+`35871f8bb5 <https://github.com/apache/airflow/commit/35871f8bb537390fc435a4b83e53da452494725f>`_  2024-06-15   ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+`1a8d12ffe5 <https://github.com/apache/airflow/commit/1a8d12ffe50c947583c6419d4e952d0f59461135>`_  2024-06-14   ``openlineage: execute extraction and message sending in separate process (#40078)``
+`3e88f47c2c <https://github.com/apache/airflow/commit/3e88f47c2cb7f4eb97b3f2da1d778a680e7a366a>`_  2024-06-14   ``Refactor datapipeline operators and fix system tests (#39716)``
+`e2b8f68ddf <https://github.com/apache/airflow/commit/e2b8f68ddf84bf55f350461aaf1c801e9a152ac1>`_  2024-06-14   ``add generation_config and safety_settings to google cloud multimodal model operators (#40126)``
+`f0bae33ee1 <https://github.com/apache/airflow/commit/f0bae33ee1011e9d6120a40c7f44bf1ac40d46aa>`_  2024-06-14   ``Add missing location param to 'BigQueryUpdateTableSchemaOperator' (#40237)``
+`23a0152de2 <https://github.com/apache/airflow/commit/23a0152de215f60dc1febbee2371b5feed1beff2>`_  2024-06-12   ``Bump minimum version of google auth (#40190)``
+`a586ea8b3a <https://github.com/apache/airflow/commit/a586ea8b3ac55ec691e3dc20e705d14428438a00>`_  2024-06-11   ``Add support for external IdP OIDC token retrieval for Google Cloud Operators. (#39873)``
+`8e7b48984b <https://github.com/apache/airflow/commit/8e7b48984b86dafba2bda298547c5d2bee44363a>`_  2024-06-11   ``Bump google-ads version to use v17 by default (#40158)``
+`5c5a495c2c <https://github.com/apache/airflow/commit/5c5a495c2cad9faa703eb8ccde47b368fb3eea9a>`_  2024-06-11   ``Add encryption_configuration parameter to BigQuery operators (#40063)``
+`f7708acab9 <https://github.com/apache/airflow/commit/f7708acab91a4728131e4a4ccabe22819cb45885>`_  2024-06-10   ``Fix hive_partition_sensor system test (#40023)``
+`65dbf86f72 <https://github.com/apache/airflow/commit/65dbf86f72ed7be779e7dadd8e8e57c1216c7c07>`_  2024-06-07   ``Fix openai 1.32 breaking openai tests (#40110)``
+`86e613029b <https://github.com/apache/airflow/commit/86e613029b871b0a8327d64c040da56f537c0727>`_  2024-06-07   ``Implement CloudComposerDAGRunSensor (#40088)``
+`013523e5d3 <https://github.com/apache/airflow/commit/013523e5d32dd4169f0535804e94762bd4463f79>`_  2024-06-07   ``Fix credentials intialization revealed by mypy version of google auth (#40108)``
+`f2a5b1dee1 <https://github.com/apache/airflow/commit/f2a5b1dee1e01ebd34517f7bfd928b3189d760fe>`_  2024-06-06   ``feat(providers/google): add default gcp_conn_id to GoogleBaseAsyncHook (#40080)``
+`fe9159635f <https://github.com/apache/airflow/commit/fe9159635fdad1346a36d0ebada7f4ace3b25873>`_  2024-06-06   ``google: move openlineage imports inside methods (#40062)``
+`f6148e6e33 <https://github.com/apache/airflow/commit/f6148e6e33afb5c2ce1e0644b6f1b86d004ebd2b>`_  2024-06-04   ``Update dataplex.py (#40041)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`385d79bfd7 <https://github.com/apache/airflow/commit/385d79bfd75f236f59dab012d3e5952021e4965e>`_  2024-06-02   ``Added ordering key option for PubSubPublishMessageOperator GCP Operator (#39955)``
+`ce5cd52635 <https://github.com/apache/airflow/commit/ce5cd52635280e412eacef3a9705e7d12954cdfd>`_  2024-06-01   ``Change regular expression to exclude double quote and newline (#39991)``
+`a2c09d203e <https://github.com/apache/airflow/commit/a2c09d203e3831f5e7dc1a28e3daf0d38a545023>`_  2024-05-29   ``Fetch intermediate log async GKEStartPod   (#39348)``
+`70121f82f7 <https://github.com/apache/airflow/commit/70121f82f74ef3866f97fc22420dcb806fd94126>`_  2024-05-28   ``Implement 'CloudDataTransferServiceRunJobOperator' (#39154)``
+`23e03db2d7 <https://github.com/apache/airflow/commit/23e03db2d79829f91afe29db757a4e4a26b77874>`_  2024-05-27   ``Add method to get metadata from GCS blob in GCSHook (#38398)``
+`d4fe325f84 <https://github.com/apache/airflow/commit/d4fe325f8489aa19858b68ea42b71d99e80410a4>`_  2024-05-26   ``Adding params. to create_auto_ml_forecasting_training_job in AutoMl hook (#39767)``
+=================================================================================================  ===========  =================================================================================================
+
+10.19.0
+.......
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`4fe55e5992 <https://github.com/apache/airflow/commit/4fe55e5992dfb9ef9a6bfa4e272c30a00e27a336>`_  2024-05-24   ``Deprecate AutoML Tables operators (#39752)``
+`57dab1303c <https://github.com/apache/airflow/commit/57dab1303c5850b9b2ff81e64cbbe5bd4d1032f9>`_  2024-05-23   ``typo: wrong OpenLineage facet key in spec (#39782)``
+`5aad588ef9 <https://github.com/apache/airflow/commit/5aad588ef933e58c303c1908afc9c42f0d683f5c>`_  2024-05-23   ``Fix BigQueryCursor execute method if the location is missing (#39659)``
+`8d5b43443a <https://github.com/apache/airflow/commit/8d5b43443a8925d55fe044d7a12f8b1ffe44cb6e>`_  2024-05-22   ``Reroute AutoML operator links to Google Translation links (#39668)``
+`791f3cfc5c <https://github.com/apache/airflow/commit/791f3cfc5cc7f2798ee0fcd18ff72906c48ebd01>`_  2024-05-21   ``Fix acknowledged functionality in deferrable mode for PubSubPullSensor (#39711)``
+`0f717ea5e6 <https://github.com/apache/airflow/commit/0f717ea5e61f2028e4eafd70105f551ea2b77910>`_  2024-05-21   ``removed stale code (#39744)``
+`4ee46b984d <https://github.com/apache/airflow/commit/4ee46b984da73974f0a30bcf361ac36e995993c3>`_  2024-05-20   ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+`27b3a22e34 <https://github.com/apache/airflow/commit/27b3a22e341468855c4ef368015ad946a59aa2e3>`_  2024-05-19   ``Introduce anonymous credentials in GCP base hook (#39695)``
+`a31169bd63 <https://github.com/apache/airflow/commit/a31169bd6384040fbb00c277f95859f218b1f1f7>`_  2024-05-19   ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
+`74c3fb366e <https://github.com/apache/airflow/commit/74c3fb366ecf830b6e0fb961dd6668216d21cdeb>`_  2024-05-17   ``Remove parent_model version suffix if it is passed to Vertex AI operators (#39640)``
+`6621874bf5 <https://github.com/apache/airflow/commit/6621874bf523c0f1caa5ac51e482434528ee13e4>`_  2024-05-14   ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+=================================================================================================  ===========  ========================================================================================
+
+10.18.0
+.......
+
+Latest change: 2024-05-12
+
+=================================================================================================  ===========  =============================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================================================
+`97e867f170 <https://github.com/apache/airflow/commit/97e867f1701fae287a20dff7e0f9e9ecbdc38f27>`_  2024-05-12   ``Prepare docs 2nd wave May 2024 (#39565)``
+`ffa523f442 <https://github.com/apache/airflow/commit/ffa523f442745123232cb35e5533629673532783>`_  2024-05-12   ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
+`86caf84934 <https://github.com/apache/airflow/commit/86caf84934e056185d688f5b37dd45f630d05b5c>`_  2024-05-11   ``Remove Airflow 2.6 back compact code (#39558)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`8dcee5b24d <https://github.com/apache/airflow/commit/8dcee5b24d5ecfc67bdb7800ecd750d37d66be10>`_  2024-05-10   ``Add deprecation warnings and raise exception for already deprecated ones (#38673)``
+`c7c680ee3b <https://github.com/apache/airflow/commit/c7c680ee3b5a6f61012c222f092cd8c19f7e1b3d>`_  2024-05-09   ``Add encryption_configuration parameter to BigQueryCheckOperator and BigQueryTableCheckOperator (#39432)``
+`5abe7acf66 <https://github.com/apache/airflow/commit/5abe7acf666f8021cbdcd358079c2b8b86c37651>`_  2024-05-09   ``Fix generation temp filename in 'DataprocSubmitPySparkJobOperator' (#39498)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`62b845e2d7 <https://github.com/apache/airflow/commit/62b845e2d731e94b3bcbf43ea60ad78fd8bb94f1>`_  2024-05-08   ``Disconnect GKE operators from deprecated hooks (#39434)``
+`387acd0a36 <https://github.com/apache/airflow/commit/387acd0a362899347f9444a29688794c86778c3e>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocSubmitJobOperator (#39447)``
+`e7aa4d2289 <https://github.com/apache/airflow/commit/e7aa4d2289cd4207f11b697729466717889fda38>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for BigQueryInsertJobOperator (#39442)``
+`3d575fe78c <https://github.com/apache/airflow/commit/3d575fe78c5fef6796e36901865c45be2b89cbd1>`_  2024-05-08   ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocCreateClusterOperator (#39446)``
+`f00006d1c6 <https://github.com/apache/airflow/commit/f00006d1c6d0ad531a1f783a09ab6e700efac74b>`_  2024-05-08   ``Fix 'DataprocCreateBatchOperator' with 'result_retry' raises 'AttributeError' (#39462)``
+`287c107543 <https://github.com/apache/airflow/commit/287c1075439977fbc59ad955c94a5f6dfe1fbd1a>`_  2024-05-07   ``Bugfix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+`795592c8ba <https://github.com/apache/airflow/commit/795592c8baf9ae732563e6958c3a0ad3a168c3f6>`_  2024-05-03   ``Add 'job_id' param. to 'BigQueryGetDataOperator' (#39315)``
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `e3e6aa9b3e <https://github.com/apache/airflow/commit/e3e6aa9b3e6a6c1fb2d5c8a3f1dc10f133980074>`_  2024-04-30   ``Add support for role arn for aws creds (#38911)``
 `28a240a18f <https://github.com/apache/airflow/commit/28a240a18f7e5958e69732f61d639e1d8f39152f>`_  2024-04-29   ``Fix deferrable mode for DataflowTemplatedJobStartOperator and DataflowStartFlexTemplateOperator (#39018)``
 `78fa36518a <https://github.com/apache/airflow/commit/78fa36518a17f65a2ad2aa98b684c9d1aacd5788>`_  2024-04-27   ``Fix batching for BigQueryToPostgresOperator (#39233)``
@@ -74,7 +291,7 @@ Commit                                                                          
 `c4a106e69b <https://github.com/apache/airflow/commit/c4a106e69bbc396d2527a3b8c94e2d95fced4284>`_  2024-04-12   ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
 `5ff26586cd <https://github.com/apache/airflow/commit/5ff26586cd3931d223e76aeb73770f062ff9e409>`_  2024-04-11   ``Deferrable mode for Custom Training Job operators (#38584)``
 `1757704d8f <https://github.com/apache/airflow/commit/1757704d8f7c7a335cdf8f90ccb12b4d8e6f9d9a>`_  2024-04-11   ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
-=================================================================================================  ===========  ======================================================================================================================
+=================================================================================================  ===========  =============================================================================================================================================
 
 10.17.0
 .......

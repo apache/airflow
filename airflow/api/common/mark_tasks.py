@@ -26,12 +26,11 @@ from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -40,6 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.utils.types import DagRunType
 
 
 class _DagRunInfo(NamedTuple):
@@ -53,7 +53,8 @@ def _create_dagruns(
     state: DagRunState,
     run_type: DagRunType,
 ) -> Iterable[DagRun]:
-    """Infers from data intervals which DAG runs need to be created and does so.
+    """
+    Infers from data intervals which DAG runs need to be created and does so.
 
     :param dag: The DAG to create runs for.
     :param infos: List of logical dates and data intervals to evaluate.
@@ -76,6 +77,7 @@ def _create_dagruns(
                 external_trigger=False,
                 state=state,
                 run_type=run_type,
+                triggered_by=DagRunTriggeredByType.TIMETABLE,
             )
     return dag_runs.values()
 
@@ -100,14 +102,14 @@ def set_state(
     Can set state for future tasks (calculated from run_id) and retroactively
     for past tasks. Will verify integrity of past dag runs in order to create
     tasks that did not exist. It will not create dag runs that are missing
-    on the schedule (but it will, as for subdag, dag runs if needed).
+    on the schedule.
 
     :param tasks: the iterable of tasks or (task, map_index) tuples from which to work.
         ``task.dag`` needs to be set
     :param run_id: the run_id of the dagrun to start looking from
     :param execution_date: the execution date from which to start looking (deprecated)
     :param upstream: Mark all parents (upstream tasks)
-    :param downstream: Mark all siblings (downstream tasks) of task_id, including SubDags
+    :param downstream: Mark all siblings (downstream tasks) of task_id
     :param future: Mark all future tasks on the interval of the dag up until
         last execution date.
     :param past: Retroactively mark all tasks starting from start_date of the DAG
@@ -139,52 +141,18 @@ def set_state(
 
     dag_run_ids = get_run_ids(dag, run_id, future, past, session=session)
     task_id_map_index_list = list(find_task_relatives(tasks, downstream, upstream))
-    task_ids = [task_id if isinstance(task_id, str) else task_id[0] for task_id in task_id_map_index_list]
-
-    confirmed_infos = list(_iter_existing_dag_run_infos(dag, dag_run_ids, session=session))
-    confirmed_dates = [info.logical_date for info in confirmed_infos]
-
-    sub_dag_run_ids = list(
-        _iter_subdag_run_ids(dag, session, DagRunState(state), task_ids, commit, confirmed_infos),
-    )
-
     # now look for the task instances that are affected
 
     qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
         tis_altered = session.scalars(qry_dag.with_for_update()).all()
-        if sub_dag_run_ids:
-            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
-            # The try_number was decremented when setting to up_for_reschedule and deferred.
-            # Increment it back when changing the state again
-            if task_instance.state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-                task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
     else:
         tis_altered = session.scalars(qry_dag).all()
-        if sub_dag_run_ids:
-            qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += session.scalars(qry_sub_dag).all()
     return tis_altered
-
-
-def all_subdag_tasks_query(
-    sub_dag_run_ids: list[str],
-    session: SASession,
-    state: TaskInstanceState,
-    confirmed_dates: Iterable[datetime],
-):
-    """Get *all* tasks of the sub dags."""
-    qry_sub_dag = (
-        select(TaskInstance)
-        .where(TaskInstance.dag_id.in_(sub_dag_run_ids), TaskInstance.execution_date.in_(confirmed_dates))
-        .where(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
-    )
-    return qry_sub_dag
 
 
 def get_all_dag_task_query(
@@ -205,69 +173,6 @@ def get_all_dag_task_query(
         lazyload(TaskInstance.dag_run)
     )
     return qry_dag
-
-
-def _iter_subdag_run_ids(
-    dag: DAG,
-    session: SASession,
-    state: DagRunState,
-    task_ids: list[str],
-    commit: bool,
-    confirmed_infos: Iterable[_DagRunInfo],
-) -> Iterator[str]:
-    """Go through subdag operators and create dag runs.
-
-    We only work within the scope of the subdag. A subdag does not propagate to
-    its parent DAG, but parent propagates to subdags.
-    """
-    dags = [dag]
-    while dags:
-        current_dag = dags.pop()
-        for task_id in task_ids:
-            if not current_dag.has_task(task_id):
-                continue
-
-            current_task = current_dag.get_task(task_id)
-            if isinstance(current_task, SubDagOperator) or current_task.task_type == "SubDagOperator":
-                # this works as a kind of integrity check
-                # it creates missing dag runs for subdag operators,
-                # maybe this should be moved to dagrun.verify_integrity
-                if TYPE_CHECKING:
-                    assert current_task.subdag
-                dag_runs = _create_dagruns(
-                    current_task.subdag,
-                    infos=confirmed_infos,
-                    state=DagRunState.RUNNING,
-                    run_type=DagRunType.BACKFILL_JOB,
-                )
-
-                verify_dagruns(dag_runs, commit, state, session, current_task)
-
-                dags.append(current_task.subdag)
-                yield current_task.subdag.dag_id
-
-
-def verify_dagruns(
-    dag_runs: Iterable[DagRun],
-    commit: bool,
-    state: DagRunState,
-    session: SASession,
-    current_task: Operator,
-):
-    """Verify integrity of dag_runs.
-
-    :param dag_runs: dag runs to verify
-    :param commit: whether dag runs state should be updated
-    :param state: state of the dag_run to set if commit is True
-    :param session: session to use
-    :param current_task: current task
-    """
-    for dag_run in dag_runs:
-        dag_run.dag = current_task.subdag
-        dag_run.verify_integrity()
-        if commit:
-            dag_run.state = state
-            session.merge(dag_run)
 
 
 def _iter_existing_dag_run_infos(dag: DAG, run_ids: list[str], session: SASession) -> Iterator[_DagRunInfo]:

@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -29,5 +29,5 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args)
+dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args, schedule=None)
 task = BashOperator(task_id="test_heartbeat_failed_fast_op", bash_command="sleep 7", dag=dag)

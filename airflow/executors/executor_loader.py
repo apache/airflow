@@ -21,11 +21,10 @@ from __future__ import annotations
 import functools
 import logging
 import os
-from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -50,6 +49,7 @@ if TYPE_CHECKING:
 # executor may have both so we need two lookup dicts.
 _alias_to_executors: dict[str, ExecutorName] = {}
 _module_to_executors: dict[str, ExecutorName] = {}
+_classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
 # Used to cache executors so that we don't construct executor objects unnecessarily
@@ -73,22 +73,9 @@ class ExecutorLoader:
     }
 
     @classmethod
-    def block_use_of_hybrid_exec(cls, executor_config: list):
-        """Raise an exception if the user tries to use multiple executors before the feature is complete.
-
-        This check is built into a method so that it can be easily mocked in unit tests.
-
-        :param executor_config: core.executor configuration value.
-        """
-        if len(executor_config) > 1 or ":" in "".join(executor_config):
-            raise AirflowConfigException(
-                "Configuring multiple executors and executor aliases are not yet supported!: "
-                f"{executor_config}"
-            )
-
-    @classmethod
     def _get_executor_names(cls) -> list[ExecutorName]:
-        """Return the executor names from Airflow configuration.
+        """
+        Return the executor names from Airflow configuration.
 
         :return: List of executor names from Airflow configuration
         """
@@ -98,9 +85,6 @@ class ExecutorLoader:
             return _executor_names
 
         executor_names_raw = conf.get_mandatory_list_value("core", "EXECUTOR")
-
-        # AIP-61 is WIP. Unblock configuring multiple executors when the feature is ready to launch
-        cls.block_use_of_hybrid_exec(executor_names_raw)
 
         executor_names = []
         for name in executor_names_raw:
@@ -149,6 +133,7 @@ class ExecutorLoader:
                 _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a module path
             _module_to_executors[executor_name.module_path] = executor_name
+            _classname_to_executors[executor_name.module_path.split(".")[-1]] = executor_name
             # Cache the executor names, so the logic of this method only runs once
             _executor_names.append(executor_name)
 
@@ -156,7 +141,8 @@ class ExecutorLoader:
 
     @classmethod
     def get_executor_names(cls) -> list[ExecutorName]:
-        """Return the executor names from Airflow configuration.
+        """
+        Return the executor names from Airflow configuration.
 
         :return: List of executor names from Airflow configuration
         """
@@ -164,7 +150,8 @@ class ExecutorLoader:
 
     @classmethod
     def get_default_executor_name(cls) -> ExecutorName:
-        """Return the default executor name from Airflow configuration.
+        """
+        Return the default executor name from Airflow configuration.
 
         :return: executor name from Airflow configuration
         """
@@ -177,6 +164,22 @@ class ExecutorLoader:
         default_executor = cls.load_executor(cls.get_default_executor_name())
 
         return default_executor
+
+    @classmethod
+    def set_default_executor(cls, executor: BaseExecutor) -> None:
+        """
+        Externally set an executor to be the default.
+
+        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
+        the executor by cli/argument instead of Airflow configuration
+        """
+        exec_class_name = executor.__class__.__qualname__
+        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
+
+        _module_to_executors[exec_name.module_path] = exec_name
+        _classname_to_executors[exec_class_name] = exec_name
+        _executor_names.insert(0, exec_name)
+        _loaded_executors[exec_name] = executor
 
     @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
@@ -201,23 +204,28 @@ class ExecutorLoader:
             return executor_name
         elif executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
+        elif executor_name := _classname_to_executors.get(executor_name_str):
+            return executor_name
         else:
-            raise AirflowException(f"Unknown executor being loaded: {executor_name}")
+            raise UnknownExecutorException(f"Unknown executor being loaded: {executor_name_str}")
 
     @classmethod
-    def load_executor(cls, executor_name: ExecutorName | str) -> BaseExecutor:
+    def load_executor(cls, executor_name: ExecutorName | str | None) -> BaseExecutor:
         """
         Load the executor.
 
         This supports the following formats:
         * by executor name for core executor
         * by ``{plugin_name}.{class_name}`` for executor from plugins
-        * by import path.
+        * by import path
+        * by class name of the Executor
         * by ExecutorName object specification
 
         :return: an instance of executor class via executor_name
         """
-        if isinstance(executor_name, str):
+        if not executor_name:
+            _executor_name = cls.get_default_executor_name()
+        elif isinstance(executor_name, str):
             _executor_name = cls.lookup_executor_name_by_str(executor_name)
         else:
             _executor_name = executor_name
@@ -275,17 +283,6 @@ class ExecutorLoader:
                 cls.validate_database_executor_compatibility(executor)
             return executor
 
-        if executor_name.connector_source == ConnectorSource.PLUGIN:
-            with suppress(ImportError, AttributeError):
-                # Load plugins here for executors as at that time the plugins might not have been
-                # initialized yet
-                from airflow import plugins_manager
-
-                plugins_manager.integrate_executor_plugins()
-                return (
-                    _import_and_validate(f"airflow.executors.{executor_name.module_path}"),
-                    ConnectorSource.PLUGIN,
-                )
         return _import_and_validate(executor_name.module_path), executor_name.connector_source
 
     @classmethod
@@ -346,11 +343,3 @@ class ExecutorLoader:
 
         local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
-
-
-# This tuple is deprecated due to AIP-51 and is no longer used in core Airflow.
-# TODO: Remove in Airflow 3.0
-UNPICKLEABLE_EXECUTORS = (
-    LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
-)

@@ -33,8 +33,9 @@ core:
         Hostname by providing a path to a callable, which will resolve the hostname.
         The format is "package.function".
 
-        For example, default value "airflow.utils.net.getfqdn" means that result from patched
-        version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254.
+        For example, default value ``airflow.utils.net.getfqdn`` means that result from patched
+        version of `socket.getfqdn() <https://docs.python.org/3/library/socket.html#socket.getfqdn>`__,
+        see related `CPython Issue <https://github.com/python/cpython/issues/49254>`__.
 
         No argument should be required in the function specified.
         If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
@@ -44,10 +45,15 @@ core:
       default: "airflow.utils.net.getfqdn"
     might_contain_dag_callable:
       description: |
-        A callable to check if a python file has airflow dags defined or not
-        with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
-        return True if it has dags otherwise False
+        A callable to check if a python file has airflow dags defined or not and should
+        return ``True`` if it has dags otherwise ``False``.
         If this is not provided, Airflow uses its own heuristic rules.
+
+        The function should have the following signature
+
+        .. code-block:: python
+
+            def func_name(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...
       version_added: 2.6.0
       type: string
       example: ~
@@ -55,7 +61,8 @@ core:
     default_timezone:
       description: |
         Default timezone in case supplied date times are naive
-        can be utc (default), system, or any IANA timezone string (e.g. Europe/Amsterdam)
+        can be `UTC` (default), `system`, or any `IANA <https://www.iana.org/time-zones>`
+        timezone string (e.g. Europe/Amsterdam)
       version_added: ~
       type: string
       example: ~
@@ -82,7 +89,7 @@ core:
         This defines the maximum number of task instances that can run concurrently per scheduler in
         Airflow, regardless of the worker count. Generally this value, multiplied by the number of
         schedulers in your cluster, is the maximum number of task instances with the running
-        state in the metadata database.
+        state in the metadata database. Setting this value to zero allows unlimited parallelism.
       version_added: ~
       type: string
       example: ~
@@ -92,7 +99,7 @@ core:
         The maximum number of task instances allowed to run concurrently in each DAG. To calculate
         the number of tasks that is running concurrently for a DAG, add up the number of running
         tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
-        which is defaulted as ``max_active_tasks_per_dag``.
+        which is defaulted as ``[core] max_active_tasks_per_dag``.
 
         An example scenario when this would be useful is when you want to stop a new dag with an early
         start date from stealing all the executor slots in a cluster.
@@ -111,7 +118,7 @@ core:
       description: |
         The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs
         if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
-        which is defaulted as ``max_active_runs_per_dag``.
+        which is defaulted as ``[core] max_active_runs_per_dag``.
       version_added: ~
       type: string
       example: ~
@@ -120,7 +127,7 @@ core:
       description: |
         (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
         This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
-        which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
+        which is defaulted as ``[core] max_consecutive_failed_dag_runs_per_dag``.
         If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
       version_added: 2.9.0
@@ -131,9 +138,10 @@ core:
       description: |
         The name of the method used in order to start Python processes via the multiprocessing module.
         This corresponds directly with the options available in the Python docs:
-        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method.
-        Must be one of the values returned by:
-        https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods.
+        `multiprocessing.set_start_method
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_start_method>`__
+        must be one of the values returned by `multiprocessing.get_all_start_methods()
+        <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__.
       version_added: "2.0.0"
       type: string
       default: ~
@@ -156,9 +164,11 @@ core:
       default: "{AIRFLOW_HOME}/plugins"
     execute_tasks_new_python_interpreter:
       description: |
-        Should tasks be executed via forking of the parent process ("False",
-        the speedier option) or by spawning a new python process ("True" slow,
-        but means plugin changes picked up by tasks straight away)
+        Should tasks be executed via forking of the parent process
+
+        * ``False``: Execute via forking of the parent process
+        * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
+          up by tasks straight away
       default: "False"
       example: ~
       version_added: 2.0.0
@@ -262,7 +272,7 @@ core:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp patterns.
-        This is a secondary option to ``allowed_deserialization_classes``.
+        This is a secondary option to ``[core] allowed_deserialization_classes``.
       version_added: 2.8.2
       type: string
       default: ''
@@ -293,12 +303,14 @@ core:
       default: "True"
     dag_ignore_file_syntax:
       description: |
-        The pattern syntax used in the ".airflowignore" files in the DAG directories. Valid values are
-        ``regexp`` or ``glob``.
+        The pattern syntax used in the
+        `.airflowignore
+        <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#airflowignore>`__
+        files in the DAG directories. Valid values are ``regexp`` or ``glob``.
       version_added: 2.3.0
       type: string
       example: ~
-      default: "regexp"
+      default: "glob"
     default_task_retries:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
@@ -329,6 +341,14 @@ core:
       type: string
       example: ~
       default: "downstream"
+    task_success_overtime:
+      description: |
+        Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+        (like listeners, mini scheduler...) after task is marked as success..
+      version_added: 2.10.0
+      type: integer
+      example: ~
+      default: "20"
     default_task_execution_timeout:
       description: |
         The default task execution_timeout value for the operators. Expected an integer value to
@@ -347,8 +367,11 @@ core:
       default: "30"
     compress_serialized_dags:
       description: |
-        If True, serialized DAGs are compressed before writing to DB.
-        Note: this will disable the DAG dependencies view
+        If ``True``, serialized DAGs are compressed before writing to DB.
+
+        .. note::
+
+            This will disable the DAG dependencies view
       version_added: 2.3.0
       type: string
       example: ~
@@ -372,13 +395,6 @@ core:
       type: integer
       example: ~
       default: "30"
-    check_slas:
-      description: |
-        On each dagrun check against defined SLAs
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "True"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
@@ -397,7 +413,7 @@ core:
     lazy_discover_providers:
       description: |
         By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
-        Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
+        Set it to ``False``, if you want to discover providers whenever 'airflow' is invoked via cli or
         loaded from module.
       version_added: 2.0.0
       type: boolean
@@ -405,9 +421,12 @@ core:
       default: "True"
     hide_sensitive_var_conn_fields:
       description: |
-        Hide sensitive Variables or Connection extra json keys from UI and task logs when set to True
+        Hide sensitive **Variables** or **Connection extra json keys** from UI
+        and task logs when set to ``True``
 
-        (Connection passwords are always hidden in logs)
+        .. note::
+
+            Connection passwords are always hidden in logs
       version_added: 2.1.0
       type: boolean
       example: ~
@@ -451,19 +470,26 @@ core:
       type: string
       default: "0o077"
       example: ~
-    dataset_manager_class:
-      description: Class to use as dataset manager.
-      version_added: 2.4.0
+    asset_manager_class:
+      description: Class to use as asset manager.
+      version_added: 3.0.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.DatasetManager'
-    dataset_manager_kwargs:
-      description: Kwargs to supply to dataset manager.
-      version_added: 2.4.0
+      example: 'airflow.assets.manager.AssetManager'
+    asset_manager_kwargs:
+      description: Kwargs to supply to asset manager.
+      version_added: 3.0.0
       type: string
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
+    strict_asset_uri_validation:
+      description: |
+        Asset URI validation should raise an exception if it is not compliant with AIP-60.
+      default: "True"
+      example: ~
+      version_added: 2.9.2
+      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
@@ -472,22 +498,38 @@ core:
       default: "False"
     internal_api_url:
       description: |
-        (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
+        (experimental) Airflow Internal API url.
+        Only used if ``[core] database_access_isolation`` is ``True``.
       version_added: 2.6.0
       type: string
       default: ~
       example: 'http://localhost:8080'
+    internal_api_secret_key:
+      description: |
+        Secret key used to authenticate internal API clients to core. It should be as random as possible.
+        However, when running more than 1 instances of webserver / internal API services, make sure all
+        of them use the same ``secret_key`` otherwise calls will fail on authentication.
+        The authentication token generated using the secret key has a short expiry time though - make
+        sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors when the logs are accessed.
+      version_added: 2.10.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "{SECRET_KEY}"
     test_connection:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.
-        Supported options: Disabled, Enabled, Hidden. Default: Disabled
+        Supported options: ``Disabled``, ``Enabled``, ``Hidden``. Default: Disabled
         Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
         Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
         Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
         Before setting this to Enabled, make sure that you review the users who are able to add/edit
         connections and ensure they are trusted. Connection testing can be done maliciously leading to
-        undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
-        https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users
+        undesired and insecure outcomes.
+        See `Airflow Security Model: Capabilities of authenticated UI users
+        <https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users>`__
+        for more details.
       version_added: 2.7.0
       type: string
       example: ~
@@ -513,10 +555,11 @@ database:
       default: "alembic.ini"
     sql_alchemy_conn:
       description: |
-        The SqlAlchemy connection string to the metadata database.
-        SqlAlchemy supports many different database engines.
-        More information here:
-        http://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri
+        The SQLAlchemy connection string to the metadata database.
+        SQLAlchemy supports many different database engines.
+        See: `Set up a Database Backend: Database URI
+        <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri>`__
+        for more details.
       version_added: 2.3.0
       type: string
       sensitive: true
@@ -543,22 +586,23 @@ database:
         in case they have different encoding.
         By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
         the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
-        the maximum size of allowed index when collation is set to ``utf8mb4`` variant
-        (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618).
+        the maximum size of allowed index when collation is set to ``utf8mb4`` variant, see
+        `GitHub Issue Comment <https://github.com/apache/airflow/pull/17603#issuecomment-901121618>`__
+        for more details.
       version_added: 2.3.0
       type: string
       example: ~
       default: ~
     sql_alchemy_pool_enabled:
       description: |
-        If SqlAlchemy should pool database connections.
+        If SQLAlchemy should pool database connections.
       version_added: 2.3.0
       type: string
       example: ~
       default: "True"
     sql_alchemy_pool_size:
       description: |
-        The SqlAlchemy pool size is the maximum number of database connections
+        The SQLAlchemy pool size is the maximum number of database connections
         in the pool. 0 indicates no limit.
       version_added: 2.3.0
       type: string
@@ -571,7 +615,7 @@ database:
         additional connections will be returned up to this limit.
         When those additional connections are returned to the pool, they are disconnected and discarded.
         It follows then that the total number of simultaneous connections the pool will allow
-        is pool_size + max_overflow,
+        is **pool_size** + **max_overflow**,
         and the total number of "sleeping" connections the pool will allow is pool_size.
         max_overflow can be set to ``-1`` to indicate no overflow limit;
         no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
@@ -581,7 +625,7 @@ database:
       default: "10"
     sql_alchemy_pool_recycle:
       description: |
-        The SqlAlchemy pool recycle is the number of seconds a connection
+        The SQLAlchemy pool recycle is the number of seconds a connection
         can be idle in the pool before it is invalidated. This config does
         not apply to sqlite. If the number of DB connections is ever exceeded,
         a lower config value will allow the system to recover faster.
@@ -593,8 +637,9 @@ database:
       description: |
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
-        More information here:
-        https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
+        See `SQLAlchemy Pooling: Disconnect Handling - Pessimistic
+        <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
+        for more details.
       version_added: 2.3.0
       type: string
       example: ~
@@ -602,24 +647,35 @@ database:
     sql_alchemy_schema:
       description: |
         The schema to use for the metadata database.
-        SqlAlchemy supports databases with the concept of multiple schemas.
+        SQLAlchemy supports databases with the concept of multiple schemas.
       version_added: 2.3.0
       type: string
       example: ~
       default: ""
     sql_alchemy_connect_args:
       description: |
-        Import path for connect args in SqlAlchemy. Defaults to an empty dict.
-        This is useful when you want to configure db engine args that SqlAlchemy won't parse
+        Import path for connect args in SQLAlchemy. Defaults to an empty dict.
+        This is useful when you want to configure db engine args that SQLAlchemy won't parse
         in connection string. This can be set by passing a dictionary containing the create engine parameters.
-        For more details about passing create engine parameters(keepalives variables, timeout etc)
-        in postgres db connection see
-        https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database
-        e.g connect_args={"timeout":30} can be defined in airflow_local_settings.py and
+        For more details about passing create engine parameters (keepalives variables, timeout etc)
+        in Postgres DB Backend see `Setting up a PostgreSQL Database
+        <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__
+        e.g ``connect_args={"timeout":30}`` can be defined in ``airflow_local_settings.py`` and
         can be imported as shown below
       version_added: 2.3.0
       type: string
       example: 'airflow_local_settings.connect_args'
+      default: ~
+    sql_alchemy_session_maker:
+      description: |
+        Important Warning: Use of sql_alchemy_session_maker Highly Discouraged
+        Import path for function which returns 'sqlalchemy.orm.sessionmaker'.
+        Improper configuration of sql_alchemy_session_maker can lead to serious issues,
+        including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
+        documentation for detailed guidance on proper configuration and best practices.
+      version_added: 2.10.0
+      type: string
+      example: 'airflow_local_settings._sessionmaker'
       default: ~
     load_default_connections:
       description: |
@@ -650,11 +706,19 @@ database:
       description: |
         Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
         and the users can assert the correct version through other means (e.g. through a Helm chart).
-        Accepts "True" or "False".
+        Accepts ``True`` or ``False``.
       version_added: 2.6.0
       type: string
       example: ~
       default: "True"
+    external_db_managers:
+      description: |
+        List of DB managers to use to migrate external tables in airflow database. The managers must inherit
+        from BaseDBManager
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 logging:
   description: ~
   options:
@@ -663,8 +727,9 @@ logging:
         The folder where airflow should store its log files.
         This path must be absolute.
         There are a few existing configurations that assume this is set to the default.
-        If you choose to override this you may need to update the dag_processor_manager_log_location and
-        child_process_log_directory settings as well.
+        If you choose to override this you may need to update the
+        ``[logging] dag_processor_manager_log_location`` and
+        ``[logging] child_process_log_directory settings`` as well.
       version_added: 2.0.0
       type: string
       example: ~
@@ -672,7 +737,7 @@ logging:
     remote_logging:
       description: |
         Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
-        Set this to True if you want to enable remote logging.
+        Set this to ``True`` if you want to enable remote logging.
       version_added: 2.0.0
       type: string
       example: ~
@@ -698,7 +763,7 @@ logging:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
         Credentials
-        <https://cloud.google.com/docs/authentication/production#finding_credentials_automatically>`__ will
+        <https://cloud.google.com/docs/authentication/application-default-credentials>`__ will
         be used.
       version_added: 2.0.0
       type: string
@@ -707,20 +772,20 @@ logging:
     remote_base_log_folder:
       description: |
         Storage bucket URL for remote logging
-        S3 buckets should start with "s3://"
-        Cloudwatch log groups should start with "cloudwatch://"
-        GCS buckets should start with "gs://"
-        WASB buckets should start with "wasb" just to help Airflow select correct handler
-        Stackdriver logs should start with "stackdriver://"
+        S3 buckets should start with **s3://**
+        Cloudwatch log groups should start with **cloudwatch://**
+        GCS buckets should start with **gs://**
+        WASB buckets should start with **wasb** just to help Airflow select correct handler
+        Stackdriver logs should start with **stackdriver://**
       version_added: 2.0.0
       type: string
       example: ~
       default: ""
     remote_task_handler_kwargs:
       description: |
-        The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
-        task handler and it overrides the values provided by Airflow config. For example if you set
-        `delete_local_logs=False` and you provide ``{"delete_local_copy": true}``, then the local
+        The remote_task_handler_kwargs param is loaded into a dictionary and passed to the ``__init__``
+        of remote task handler and it overrides the values provided by Airflow config. For example if you set
+        ``delete_local_logs=False`` and you provide ``{"delete_local_copy": true}``, then the local
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
@@ -835,7 +900,7 @@ logging:
     secret_mask_adapter:
       description: |
         An import path to a function to add adaptations of each secret added with
-        `airflow.utils.log.secrets_masker.mask_secret` to be masked in log messages. The given function
+        ``airflow.utils.log.secrets_masker.mask_secret`` to be masked in log messages. The given function
         is expected to require a single parameter: the secret to be adapted. It may return a
         single adaptation of the secret or an iterable of adaptations to each be masked as secrets.
         The original secret will be masked as well as any adaptations returned.
@@ -845,7 +910,7 @@ logging:
       example: "urllib.parse.quote"
     task_log_prefix_template:
       description: |
-        Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
+        Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``
       version_added: 2.0.0
       type: string
       example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{ti.try_number}}"
@@ -901,7 +966,7 @@ logging:
       default: ""
     worker_log_server_port:
       description: |
-        When you start an airflow worker, airflow starts a tiny web server
+        When you start an Airflow worker, Airflow starts a tiny web server
         subprocess to serve the workers local log files to the airflow main
         web server, who then builds pages and sends them to users. This defines
         the port on which the logs are served. It needs to be unused, and open
@@ -912,8 +977,8 @@ logging:
       default: "8793"
     trigger_log_server_port:
       description: |
-        Port to serve logs from for triggerer.  See worker_log_server_port description
-        for more info.
+        Port to serve logs from for triggerer.
+        See ``[logging] worker_log_server_port`` description for more info.
       version_added: 2.6.0
       type: string
       example: ~
@@ -934,10 +999,10 @@ logging:
         when you use impersonation, when logs are written by a different user than airflow. The most secure
         way of configuring it in this case is to add both users to the same group and make it the default
         group of both users. Group-writeable logs are default in airflow, but you might decide that you are
-        OK with having the logs other-writeable, in which case you should set it to `0o777`. You might
-        decide to add more security if you do not use impersonation and change it to `0o755` to make it
-        only owner-writeable. You can also make it just readable only for owner by changing it to `0o700` if
-        all the access (read/write) for your logs happens from the same user.
+        OK with having the logs other-writeable, in which case you should set it to ``0o777``. You might
+        decide to add more security if you do not use impersonation and change it to ``0o755`` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to ``0o700``
+        if all the access (read/write) for your logs happens from the same user.
       version_added: 2.6.0
       type: string
       example: "0o775"
@@ -948,10 +1013,10 @@ logging:
         when you use impersonation, when logs are written by a different user than airflow. The most secure
         way of configuring it in this case is to add both users to the same group and make it the default
         group of both users. Group-writeable logs are default in airflow, but you might decide that you are
-        OK with having the logs other-writeable, in which case you should set it to `0o666`. You might
-        decide to add more security if you do not use impersonation and change it to `0o644` to make it
-        only owner-writeable. You can also make it just readable only for owner by changing it to `0o600` if
-        all the access (read/write) for your logs happens from the same user.
+        OK with having the logs other-writeable, in which case you should set it to ``0o666``. You might
+        decide to add more security if you do not use impersonation and change it to ``0o644`` to make it
+        only owner-writeable. You can also make it just readable only for owner by changing it to ``0o600``
+        if all the access (read/write) for your logs happens from the same user.
       version_added: 2.6.0
       type: string
       example: "0o664"
@@ -967,18 +1032,6 @@ logging:
       type: boolean
       example: ~
       default: "False"
-    enable_task_context_logger:
-      description: |
-        If enabled, Airflow may ship messages to task logs from outside the task run context, e.g. from
-        the scheduler, executor, or callback execution context. This can help in circumstances such as
-        when there's something blocking the execution of the task and ordinarily there may be no task
-        logs at all.
-        This is set to True by default. If you encounter issues with this feature
-        (e.g. scheduler performance issues) it can be disabled.
-      version_added: 2.8.0
-      type: boolean
-      example: ~
-      default: "True"
     color_log_error_keywords:
       description: |
         A comma separated list of keywords related to errors whose presence should display the line in red
@@ -997,35 +1050,39 @@ logging:
       default: "warn"
 metrics:
   description: |
-    StatsD (https://github.com/etsy/statsd) integration settings.
+    `StatsD <https://github.com/statsd/statsd>`__ integration settings.
   options:
-    metrics_use_pattern_match:
-      description: |
-        If true, metrics_allow_list and metrics_block_list will use regex pattern matching
-        anywhere within the metric name instead of only prefix matching at the start of the name.
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     metrics_allow_list:
       description: |
-        Configure an allow list (comma separated string) to send only certain metrics.
-        If metrics_use_pattern_match is false, match only the exact metric name prefix.
-        If metrics_use_pattern_match is true, provide regex patterns to match.
+        Configure an allow list (comma separated regex patterns to match) to send only certain metrics.
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
-        Configure a block list (comma separated string) to block certain metrics from being emitted.
-        If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
-        If metrics_use_pattern_match is false, match only the exact metric name prefix.
-        If metrics_use_pattern_match is true, provide regex patterns to match.
+        Configure a block list (comma separated regex patterns to match) to block certain metrics
+        from being emitted.
+        If ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,
+        ``[metrics] metrics_block_list`` is ignored.
+
       version_added: 2.6.0
       type: string
-      example: "\"scheduler,executor,dagrun\" or \"^scheduler,^executor,heartbeat|timeout\""
+      example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    metrics_consistency_on:
+      description: |
+        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
+
+        .. warning::
+
+          It is enabled by default from Airflow 3.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1040,6 +1097,13 @@ metrics:
       type: string
       example: ~
       default: "localhost"
+    statsd_ipv6:
+      description: |
+        Enables the statsd host to be resolved into IPv6 address
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "False"
     statsd_port:
       description: |
         Specifies the port on which the StatsD daemon (or server) is listening to
@@ -1059,8 +1123,11 @@ metrics:
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
         the transformed stat name.
 
-        The function should have the following signature:
-        def func_name(stat_name: str) -> str:
+        The function should have the following signature
+
+        .. code-block:: python
+
+            def func_name(stat_name: str) -> str: ...
       version_added: 2.0.0
       type: string
       example: ~
@@ -1074,14 +1141,14 @@ metrics:
       default: "False"
     statsd_datadog_tags:
       description: |
-        List of datadog tags attached to all metrics(e.g: key1:value1,key2:value2)
+        List of datadog tags attached to all metrics(e.g: ``key1:value1,key2:value2``)
       version_added: 2.0.0
       type: string
       example: ~
       default: ""
     statsd_datadog_metrics_tags:
       description: |
-        Set to False to disable metadata tags for some of the emitted metrics
+        Set to ``False`` to disable metadata tags for some of the emitted metrics
       version_added: 2.6.0
       type: boolean
       example: ~
@@ -1090,7 +1157,9 @@ metrics:
       description: |
         If you want to utilise your own custom StatsD client set the relevant
         module path below.
-        Note: The module path must exist on your PYTHONPATH for Airflow to pick it up
+        Note: The module path must exist on your
+        `PYTHONPATH <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`
+        for Airflow to pick it up
       version_added: 2.0.0
       type: string
       example: ~
@@ -1099,7 +1168,7 @@ metrics:
       description: |
         If you want to avoid sending all the available metrics tags to StatsD,
         you can configure a block list of prefixes (comma separated) to filter out metric tags
-        that start with the elements of the list (e.g: "job_id,run_id")
+        that start with the elements of the list (e.g: ``job_id,run_id``)
       version_added: 2.6.0
       type: string
       example: job_id,run_id,dag_id,task_id
@@ -1150,8 +1219,65 @@ metrics:
       default: "60000"
     otel_debugging_on:
       description: |
-        If True, all metrics are also emitted to the console. Defaults to False.
+        If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
       version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "Airflow"
+    otel_ssl_active:
+      description: |
+        If ``True``, SSL will be enabled. Defaults to ``False``.
+        To establish an HTTPS connection to the OpenTelemetry collector,
+        you need to configure the SSL certificate and key within the OpenTelemetry collector's
+        ``config.yml`` file.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
+traces:
+  description: |
+    Distributed traces integration settings.
+  options:
+    otel_on:
+      description: |
+        Enables sending traces to OpenTelemetry.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
+    otel_host:
+      description: |
+        Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
+        traces.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "localhost"
+    otel_port:
+      description: |
+        Specifies the port of the OpenTelemetry Collector that is listening to.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "8889"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "Airflow"
+    otel_debugging_on:
+      description: |
+        If True, all traces are also emitted to the console. Defaults to False.
+      version_added: 2.10.0
       type: string
       example: ~
       default: "False"
@@ -1161,7 +1287,15 @@ metrics:
         To establish an HTTPS connection to the OpenTelemetry collector,
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
-      version_added: 2.7.0
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "False"
+    otel_task_log_event:
+      description: |
+        If True, after the task is complete, the full task log messages will be added as the
+        span events, chunked by 64k size. defaults to False.
+      version_added: 2.10.0
       type: string
       example: ~
       default: "False"
@@ -1177,8 +1311,10 @@ secrets:
       default: ""
     backend_kwargs:
       description: |
-        The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
-        See documentation for the secrets backend you are using. JSON is expected.
+        The backend_kwargs param is loaded into a dictionary and passed to ``__init__``
+        of secrets backend class. See documentation for the secrets backend you are using.
+        JSON is expected.
+
         Example for AWS Systems Manager ParameterStore:
         ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
       version_added: 1.10.10
@@ -1211,27 +1347,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-cli:
-  description: ~
-  options:
-    api_client:
-      description: |
-        In what way should the cli access the API. The LocalClient will use the
-        database directly, while the json_client will use the api running on the
-        webserver
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.api.client.local_client"
-    endpoint_url:
-      description: |
-        If you set web_server_url_prefix, do NOT forget to append it here, ex:
-        ``endpoint_url = http://localhost:8080/myroot``
-        So api will look like: ``http://localhost:8080/myroot/api/experimental/...``
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
 debug:
   description: ~
   options:
@@ -1246,31 +1361,15 @@ debug:
 api:
   description: ~
   options:
-    enable_experimental_api:
-      description: |
-        Enables the deprecated experimental API. Please note that these APIs do not have access control.
-        The authenticated user has full access.
-
-        .. warning::
-
-          This `Experimental REST API <https://airflow.readthedocs.io/en/latest/rest-api-ref.html>`__ is
-          deprecated since version 2.0. Please consider using
-          `the Stable REST API <https://airflow.readthedocs.io/en/latest/stable-rest-api-ref.html>`__.
-          For more information on migration, see
-          `RELEASE_NOTES.rst <https://github.com/apache/airflow/blob/main/RELEASE_NOTES.rst>`_
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
-        https://airflow.apache.org/docs/apache-airflow/stable/security/api.html for possible values.
-        ("airflow.api.auth.backend.default" allows all requests for historic reasons)
+        `Security: API
+        <https://airflow.apache.org/docs/apache-airflow/stable/security/api.html>`__ for possible values
       version_added: 2.3.0
       type: string
       example: ~
-      default: "airflow.api.auth.backend.session"
+      default: "airflow.providers.fab.auth_manager.api.auth.backend.session"
     maximum_page_limit:
       description: |
         Used to set the maximum page limit for API requests. If limit passed as param
@@ -1334,8 +1433,8 @@ api:
       default: ""
     enable_xcom_deserialize_support:
       description: |
-        Indicates whether the *xcomEntries* endpoint supports the *deserialize*
-        flag. If set to False, setting this flag in a request would result in a
+        Indicates whether the **xcomEntries** endpoint supports the **deserialize**
+        flag. If set to ``False``, setting this flag in a request would result in a
         400 Bad Request error.
       type: boolean
       version_added: 2.7.0
@@ -1408,14 +1507,6 @@ operators:
       type: string
       example: ~
       default: "default"
-    allow_illegal_arguments:
-      description: |
-        Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
-        If set to False, an exception will be thrown, otherwise only the console message will be displayed.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "False"
 webserver:
   description: ~
   options:
@@ -1445,7 +1536,7 @@ webserver:
     default_ui_timezone:
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or
-        any IANA timezone string (e.g. Europe/Amsterdam). If left empty the
+        any IANA timezone string (e.g. **Europe/Amsterdam**). If left empty the
         default value of core/default_timezone will be used
       version_added: 1.10.10
       type: string
@@ -1484,17 +1575,17 @@ webserver:
       default: ""
     session_backend:
       description: |
-        The type of backend used to store web session data, can be `database` or `securecookie`. For the
-        `database` backend, sessions are store in the database (in `session` table) and they can be
+        The type of backend used to store web session data, can be ``database`` or ``securecookie``. For the
+        ``database`` backend, sessions are store in the database and they can be
         managed there (for example when you reset password of the user, all sessions for that user are
-        deleted). For the `securecookie` backend, sessions are stored in encrypted cookies on the client
-        side. The `securecookie` mechanism is 'lighter' than database backend, but sessions are not deleted
+        deleted). For the ``securecookie`` backend, sessions are stored in encrypted cookies on the client
+        side. The ``securecookie`` mechanism is 'lighter' than database backend, but sessions are not deleted
         when you reset password of the user, which means that other than waiting for expiry time, the only
         way to invalidate all sessions for a user is to change secret_key and restart webserver (which
         also invalidates and logs out all other user's sessions).
 
-        When you are using `database` backend, make sure to keep your database session table small
-        by periodically running `airflow db clean --table session` command, especially if you have
+        When you are using ``database`` backend, make sure to keep your database session table small
+        by periodically running ``airflow db clean --table session`` command, especially if you have
         automated API calls that will create a new session for each call rather than reuse the sessions
         stored in browser cookies.
       version_added: 2.2.4
@@ -1533,9 +1624,9 @@ webserver:
       default: "6000"
     reload_on_plugin_change:
       description: |
-        If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
-        then reload the gunicorn. If set to True, gunicorn starts without preloading, which is slower, uses
-        more memory, and may cause race conditions. Avoid setting this to True in production.
+        If set to ``True``, Airflow will track files in plugins_folder directory. When it detects changes,
+        then reload the gunicorn. If set to ``True``, gunicorn starts without preloading, which is slower,
+        uses more memory, and may cause race conditions. Avoid setting this to ``True`` in production.
       version_added: 1.10.11
       type: boolean
       example: ~
@@ -1564,9 +1655,22 @@ webserver:
     worker_class:
       description: |
         The worker class gunicorn should use. Choices include
-        sync (default), eventlet, gevent. Note when using gevent you might also want to set the
-        "_AIRFLOW_PATCH_GEVENT" environment variable to "1" to make sure gevent patching is done as
-        early as possible.
+        ``sync`` (default), ``eventlet``, ``gevent``.
+
+        .. warning::
+
+            When using ``gevent`` you might also want to set the ``_AIRFLOW_PATCH_GEVENT``
+            environment variable to ``"1"`` to make sure gevent patching is done as early as possible.
+
+            Be careful to set ``_AIRFLOW_PATCH_GEVENT`` only on the web server as gevent patching may
+            affect the scheduler behavior via the ``multiprocessing`` sockets module and cause crash.
+
+            See related Issues / PRs for more details:
+
+            * https://github.com/benoitc/gunicorn/issues/2796
+            * https://github.com/apache/airflow/issues/8212
+            * https://github.com/apache/airflow/pull/28283
+
       version_added: ~
       type: string
       example: ~
@@ -1588,16 +1692,17 @@ webserver:
     access_logformat:
       description: |
         Access log format for gunicorn webserver.
-        default format is %%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"
-        documentation - https://docs.gunicorn.org/en/stable/settings.html#access-log-format
+        default format is ``%%(h)s %%(l)s %%(u)s %%(t)s "%%(r)s" %%(s)s %%(b)s "%%(f)s" "%%(a)s"``
+        See `Gunicorn Settings: 'access_log_format' Reference
+        <https://docs.gunicorn.org/en/stable/settings.html#access-log-format>`__ for more details
       version_added: 2.0.0
       type: string
       example: ~
       default: ""
     expose_config:
       description: |
-        Expose the configuration file in the web server. Set to "non-sensitive-only" to show all values
-        except those that have security implications. "True" shows all values. "False" hides the
+        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
+        except those that have security implications. ``True`` shows all values. ``False`` hides the
         configuration completely.
       version_added: ~
       type: string
@@ -1735,35 +1840,44 @@ webserver:
     proxy_fix_x_for:
       description: |
         Number of values to trust for ``X-Forwarded-For``.
-        More info: https://werkzeug.palletsprojects.com/en/0.16.x/middleware/proxy_fix/
+        See `Werkzeug: X-Forwarded-For Proxy Fix
+        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
     proxy_fix_x_proto:
       description: |
-        Number of values to trust for ``X-Forwarded-Proto``
+        Number of values to trust for ``X-Forwarded-Proto``.
+        See `Werkzeug: X-Forwarded-For Proxy Fix
+        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
     proxy_fix_x_host:
       description: |
-        Number of values to trust for ``X-Forwarded-Host``
+        Number of values to trust for ``X-Forwarded-Host``.
+        See `Werkzeug: X-Forwarded-For Proxy Fix
+        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
     proxy_fix_x_port:
       description: |
-        Number of values to trust for ``X-Forwarded-Port``
+        Number of values to trust for ``X-Forwarded-Port``.
+        See `Werkzeug: X-Forwarded-For Proxy Fix
+        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
       version_added: 1.10.7
       type: integer
       example: ~
       default: "1"
     proxy_fix_x_prefix:
       description: |
-        Number of values to trust for ``X-Forwarded-Prefix``
+        Number of values to trust for ``X-Forwarded-Prefix``.
+        See `Werkzeug: X-Forwarded-For Proxy Fix
+        <https://werkzeug.palletsprojects.com/en/2.3.x/middleware/proxy_fix/>`__ for more details.
       version_added: 1.10.7
       type: integer
       example: ~
@@ -1777,7 +1891,9 @@ webserver:
       default: "False"
     cookie_samesite:
       description: |
-        Set samesite policy on session cookie
+        Set samesite policy on session cookies.
+        As `recommended <https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE>`_
+        by Flask, the default is set to ``Lax`` and not a empty string.
       version_added: 1.10.3
       type: string
       example: ~
@@ -1799,7 +1915,7 @@ webserver:
     analytics_tool:
       description: |
         Send anonymous user activity to your analytics tool
-        choose from google_analytics, segment, metarouter, or matomo
+        choose from ``google_analytics``, ``segment``, ``metarouter``, or ``matomo``
       version_added: ~
       type: string
       example: ~
@@ -1825,20 +1941,10 @@ webserver:
       type: boolean
       example: ~
       default: "True"
-    update_fab_perms:
-      description: |
-        Update FAB permissions and sync security manager roles
-        on webserver startup
-      version_added: 1.10.7
-      type: string
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     session_lifetime_minutes:
       description: |
         The UI cookie lifetime in minutes. User will be logged out from UI after
-        ``session_lifetime_minutes`` of non-activity
+        ``[webserver] session_lifetime_minutes`` of non-activity
       version_added: 1.10.13
       type: integer
       example: ~
@@ -1904,24 +2010,6 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    auth_rate_limited:
-      description: |
-        Boolean for enabling rate limiting on authentication endpoints.
-      version_added: 2.6.0
-      type: boolean
-      example: ~
-      default: "True"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
-    auth_rate_limit:
-      description: |
-        Rate limit for authentication endpoints.
-      version_added: 2.6.0
-      type: string
-      example: ~
-      default: "5 per 40 second"
-      version_deprecated: 2.9.0
-      deprecation_reason: This config has been moved to fab provider. Please use the config from fab provider.
     caching_hash_method:
       description: |
         The caching algorithm used by the webserver. Must be a valid hashlib function name.
@@ -1931,8 +2019,8 @@ webserver:
       default: "md5"
     show_trigger_form_if_no_params:
       description: |
-        Behavior of the trigger DAG run button for DAGs without params. False to skip and trigger
-        without displaying a form to add a dag_run.conf, True to always display the form.
+        Behavior of the trigger DAG run button for DAGs without params. ``False`` to skip and trigger
+        without displaying a form to add a **dag_run.conf**, ``True`` to always display the form.
         The form is displayed always if parameters are defined.
       version_added: 2.7.0
       type: boolean
@@ -1945,21 +2033,6 @@ webserver:
       type: integer
       example: "10"
       default: "5"
-    allow_raw_html_descriptions:
-      description: |
-        A DAG author is able to provide any raw HTML into ``doc_md`` or params description in
-        ``description_md`` for text formatting. This is including potentially unsafe javascript.
-        Displaying the DAG or trigger form in web UI provides the DAG author the potential to
-        inject malicious code into clients browsers. To ensure the web UI is safe by default,
-        raw HTML is disabled by default. If you trust your DAG authors, you can enable HTML
-        support in markdown by setting this option to True.
-
-        This parameter also enables the deprecated fields ``description_html`` and
-        ``custom_html_form`` in DAG params until the feature is removed in a future version.
-      version_added: 2.8.0
-      type: boolean
-      example: "False"
-      default: "False"
     allowed_payload_size:
       description: |
         The maximum size of the request payload (in MB) that can be sent.
@@ -1971,7 +2044,8 @@ webserver:
       description: |
         Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
         to a DAG that may be running on sensitive environments like production.
-        When set to True, confirmation dialog will be shown when a user tries to Pause/Unpause, Trigger a DAG
+        When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
+        Trigger a DAG
       version_added: 2.9.0
       type: boolean
       example: ~
@@ -2076,21 +2150,6 @@ smtp:
       type: string
       example: ~
       default: "False"
-    smtp_user:
-      description: |
-        Username to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      example: "airflow"
-      default: ~
-    smtp_password:
-      description: |
-        Password to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: "airflow"
-      default: ~
     smtp_port:
       description: |
         Defines the port number on which Airflow connects to the SMTP server to send email notifications.
@@ -2100,7 +2159,7 @@ smtp:
       default: "25"
     smtp_mail_from:
       description: |
-        Specifies the default "from" email address used when Airflow sends email notifications.
+        Specifies the default **from** email address used when Airflow sends email notifications.
       version_added: ~
       type: string
       example: ~
@@ -2122,9 +2181,10 @@ smtp:
       default: "5"
 sentry:
   description: |
-    Sentry (https://docs.sentry.io) integration. Here you can supply
-    additional configuration options based on the Python platform. See:
-    https://docs.sentry.io/error-reporting/configuration/?platform=python.
+    `Sentry <https://docs.sentry.io>`__ integration. Here you can supply
+    additional configuration options based on the Python platform.
+    See `Python / Configuration / Basic Options
+    <https://docs.sentry.io/platforms/python/configuration/options/>`__ for more details.
     Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
     ``ignore_errors``, ``before_breadcrumb``, ``transport``.
   options:
@@ -2172,7 +2232,7 @@ scheduler:
       description: |
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
-        to the value of scheduler_zombie_task_threshold.
+        to the value of ``[scheduler] scheduler_zombie_task_threshold``.
       version_added: 2.7.0
       type: integer
       example: ~
@@ -2197,7 +2257,7 @@ scheduler:
     min_file_process_interval:
       description: |
         Number of seconds after which a DAG file is parsed. The DAG file is parsed every
-        ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
+        ``[scheduler] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
         this interval. Keeping this number low will increase CPU usage.
       version_added: ~
       type: integer
@@ -2206,7 +2266,7 @@ scheduler:
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated, as well as datasets that are no longer
+        the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned.
       version_added: 2.5.0
       type: integer
@@ -2217,7 +2277,7 @@ scheduler:
         How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
         DAGs (DAGs which are no longer present in the expected files). The reason why we need
         this threshold is to account for the time between when the file is parsed and when the
-        DAG is loaded. The absolute maximum that this could take is `dag_file_processor_timeout`,
+        DAG is loaded. The absolute maximum that this could take is ``[core] dag_file_processor_timeout``,
         but when you have a long timeout configured, it results in a significant delay in the
         deactivation of stale dags.
       version_added: 2.6.0
@@ -2247,9 +2307,9 @@ scheduler:
       default: "5.0"
     scheduler_health_check_threshold:
       description: |
-        If the last scheduler heartbeat happened more than scheduler_health_check_threshold
+        If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
         for SchedulerJob.
       version_added: 1.10.2
       type: integer
@@ -2258,7 +2318,7 @@ scheduler:
     enable_health_check:
       description: |
         When you start a scheduler, airflow starts a tiny web server
-        subprocess to serve a health check if this is set to True
+        subprocess to serve a health check if this is set to ``True``
       version_added: 2.4.0
       type: boolean
       example: ~
@@ -2323,7 +2383,7 @@ scheduler:
       default: "True"
     ignore_first_depends_on_past_by_default:
       description: |
-        Setting this to True will make first task instance of a task
+        Setting this to ``True`` will make first task instance of a task
         ignore depends_on_past setting. A task instance will be considered
         as the first task instance of a task when there is no task instance
         in the DB with an execution_date earlier than it., i.e. no manual marking
@@ -2334,12 +2394,9 @@ scheduler:
       default: "True"
     max_tis_per_query:
       description: |
-        This changes the batch size of queries in the scheduling main loop.
-        This should not be greater than ``core.parallelism``.
-        If this is too high, SQL query performance may be impacted by
-        complexity of query predicate, and/or excessive locking.
-        Additionally, you may hit the maximum allowable query length for your db.
-        Set this to 0 to use the value of ``core.parallelism``
+        This determines the number of task instances to be evaluated for scheduling
+        during each scheduler loop.
+        Set this to 0 to use the value of ``[core] parallelism``
       version_added: ~
       type: integer
       example: ~
@@ -2347,7 +2404,7 @@ scheduler:
     use_row_level_locking:
       description: |
         Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
-        If this is set to False then you should not run more than a single
+        If this is set to ``False`` then you should not run more than a single
         scheduler at once
       version_added: 2.0.0
       type: boolean
@@ -2383,8 +2440,8 @@ scheduler:
       description: |
         The scheduler reads dag files to extract the airflow modules that are going to be used,
         and imports them ahead of time to avoid having to re-do it for each parsing process.
-        This flag can be set to False to disable this behavior in case an airflow module needs to be freshly
-        imported each time (at the cost of increased DAG parsing time).
+        This flag can be set to ``False`` to disable this behavior in case an airflow module needs
+        to be freshly imported each time (at the cost of increased DAG parsing time).
       version_added: 2.6.0
       type: boolean
       example: ~
@@ -2422,7 +2479,7 @@ scheduler:
       default: "False"
     max_callbacks_per_loop:
       description: |
-        Only applicable if `[scheduler]standalone_dag_processor` is true and  callbacks are stored
+        Only applicable if ``[scheduler] standalone_dag_processor`` is true and  callbacks are stored
         in database. Contains maximum number of callbacks that are fetched during a single loop.
       version_added: 2.3.0
       type: integer
@@ -2430,7 +2487,7 @@ scheduler:
       default: "20"
     dag_stale_not_seen_duration:
       description: |
-        Only applicable if `[scheduler]standalone_dag_processor` is true.
+        Only applicable if ``[scheduler] standalone_dag_processor`` is true.
         Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
       version_added: 2.4.0
       type: integer
@@ -2438,7 +2495,7 @@ scheduler:
       default: "600"
     use_job_schedule:
       description: |
-        Turn off scheduler use of cron intervals by setting this to False.
+        Turn off scheduler use of cron intervals by setting this to ``False``.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
       version_added: 1.10.2
       type: boolean
@@ -2447,7 +2504,7 @@ scheduler:
     allow_trigger_in_future:
       description: |
         Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule_interval is set to None in DAG
+        Only has effect if schedule is set to None in DAG
       version_added: 1.10.8
       type: boolean
       example: ~
@@ -2469,7 +2526,7 @@ scheduler:
     task_queued_timeout_check_interval:
       description: |
         How often to check for tasks that have been in the queued state for
-        longer than `[scheduler] task_queued_timeout`.
+        longer than ``[scheduler] task_queued_timeout``.
       version_added: 2.6.0
       type: float
       example: ~
@@ -2486,22 +2543,31 @@ scheduler:
     create_cron_data_intervals:
       description: |
         Whether to create DAG runs that span an interval or one single point in time for cron schedules, when
-        a cron string is provided to `schedule` argument of a DAG. If True,
-        CronDataIntervalTimetable is used, which is the legacy Airflow behavior suitable
-        for DAGs with well-defined data_interval you get contiguous intervals from the end of the previous
-        interval up to the scheduled datetime. If False, CronTriggerTimetable is used,
-        which is closer to the behavior of cron itself.
+        a cron string is provided to ``schedule`` argument of a DAG.
 
-        Notably, for CronTriggerTimetable, the logical_date is the same as the time the DAG Run will try to
-        schedule, while for CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
-        but the DAG Run will try to schedule at the end of the data interval. For more differences
-        between the two Timetables, see
-        https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html#differences-between-the-two-cron-timetables
+        * ``True``: **CronDataIntervalTimetable** is used, which is suitable
+          for DAGs with well-defined data interval. You get contiguous intervals from the end of the previous
+          interval up to the scheduled datetime.
+        * ``False``: **CronTriggerTimetable** is used, which is closer to the behavior of cron itself.
+
+        Notably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will
+        try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
+        the data interval, but the DAG Run will try to schedule at the end of the data interval.
       version_added: 2.9.0
       type: boolean
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    enable_tracemalloc:
+      description: |
+        Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
+        tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
+        signal SIGUSR1.
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:
@@ -2521,9 +2587,9 @@ triggerer:
       default: "5"
     triggerer_health_check_threshold:
       description: |
-        If the last triggerer heartbeat happened more than triggerer_health_check_threshold
+        If the last triggerer heartbeat happened more than ``[triggerer] triggerer_health_check_threshold``
         ago (in seconds), triggerer is considered unhealthy.
-        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
         for TriggererJob.
       version_added: 2.7.0
       type: float
@@ -2591,3 +2657,25 @@ sensors:
       type: float
       example: ~
       default: "604800"
+usage_data_collection:
+  description: |
+    Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic platform and usage data
+    during operation. This data assists Airflow maintainers in better understanding how Airflow is used.
+    Insights gained from this telemetry are critical for prioritizing patches, minor releases, and
+    security fixes. Additionally, this information supports key decisions related to the development road map.
+    Check the FAQ doc for more information on what data is collected.
+
+    Deployments can opt-out of analytics by setting the ``enabled`` option
+    to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+    Individual users can easily opt-out of analytics in various ways documented in the
+    `Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
+
+  options:
+    enabled:
+      description: |
+        Enable or disable usage data collection and sending.
+      version_added: 2.10.0
+      type: boolean
+      example: ~
+      default: "True"
+      see_also: ":ref:`Usage data collection FAQ <usage-data-collection>`"

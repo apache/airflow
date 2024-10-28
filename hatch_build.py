@@ -40,14 +40,16 @@ GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provi
 PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 
 PRE_INSTALLED_PROVIDERS = [
+    "common.compat",
     "common.io",
     "common.sql",
-    "fab>=1.0.2dev0",
+    "fab>=1.0.2",
     "ftp",
     "http",
     "imap",
     "smtp",
     "sqlite",
+    "standard",
 ]
 
 # Those extras are dynamically added by hatch in the build hook to metadata optional dependencies
@@ -58,7 +60,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
     # boto3 have native aync support and we move away from aio aiobotocore
     "aiobotocore": [
-        "aiobotocore>=2.7.0",
+        "aiobotocore>=2.9.0",
     ],
     "async": [
         "eventlet>=0.33.3",
@@ -76,10 +78,8 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "cgroupspy>=0.2.2",
     ],
     "cloudpickle": [
-        "cloudpickle",
-    ],
-    "deprecated-api": [
-        "requests>=2.27.0,<3",
+        # Latest version of apache-beam requires cloudpickle~=2.2.1
+        "cloudpickle>=2.2.1",
     ],
     "github-enterprise": [
         "apache-airflow[fab]",
@@ -98,14 +98,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "thrift-sasl>=0.2.0",
     ],
     "ldap": [
-        "ldap3>=2.5.1",
-        "python-ldap",
+        "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel",
+        "plyvel>=1.5.1",
     ],
     "otel": [
-        "opentelemetry-exporter-prometheus",
+        "opentelemetry-exporter-prometheus>=0.47b0",
     ],
     "pandas": [
         # In pandas 2.2 minimal version of the sqlalchemy is 2.0
@@ -118,20 +117,13 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "bcrypt>=2.0.0",
         "flask-bcrypt>=0.7.1",
     ],
-    "pydantic": [
-        "pydantic>=2.3.0",
-    ],
     "rabbitmq": [
-        "amqp",
+        "amqp>=5.2.0",
     ],
     "s3fs": [
         # This is required for support of S3 file system which uses aiobotocore
         # which can have a conflict with boto3 as mentioned in aiobotocore extra
         "s3fs>=2023.10.0",
-    ],
-    "saml": [
-        # This is required for support of SAML which might be used by some providers (e.g. Amazon)
-        "python3-saml>=1.16.0",
     ],
     "sentry": [
         "blinker>=1.1",
@@ -146,7 +138,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv>=20.26.0",
     ],
 }
 
@@ -200,6 +192,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
+        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
+        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
@@ -222,18 +216,18 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
-        "types-aiofiles",
-        "types-certifi",
-        "types-croniter",
-        "types-docutils",
-        "types-paramiko",
-        "types-protobuf",
-        "types-python-dateutil",
-        "types-python-slugify",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
+        "types-aiofiles>=23.2.0.20240403",
+        "types-certifi>=2021.10.8.3",
+        "types-croniter>=2.0.0.20240423",
+        "types-docutils>=0.21.0.20240704",
+        "types-paramiko>=3.4.0.20240423",
+        "types-protobuf>=5.26.0.20240422",
+        "types-python-dateutil>=2.9.0.20240316",
+        "types-python-slugify>=8.0.2.20240310",
         "types-pytz",
         "types-redis",
         "types-requests",
@@ -246,9 +240,10 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
+        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.3.3",
+        "ruff==0.7.0",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -258,8 +253,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
-        "jmespath",
-        "pytest-asyncio>=0.23.3",
+        "jmespath>=0.7.0",
+        "pytest-asyncio>=0.23.6",
         "pytest-cov>=4.1.0",
         "pytest-custom-exit-code>=0.3.0",
         "pytest-icdiff>=0.9",
@@ -268,10 +263,9 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-rerunfailures>=13.0",
         "pytest-timeouts>=1.2.1",
         "pytest-xdist>=3.5.0",
-        # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-        # Internal meta-task for track https://github.com/apache/airflow/issues/37156
-        "pytest>=7.4.4,<8.0",
+        "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
+        "semver>=3.0.2",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
     ],
@@ -347,62 +341,6 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
     ],
 }
 
-DEPRECATED_EXTRAS: dict[str, list[str]] = {
-    ########################################################################################################
-    #  The whole section can be removed in Airflow 3.0 as those old aliases are deprecated in 2.* series
-    ########################################################################################################
-    "atlas": [
-        "apache-airflow[apache-atlas]",
-    ],
-    "aws": [
-        "apache-airflow[amazon]",
-    ],
-    "azure": [
-        "apache-airflow[microsoft-azure]",
-    ],
-    "cassandra": [
-        "apache-airflow[apache-cassandra]",
-    ],
-    # Empty alias extra just for backward compatibility with Airflow 1.10
-    "crypto": [],
-    "druid": [
-        "apache-airflow[apache-druid]",
-    ],
-    "gcp": [
-        "apache-airflow[google]",
-    ],
-    "gcp-api": [
-        "apache-airflow[google]",
-    ],
-    "hdfs": [
-        "apache-airflow[apache-hdfs]",
-    ],
-    "hive": [
-        "apache-airflow[apache-hive]",
-    ],
-    "kubernetes": [
-        "apache-airflow[cncf-kubernetes]",
-    ],
-    "mssql": [
-        "apache-airflow[microsoft-mssql]",
-    ],
-    "pinot": [
-        "apache-airflow[apache-pinot]",
-    ],
-    "s3": [
-        "apache-airflow[amazon]",
-    ],
-    "spark": [
-        "apache-airflow[apache-spark]",
-    ],
-    "webhdfs": [
-        "apache-airflow[apache-webhdfs]",
-    ],
-    "winrm": [
-        "apache-airflow[microsoft-winrm]",
-    ],
-}
-
 # When you remove a dependency from the list, you should also make sure to add the dependency to be removed
 # in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
 # in order to make sure the dependency is not installed in the CI image build process from the main
@@ -413,14 +351,12 @@ DEPENDENCIES = [
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
     "alembic>=1.13.1, <2.0",
     "argcomplete>=1.10",
-    "asgiref",
+    "asgiref>=2.3.0",
     "attrs>=22.1.0",
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
-    # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
-    # Update CustomTTYColoredFormatter to remove
-    "colorlog>=4.0.2, <5.0",
+    "colorlog>=6.8.2",
     "configupdater>=3.1.1",
     # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
     # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
@@ -428,25 +364,30 @@ DEPENDENCIES = [
     # The usage was added in #30596, seemingly only to override and improve the default error message.
     # Either revert that change or find another way, preferably without using connexion internals.
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.10.0,<3.0",
+    "connexion[flask]>=2.14.2,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=39.0.0",
+    "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "flask-caching>=1.5.0",
+    # Required for python 3.9 to work with new annotations styles. Check package
+    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
+    "eval-type-backport>=0.2.0",
+    "fastapi[standard]>=0.112.2",
+    "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=0.15",
+    "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
     # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2,<2.3",
+    "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
-    "google-re2>=1.0",
+    'google-re2>=1.0;python_version<"3.12"',
+    'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
-    "httpx",
+    "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
@@ -454,7 +395,7 @@ DEPENDENCIES = [
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
-    "lazy-object-proxy",
+    "lazy-object-proxy>=1.2.0",
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
@@ -463,24 +404,27 @@ DEPENDENCIES = [
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
     "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp",
-    "packaging>=14.0",
+    "opentelemetry-exporter-otlp>=1.15.0",
+    "packaging>=23.0",
     "pathspec>=0.9.0",
-    "pendulum>=2.1.2,<4.0",
-    "pluggy>=1.0",
-    "psutil>=4.2.0",
+    'pendulum>=2.1.2,<4.0;python_version<"3.12"',
+    'pendulum>=3.0.0,<4.0;python_version>="3.12"',
+    "pluggy>=1.5.0",
+    "psutil>=5.8.0",
+    "pydantic>=2.6.4",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
-    "python-dateutil>=2.3",
+    "python-dateutil>=2.7.0",
     "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.27.0,<3",
+    "requests-toolbelt>=0.4.0",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=12.4.4",
-    "setproctitle>=1.1.8",
+    "setproctitle>=1.3.3",
     # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
@@ -488,15 +432,11 @@ DEPENDENCIES = [
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "tabulate>=0.7.5",
-    "tenacity>=6.2.0,!=8.2.0",
+    "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
-    # We should remove this dependency when Providers are limited to Airflow 2.7+
-    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
-    # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
-    "unicodecsv>=0.14.1",
-    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    "universal-pathlib>=0.2.2",
+    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
+    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
+    "universal-pathlib>=0.2.2,!=0.2.4",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
@@ -508,7 +448,6 @@ ALL_DYNAMIC_EXTRA_DICTS: list[tuple[dict[str, list[str]], str]] = [
     (DOC_EXTRAS, "Doc extras"),
     (DEVEL_EXTRAS, "Devel extras"),
     (BUNDLE_EXTRAS, "Bundle extras"),
-    (DEPRECATED_EXTRAS, "Deprecated extras"),
 ]
 
 ALL_GENERATED_BUNDLE_EXTRAS = ["all", "all-core", "devel-all", "devel-ci"]
@@ -850,6 +789,18 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         # field in core.metadata until this is possible
         self.metadata.core._optional_dependencies = self.optional_dependencies
 
+        # Add entrypoints dynamically for all provider packages, in editable build
+        # else they will not be found by plugin manager
+        if version != "standard":
+            entry_points = self.metadata.core._entry_points or {}
+            plugins = entry_points.get("airflow.plugins") or {}
+            for provider in PROVIDER_DEPENDENCIES.values():
+                for plugin in provider["plugins"]:
+                    plugin_class: str = plugin["plugin-class"]
+                    plugins[plugin["name"]] = plugin_class[::-1].replace(".", ":", 1)[::-1]
+            entry_points["airflow.plugins"] = plugins
+            self.metadata.core._entry_points = entry_points
+
     def _add_devel_ci_dependencies(self, deps: list[str], python_exclusion: str) -> None:
         """
         Add devel_ci_dependencies.
@@ -920,7 +871,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
             for extra, deps in dict.items():
                 self.all_devel_extras.add(extra)
                 self._add_devel_ci_dependencies(deps, python_exclusion="")
-                if dict not in [DEPRECATED_EXTRAS, DEVEL_EXTRAS, DOC_EXTRAS]:
+                if dict not in [DEVEL_EXTRAS, DOC_EXTRAS]:
                     # do not add deprecated extras to "all" extras
                     self.all_non_devel_extras.add(extra)
                 if version == "standard":

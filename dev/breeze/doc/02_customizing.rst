@@ -23,7 +23,7 @@ Customizing breeze environment
 
 Breeze can be customized in a number of ways. You can read about those ways in this document.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 
 Customizing Breeze startup

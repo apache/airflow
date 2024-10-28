@@ -278,6 +278,8 @@ class TestKeda:
 
     def test_mysql_keda_db_connection(self):
         """Verify keda db connection when pgbouncer is enabled."""
+        import base64
+
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
@@ -304,8 +306,10 @@ class TestKeda:
         assert "queryValue" in keda_autoscaler_metadata
 
         secret_data = jmespath.search("data", metadata_connection_secret)
+        keda_connection_secret = base64.b64decode(secret_data["kedaConnection"]).decode()
         assert "connection" in secret_data.keys()
         assert "kedaConnection" in secret_data.keys()
+        assert not keda_connection_secret.startswith("//")
 
         autoscaler_connection_env_var = jmespath.search(
             "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler

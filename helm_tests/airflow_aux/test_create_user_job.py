@@ -166,6 +166,37 @@ class TestCreateUserJob:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "extraInitContainers": [
+                        {"name": "{{ .Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {
+            "name": "airflow",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[0]", docs[0])
+
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
+
     def test_should_add_extra_volumes(self):
         docs = render_chart(
             values={
@@ -214,7 +245,17 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
@@ -223,6 +264,14 @@ class TestCreateUserJob:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_enable_custom_env(self):
         docs = render_chart(

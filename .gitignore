@@ -12,7 +12,8 @@ airflow.db
 airflow/git_version
 airflow/www/static/coverage/
 airflow/www/*.log
-/logs/
+airflow/ui/coverage/
+logs/
 airflow-webserver.pid
 standalone_admin_password.txt
 warnings.txt
@@ -110,6 +111,7 @@ celerybeat-schedule
 
 # dotenv
 .env
+.env.local
 .autoenv*.zsh
 
 # virtualenv
@@ -126,9 +128,6 @@ ENV/
 # PyCharm
 .idea/
 *.iml
-
-# Visual Studio Code
-.vscode/
 
 # vim
 *.swp
@@ -165,6 +164,15 @@ node_modules
 npm-debug.log*
 derby.log
 metastore_db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+/.vite/
+.pnpm-store
+*.tsbuildinfo
 
 # Airflow log files when airflow is run locally
 airflow-*.err

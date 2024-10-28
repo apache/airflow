@@ -31,13 +31,16 @@ Configuring the Connection
 --------------------------
 
 Host (required)
-    Host URL to connect to the Weaviate cluster.
+    The host to use for the Weaviate cluster REST and GraphQL API calls. DO NOT include the schema (i.e., http or https).
 
 OIDC Username (optional)
     Username for the OIDC user when OIDC option is to be used for authentication.
 
 OIDC Password (optional)
     Password for the OIDC user when OIDC option is to be used for authentication.
+
+Port (option)
+    The port to use for the Weaviate cluster REST and GraphQL API calls.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in the
@@ -48,10 +51,23 @@ Extra (optional)
     * If you'd like to use Vectorizers for your class, configure the API keys to use the corresponding
       embedding API. The extras accepts a key ``additional_headers`` containing the dictionary
       of API keys for the embedding API authentication. They are mentioned in a section here:
-      `addtional_headers <https://weaviate.io/developers/academy/zero_to_mvp/hello_weaviate/hands_on#-client-instantiation>`__
+      `Third party API keys <https://weaviate.io/developers/weaviate/starter-guides/connect#third-party-api-keys>`__
 
 Weaviate API Token (optional)
     Specify your Weaviate API Key to connect when API Key option is to be used for authentication.
+
+Use https (optional)
+    Whether to use https for the Weaviate cluster REST and GraphQL API calls.
+
+gRPC host (optional)
+    The host to use for the Weaviate cluster gRPC API.
+
+gRPC port (optional)
+    The port to use for the Weaviate cluster gRPC API.
+
+Use a secure channel for the underlying gRPC API (optional)
+    Whether to use a secure channel for the the Weaviate cluster gRPC API.
+
 
 Supported Authentication Methods
 --------------------------------

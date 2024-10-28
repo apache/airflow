@@ -31,9 +31,9 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.9-slim-bookworm" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==3.1.5" \
+    --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py==3.1.6" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \
     --tag "my-build-essential-image:0.0.1"

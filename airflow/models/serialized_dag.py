@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING, Any, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
@@ -35,7 +35,8 @@ from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
+from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
@@ -54,7 +55,8 @@ log = logging.getLogger(__name__)
 
 
 class SerializedDagModel(Base):
-    """A table for serialized DAGs.
+    """
+    A table for serialized DAGs.
 
     serialized_dag table is a snapshot of DAG files synchronized by scheduler.
     This feature is controlled by:
@@ -112,9 +114,10 @@ class SerializedDagModel(Base):
         self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        self.dag_hash = SerializedDagModel.hash(dag_data)
 
-        self.dag_hash = md5(dag_data_json).hexdigest()
+        # partially ordered json data
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -129,6 +132,30 @@ class SerializedDagModel(Base):
 
     def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
+
+    @classmethod
+    def hash(cls, dag_data):
+        """Hash the data to get the dag_hash."""
+        dag_data = cls._sort_serialized_dag_dict(dag_data)
+        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
+
+    @classmethod
+    def _sort_serialized_dag_dict(cls, serialized_dag: Any):
+        """Recursively sort json_dict and its nested dictionaries and lists."""
+        if isinstance(serialized_dag, dict):
+            return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
+        elif isinstance(serialized_dag, list):
+            if all(isinstance(i, dict) for i in serialized_dag):
+                if all("task_id" in i.get("__var", {}) for i in serialized_dag):
+                    return sorted(
+                        [cls._sort_serialized_dag_dict(i) for i in serialized_dag],
+                        key=lambda x: x["__var"]["task_id"],
+                    )
+            elif all(isinstance(item, str) for item in serialized_dag):
+                return sorted(serialized_dag)
+            return [cls._sort_serialized_dag_dict(i) for i in serialized_dag]
+        return serialized_dag
 
     @classmethod
     @provide_session
@@ -147,6 +174,7 @@ class SerializedDagModel(Base):
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
+        :param processor_subdir: The dag directory of the processor
         :param session: ORM Session
 
         :returns: Boolean indicating if the DAG was written to the DB
@@ -185,7 +213,8 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
-        """Read all DAGs in serialized_dag table.
+        """
+        Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
@@ -243,6 +272,7 @@ class SerializedDagModel(Base):
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
     @classmethod
+    @internal_api_call
     @provide_session
     def remove_deleted_dags(
         cls,
@@ -250,7 +280,8 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Delete DAGs not included in alive_dag_filelocs.
+        """
+        Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param processor_subdir: dag processor subdir
@@ -278,7 +309,8 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
-        """Check a DAG exist in serialized_dag table.
+        """
+        Check a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
         :param session: ORM Session
@@ -299,8 +331,6 @@ class SerializedDagModel(Base):
         """
         Get the SerializedDAG for the given dag ID.
 
-        It will cope with being passed the ID of a subdag by looking up the root dag_id from the DAG table.
-
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
@@ -308,11 +338,7 @@ class SerializedDagModel(Base):
         if row:
             return row
 
-        # If we didn't find a matching DAG id then ask the DAG table to find
-        # out the root dag
-        root_dag_id = session.scalar(select(DagModel.root_dag_id).where(DagModel.dag_id == dag_id))
-
-        return session.scalar(select(cls).where(cls.dag_id == root_dag_id))
+        return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @staticmethod
     @provide_session
@@ -331,13 +357,12 @@ class SerializedDagModel(Base):
         :return: None
         """
         for dag in dags:
-            if not dag.is_subdag:
-                SerializedDagModel.write_dag(
-                    dag=dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    processor_subdir=processor_subdir,
-                    session=session,
-                )
+            SerializedDagModel.write_dag(
+                dag=dag,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                processor_subdir=processor_subdir,
+                session=session,
+            )
 
     @classmethod
     @provide_session

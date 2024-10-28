@@ -37,13 +37,15 @@ metadata:
     {{- if $configMapContent.labels }}
       {{- toYaml $configMapContent.labels | nindent 4 }}
     {{- end }}
-  annotations:
-    "helm.sh/hook": "pre-install,pre-upgrade"
-    "helm.sh/hook-delete-policy": "before-hook-creation"
-    "helm.sh/hook-weight": "0"
-    {{- if $configMapContent.annotations }}
-      {{- toYaml $configMapContent.annotations | nindent 4 }}
-    {{- end }}
+  {{- $annotations := dict }}
+  {{- if or $configMapContent.useHelmHooks (not (hasKey $configMapContent "useHelmHooks")) }}
+    {{- $_ := set $annotations "helm.sh/hook" "pre-install,pre-upgrade" }}
+    {{- $_ := set $annotations "helm.sh/hook-weight" "0" }}
+    {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation" }}
+  {{- end }}
+  {{- with $annotations := merge $annotations ($configMapContent.annotations | default dict) }}
+  annotations: {{- $annotations | toYaml | nindent 4 }}
+  {{- end }}
 {{- if $configMapContent.data }}
 data:
   {{- with $configMapContent.data }}

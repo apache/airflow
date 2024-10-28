@@ -19,24 +19,27 @@ from __future__ import annotations
 
 import os
 import sys
-from glob import glob
 from pathlib import Path
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+ROOT_DIR = Path(__file__).parents[3].resolve()
+ACCEPTED_NON_INIT_DIRS = ["adr", "doc", "templates", "__pycache__"]
 
 
-def check_dir_init_file(provider_files: list[str]) -> None:
+def check_dir_init_file(folders: list[Path]) -> None:
     missing_init_dirs: list[Path] = []
-    for candidate_path in provider_files:
-        if candidate_path.endswith("/__pycache__"):
-            continue
-        path = Path(candidate_path)
-        if path.is_dir() and not (path / "__init__.py").exists():
-            if path.name != "adr" and path.name != "doc":
-                missing_init_dirs.append(path)
+    folders = list(folders)
+    for path in folders:
+        for root, dirs, files in os.walk(path):
+            # Edit it in place, so we don't recurse to folders we don't care about
+            dirs[:] = [d for d in dirs if d not in ACCEPTED_NON_INIT_DIRS]
+
+            if "__init__.py" in files:
+                continue
+
+            missing_init_dirs.append(Path(root))
 
     if missing_init_dirs:
-        with open(os.path.join(ROOT_DIR, "scripts/ci/license-templates/LICENSE.txt")) as license:
+        with ROOT_DIR.joinpath("scripts/ci/license-templates/LICENSE.txt").open() as license:
             license_txt = license.readlines()
         prefixed_licensed_txt = [f"# {line}" if line != "\n" else "#\n" for line in license_txt]
 
@@ -50,7 +53,11 @@ def check_dir_init_file(provider_files: list[str]) -> None:
 
 
 if __name__ == "__main__":
-    all_provider_subpackage_dirs = sorted(glob(f"{ROOT_DIR}/airflow/providers/**/*", recursive=True))
-    check_dir_init_file(all_provider_subpackage_dirs)
-    all_test_provider_subpackage_dirs = sorted(glob(f"{ROOT_DIR}/tests/providers/**/*", recursive=True))
-    check_dir_init_file(all_test_provider_subpackage_dirs)
+    providers_root = Path(f"{ROOT_DIR}/providers")
+    providers_ns = providers_root.joinpath("src", "airflow", "providers")
+    providers_tests = providers_root.joinpath("tests")
+
+    providers_pkgs = sorted(map(lambda f: f.parent, providers_ns.rglob("provider.yaml")))
+    check_dir_init_file(providers_pkgs)
+
+    check_dir_init_file([providers_root / "tests"])

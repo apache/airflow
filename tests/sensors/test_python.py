@@ -25,6 +25,7 @@ import pytest
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.sensors.base import PokeReturnValue
 from airflow.sensors.python import PythonSensor
+
 from tests.operators.test_python import BasePythonTest
 
 pytestmark = pytest.mark.db_test
@@ -45,7 +46,7 @@ class TestPythonSensor(BasePythonTest):
             self.run_as_task(lambda: 1 / 0)
 
     def test_python_sensor_xcom(self):
-        with self.dag:
+        with self.dag_non_serialized:
             task = self.opcls(
                 task_id=self.task_id,
                 python_callable=lambda: PokeReturnValue(True, "xcom"),

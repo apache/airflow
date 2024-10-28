@@ -22,10 +22,11 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, NamedTuple
+from typing import Any, NamedTuple
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -35,7 +36,8 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_OLD_PROVIDERS_DIR,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     BREEZE_SOURCES_ROOT,
     DOCS_ROOT,
     GENERATED_PROVIDER_PACKAGES_DIR,
@@ -48,7 +50,7 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.7.0"
+MIN_AIRFLOW_VERSION = "2.8.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -74,6 +76,7 @@ class ProviderPackageDetails(NamedTuple):
     full_package_name: str
     pypi_package_name: str
     source_provider_package_path: Path
+    old_source_provider_package_path: Path
     documentation_provider_package_path: Path
     changelog_path: Path
     provider_description: str
@@ -145,6 +148,11 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
 def refresh_provider_metadata_with_provider_id(provider_id: str):
     provider_yaml_path = get_source_package_path(provider_id) / "provider.yaml"
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
+
+
+def clear_cache_for_provider_metadata(provider_id: str):
+    get_provider_packages_metadata.cache_clear()
+    refresh_provider_metadata_with_provider_id(provider_id)
 
 
 @lru_cache(maxsize=1)
@@ -249,7 +257,6 @@ def get_available_packages(
     """
     Return provider ids for all packages that are available currently (not suspended).
 
-    :rtype: object
     :param include_suspended: whether the suspended packages should be included
     :param include_removed: whether the removed packages should be included
     :param include_not_ready: whether the not-ready packages should be included
@@ -377,7 +384,11 @@ def find_matching_long_package_names(
 
 
 def get_source_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split("."))
+    return AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+
+
+def get_old_source_package_path(provider_id: str) -> Path:
+    return AIRFLOW_OLD_PROVIDERS_DIR.joinpath(*provider_id.split("."))
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
@@ -419,6 +430,9 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
         # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
         prefix, version = install_clause.split(">=")
+        # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
+        if "," in version:
+            version = version.split(",")[0]
         from packaging.version import Version
 
         base_version = Version(version).base_version
@@ -443,7 +457,9 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
         dependencies = get_provider_requirements(provider_id)
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+    install_requires = [
+        apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
+    ]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
@@ -505,6 +521,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         full_package_name=f"airflow.providers.{provider_id}",
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         source_provider_package_path=get_source_package_path(provider_id),
+        old_source_provider_package_path=get_old_source_package_path(provider_id),
         documentation_provider_package_path=get_documentation_package_path(provider_id),
         changelog_path=get_source_package_path(provider_id) / "CHANGELOG.rst",
         provider_description=provider_info["description"],
@@ -524,13 +541,16 @@ def get_min_airflow_version(provider_id: str) -> str:
     for dependency in provider_details.dependencies:
         if dependency.startswith("apache-airflow>="):
             current_min_airflow_version = dependency.split(">=")[1]
+            # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
+            if "," in current_min_airflow_version:
+                current_min_airflow_version = current_min_airflow_version.split(",")[0]
             if PackagingVersion(current_min_airflow_version) > PackagingVersion(MIN_AIRFLOW_VERSION):
                 min_airflow_version = current_min_airflow_version
     return min_airflow_version
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.8"
+    python_requires = "~=3.9"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"

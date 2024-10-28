@@ -16,21 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useEffect } from "react";
-import {
-  Flex,
-  Box,
-  Button,
-  Spacer,
-  Table,
-  Tbody,
-  Tr,
-  Td,
-  useClipboard,
-  Text,
-} from "@chakra-ui/react";
-
-import ReactJson from "react-json-view";
+import React from "react";
+import { Flex, Box, Table, Tbody, Tr, Td, Text } from "@chakra-ui/react";
 
 import type { DagRun as DagRunType } from "src/types";
 import { SimpleStatus } from "src/dag/StatusBox";
@@ -38,25 +25,13 @@ import { ClipboardText } from "src/components/Clipboard";
 import { formatDuration, getDuration } from "src/datetime_utils";
 import Time from "src/components/Time";
 import RunTypeIcon from "src/components/RunTypeIcon";
+import RenderedJsonField from "src/components/RenderedJsonField";
 
 interface Props {
   run: DagRunType;
 }
 
-const formatConf = (conf: string | null | undefined): string => {
-  if (!conf) {
-    return "";
-  }
-  return JSON.stringify(JSON.parse(conf), null, 4);
-};
-
 const DagRunDetails = ({ run }: Props) => {
-  const { onCopy, setValue, hasCopied } = useClipboard(formatConf(run?.conf));
-
-  useEffect(() => {
-    setValue(formatConf(run?.conf));
-  }, [run, setValue]);
-
   if (!run) return null;
   const {
     state,
@@ -69,7 +44,6 @@ const DagRunDetails = ({ run }: Props) => {
     queuedAt,
     externalTrigger,
     conf,
-    confIsJson,
   } = run;
 
   return (
@@ -161,28 +135,9 @@ const DagRunDetails = ({ run }: Props) => {
           </Tr>
           <Tr>
             <Td>Run config</Td>
-            {confIsJson ? (
-              <Td>
-                <Flex>
-                  <ReactJson
-                    src={JSON.parse(conf ?? "")}
-                    name={false}
-                    theme="rjv-default"
-                    iconStyle="triangle"
-                    indentWidth={2}
-                    displayDataTypes={false}
-                    enableClipboard={false}
-                    style={{ backgroundColor: "inherit" }}
-                  />
-                  <Spacer />
-                  <Button aria-label="Copy" onClick={onCopy}>
-                    {hasCopied ? "Copied!" : "Copy"}
-                  </Button>
-                </Flex>
-              </Td>
-            ) : (
-              <Td>{conf ?? "None"}</Td>
-            )}
+            <Td>
+              <RenderedJsonField content={conf ?? "None"} />
+            </Td>
           </Tr>
         </Tbody>
       </Table>

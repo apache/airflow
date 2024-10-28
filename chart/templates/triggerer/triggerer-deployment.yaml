@@ -73,6 +73,9 @@ spec:
   {{- if and (not $persistence) (.Values.triggerer.strategy) }}
   strategy: {{- toYaml .Values.triggerer.strategy | nindent 4 }}
   {{- end }}
+  {{- if and $persistence .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -120,6 +123,9 @@ spec:
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      {{- if .Values.triggerer.hostAliases }}
+      hostAliases: {{- toYaml .Values.triggerer.hostAliases | nindent 8 }}
+      {{- end }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
@@ -160,7 +166,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraInitContainers }}
-          {{- toYaml .Values.triggerer.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.triggerer.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: triggerer
@@ -273,7 +279,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | nindent 8 }}
         {{- end }}
         {{- end }}
@@ -292,7 +298,9 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: logs
         {{- if .Values.triggerer.persistence.annotations }}
         annotations: {{- toYaml .Values.triggerer.persistence.annotations | nindent 10 }}

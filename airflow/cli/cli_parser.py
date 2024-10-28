@@ -16,7 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Produce a CLI parser object from Airflow CLI command configuration.
+"""
+Produce a CLI parser object from Airflow CLI command configuration.
 
 .. seealso:: :mod:`airflow.cli.cli_config`
 """

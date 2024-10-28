@@ -28,6 +28,7 @@
 - [Possible states of provider packages](#possible-states-of-provider-packages)
 - [Chicken-egg providers](#chicken-egg-providers)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
+  - [Move provider into remove state](#move-provider-into-remove-state)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
@@ -198,6 +199,19 @@ We call such case chicken-egg providers as it's not clear who should be released
 the Airflow.
 
 # Prepare Regular Provider packages (RC)
+
+## Move provider into remove state
+
+The removed state needs to be in a release wave before you actually plan to remove the source code for the provider.
+Set provider with removed state -> release provider -> remove source code of the provider.
+When setting the provider in removed state you need also to clarify in the change log that there will be
+no more releases for this provider.
+
+To set provider as removed do the following:
+
+1. In provider yaml change state from to `ready` to `removed`
+2. Place entry in changelog.txt that notify users about provider being removed.
+3. Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by adding the provider to the list
 
 ## Increasing version number
 
@@ -738,7 +752,7 @@ EOF
 
 Due to the nature of packages, not all packages have to be released as convenience
 packages in the final release. During the voting process
-the voting PMCs might decide to exclude certain packages from the release if some critical
+the voting PMC members might decide to exclude certain packages from the release if some critical
 problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
@@ -757,7 +771,7 @@ The following files should be present (6 files):
 * .tar.gz + .asc + .sha512 (one set of files per provider)
 * -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow/
@@ -806,10 +820,12 @@ cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 2) Check out one of the tags for the release. Pick one of the provider-specific tags that are part
-   of the release wave. For example:
+   of the release wave. Assume your remote to apache repo is `apache` - then the right set of
+   commands are:
 
 ```shell
-git checkout tags/providers-amazon-1.0.0rc1
+git fetch apache --tags
+git checkout providers-amazon/9.1.0rc1
 ```
 
 3) Remove all the packages you have in dist folder
@@ -1017,7 +1033,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.8 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.9 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -1345,7 +1361,8 @@ NOTE!
 
 
 As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+If you believe there is a reason to announce in social media for another case consult with PMC
+members about it.
 
 Example for special cases:
 
@@ -1361,7 +1378,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -1399,3 +1416,5 @@ The following places should be checked:
 * `generated/provider_metadata.json`
 
 Run `breeze setup regenerate-command-images --force`
+
+Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by removing the provider from the list

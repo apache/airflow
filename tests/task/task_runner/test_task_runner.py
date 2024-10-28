@@ -35,6 +35,7 @@ class TestGetTaskRunner:
     def test_should_have_valid_imports(self, import_path):
         assert import_string(import_path) is not None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @mock.patch("airflow.utils.log.file_task_handler._ensure_ti")
     @mock.patch("airflow.task.task_runner.base_task_runner.subprocess")
     @mock.patch("airflow.task.task_runner._TASK_RUNNER_NAME", "StandardTaskRunner")

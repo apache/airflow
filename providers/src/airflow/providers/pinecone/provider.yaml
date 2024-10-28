@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-pinecone
+
+name: Pinecone
+
+description: |
+    `Pinecone <https://docs.pinecone.io/docs/overview>`__
+
+state: ready
+source-date-epoch: 1723970514
+
+# note that those versions are maintained by release manager - do not update them manually
+versions:
+  - 2.1.0
+  - 2.0.1
+  - 2.0.0
+  - 1.1.2
+  - 1.1.1
+  - 1.1.0
+  - 1.0.0
+
+integrations:
+  - integration-name: Pinecone
+    external-doc-url: https://docs.pinecone.io/docs/overview
+    how-to-guide:
+      - /docs/apache-airflow-providers-pinecone/operators/pinecone.rst
+    tags: [software]
+
+dependencies:
+  - apache-airflow>=2.8.0
+  - pinecone-client>=3.1.0
+
+hooks:
+  - integration-name: Pinecone
+    python-modules:
+      - airflow.providers.pinecone.hooks.pinecone
+
+connection-types:
+  - hook-class-name: airflow.providers.pinecone.hooks.pinecone.PineconeHook
+    connection-type: pinecone
+
+operators:
+  - integration-name: Pinecone
+    python-modules:
+      - airflow.providers.pinecone.operators.pinecone

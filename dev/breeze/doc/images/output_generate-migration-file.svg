@@ -1,0 +1,112 @@
+<svg class="rich-terminal" viewBox="0 0 1482 367.2" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
+    <style>
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .breeze-generate-migration-file-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .breeze-generate-migration-file-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .breeze-generate-migration-file-r1 { fill: #c5c8c6 }
+.breeze-generate-migration-file-r2 { fill: #d0b344 }
+.breeze-generate-migration-file-r3 { fill: #c5c8c6;font-weight: bold }
+.breeze-generate-migration-file-r4 { fill: #68a0b3;font-weight: bold }
+.breeze-generate-migration-file-r5 { fill: #868887 }
+.breeze-generate-migration-file-r6 { fill: #98a84b;font-weight: bold }
+.breeze-generate-migration-file-r7 { fill: #8d7b39 }
+    </style>
+
+    <defs>
+    <clipPath id="breeze-generate-migration-file-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="316.2" />
+    </clipPath>
+    <clipPath id="breeze-generate-migration-file-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-generate-migration-file-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="365.2" rx="8"/><text class="breeze-generate-migration-file-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;generate-migration-file</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#breeze-generate-migration-file-clip-terminal)">
+    
+    <g class="breeze-generate-migration-file-matrix">
+    <text class="breeze-generate-migration-file-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-0)">
+</text><text class="breeze-generate-migration-file-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-generate-migration-file-line-1)">Usage:</text><text class="breeze-generate-migration-file-r3" x="97.6" y="44.4" textLength="366" clip-path="url(#breeze-generate-migration-file-line-1)">breeze&#160;generate-migration-file</text><text class="breeze-generate-migration-file-r1" x="475.8" y="44.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-1)">[</text><text class="breeze-generate-migration-file-r4" x="488" y="44.4" textLength="85.4" clip-path="url(#breeze-generate-migration-file-line-1)">OPTIONS</text><text class="breeze-generate-migration-file-r1" x="573.4" y="44.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-1)">]</text><text class="breeze-generate-migration-file-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-1)">
+</text><text class="breeze-generate-migration-file-r1" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-2)">
+</text><text class="breeze-generate-migration-file-r1" x="12.2" y="93.2" textLength="732" clip-path="url(#breeze-generate-migration-file-line-3)">Autogenerate&#160;the&#160;alembic&#160;migration&#160;file&#160;for&#160;the&#160;ORM&#160;changes.</text><text class="breeze-generate-migration-file-r1" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-3)">
+</text><text class="breeze-generate-migration-file-r1" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-4)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-5)">╭─</text><text class="breeze-generate-migration-file-r5" x="24.4" y="142" textLength="378.2" clip-path="url(#breeze-generate-migration-file-line-5)">&#160;generate-migration-file&#160;flags&#160;</text><text class="breeze-generate-migration-file-r5" x="402.6" y="142" textLength="1037" clip-path="url(#breeze-generate-migration-file-line-5)">─────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-generate-migration-file-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-5)">─╮</text><text class="breeze-generate-migration-file-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-5)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-6)">│</text><text class="breeze-generate-migration-file-r4" x="24.4" y="166.4" textLength="109.8" clip-path="url(#breeze-generate-migration-file-line-6)">--message</text><text class="breeze-generate-migration-file-r6" x="280.6" y="166.4" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-6)">-m</text><text class="breeze-generate-migration-file-r1" x="329.4" y="166.4" textLength="390.4" clip-path="url(#breeze-generate-migration-file-line-6)">Message&#160;to&#160;use&#160;for&#160;the&#160;migration</text><text class="breeze-generate-migration-file-r7" x="732" y="166.4" textLength="73.2" clip-path="url(#breeze-generate-migration-file-line-6)">(TEXT)</text><text class="breeze-generate-migration-file-r5" x="817.4" y="166.4" textLength="292.8" clip-path="url(#breeze-generate-migration-file-line-6)">[default:&#160;Empty&#160;message]</text><text class="breeze-generate-migration-file-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-6)">│</text><text class="breeze-generate-migration-file-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-6)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-7)">│</text><text class="breeze-generate-migration-file-r4" x="24.4" y="190.8" textLength="231.8" clip-path="url(#breeze-generate-migration-file-line-7)">--github-repository</text><text class="breeze-generate-migration-file-r6" x="280.6" y="190.8" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-7)">-g</text><text class="breeze-generate-migration-file-r1" x="329.4" y="190.8" textLength="585.6" clip-path="url(#breeze-generate-migration-file-line-7)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.</text><text class="breeze-generate-migration-file-r7" x="927.2" y="190.8" textLength="73.2" clip-path="url(#breeze-generate-migration-file-line-7)">(TEXT)</text><text class="breeze-generate-migration-file-r5" x="1012.6" y="190.8" textLength="305" clip-path="url(#breeze-generate-migration-file-line-7)">[default:&#160;apache/airflow]</text><text class="breeze-generate-migration-file-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-7)">│</text><text class="breeze-generate-migration-file-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-7)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-8)">│</text><text class="breeze-generate-migration-file-r4" x="24.4" y="215.2" textLength="109.8" clip-path="url(#breeze-generate-migration-file-line-8)">--builder</text><text class="breeze-generate-migration-file-r1" x="329.4" y="215.2" textLength="756.4" clip-path="url(#breeze-generate-migration-file-line-8)">Buildx&#160;builder&#160;used&#160;to&#160;perform&#160;`docker&#160;buildx&#160;build`&#160;commands.</text><text class="breeze-generate-migration-file-r7" x="1098" y="215.2" textLength="73.2" clip-path="url(#breeze-generate-migration-file-line-8)">(TEXT)</text><text class="breeze-generate-migration-file-r5" x="1183.4" y="215.2" textLength="256.2" clip-path="url(#breeze-generate-migration-file-line-8)">[default:&#160;autodetect]</text><text class="breeze-generate-migration-file-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-8)">│</text><text class="breeze-generate-migration-file-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-8)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="239.6" textLength="1464" clip-path="url(#breeze-generate-migration-file-line-9)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-generate-migration-file-r1" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-9)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="264" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-10)">╭─</text><text class="breeze-generate-migration-file-r5" x="24.4" y="264" textLength="195.2" clip-path="url(#breeze-generate-migration-file-line-10)">&#160;Common&#160;options&#160;</text><text class="breeze-generate-migration-file-r5" x="219.6" y="264" textLength="1220" clip-path="url(#breeze-generate-migration-file-line-10)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-generate-migration-file-r5" x="1439.6" y="264" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-10)">─╮</text><text class="breeze-generate-migration-file-r1" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-10)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-11)">│</text><text class="breeze-generate-migration-file-r4" x="24.4" y="288.4" textLength="73.2" clip-path="url(#breeze-generate-migration-file-line-11)">--help</text><text class="breeze-generate-migration-file-r6" x="122" y="288.4" textLength="24.4" clip-path="url(#breeze-generate-migration-file-line-11)">-h</text><text class="breeze-generate-migration-file-r1" x="170.8" y="288.4" textLength="329.4" clip-path="url(#breeze-generate-migration-file-line-11)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-generate-migration-file-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-11)">│</text><text class="breeze-generate-migration-file-r1" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-11)">
+</text><text class="breeze-generate-migration-file-r5" x="0" y="312.8" textLength="1464" clip-path="url(#breeze-generate-migration-file-line-12)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-generate-migration-file-r1" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-generate-migration-file-line-12)">
+</text>
+    </g>
+    </g>
+</svg>

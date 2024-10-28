@@ -43,7 +43,7 @@ create a new EMR Serverless Application.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_serverless_create_application]
@@ -59,7 +59,7 @@ start an EMR Serverless Job.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_serverless_start_job]
@@ -72,7 +72,8 @@ Open Application UIs
 
 The operator can also be configured to generate one-time links to the application UIs and Spark stdout logs
 by passing the ``enable_application_ui_links=True`` as a parameter. Once the job starts running, these links
-are available in the Details section of the relevant Task.
+are available in the Details section of the relevant Task. If ``enable_application_ui_links=False`` then the
+links will be present but grayed out.
 
 You need to ensure you have the following IAM permissions to generate the dashboard link.
 
@@ -92,7 +93,7 @@ stop an EMR Serverless Application.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_serverless_stop_application]
@@ -108,7 +109,7 @@ delete an EMR Serverless Application.
 This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
 the aiobotocore module to be installed.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_emr_serverless_delete_application]
@@ -125,7 +126,7 @@ Wait on an EMR Serverless Job state
 To monitor the state of an EMR Serverless Job you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_sensor_emr_serverless_job]
@@ -139,7 +140,7 @@ Wait on an EMR Serverless Application state
 To monitor the state of an EMR Serverless Application you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessApplicationSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_emr_serverless.py
    :language: python
    :dedent: 4
    :start-after: [START howto_sensor_emr_serverless_application]

@@ -17,19 +17,21 @@
 
 
 
-.. _howto/operator:MySqlOperator:
+.. _howto/operator:mysql:
 
-MySqlOperator
-=============
+How-to Guide for Mysql using SQLExecuteQueryOperator
+====================================================
 
-Use the :class:`~airflow.providers.mysql.operators.MySqlOperator` to execute
+Use the :class:`~airflow.providers.common.sql.operators.SQLExecuteQueryOperator` to execute
 SQL commands in a `MySql <https://dev.mysql.com/doc/>`__ database.
 
+.. warning::
+     Previously, MySqlOperator was used to perform this kind of operation. But at the moment MySqlOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-Use the ``mysql_conn_id`` argument to connect to your MySql instance where
+Use the ``conn_id`` argument to connect to your MySql instance where
 the connection metadata is structured as follows:
 
 .. list-table:: MySql Airflow Connection Metadata
@@ -49,16 +51,16 @@ the connection metadata is structured as follows:
    * - Port: int
      - MySql port
 
-An example usage of the MySqlOperator is as follows:
+An example usage of the SQLExecuteQueryOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/mysql/example_mysql.py
+.. exampleinclude:: /../../providers/tests/system/mysql/example_mysql.py
     :language: python
     :start-after: [START howto_operator_mysql]
     :end-before: [END howto_operator_mysql]
 
 You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
-.. exampleinclude:: /../../tests/system/providers/mysql/example_mysql.py
+.. exampleinclude:: /../../providers/tests/system/mysql/example_mysql.py
     :language: python
     :start-after: [START howto_operator_mysql_external_file]
     :end-before: [END howto_operator_mysql_external_file]

@@ -20,6 +20,7 @@ from __future__ import annotations
 import importlib
 import logging
 import re
+import time
 from unittest import mock
 from unittest.mock import Mock
 
@@ -28,15 +29,15 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
+from airflow.metrics import datadog_logger, protocols
 from airflow.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow.metrics.statsd_logger import SafeStatsdLogger
 from airflow.metrics.validators import (
-    AllowListValidator,
-    BlockListValidator,
     PatternAllowListValidator,
     PatternBlockListValidator,
 )
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 class CustomStatsd(statsd.StatsClient):
@@ -142,7 +143,7 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -155,7 +156,7 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, BlockListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternBlockListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -169,7 +170,7 @@ class TestStats:
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -220,24 +221,44 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    def test_timer(self):
-        with self.dogstatsd.timer("empty_timer"):
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [True, False],
+    )
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
+    def test_timer(self, time_mock, metrics_consistency_on):
+        protocols.metrics_consistency_on = metrics_consistency_on
+
+        with self.dogstatsd.timer("empty_timer") as timer:
             pass
         self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
+        expected_duration = 100.0
+        if metrics_consistency_on:
+            expected_duration = 1000.0 * 100.0
+        assert expected_duration == timer.duration
+        assert time_mock.call_count == 2
 
     def test_empty_timer(self):
         with self.dogstatsd.timer():
             pass
         self.dogstatsd_client.timed.assert_not_called()
 
-    def test_timing(self):
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [True, False],
+    )
+    def test_timing(self, metrics_consistency_on):
         import datetime
+
+        datadog_logger.metrics_consistency_on = metrics_consistency_on
 
         self.dogstatsd.timing("empty_timer", 123)
         self.dogstatsd_client.timing.assert_called_once_with(metric="empty_timer", value=123, tags=[])
 
         self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
-        self.dogstatsd_client.timing.assert_called_with(metric="empty_timer", value=123.0, tags=[])
+        self.dogstatsd_client.timing.assert_called_with(
+            metric="empty_timer", value=123000.0 if metrics_consistency_on else 123.0, tags=[]
+        )
 
     def test_gauge(self):
         self.dogstatsd.gauge("empty", 123)
@@ -263,7 +284,12 @@ class TestDogStats:
     def test_does_not_send_stats_using_statsd_when_statsd_and_dogstatsd_both_on(self):
         from datadog import DogStatsd
 
-        with conf_vars({("metrics", "statsd_on"): "True", ("metrics", "statsd_datadog_enabled"): "True"}):
+        with conf_vars(
+            {
+                ("metrics", "statsd_on"): "True",
+                ("metrics", "statsd_datadog_enabled"): "True",
+            }
+        ):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.dogstatsd, DogStatsd)
             assert not hasattr(airflow.stats.Stats, "statsd")
@@ -279,22 +305,12 @@ class TestStatsAllowAndBlockLists:
             (PatternAllowListValidator, "stats_three.foo", True),
             (PatternAllowListValidator, "stats_foo_three", True),
             (PatternAllowListValidator, "stats_three", False),
-            (AllowListValidator, "stats_one", True),
-            (AllowListValidator, "stats_two.bla", True),
-            (AllowListValidator, "stats_three.foo", False),
-            (AllowListValidator, "stats_foo_three", False),
-            (AllowListValidator, "stats_three", False),
             (PatternBlockListValidator, "stats_one", False),
             (PatternBlockListValidator, "stats_two.bla", False),
             (PatternBlockListValidator, "stats_three.foo", False),
             (PatternBlockListValidator, "stats_foo_three", False),
             (PatternBlockListValidator, "stats_foo", False),
             (PatternBlockListValidator, "stats_three", True),
-            (BlockListValidator, "stats_one", False),
-            (BlockListValidator, "stats_two.bla", False),
-            (BlockListValidator, "stats_three.foo", True),
-            (BlockListValidator, "stats_foo_three", True),
-            (BlockListValidator, "stats_three", True),
         ],
     )
     def test_allow_and_block_list(self, validator, stat_name, expect_incr):
@@ -333,14 +349,12 @@ class TestStatsAllowAndBlockLists:
             statsd_client.assert_not_called()
 
 
-class TestPatternOrBasicValidatorConfigOption:
+class TestPatternValidatorConfigOption:
     def teardown_method(self):
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
     stats_on = {("metrics", "statsd_on"): "True"}
-    pattern_on = {("metrics", "metrics_use_pattern_match"): "True"}
-    pattern_off = {("metrics", "metrics_use_pattern_match"): "False"}
     allow_list = {("metrics", "metrics_allow_list"): "foo,bar"}
     block_list = {("metrics", "metrics_block_list"): "foo,bar"}
 
@@ -348,50 +362,40 @@ class TestPatternOrBasicValidatorConfigOption:
         "config, expected",
         [
             pytest.param(
-                {**stats_on, **pattern_on},
+                {**stats_on},
                 PatternAllowListValidator,
                 id="pattern_allow_by_default",
             ),
             pytest.param(
-                stats_on,
-                AllowListValidator,
-                id="basic_allow_by_default",
-            ),
-            pytest.param(
-                {**stats_on, **pattern_on, **allow_list},
+                {**stats_on, **allow_list},
                 PatternAllowListValidator,
                 id="pattern_allow_list_provided",
             ),
             pytest.param(
-                {**stats_on, **pattern_off, **allow_list},
-                AllowListValidator,
-                id="basic_allow_list_provided",
-            ),
-            pytest.param(
-                {**stats_on, **pattern_on, **block_list},
+                {**stats_on, **block_list},
                 PatternBlockListValidator,
                 id="pattern_block_list_provided",
             ),
             pytest.param(
-                {**stats_on, **block_list},
-                BlockListValidator,
-                id="basic_block_list_provided",
+                {**stats_on, **allow_list, **block_list},
+                PatternAllowListValidator,
+                id="pattern_block_list_provided",
             ),
         ],
     )
-    def test_pattern_or_basic_picker(self, config, expected):
+    def test_pattern_picker(self, config, expected):
         with conf_vars(config):
             importlib.reload(airflow.stats)
 
             assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-            assert type(airflow.stats.Stats.instance.metrics_validator) == expected
+            assert type(airflow.stats.Stats.instance.metrics_validator) is expected
 
-    @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "bax,qux"})
+    @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
         importlib.reload(airflow.stats)
 
         assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert type(airflow.stats.Stats.instance.metrics_validator) == AllowListValidator
+        assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
         with caplog.at_level(logging.WARNING):
             assert "Ignoring metrics_block_list" in caplog.text
 
@@ -402,7 +406,9 @@ class TestDogStatsWithAllowList:
         from datadog import DogStatsd
 
         self.dogstatsd_client = Mock(speck=DogStatsd)
-        self.dogstats = SafeDogStatsdLogger(self.dogstatsd_client, AllowListValidator("stats_one, stats_two"))
+        self.dogstats = SafeDogStatsdLogger(
+            self.dogstatsd_client, PatternAllowListValidator("stats_one, stats_two")
+        )
 
     def test_increment_counter_with_allowed_key(self):
         self.dogstats.incr("stats_one")
@@ -445,7 +451,7 @@ class TestDogStatsWithDisabledMetricsTags:
         self.dogstatsd = SafeDogStatsdLogger(
             self.dogstatsd_client,
             metrics_tags=True,
-            metric_tags_validator=BlockListValidator("key1"),
+            metric_tags_validator=PatternBlockListValidator("key1"),
         )
 
     def test_does_send_stats_using_dogstatsd_with_tags(self):
@@ -467,7 +473,7 @@ class TestStatsWithInfluxDBEnabled:
             self.stats = SafeStatsdLogger(
                 self.statsd_client,
                 influxdb_tags_enabled=True,
-                metric_tags_validator=BlockListValidator("key2,key3"),
+                metric_tags_validator=PatternBlockListValidator("key2,key3"),
             )
 
     def test_increment_counter(self):
@@ -479,9 +485,9 @@ class TestStatsWithInfluxDBEnabled:
     def test_increment_counter_with_tags(self):
         self.stats.incr(
             "test_stats_run.delay",
-            tags={"key0": "val0", "key1": "val1", "key2": "val2"},
+            tags={"key0": 0, "key1": "val1", "key2": "val2"},
         )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=val0,key1=val1", 1, 1)
+        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
 
     def test_does_not_increment_counter_drops_invalid_tags(self):
         self.stats.incr(

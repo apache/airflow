@@ -29,10 +29,11 @@ from werkzeug.wrappers import Response
 
 from airflow.exceptions import AirflowConfigException
 from airflow.www import app as application
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestApp:
@@ -230,9 +231,8 @@ class TestApp:
     @conf_vars({("webserver", "cookie_samesite"): ""})
     @dont_initialize_flask_app_submodules
     def test_correct_default_is_set_for_cookie_samesite(self):
-        """An empty 'cookie_samesite' should be corrected to 'Lax' with a deprecation warning."""
-        with pytest.deprecated_call():
-            app = application.cached_app(testing=True)
+        """An empty 'cookie_samesite' should be corrected to 'Lax'."""
+        app = application.cached_app(testing=True)
         assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
 
     @pytest.mark.parametrize(

@@ -22,7 +22,7 @@ from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
+from airflow.api_connexion.schemas.common_schema import TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
 
@@ -51,10 +51,8 @@ class DAGSchema(SQLAlchemySchema):
 
     dag_id = auto_field(dump_only=True)
     dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
-    root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
-    is_subdag = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_pickled = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
@@ -65,7 +63,7 @@ class DAGSchema(SQLAlchemySchema):
     file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
-    schedule_interval = fields.Nested(ScheduleIntervalSchema)
+    timetable_summary = auto_field(dump_only=True)
     timetable_description = auto_field(dump_only=True)
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)
@@ -99,9 +97,8 @@ class DAGDetailSchema(DAGSchema):
     timezone = TimezoneField(dump_only=True)
     catchup = fields.Boolean(dump_only=True)
     orientation = fields.String(dump_only=True)
-    concurrency = fields.Method("get_concurrency", dump_only=True)  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer(dump_only=True)
-    dataset_expression = fields.Dict(allow_none=True)
+    asset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime(dump_only=True)
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout", dump_only=True)
     doc_md = fields.String(dump_only=True)
@@ -115,10 +112,6 @@ class DAGDetailSchema(DAGSchema):
     template_searchpath = fields.String(dump_only=True)
     render_template_as_native_obj = fields.Boolean(dump_only=True)
     last_loaded = fields.DateTime(dump_only=True, data_key="last_parsed")
-
-    @staticmethod
-    def get_concurrency(obj: DAG):
-        return obj.max_active_tasks
 
     @staticmethod
     def get_tags(obj: DAG):

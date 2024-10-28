@@ -63,7 +63,7 @@ This step is creating IAM role and service account using `eksctl <https://eksctl
 Also, note that this example is using managed policy with full S3 permissions attached to the IAM role. This is only used for testing purpose.
 We highly recommend you to create a restricted S3 IAM policy and use it with ``--attach-policy-arn``.
 
-Alternatively, you can use other IaC tools like Terraform. For deploying Airflow with Terraform including IRSA. Checkout this example `link <https://github.com/awslabs/data-on-eks/tree/main/schedulers/self-managed-airflow>`_.
+Alternatively, you can use other IaC tools like Terraform. For deploying Airflow with Terraform including IRSA. Checkout this example `link <https://github.com/awslabs/data-on-eks/tree/main/schedulers/terraform/self-managed-airflow>`_.
 
 Execute the following command by providing all the necessary inputs.
 

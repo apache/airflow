@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
       include-success-outputs:
         description: "Whether to include success outputs (true/false)"
         required: true
@@ -145,33 +149,34 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
+      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
     if: inputs.canary-run == 'true'
 
-  push-buildx-cache-to-github-registry-arm:
-    name: Push Regular ARM Image Cache
-    needs: [update-constraints]
-    uses: ./.github/workflows/push-image-cache.yml
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
-    with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-      cache-type: "Regular ARM"
-      include-prod-images: "true"
-      push-latest-images: "true"
-      platform: "linux/arm64"
-      python-versions: ${{ inputs.python-versions }}
-      branch: ${{ inputs.branch }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true'
+  #  push-buildx-cache-to-github-registry-arm:
+  #    name: Push Regular ARM Image Cache
+  #    needs: [update-constraints]
+  #    uses: ./.github/workflows/push-image-cache.yml
+  #    permissions:
+  #      contents: read
+  #      packages: write
+  #    secrets: inherit
+  #    with:
+  #      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+  #      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+  #      cache-type: "Regular ARM"
+  #      include-prod-images: "true"
+  #      push-latest-images: "true"
+  #      platform: "linux/arm64"
+  #      python-versions: ${{ inputs.python-versions }}
+  #      branch: ${{ inputs.branch }}
+  #      constraints-branch: ${{ inputs.constraints-branch }}
+  #      use-uv: "true"
+  #      include-success-outputs: ${{ inputs.include-success-outputs }}
+  #      docker-cache: ${{ inputs.docker-cache }}
+  #    if: inputs.canary-run == 'true'
 
   summarize-warnings:
     timeout-minutes: 15

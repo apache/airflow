@@ -27,9 +27,10 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.www import app as application
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
@@ -44,7 +45,7 @@ def test_index_redirect(admin_client):
 
 
 def test_homepage_query_count(admin_client):
-    with assert_queries_count(17):
+    with assert_queries_count(20):
         resp = admin_client.get("/home")
     check_content_in_response("DAGs", resp)
 

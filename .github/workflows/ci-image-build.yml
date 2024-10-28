@@ -60,7 +60,7 @@ on:  # yamllint disable-line rule:truthy
         default: "true"
         type: string
       debian-version:
-        description: "Base Debian distribution to use for the build (bookworm/bullseye)"
+        description: "Base Debian distribution to use for the build (bookworm)"
         type: string
         default: "bookworm"
       install-mysql-client-type:
@@ -93,6 +93,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       docker-cache:
         description: "Docker cache specification to build the image (registry, local, disabled)."
+        required: true
+        type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
         required: true
         type: string
 jobs:
@@ -171,6 +175,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           --python "${{ matrix.python-version }}" --platform "${{ inputs.platform }}"
         env:
           DOCKER_CACHE: ${{ inputs.docker-cache }}
+          DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the

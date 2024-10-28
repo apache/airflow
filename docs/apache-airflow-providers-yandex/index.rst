@@ -37,7 +37,7 @@
     Configuration <configurations-ref>
     Connection types <connections/yandexcloud>
     Lockbox Secret Backend <secrets-backends/yandex-cloud-lockbox-secret-backend>
-    Operators <operators>
+    Operators <operators/index>
 
 .. toctree::
     :hidden:
@@ -51,14 +51,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/yandex/index>
+    System Tests <_api/tests/system/yandex/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_dataproc.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/tests/system/yandex/example_yandexcloud_dataproc.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-yandex/>
     Installing from sources <installing-providers-from-sources>
 
@@ -81,7 +81,7 @@ This package is for Yandex, including:
     - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 3.11.0
+Release: 3.12.0
 
 Provider package
 ----------------
@@ -99,12 +99,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.7.0``
-``yandexcloud``          ``>=0.228.0``
-``yandex-query-client``  ``>=0.1.2``
+``apache-airflow``       ``>=2.8.0``
+``yandexcloud``          ``>=0.308.0``
+``yandex-query-client``  ``>=0.1.4``
 =======================  ==================

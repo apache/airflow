@@ -29,5 +29,5 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_localtaskjob_double_trigger", default_args=args)
+dag = DAG(dag_id="test_localtaskjob_double_trigger", schedule=None, default_args=args)
 task = EmptyOperator(task_id="test_localtaskjob_double_trigger_task", dag=dag)

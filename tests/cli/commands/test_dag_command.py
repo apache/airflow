@@ -35,7 +35,7 @@ from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
@@ -46,9 +46,10 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 if pendulum.__version__.startswith("3"):
@@ -58,7 +59,7 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestCliDags:
@@ -123,157 +124,6 @@ class TestCliDags:
             serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_backfill(self, mock_run):
-        dag_command.dag_backfill(
-            self.parser.parse_args(
-                ["dags", "backfill", "example_bash_operator", "--start-date", DEFAULT_DATE.isoformat()]
-            )
-        )
-
-        mock_run.assert_called_once_with(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            conf=None,
-            delay_on_limit_secs=1.0,
-            donot_pickle=False,
-            ignore_first_depends_on_past=True,
-            ignore_task_deps=False,
-            local=False,
-            mark_success=False,
-            pool=None,
-            rerun_failed_tasks=False,
-            run_backwards=False,
-            verbose=False,
-            continue_on_failures=False,
-            disable_retry=False,
-        )
-        mock_run.reset_mock()
-        dag = self.dagbag.get_dag("example_bash_operator")
-
-        with contextlib.redirect_stdout(StringIO()) as stdout:
-            dag_command.dag_backfill(
-                self.parser.parse_args(
-                    [
-                        "dags",
-                        "backfill",
-                        "example_bash_operator",
-                        "--task-regex",
-                        "runme_0",
-                        "--dry-run",
-                        "--start-date",
-                        DEFAULT_DATE.isoformat(),
-                    ]
-                ),
-                dag=dag,
-            )
-
-        output = stdout.getvalue()
-        assert f"Dry run of DAG example_bash_operator on {DEFAULT_DATE_REPR}\n" in output
-        assert "Task runme_0 located in DAG example_bash_operator\n" in output
-
-        mock_run.assert_not_called()  # Dry run shouldn't run the backfill
-
-        dag_command.dag_backfill(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "backfill",
-                    "example_bash_operator",
-                    "--dry-run",
-                    "--start-date",
-                    DEFAULT_DATE.isoformat(),
-                ]
-            ),
-            dag=dag,
-        )
-
-        mock_run.assert_not_called()  # Dry run shouldn't run the backfill
-
-        dag_command.dag_backfill(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "backfill",
-                    "example_bash_operator",
-                    "--local",
-                    "--start-date",
-                    DEFAULT_DATE.isoformat(),
-                ]
-            ),
-            dag=dag,
-        )
-
-        mock_run.assert_called_once_with(
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            conf=None,
-            delay_on_limit_secs=1.0,
-            donot_pickle=False,
-            ignore_first_depends_on_past=True,
-            ignore_task_deps=False,
-            local=True,
-            mark_success=False,
-            pool=None,
-            rerun_failed_tasks=False,
-            run_backwards=False,
-            verbose=False,
-            continue_on_failures=False,
-            disable_retry=False,
-        )
-        mock_run.reset_mock()
-
-        with contextlib.redirect_stdout(StringIO()) as stdout:
-            dag_command.dag_backfill(
-                self.parser.parse_args(
-                    [
-                        "dags",
-                        "backfill",
-                        "example_branch_(python_){0,1}operator(_decorator){0,1}",
-                        "--task-regex",
-                        "run_this_first",
-                        "--dry-run",
-                        "--treat-dag-id-as-regex",
-                        "--start-date",
-                        DEFAULT_DATE.isoformat(),
-                    ]
-                ),
-            )
-
-        output = stdout.getvalue()
-
-        assert f"Dry run of DAG example_branch_python_operator_decorator on {DEFAULT_DATE_REPR}\n" in output
-        assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
-        assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
-        assert "Task run_this_first located in DAG example_branch_operator\n" in output
-
-    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
-    def test_backfill_treat_dag_as_regex_deprecation(self, _):
-        run_date = DEFAULT_DATE + timedelta(days=1)
-        cli_args = self.parser.parse_args(
-            [
-                "dags",
-                "backfill",
-                "example_bash_operator",
-                "--treat-dag-as-regex",
-                "--start-date",
-                run_date.isoformat(),
-            ]
-        )
-
-        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
-            dag_command.dag_backfill(cli_args)
-        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
-
-    @mock.patch("airflow.cli.commands.dag_command.get_dag")
-    def test_backfill_fails_without_loading_dags(self, mock_get_dag):
-        cli_args = self.parser.parse_args(["dags", "backfill", "example_bash_operator"])
-
-        with pytest.raises(AirflowException):
-            dag_command.dag_backfill(cli_args)
-
-        mock_get_dag.assert_not_called()
-
     def test_show_dag_dependencies_print(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_dependencies_show(self.parser.parse_args(["dags", "show-dependencies"]))
@@ -330,133 +180,6 @@ class TestCliDags:
         mock_proc.communicate.assert_called_once_with(b"DOT_DATA")
         assert "OUT" in out
         assert "ERR" in out
-
-    @pytest.mark.parametrize(
-        "cli_arg",
-        [
-            pytest.param("-I", id="short"),
-            pytest.param("--ignore-first-depends-on-past", id="full"),
-        ],
-    )
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_deprecated_ignore_first_depends_on_past(self, mock_run, cli_arg: str):
-        """
-        Test that CLI respects -I argument
-
-        We just check we call dag.run() right. The behaviour of that kwarg is
-        tested in test_jobs
-        """
-        dag_id = "test_dagrun_states_deadlock"
-        run_date = DEFAULT_DATE + timedelta(days=1)
-        args = [
-            "dags",
-            "backfill",
-            dag_id,
-            "--local",
-            "--start-date",
-            run_date.isoformat(),
-            cli_arg,
-        ]
-        dag = self.dagbag.get_dag(dag_id)
-
-        with pytest.warns(RemovedInAirflow3Warning, match="ignore-first-depends-on-past is deprecated"):
-            dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
-
-        mock_run.assert_called_once_with(
-            start_date=run_date,
-            end_date=run_date,
-            conf=None,
-            delay_on_limit_secs=1.0,
-            donot_pickle=False,
-            ignore_first_depends_on_past=True,
-            ignore_task_deps=False,
-            local=True,
-            mark_success=False,
-            pool=None,
-            rerun_failed_tasks=False,
-            run_backwards=False,
-            verbose=False,
-            continue_on_failures=False,
-            disable_retry=False,
-        )
-
-    @pytest.mark.parametrize(
-        "cli_arg",
-        [
-            pytest.param("-B", id="short"),
-            pytest.param("--run-backwards", id="full"),
-        ],
-    )
-    @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_depends_on_past_run_backwards(self, mock_run, cli_arg: str):
-        """Test that CLI respects -B argument."""
-        dag_id = "test_depends_on_past"
-        start_date = DEFAULT_DATE + timedelta(days=1)
-        end_date = start_date + timedelta(days=1)
-        args = [
-            "dags",
-            "backfill",
-            dag_id,
-            "--local",
-            "--start-date",
-            start_date.isoformat(),
-            "--end-date",
-            end_date.isoformat(),
-            cli_arg,
-        ]
-        dag = self.dagbag.get_dag(dag_id)
-
-        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
-        mock_run.assert_called_once_with(
-            start_date=start_date,
-            end_date=end_date,
-            conf=None,
-            delay_on_limit_secs=1.0,
-            donot_pickle=False,
-            ignore_first_depends_on_past=True,
-            ignore_task_deps=False,
-            local=True,
-            mark_success=False,
-            pool=None,
-            rerun_failed_tasks=False,
-            run_backwards=True,
-            verbose=False,
-            continue_on_failures=False,
-            disable_retry=False,
-        )
-
-    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
-    @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
-    @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
-        """
-        when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
-         data_intervals.
-        """
-
-        start_date = DEFAULT_DATE + timedelta(days=1)
-        end_date = start_date + timedelta(days=1)
-        workdays = [
-            start_date,
-            start_date + timedelta(days=1),
-            start_date + timedelta(days=2),
-        ]
-        mock_get_next_workday.side_effect = workdays
-
-        cli_args = self.parser.parse_args(
-            [
-                "dags",
-                "backfill",
-                "example_workday_timetable",
-                "--start-date",
-                start_date.isoformat(),
-                "--end-date",
-                end_date.isoformat(),
-                "--dry-run",
-            ]
-        )
-        dag_command.dag_backfill(cli_args)
-        assert "data_interval" in mock_dagrun.call_args.kwargs
 
     def test_next_execution(self, tmp_path):
         dag_test_list = [
@@ -652,7 +375,6 @@ class TestCliDags:
             [
                 "dags",
                 "list-runs",
-                "--dag-id",
                 "example_bash_operator",
                 "--no-backfill",
                 "--start-date",
@@ -717,10 +439,19 @@ class TestCliDags:
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
 
-    def test_pause_non_existing_dag_error(self):
+    def test_pause_non_existing_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "pause", "non_existing_dag"])
-        with pytest.raises(AirflowException):
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_pause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No unpaused DAGs were found"
+
+    def test_unpause_non_existing_dag_do_not_error(self):
+        args = self.parser.parse_args(["dags", "unpause", "non_existing_dag"])
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_unpause(args)
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
+        assert out == "No paused DAGs were found"
 
     def test_unpause_already_unpaused_dag_do_not_error(self):
         args = self.parser.parse_args(["dags", "unpause", "example_bash_operator", "--yes"])
@@ -874,7 +605,11 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -903,7 +638,13 @@ class TestCliDags:
         mock_get_dag.assert_has_calls(
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
-                mock.call().test(execution_date=mock.ANY, run_conf=None, session=mock.ANY),
+                mock.call().test(
+                    execution_date=mock.ANY,
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
+                ),
             ]
         )
 
@@ -927,7 +668,9 @@ class TestCliDags:
                 mock.call().test(
                     execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
+                    use_executor=False,
                     session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
@@ -947,16 +690,19 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()), run_conf=None, session=mock.ANY
+                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    run_conf=None,
+                    use_executor=False,
+                    session=mock.ANY,
+                    mark_success_pattern=None,
                 ),
             ]
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable")
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -964,7 +710,10 @@ class TestCliDags:
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
         )
-        dag_command.dag_test(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+            dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
@@ -1024,3 +773,24 @@ class TestCliDags:
             assert mock_run.call_args_list[0] == ((trigger,), {})
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
+
+    @mock.patch("airflow.models.taskinstance.TaskInstance._execute_task_with_callbacks")
+    def test_dag_test_with_mark_success(self, mock__execute_task_with_callbacks):
+        """
+        option `--mark-success-pattern` should mark matching tasks as success without executing them.
+        """
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "test",
+                "example_sensor_decorator",
+                datetime(2024, 1, 1, 0, 0, 0).isoformat(),
+                "--mark-success-pattern",
+                "wait_for_upstream",
+            ]
+        )
+        dag_command.dag_test(cli_args)
+
+        # only second operator was actually executed, first one was marked as success
+        assert len(mock__execute_task_with_callbacks.call_args_list) == 1
+        assert mock__execute_task_with_callbacks.call_args_list[0].kwargs["self"].task_id == "dummy_operator"

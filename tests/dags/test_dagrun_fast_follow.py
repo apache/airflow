@@ -31,7 +31,7 @@ args = {
 
 
 dag_id = "test_dagrun_fast_follow"
-dag = DAG(dag_id=dag_id, default_args=args)
+dag = DAG(dag_id=dag_id, schedule=None, default_args=args)
 
 # A -> B -> C
 task_a = PythonOperator(task_id="A", dag=dag, python_callable=lambda: True)

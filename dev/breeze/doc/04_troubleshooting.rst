@@ -19,7 +19,7 @@
 Troubleshooting
 ===============
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Basic troubleshooting of breeze command
 ---------------------------------------
@@ -72,6 +72,48 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
+Cannot import name 'cache' or Python >=3.9 required
+---------------------------------------------------
+
+When you see this error:
+
+.. code-block::
+
+    ImportError: cannot import name 'cache' from 'functools' (/Users/jarek/Library/Application Support/hatch/pythons/3.8/python/lib/python3.8/functools.py)
+
+or
+
+.. code-block::
+
+    ERROR: Package 'blacken-docs' requires a different Python: 3.8.18 not in '>=3.9'
+
+
+It means that your pre-commit hook is installed with (already End-Of-Life) Python 3.8 and you should reinstall
+it and clean pre-commit cache.
+
+This can be done (if you use ``pipx`` to install ``pre-commit``):
+
+.. code-block:: bash
+
+    pipx uninstall pre-commit
+    pipx install pre-commit --python $(which python3.9) --force
+    # This one allows pre-commit to use uv for venvs installed by pre-commit
+    pipx inject pre-commit pre-commit-uv
+    pre-commit clean
+    pre-commit install
+
+If you installed ``pre-commit`` differently, you should remove and reinstall
+it (and clean cache) in the way you installed it.
+
+
+Bad Interpreter Error
+---------------------
+
+If you are experiencing bad interpreter errors
+``zsh: /Users/eladkal/.local/bin/breeze: bad interpreter: /Users/eladkal/.local/pipx/venvs/apache-airflow-breeze/bin/python: no such file or directory``
+
+try to run ``pipx list`` to view which packages has bad interpreter (it can be more than just breeze, for example  pre-commit)
+you can fix these errors by running ``pipx reinstall-all``
 
 ETIMEDOUT Error
 --------------

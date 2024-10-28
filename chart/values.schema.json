@@ -9,6 +9,7 @@
         "Ports",
         "Database",
         "PgBouncer",
+        "RPC Server",
         "Scheduler",
         "Webserver",
         "Workers",
@@ -77,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.9.0",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.9.0",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -451,6 +452,176 @@
                             }
                         }
                     }
+                },
+                "statsd": {
+                    "description": "Configuration for the Ingress of the statsd Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable statsd ingress resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the statsd Ingress.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "The path for the statsd Ingress.",
+                            "type": "string",
+                            "default": "/metrics"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the statsd Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
+                        },
+                        "host": {
+                            "description": "The hostname for the statsd Ingress. (Deprecated - renamed to `ingress.statsd.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames or hosts configuration for the statsd Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the web Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for web Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the web Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the statsd Ingress.",
+                            "type": "string",
+                            "default": ""
+                        }
+                    }
+                },
+                "pgbouncer": {
+                    "description": "Configuration for the Ingress of the PgBouncer Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable PgBouncer ingress resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the PgBouncer Ingress.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "The path for the PgBouncer Ingress.",
+                            "type": "string",
+                            "default": "/metrics"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the PgBouncer Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
+                        },
+                        "host": {
+                            "description": "The hostname for the PgBouncer Ingress. (Deprecated - renamed to `ingress.pgbouncer.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames or hosts configuration for the PgBouncer Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the web Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for web Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the web Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the PgBouncer Ingress.",
+                            "type": "string",
+                            "default": ""
+                        }
+                    }
                 }
             }
         },
@@ -521,7 +692,9 @@
                 "LocalKubernetesExecutor",
                 "CeleryExecutor",
                 "KubernetesExecutor",
-                "CeleryKubernetesExecutor"
+                "CeleryKubernetesExecutor",
+                "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
+                "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"
             ]
         },
         "allowPodLaunching": {
@@ -668,7 +841,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.26.1"
+                            "default": "v0.28.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -749,7 +922,7 @@
                         "tag": {
                             "description": "The PgBouncer exporter image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-exporter-2024.01.19-0.16.0"
+                            "default": "airflow-pgbouncer-exporter-2024.06.18-0.17.0"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer exporter image pull policy.",
@@ -1023,6 +1196,11 @@
                             "type": "string"
                         }
                     },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
+                    },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the secret (can be templated)",
                         "type": "string"
@@ -1068,6 +1246,11 @@
                         "additionalProperties": {
                             "type": "string"
                         }
+                    },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
                     },
                     "data": {
                         "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
@@ -1415,6 +1598,18 @@
                     ],
                     "default": null
                 },
+                "podManagementPolicy": {
+                    "description": "Specifies the policy for managing pods within the worker. Only applicable to StatefulSet.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null,
+                    "enum": [
+                        "OrderedReady",
+                        "Parallel"
+                    ]
+                },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
                     "type": [
@@ -1587,6 +1782,10 @@
                             "description": "Enable persistent volumes.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
                         },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
@@ -1861,10 +2060,10 @@
                 "safeToEvict": {
                     "description": "This setting tells Kubernetes that it's ok to evict when it wants to scale a node down.",
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into workers. Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
+                    "description": "Launch additional containers into workers (templated). Note, if used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main container finishes so Airflow can continue the worker shutdown process!",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -1872,7 +2071,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into workers.",
+                    "description": "Add additional init containers into workers (templated).",
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     },
@@ -2142,11 +2341,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -2351,6 +2586,11 @@
                     ],
                     "default": null
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for scheduler to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 10
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -2442,7 +2682,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into scheduler.",
+                    "description": "Launch additional containers into scheduler (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2450,7 +2690,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into scheduler.",
+                    "description": "Add additional init containers into scheduler (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2690,11 +2930,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -2711,6 +2987,28 @@
                     "description": "Enable triggerer",
                     "type": "boolean",
                     "default": true
+                },
+                "hostAliases": {
+                    "description": "HostAliases for the triggerer pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for triggerer.",
@@ -2861,6 +3159,10 @@
                             "type": "string",
                             "default": "100Gi"
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet"
+                        },
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here.",
                             "type": [
@@ -2908,7 +3210,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into triggerer.",
+                    "description": "Launch additional containers into triggerer (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -2916,7 +3218,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into triggerer.",
+                    "description": "Add additional init containers into triggerer (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3161,11 +3463,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -3233,6 +3571,11 @@
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        },
+                        "usePgbouncer": {
+                            "description": "Whether to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 }
@@ -3399,7 +3742,7 @@
                     "default": true
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into dag processor.",
+                    "description": "Launch additional containers into dag processor (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3407,7 +3750,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into dag processor.",
+                    "description": "Add additional init containers into dag processor (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -3644,11 +3987,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -3764,6 +4143,14 @@
                     "items": {
                         "$ref": "#/definitions/io.k8s.api.core.v1.Container"
                     }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into create user job pod (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraVolumes": {
                     "description": "Mount additional volumes into create user job",
@@ -3949,11 +4336,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -4070,6 +4493,14 @@
                             }
                         }
                     ]
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into migrate database job (templated).",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    },
+                    "type": "array",
+                    "default": []
                 },
                 "extraContainers": {
                     "description": "Launch additional containers for the migrate database job pod",
@@ -4232,6 +4663,737 @@
                         "null"
                     ],
                     "default": 300
+                },
+                "env": {
+                    "description": "Add additional env vars to migrate database job.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
+                }
+            }
+        },
+        "_rpcServer": {
+            "description": "Airflow RPC server settings (AIP-44). Experimental / for dev purpose only.",
+            "type": "object",
+            "x-docsSection": "RPC Server",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable RPC server",
+                    "type": "boolean",
+                    "default": false
+                },
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the RPC server configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "hostAliases": {
+                    "description": "HostAliases for the RPC server pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
+                "allowPodLogReading": {
+                    "description": "Allow RPC server to read k8s pod logs. Useful when you don't have an external log store.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "RPC server Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "timeoutSeconds": {
+                            "description": "RPC server Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "RPC server Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "RPC server Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "RPC server Liveness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "RPC server Readiness probe initial delay.",
+                            "type": "integer",
+                            "default": 15
+                        },
+                        "timeoutSeconds": {
+                            "description": "RPC server Readiness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "RPC server Readiness probe failure threshold.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "RPC server Readiness probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "RPC server Readiness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "RPC server Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "RPC server Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "RPC server Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "RPC server Startup probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "How many Airflow RPC server replicas should run.",
+                    "type": "integer",
+                    "default": 1
+                },
+                "revisionHistoryLimit": {
+                    "description": "Number of old replicasets to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null,
+                    "x-docsSection": null
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow RPC server (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash"
+                    ]
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow RPC server (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "-c",
+                        "exec airflow internal-api"
+                    ]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones.",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "default": null
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the RPC server Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "podDisruptionBudget": {
+                    "description": "RPC server pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for RPC server.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for RPC server.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                }
+                            }
+                        }
+                    }
+                },
+                "extraNetworkPolicies": {
+                    "description": "Additional NetworkPolicies as needed (Deprecated - renamed to `RPC server.networkPolicy.ingress.from`).",
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
+                    },
+                    "default": []
+                },
+                "networkPolicy": {
+                    "description": "RPC server NetworkPolicy configuration",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "ingress": {
+                            "description": "RPC server NetworkPolicyingress configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "from": {
+                                    "description": "Peers for RPC server NetworkPolicyingress.",
+                                    "type": "array",
+                                    "default": [],
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPeer"
+                                    }
+                                },
+                                "ports": {
+                                    "description": "Ports for RPC server NetworkPolicyingress (if `from` is set).",
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
+                                    },
+                                    "default": [
+                                        {
+                                            "port": "{{ .Values.ports._rpcServer }}"
+                                        }
+                                    ],
+                                    "examples": [
+                                        {
+                                            "port": 9080
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the RPC server. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the RPC server. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the RPC server.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the RPC server.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for RPC server pods.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common",
+                            "default": true
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string",
+                            "default": "Admin"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string",
+                            "default": "admin@example.com"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string",
+                            "default": "user"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string",
+                            "default": "admin"
+                        }
+                    }
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into RPC server.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into RPC server.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into RPC server.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into RPC server.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
+                "RPC serverConfig": {
+                    "description": "This string (can be templated) will be mounted into the Airflow RPC server as a custom `RPC server_config.py`. You can bake a `RPC server_config.py` in to your image instead or specify a configmap containing the RPC server_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                    ]
+                },
+                "RPC serverConfigConfigMapName": {
+                    "description": "The configmap name containing the RPC server_config.py.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Common",
+                    "default": null,
+                    "examples": [
+                        "my-RPC server-configmap"
+                    ]
+                },
+                "service": {
+                    "description": "RPC server Service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "RPC server Service type.",
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "annotations": {
+                            "description": "Annotations for the RPC server Service.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "ports": {
+                            "description": "Ports for the RPC server Service.",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
+                                    },
+                                    "targetPort": {
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
+                                    },
+                                    "nodePort": {
+                                        "type": [
+                                            "string",
+                                            "integer"
+                                        ]
+                                    },
+                                    "protocol": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "default": [
+                                {
+                                    "name": "rpc-server",
+                                    "port": "{{ .Values.ports._rpcServer }}"
+                                }
+                            ],
+                            "examples": [
+                                {
+                                    "name": "rpc-server",
+                                    "port": 9080,
+                                    "targetPort": "rpc-server"
+                                },
+                                {
+                                    "name": "only_sidecar",
+                                    "port": 9080,
+                                    "targetPort": 8888
+                                }
+                            ]
+                        },
+                        "loadBalancerIP": {
+                            "description": "RPC server Service loadBalancerIP.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "loadBalancerSourceRanges": {
+                            "description": "RPC server Service ``loadBalancerSourceRanges``.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [],
+                            "examples": [
+                                "10.123.0.0/16"
+                            ]
+                        }
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for RPC server pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for RPC server pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for RPC server pods.",
+                    "type": "object",
+                    "default": "See values.yaml",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for RPC server pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for RPC server pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "annotations": {
+                    "description": "Annotations to add to the RPC server deployment",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the RPC server pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the RPC server objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "name",
+                                    "value"
+                                ],
+                                "additionalProperties": false
+                            }
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to RPC server.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -4419,6 +5581,58 @@
                         "object"
                     ],
                     "default": null
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for webserver to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
+                "hpa": {
+                    "description": "HPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow HPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of webservers created by HPA.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of webservers created by HPA.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "metrics": {
+                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "type": "Resource",
+                                    "resource": {
+                                        "name": "cpu",
+                                        "target": {
+                                            "type": "Utilization",
+                                            "averageUtilization": 80
+                                        }
+                                    }
+                                }
+                            ],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
+                            }
+                        },
+                        "behavior": {
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
@@ -4677,7 +5891,7 @@
                     }
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into webserver.",
+                    "description": "Launch additional containers into webserver (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -4685,7 +5899,7 @@
                     }
                 },
                 "extraInitContainers": {
-                    "description": "Add additional init containers into webserver.",
+                    "description": "Add additional init containers into webserver (templated).",
                     "type": "array",
                     "default": [],
                     "items": {
@@ -4957,11 +6171,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -5450,11 +6700,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -5530,6 +6816,11 @@
                             }
                         }
                     }
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for statsd to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
@@ -6014,6 +7305,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "clusterIp": {
+                            "description": "Specific ClusterIP for the PgBouncer Service.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -6383,6 +7682,39 @@
                     "type": "integer",
                     "default": 600
                 },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "clusterIP": {
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "nodePort": {
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
@@ -6413,6 +7745,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },
@@ -6625,6 +7965,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "annotations": {
+                    "description": "Annotations for the redis.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -6758,6 +8106,11 @@
                     "description": "Airflow UI port.",
                     "type": "integer",
                     "default": 8080
+                },
+                "_rpcServer": {
+                    "description": "RPC server port (AIP-44). Experimental / dev purpose only.",
+                    "type": "integer",
+                    "default": 9080
                 },
                 "workerLogs": {
                     "description": "Worker logs port.",
@@ -7069,11 +8422,47 @@
                             },
                             "value": {
                                 "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
                             }
                         },
                         "required": [
-                            "name",
-                            "value"
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
                         ],
                         "additionalProperties": false
                     }
@@ -7409,6 +8798,14 @@
                             ],
                             "default": null
                         },
+                        "sshKey": {
+                            "description": "SSH private key",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
                             "type": [
@@ -7454,6 +8851,18 @@
                                     "name": "GIT_SYNC_TIMEOUT",
                                     "value": "60"
                                 }
+                            ]
+                        },
+                        "envFrom": {
+                            "description": "Extra envFrom 'items' that will be added to the definition of Airflow gitSync containers; a string or array are expected (can be templated).",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "examples": [
+                                "- secretRef:\n    name: 'proxy-config",
+                                "- configMapRef:\n    name: 'proxy-config"
                             ]
                         },
                         "resources": {
@@ -10790,6 +12199,27 @@
                             ]
                         }
                     }
+                }
+            }
+        },
+        "persistentVolumeClaimRetentionPolicy": {
+            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
+            "type": [
+                "object",
+                "null"
+            ],
+            "default": null,
+            "additionalProperties": false,
+            "properties": {
+                "whenDeleted": {
+                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                    "type": "string",
+                    "default": "Retain"
+                },
+                "whenScaled": {
+                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                    "type": "string",
+                    "default": "Retain"
                 }
             }
         }

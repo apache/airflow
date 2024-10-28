@@ -46,7 +46,7 @@ Wait for an Amazon OpenSearch Serverless Collection to become active
 To wait on the state of an Amazon Bedrock customize model job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.OpenSearchServerlessCollectionActiveSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_knowledge_base.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_opensearch_collection_active]

@@ -24,8 +24,8 @@ import datetime
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 with DAG(
     dag_id="example_bash_operator",
@@ -43,7 +43,7 @@ with DAG(
     # [START howto_operator_bash]
     run_this = BashOperator(
         task_id="run_after_loop",
-        bash_command="ls -alh --color=always / && echo https://airflow.apache.org/  && echo 'some <code>html</code>'",
+        bash_command="echo https://airflow.apache.org/",
     )
     # [END howto_operator_bash]
 

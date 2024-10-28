@@ -18,7 +18,7 @@
 Contributing
 ============
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Contributions are welcome and are greatly appreciated! Every little bit helps, and credit will always be given.
 

@@ -77,9 +77,9 @@ function restoreFieldBehaviours() {
   Array.from(document.querySelectorAll("label[data-orig-text]")).forEach(
     (elem) => {
       // eslint-disable-next-line no-param-reassign
-      elem.innerText = elem.dataset.origText;
+      elem.innerText = elem.asset.origText;
       // eslint-disable-next-line no-param-reassign
-      delete elem.dataset.origText;
+      delete elem.asset.origText;
     }
   );
 
@@ -109,7 +109,7 @@ function applyFieldBehaviours(connection) {
     if (connection.relabeling) {
       Object.keys(connection.relabeling).forEach((field) => {
         const label = document.querySelector(`label[for='${field}']`);
-        label.dataset.origText = label.innerText;
+        label.asset.origText = label.innerText;
         label.innerText = connection.relabeling[field];
       });
     }
@@ -234,11 +234,11 @@ $(document).ready(() => {
   /**
    * Displays the Flask style alert on UI via JS
    *
-   * @param {boolean} status - true for success, false for error
+   * @param {string} status - Status can be either success, error, or warning
    * @param {string} message - The text message to show in alert box
    */
   function displayAlert(status, message) {
-    const alertClass = status ? "alert-success" : "alert-error";
+    const alertClass = `alert-${status}`;
     let alertBox = $(".container .row .alert");
     if (alertBox.length) {
       alertBox.removeClass("alert-success").removeClass("alert-error");
@@ -254,6 +254,11 @@ $(document).ready(() => {
       $(".container .row").prepend(alertBox).show();
     }
   }
+
+  displayAlert(
+    "warning",
+    "Warning: Fields that are currently populated can be modified but cannot be deleted. To delete data from a field, delete the Connection object and create a new one."
+  );
 
   function hideAlert() {
     const alertBox = $(".container .row .alert");
@@ -303,7 +308,7 @@ $(document).ready(() => {
             extra = JSON.parse(this.value);
           } catch (e) {
             if (e instanceof SyntaxError) {
-              displayAlert(false, "Extra field value is not valid JSON.");
+              displayAlert("error", "Extra field value is not valid JSON.");
             }
             throw e;
           }
@@ -345,10 +350,10 @@ $(document).ready(() => {
       dataType: "json",
       data: getSerializedFormData("form#model_form"),
       success(data) {
-        displayAlert(data.status, data.message);
+        displayAlert("success", data.message);
       },
       error(jq, err, msg) {
-        displayAlert(false, msg);
+        displayAlert("error", msg);
       },
     });
   });
@@ -362,20 +367,26 @@ $(document).ready(() => {
   // Initialize the form by setting a connection type.
   changeConnType(connTypeElem.value);
 
-  // Change conn.extra TextArea widget to CodeMirror
-  const textArea = document.getElementById("extra");
-  editor = CodeMirror.fromTextArea(textArea, {
-    mode: { name: "javascript", json: true },
-    gutters: ["CodeMirror-lint-markers"],
-    lineWrapping: true,
-    lint: true,
-  });
+  // Get all textarea elements
+  const textAreas = document.getElementsByTagName("textarea");
 
-  // beautify JSON but only if it is not equal to default value of empty string
-  const jsonData = editor.getValue();
-  if (jsonData !== "") {
-    const data = JSON.parse(jsonData);
-    const formattedData = JSON.stringify(data, null, 2);
-    editor.setValue(formattedData);
-  }
+  Array.from(textAreas).forEach((textArea) => {
+    if (textArea.id !== "description" && !$(textArea).is(":hidden")) {
+      // Change TextArea widget to CodeMirror
+      editor = CodeMirror.fromTextArea(textArea, {
+        mode: { name: "javascript", json: true },
+        gutters: ["CodeMirror-lint-markers"],
+        lineWrapping: true,
+        lint: true,
+      });
+
+      // beautify JSON but only if it is not equal to default value of empty string
+      const jsonData = editor.getValue();
+      if (jsonData !== "") {
+        const data = JSON.parse(jsonData);
+        const formattedData = JSON.stringify(data, null, 2);
+        editor.setValue(formattedData);
+      }
+    }
+  });
 });

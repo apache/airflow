@@ -20,11 +20,12 @@ import contextlib
 from io import StringIO
 from unittest import mock
 
-import pytest
-
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
+
+STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
 
 
 class TestCliConfigList:
@@ -90,7 +91,7 @@ class TestCliConfigList:
         lines = output.splitlines()
         # comes from metrics description
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert any(line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -102,7 +103,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert any(line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -114,7 +115,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
 
@@ -126,7 +127,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("# Source: ") for line in lines if line)
-        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
@@ -138,7 +139,7 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
-        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert any(line.startswith(STATSD_CONFIG_BEGIN_WITH) for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
@@ -220,13 +221,8 @@ class TestCliConfigGetValue:
 
         config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
-    @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_raise_exception_when_option_is_missing(self, mock_conf):
-        mock_conf.has_section.return_value = True
-        mock_conf.has_option.return_value = False
-
-        with pytest.raises(SystemExit) as ctx:
-            config_command.get_value(
-                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-            )
-        assert "The option [missing-section/dags_folder] is not found in config." == str(ctx.value)
+    def test_should_raise_exception_when_option_is_missing(self, caplog):
+        config_command.get_value(
+            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+        )
+        assert "section/key [missing-section/dags_folder] not found in config" in caplog.text

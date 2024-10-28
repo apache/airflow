@@ -35,14 +35,70 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.6.1
+.....
+
+Latest change: 2024-09-29
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`db1d12c773 <https://github.com/apache/airflow/commit/db1d12c7730d6efedb83a25c7e18971f592970ba>`_  2024-09-29   ``remove callable functions parameter from kafka operator template_fields (#42555)``
+=================================================================================================  ===========  ====================================================================================
+
+1.6.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
+1.5.0
+.....
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`68aa42710b <https://github.com/apache/airflow/commit/68aa42710b957b0ec2c287393e234d8c08422413>`_  2024-06-18   ``Default client in KafkaBaseHook (#40284)``
+`cbe6c2dd24 <https://github.com/apache/airflow/commit/cbe6c2dd243ee48e0f8bade77a15f49ecef92849>`_  2024-06-08   ``Add 'delete_topic' to 'KafkaAdminClientHook' and teardown logic to Kafka integration tests (#40142)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+=================================================================================================  ===========  =======================================================================================================
+
+1.4.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`e637367958 <https://github.com/apache/airflow/commit/e637367958726bdbf133b0326e58db258ff340de>`_  2024-05-11   ``Group id is mandatory configurtion option for confluent_kafka 2.4.0+ (#39559)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  =================================================================================
+
 1.4.0
 .....
 
-Latest change: 2024-04-25
+Latest change: 2024-05-01
 
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``

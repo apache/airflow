@@ -18,7 +18,7 @@
 Setting up the database
 -----------------------
 
-Apache Airflow™ requires a database. If you're just experimenting and learning Airflow, you can stick with the
+Apache Airflow® requires a database. If you're just experimenting and learning Airflow, you can stick with the
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`/howto/set-up-database` to setup a different database.
 

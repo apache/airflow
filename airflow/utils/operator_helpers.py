@@ -130,7 +130,8 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
 
 
 class KeywordParameters:
-    """Wrapper representing ``**kwargs`` to a callable.
+    """
+    Wrapper representing ``**kwargs`` to a callable.
 
     The actual ``kwargs`` can be obtained by calling either ``unpacking()`` or
     ``serializing()``. They behave almost the same and are only different if
@@ -161,7 +162,13 @@ class KeywordParameters:
         signature = inspect.signature(func)
         has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
 
-        for name in itertools.islice(signature.parameters.keys(), len(args)):
+        for name, param in itertools.islice(signature.parameters.items(), len(args)):
+            # Keyword-only arguments can't be passed positionally and are not checked.
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                continue
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
+                continue
+
             # Check if args conflict with names in kwargs.
             if name in kwargs:
                 raise ValueError(f"The key {name!r} in args is a part of kwargs and therefore reserved.")
@@ -219,7 +226,8 @@ def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
 
 
 class ExecutionCallableRunner:
-    """Run an execution callable against a task context and given arguments.
+    """
+    Run an execution callable against a task context and given arguments.
 
     If the callable is a simple function, this simply calls it with the supplied
     arguments (including the context). If the callable is a generator function,
@@ -243,7 +251,7 @@ class ExecutionCallableRunner:
     def run(self, *args, **kwargs) -> Any:
         import inspect
 
-        from airflow.datasets.metadata import Metadata
+        from airflow.assets.metadata import Metadata
         from airflow.utils.types import NOTSET
 
         if not inspect.isgeneratorfunction(self.func):
@@ -258,6 +266,10 @@ class ExecutionCallableRunner:
         for metadata in _run():
             if isinstance(metadata, Metadata):
                 self.outlet_events[metadata.uri].extra.update(metadata.extra)
+
+                if metadata.alias_name:
+                    self.outlet_events[metadata.alias_name].add(metadata.uri, extra=metadata.extra)
+
                 continue
             self.logger.warning("Ignoring unknown data of %r received from task", type(metadata))
             if self.logger.isEnabledFor(logging.DEBUG):

@@ -20,7 +20,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
+from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, false, select
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
@@ -55,6 +55,7 @@ class DagWarning(Base):
             name="dcw_dag_id_fkey",
             ondelete="CASCADE",
         ),
+        Index("idx_dag_warning_dag_id", dag_id),
     )
 
     def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
@@ -103,4 +104,5 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
+    ASSET_CONFLICT = "asset conflict"
     NONEXISTENT_POOL = "non-existent pool"

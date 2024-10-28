@@ -27,7 +27,7 @@ def strip_leading_zeros_from_version(version: str) -> str:
     :param version: version number in CALVER format (potentially with leading 0s in date and month)
     :return: string with leading 0s after dot replaced.
     """
-    return ".".join(str(int(i)) for i in version.split("."))
+    return ".".join(i.lstrip("0") or "0" for i in version.split("."))
 
 
 def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ""):

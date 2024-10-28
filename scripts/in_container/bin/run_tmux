@@ -58,6 +58,15 @@ tmux send-keys 'airflow scheduler' C-m
 
 tmux split-window -h
 tmux select-pane -t 2
+
+if [[ ${DEV_MODE=} == "true" ]]; then
+    tmux send-keys 'airflow fastapi-api -d' C-m
+else
+    tmux send-keys 'airflow fastapi-api' C-m
+fi
+
+tmux split-window -h
+tmux select-pane -t 3
 if [[ ${DEV_MODE=} == "true" ]]; then
     tmux send-keys 'airflow webserver -d' C-m
 else
@@ -73,20 +82,37 @@ if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux split-window -h
     tmux send-keys 'airflow celery worker' C-m
 fi
-if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    tmux send-keys 'airflow celery flower' C-m
+fi
+if [[ ${AIRFLOW__CORE__EXECUTOR,,} == "edgeexecutor" ]]; then
     tmux select-pane -t 0
     tmux split-window -h
-    tmux send-keys 'airflow internal-api' C-m
+
+    # Ensure we are not leaking any DB connection information to Edge Worker process
+    tmux send-keys 'unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN' C-m
+    tmux send-keys 'unset AIRFLOW__CELERY__RESULT_BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
+    tmux send-keys 'unset BACKEND' C-m
+    tmux send-keys 'unset POSTGRES_VERSION' C-m
+    tmux send-keys 'unset DATABASE_ISOLATION' C-m
+
+    # Ensure logs are smelling like Remote and are not visible to other components
+    tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
+
+    tmux send-keys 'airflow edge worker --edge-hostname breeze' C-m
 fi
 if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h
     tmux send-keys 'airflow dag-processor' C-m
 fi
-if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
-    tmux select-pane -t 3
+if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+    tmux select-pane -t 0
     tmux split-window -h
-    tmux send-keys 'airflow celery flower' C-m
+    tmux send-keys 'airflow internal-api' C-m
 fi
 
 # Attach Session, on the Main window

@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/opsgenie/index>
+    System Tests <_api/tests/system/opsgenie/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-opsgenie/|version|/tests/system/providers/opsgenie>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-opsgenie/|version|/providers/tests/system/opsgenie>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-opsgenie/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,7 +78,7 @@ apache-airflow-providers-opsgenie package
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 
-Release: 5.6.0
+Release: 5.7.0
 
 Provider package
 ----------------
@@ -96,11 +96,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ``opsgenie-sdk``    ``>=2.1.5``
 ==================  ==================

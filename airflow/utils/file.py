@@ -30,7 +30,6 @@ import re2
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
 
@@ -121,39 +120,6 @@ class _GlobIgnoreRule(NamedTuple):
         return matched
 
 
-def TemporaryDirectory(*args, **kwargs):
-    """Use `tempfile.TemporaryDirectory`, this function is deprecated."""
-    import warnings
-    from tempfile import TemporaryDirectory as TmpDir
-
-    warnings.warn(
-        "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-
-    return TmpDir(*args, **kwargs)
-
-
-def mkdirs(path, mode):
-    """
-    Create the directory specified by path, creating intermediate directories as necessary.
-
-    If directory already exists, this is a no-op.
-
-    :param path: The directory to create
-    :param mode: The mode to give to the directory e.g. 0o755, ignores umask
-    """
-    import warnings
-
-    warnings.warn(
-        f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
-
-
 ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
 
 
@@ -200,7 +166,8 @@ def _find_path_from_directory(
     ignore_file_name: str,
     ignore_rule_type: type[_IgnoreRule],
 ) -> Generator[str, None, None]:
-    """Recursively search the base path and return the list of file paths that should not be ignored.
+    """
+    Recursively search the base path and return the list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name containing regular expressions for files that should be ignored.
@@ -254,9 +221,10 @@ def _find_path_from_directory(
 def find_path_from_directory(
     base_dir_path: str | os.PathLike[str],
     ignore_file_name: str,
-    ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
+    ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob"),
 ) -> Generator[str, None, None]:
-    """Recursively search the base path for a list of file paths that should not be ignored.
+    """
+    Recursively search the base path for a list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
@@ -264,9 +232,9 @@ def find_path_from_directory(
 
     :return: a generator of file paths.
     """
-    if ignore_file_syntax == "glob":
+    if ignore_file_syntax == "glob" or not ignore_file_syntax:
         return _find_path_from_directory(base_dir_path, ignore_file_name, _GlobIgnoreRule)
-    elif ignore_file_syntax == "regexp" or not ignore_file_syntax:
+    elif ignore_file_syntax == "regexp":
         return _find_path_from_directory(base_dir_path, ignore_file_name, _RegexpIgnoreRule)
     else:
         raise ValueError(f"Unsupported ignore_file_syntax: {ignore_file_syntax}")
@@ -277,7 +245,8 @@ def list_py_file_paths(
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
 ) -> list[str]:
-    """Traverse a directory and look for Python files.
+    """
+    Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
     :param safe_mode: whether to use a heuristic to determine whether a file
@@ -386,6 +355,6 @@ def get_unique_dag_module_name(file_path: str) -> str:
     """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
     if isinstance(file_path, str):
         path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
-        org_mod_name = Path(file_path).stem
+        org_mod_name = re2.sub(r"[.-]", "_", Path(file_path).stem)
         return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
     raise ValueError("file_path should be a string to generate unique module name")

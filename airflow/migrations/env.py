@@ -32,8 +32,8 @@ def include_object(_, name, type_, *args):
     # Ignore the sqlite_sequence table, which is an internal SQLite construct
     if name == "sqlite_sequence":
         return False
-    # Ignore _anything_ to do with Celery, or FlaskSession's tables
-    if type_ == "table" and (name.startswith("celery_") or name == "session"):
+    # Only create migrations for objects that are in the target metadata
+    if type_ == "table" and name not in target_metadata.tables:
         return False
     else:
         return True
@@ -61,9 +61,13 @@ target_metadata = models.base.Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+# version table
+version_table = "alembic_version"
+
 
 def run_migrations_offline():
-    """Run migrations in 'offline' mode.
+    """
+    Run migrations in 'offline' mode.
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
@@ -81,6 +85,8 @@ def run_migrations_offline():
         compare_type=compare_type,
         compare_server_default=compare_server_default,
         render_as_batch=True,
+        include_object=include_object,
+        version_table=version_table,
     )
 
     with context.begin_transaction():
@@ -88,12 +94,21 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    """Run migrations in 'online' mode.
+    """
+    Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
     and associate a connection with the context.
 
     """
+
+    def process_revision_directives(context, revision, directives):
+        if getattr(config.cmd_opts, "autogenerate", False):
+            script = directives[0]
+            if script.upgrade_ops and script.upgrade_ops.is_empty():
+                directives[:] = []
+                print("No change detected in ORM schema, skipping revision.")
+
     with contextlib.ExitStack() as stack:
         connection = config.attributes.get("connection", None)
 
@@ -108,6 +123,8 @@ def run_migrations_online():
             compare_server_default=compare_server_default,
             include_object=include_object,
             render_as_batch=True,
+            process_revision_directives=process_revision_directives,
+            version_table=version_table,
         )
 
         with context.begin_transaction():

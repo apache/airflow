@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/jenkins/index>
+    System Tests <_api/tests/system/jenkins/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/tests/system/providers/jenkins>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jenkins/|version|/providers/tests/system/jenkins>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jenkins/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 3.6.0
+Release: 3.7.2
 
 Provider package
 ----------------
@@ -94,11 +94,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ``python-jenkins``  ``>=1.0.0``
 ==================  ==================

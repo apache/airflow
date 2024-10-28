@@ -57,7 +57,7 @@ securityContexts:
   pod: {}
   containers: {}
 
-# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+# Global container lifecycle hooks for airflow containers
 containerLifecycleHooks: {}
 
 # Airflow home directory
@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.0"
+defaultAirflowTag: "2.10.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.0"
+airflowVersion: "2.10.2"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.26.1
+    tag: v0.28.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -119,7 +119,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2024.01.19-0.16.0
+    tag: airflow-pgbouncer-exporter-2024.06.18-0.17.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -222,6 +222,66 @@ ingress:
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
 
+  # Configs for the Ingress of the statsd Service
+  statsd:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the statsd Ingress
+    annotations: {}
+
+    # The path for the statsd Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the statsd Ingress (Deprecated - renamed to `ingress.statsd.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the statsd Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the statsd Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the statsd Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+  # Configs for the Ingress of the pgbouncer Service
+  pgbouncer:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the pgbouncer Ingress
+    annotations: {}
+
+    # The path for the pgbouncer Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the pgbouncer Ingress (Deprecated - renamed to `ingress.pgbouncer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the pgbouncer Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the pgbouncer Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the pgbouncer Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
 # Network policy configuration
 networkPolicies:
   # Enabled network policies
@@ -245,7 +305,8 @@ airflowLocalSettings: |-
     UIAlert(
       'Usage of a dynamic webserver secret key detected. We recommend a static webserver secret key instead.'
       ' See the <a href='
-      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key">'
+      '"https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key" '
+      'target="_blank" rel="noopener noreferrer">'
       'Helm Chart Production Guide</a> for more details.',
       category="warning",
       roles=["Admin"],
@@ -341,6 +402,11 @@ extraSecrets: {}
 #   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
+#   'proxy-config':
+#     stringData: |
+#        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        NO_PROXY: "localhost,127.0.0.1,.svc.cluster.local,kubernetes.default.svc"
 
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
@@ -524,6 +590,9 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # Allow relaxing ordering guarantees while preserving its uniqueness and identity
+  # podManagementPolicy: Parallel
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
@@ -619,6 +688,11 @@ workers:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
     # Volume size for worker StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -676,13 +750,13 @@ workers:
 
   # This setting tells kubernetes that its ok to evict
   # when it wants to scale a node down.
-  safeToEvict: true
+  safeToEvict: false
 
-  # Launch additional containers into worker.
+  # Launch additional containers into worker (templated).
   # Note: If used with KubernetesExecutor, you are responsible for signaling sidecars to exit when the main
   # container finishes so Airflow can continue the worker shutdown process!
   extraContainers: []
-  # Add additional init containers into workers.
+  # Add additional init containers into workers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into worker. It can be templated like in the following example:
@@ -811,13 +885,14 @@ scheduler:
     periodSeconds: 60
     command: ~
 
-  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
-  # livenessProbe kicks in after the startup
+  # Wait for at most 1 minute (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
+
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -850,6 +925,9 @@ scheduler:
 
   # container level lifecycle hooks
   containerLifecycleHooks: {}
+
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 10
 
   # Create ServiceAccount
   serviceAccount:
@@ -887,9 +965,9 @@ scheduler:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into scheduler.
+  # Launch additional containers into scheduler (templated).
   extraContainers: []
-  # Add additional init containers into scheduler.
+  # Add additional init containers into scheduler (templated).
   extraInitContainers: []
 
   # Mount additional volumes into scheduler. It can be templated like in the following example:
@@ -1031,6 +1109,9 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
+  # Add additional init containers into user creation job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into user creation job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1131,6 +1212,9 @@ migrateDatabaseJob:
   # Launch additional containers into database migration job
   extraContainers: []
 
+  # Add additional init containers into migrate database job (templated).
+  extraInitContainers: []
+
   # Mount additional volumes into database migration job. It can be templated like in the following example:
   #   extraVolumes:
   #     - name: my-templated-extra-volume
@@ -1155,6 +1239,111 @@ migrateDatabaseJob:
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
   applyCustomEnv: true
+  env: []
+
+# rpcServer support is experimental / dev purpose only and will later be renamed
+_rpcServer:
+  enabled: false
+
+  # Labels specific to workers objects and pods
+  labels: {}
+
+  # Command to use when running the Airflow rpc server (templated).
+  command:
+    - "bash"
+  # Args to use when running the Airflow rpc server (templated).
+  args: ["-c", "exec airflow internal-api"]
+  env: []
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to webserver kubernetes service account.
+    annotations: {}
+  service:
+    type: ClusterIP
+    ## service annotations
+    annotations: {}
+    ports:
+      - name: rpc-server
+        port: "{{ .Values.ports._rpcServer }}"
+
+    loadBalancerIP: ~
+    ## Limit load balancer source ips to list of CIDRs
+    # loadBalancerSourceRanges:
+    #   - "10.123.0.0/16"
+    loadBalancerSourceRanges: []
+
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
+  # Detailed default security contexts for webserver deployments for container and pod level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+    env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
+
+  # Launch additional containers into the flower pods.
+  extraContainers: []
+
+  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
+  extraNetworkPolicies: []
+  networkPolicy:
+    ingress:
+      # Peers for webserver NetworkPolicy ingress
+      from: []
+      # Ports for webserver NetworkPolicy ingress (if `from` is set)
+      ports:
+        - port: "{{ .Values.ports._rpcServer }}"
+
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
+  livenessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  readinessProbe:
+    initialDelaySeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  # Wait for at most 1 minute (6*10s) for the RPC server container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
+    periodSeconds: 10
+    scheme: HTTP
 
 # Airflow webserver settings
 webserver:
@@ -1184,6 +1373,8 @@ webserver:
     periodSeconds: 10
     scheme: HTTP
 
+  # Wait for at most 1 minute (6*10s) for the webserver container to startup.
+  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -1199,6 +1390,32 @@ webserver:
   command: ~
   # Args to use when running the Airflow webserver (templated).
   args: ["bash", "-c", "exec airflow webserver"]
+
+  # Grace period for webserver to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
+
+  # Allow HPA
+  hpa:
+    enabled: false
+
+    # Minimum number of webservers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of webservers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
 
   # Create ServiceAccount
   serviceAccount:
@@ -1270,9 +1487,9 @@ webserver:
     lastName: user
     password: admin
 
-  # Launch additional containers into webserver.
+  # Launch additional containers into webserver (templated).
   extraContainers: []
-  # Add additional init containers into webserver.
+  # Add additional init containers into webserver (templated).
   extraInitContainers: []
 
   # Mount additional volumes into webserver. It can be templated like in the following example:
@@ -1430,6 +1647,8 @@ triggerer:
   persistence:
     # Enable persistent volumes
     enabled: true
+    # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed.
+    persistentVolumeClaimRetentionPolicy: ~
     # Volume size for triggerer StatefulSet
     size: 100Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
@@ -1456,9 +1675,9 @@ triggerer:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into triggerer.
+  # Launch additional containers into triggerer (templated).
   extraContainers: []
-  # Add additional init containers into triggerers.
+  # Add additional init containers into triggerers (templated).
   extraInitContainers: []
 
   # Mount additional volumes into triggerer. It can be templated like in the following example:
@@ -1490,6 +1709,15 @@ triggerer:
   #      weight: 100
   tolerations: []
   topologySpreadConstraints: []
+
+  #  hostAliases for the triggerer pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
 
   priorityClassName: ~
 
@@ -1568,6 +1796,10 @@ triggerer:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
       FROM trigger
 
+    # Whether to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: false
+
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: false
@@ -1639,9 +1871,9 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
-  # Launch additional containers into dag processor.
+  # Launch additional containers into dag processor (templated).
   extraContainers: []
-  # Add additional init containers into dag processors.
+  # Add additional init containers into dag processors (templated).
   extraInitContainers: []
 
   # Mount additional volumes into dag processor. It can be templated like in the following example:
@@ -1862,6 +2094,9 @@ statsd:
   # Annotations to add to the StatsD Deployment.
   annotations: {}
 
+  # Grace period for statsd to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2014,6 +2249,7 @@ pgbouncer:
 
   service:
     extraAnnotations: {}
+    clusterIp: ~
 
   # https://www.pgbouncer.org/config.html
   verbose: 0
@@ -2128,6 +2364,9 @@ redis:
   enabled: true
   terminationGracePeriodSeconds: 600
 
+  # Annotations for Redis Statefulset
+  annotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2142,6 +2381,14 @@ redis:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
+  service:
+    # service type, default: ClusterIP
+    type: "ClusterIP"
+    # If using ClusterIP service type, custom IP address can be specified
+    clusterIP:
+    # If using NodePort service type, custom node port can be specified
+    nodePort:
+
   persistence:
     # Enable persistent volumes
     enabled: true
@@ -2151,6 +2398,8 @@ redis:
     storageClassName:
     # Annotations to add to redis volumes
     annotations: {}
+    # the name of an existing PVC to use
+    existingClaim:
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:
@@ -2240,6 +2489,8 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
+  # rpcServer support is experimental / dev purpose only and will later be renamed
+  _rpcServer: 9080
 
 # Define any ResourceQuotas for namespace
 quotas: {}
@@ -2505,6 +2756,12 @@ dags:
     # and specify the name of the secret below
     # sshKeySecret: airflow-ssh-secret
     #
+    # Or set sshKeySecret with your key
+    # sshKey: |-
+    #   -----BEGIN {OPENSSH PRIVATE KEY}-----
+    #   ...
+    #   -----END {OPENSSH PRIVATE KEY}-----
+    #
     # If you are using an ssh private key, you can additionally
     # specify the content of your known_hosts file, example:
     #
@@ -2519,6 +2776,11 @@ dags:
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
     wait: ~
+    # add variables from secret into gitSync containers, such proxy-config
+    envFrom: ~
+    # envFrom: |
+    #   - secretRef:
+    #       name: 'proxy-config'
 
     containerName: git-sync
     uid: 65533

@@ -38,7 +38,8 @@ from airflow.utils.log.secrets_masker import (
     should_hide_value_for_key,
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.enable_redact
 p = "password"
@@ -94,10 +95,12 @@ class TestSecretsMasker:
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
     def test_extra(self, logger, caplog):
-        logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
-        logger.info("Cannot connect", extra={"conn": "user:password"})
+        with patch.object(
+            logger.handlers[0], "formatter", ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
+        ):
+            logger.info("Cannot connect", extra={"conn": "user:password"})
 
-        assert caplog.text == "INFO Cannot connect user:***\n"
+            assert caplog.text == "INFO Cannot connect user:***\n"
 
     def test_exception(self, logger, caplog):
         try:

@@ -317,7 +317,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
   ```shell script
   cat <<EOF
-  Status of testing of Apache Airflow {VERSION}
+  Status of testing of Apache Airflow ${VERSION}
   EOF
   ```
 
@@ -533,7 +533,7 @@ The following files should be present (9 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow
@@ -549,7 +549,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
+python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -682,7 +682,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.8.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.9.txt"`
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -694,7 +694,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres
 ```
 
 You can also choose different executors and extras to install when you are installing airflow this way. For
@@ -702,7 +702,7 @@ example in order to run Airflow with CeleryExecutor and install celery, google a
 Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
 
 ```shell script
-breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.9 --backend postgres \
   --executor CeleryExecutor --airflow-extras "celery,google,amazon"
 ```
 
@@ -838,7 +838,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.8 3.9 3.10 3.11 3.12
+for PYTHON in 3.9 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -881,13 +881,17 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     breeze release-management publish-docs apache-airflow docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
-    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force --all-combinations --run-in-parallel
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
+The `--run-in-parallell` switch allows to speed up SBOM generation significantly, but it might take a lot
+of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
+where N is a number of parallel `cdxgen` servers that should be started.
 
 ## Wait and make sure documentation is published on the website before proceeding
 
@@ -1007,7 +1011,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -1091,5 +1095,5 @@ According to the policy above, if we have to release clients:
 
 - Follow the specific release process for each API client:
 
-    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
-    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)

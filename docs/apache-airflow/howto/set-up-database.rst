@@ -167,7 +167,6 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE USER airflow_user WITH PASSWORD 'airflow_pass';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
    -- PostgreSQL 15 requires additional privileges:
-   USE airflow_db;
    GRANT ALL ON SCHEMA public TO airflow_user;
 
 .. note::
@@ -325,10 +324,11 @@ MsSQL Database
 
     After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
     and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
-    the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+    the Airflow's PMC members and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
 
     As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
     This does not affect the existing provider packages (operators and hooks), DAGs can still access and process data from MsSQL.
+    However, further usage may throw errors making Airflow's core functionality unusable.
 
 
 Migrating off MsSQL Server

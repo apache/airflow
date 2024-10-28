@@ -29,7 +29,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
-    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -105,8 +104,9 @@ option_backend = click.option(
     type=CacheableChoice(ALLOWED_BACKENDS),
     default=CacheableDefault(value=ALLOWED_BACKENDS[0]),
     show_default=True,
-    help="Database backend to use. If 'none' is selected, breeze starts with invalid DB configuration "
-    "and no database and any attempts to connect to Airflow DB will fail.",
+    help="Database backend to use. If 'none' is chosen, "
+    "Breeze will start with an invalid database configuration, meaning there will be no database "
+    "available, and any attempts to connect to the Airflow database will fail.",
     envvar="BACKEND",
 )
 option_builder = click.option(
@@ -115,6 +115,12 @@ option_builder = click.option(
     envvar="BUILDER",
     show_default=True,
     default="autodetect",
+)
+option_clean_airflow_installation = click.option(
+    "--clean-airflow-installation",
+    help="Clean the airflow installation before installing version specified by --use-airflow-version.",
+    is_flag=True,
+    envvar="CLEAN_AIRFLOW_INSTALLATION",
 )
 option_commit_sha = click.option(
     "--commit-sha",
@@ -173,6 +179,18 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_excluded_providers = click.option(
+    "--excluded-providers",
+    help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
+    envvar="EXCLUDED_PROVIDERS",
+)
+option_force_lowest_dependencies = click.option(
+    "--force-lowest-dependencies",
+    help="Run tests for the lowest direct dependencies of Airflow or selected provider if "
+    "`Provider[PROVIDER_ID]` is used as test type.",
+    is_flag=True,
+    envvar="FORCE_LOWEST_DEPENDENCIES",
+)
 option_github_token = click.option(
     "--github-token",
     help="The token used to authenticate to GitHub.",
@@ -228,6 +246,12 @@ option_image_tag_for_running = click.option(
     default="latest",
     envvar="IMAGE_TAG",
 )
+option_keep_env_variables = click.option(
+    "--keep-env-variables",
+    help="Do not clear environment variables that might have side effect while running tests",
+    envvar="KEEP_ENV_VARIABLES",
+    is_flag=True,
+)
 option_max_time = click.option(
     "--max-time",
     help="Maximum time that the command should take - if it takes longer, the command will fail.",
@@ -251,6 +275,11 @@ option_mysql_version = click.option(
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
     show_default=True,
+)
+option_no_db_cleanup = click.option(
+    "--no-db-cleanup",
+    help="Do not clear the database before each test module",
+    is_flag=True,
 )
 option_installation_package_format = click.option(
     "--package-format",
@@ -363,14 +392,6 @@ option_uv_http_timeout = click.option(
     show_default=True,
     envvar="UV_HTTP_TIMEOUT",
 )
-option_pydantic = click.option(
-    "--pydantic",
-    help="Determines which pydantic should be used during tests.",
-    type=BetterChoice(ALLOWED_PYDANTIC_VERSIONS),
-    show_default=True,
-    default=ALLOWED_PYDANTIC_VERSIONS[0],
-    envvar="PYDANTIC",
-)
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
@@ -378,6 +399,14 @@ option_use_airflow_version = click.option(
     "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
+)
+option_airflow_version = click.option(
+    "-A",
+    "--airflow-version",
+    help="Airflow version to use for the command.",
+    type=str,
+    envvar="AIRFLOW_VERSION",
+    required=True,
 )
 option_verbose = click.option(
     "-v",

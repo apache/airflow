@@ -31,7 +31,13 @@ from common_precommit_utils import (
 
 initialize_breeze_precommit(__name__, __file__)
 
-ALLOWED_FOLDERS = ["airflow", "airflow/providers", "dev", "docs"]
+ALLOWED_FOLDERS = [
+    "airflow",
+    "providers/src/airflow/providers",
+    "dev",
+    "docs",
+    "task_sdk/src/airflow/sdk",
+]
 
 if len(sys.argv) < 2:
     console.print(f"[yellow]You need to specify the folder to test as parameter: {ALLOWED_FOLDERS}\n")
@@ -43,8 +49,29 @@ if mypy_folder not in ALLOWED_FOLDERS:
     sys.exit(1)
 
 arguments = [mypy_folder]
-if mypy_folder == "airflow/providers":
-    arguments.append("--namespace-packages")
+if mypy_folder == "providers/src/airflow/providers":
+    arguments.extend(
+        [
+            "providers/tests",
+            "--namespace-packages",
+        ]
+    )
+if mypy_folder == "task_sdk/src/airflow/sdk":
+    arguments.extend(
+        [
+            "task_sdk/tests",
+            "--namespace-packages",
+        ]
+    )
+
+if mypy_folder == "airflow":
+    arguments.extend(
+        [
+            "tests",
+        ]
+    )
+
+print("Running /opt/airflow/scripts/in_container/run_mypy.sh with arguments: ", arguments)
 
 res = run_command_via_breeze_shell(
     [
@@ -64,7 +91,7 @@ ci_environment = os.environ.get("CI")
 if res.returncode != 0:
     if ci_environment:
         console.print(
-            "[yellow]You are running mypy with the folders selected. If you want to"
+            "[yellow]You are running mypy with the folders selected. If you want to "
             "reproduce it locally, you need to run the following command:\n"
         )
         console.print("pre-commit run --hook-stage manual mypy-<folder> --all-files\n")
@@ -78,6 +105,6 @@ if res.returncode != 0:
         "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
         " this command and try again:\n"
     )
-    console.print(f"breeze ci-image build --python 3.8{flag}\n")
+    console.print(f"breeze ci-image build --python 3.9{flag}\n")
     console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
 sys.exit(res.returncode)

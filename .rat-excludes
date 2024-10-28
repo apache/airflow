@@ -19,6 +19,7 @@
 .rat-excludes
 .stylelintignore
 .stylelintrc
+.venv
 requirements
 requirements.txt
 .*log
@@ -122,6 +123,9 @@ chart/Chart.yaml
 # Generated autocomplete files
 ./dev/breeze/autocomplete/*
 
+# Generated devel_deps files
+devel_deps.txt
+
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
 
@@ -159,3 +163,9 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
+v1-generated.yaml
+
+# Front end generated files
+api-generated.ts
+openapi-gen
+pnpm-lock.yaml

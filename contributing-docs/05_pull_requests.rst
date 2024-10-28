@@ -22,7 +22,7 @@ Pull Requests
 This document describes how you can create Pull Requests and describes coding standards we use when
 implementing them.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pull Request guidelines
 -----------------------
@@ -92,7 +92,7 @@ these guidelines:
     you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.8 currently). In rare cases
+    if it works for the oldest supported version (Python 3.9 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.

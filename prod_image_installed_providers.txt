@@ -2,6 +2,7 @@
 amazon
 celery
 cncf.kubernetes
+common.compat
 common.io
 common.sql
 docker
@@ -26,3 +27,4 @@ smtp
 snowflake
 sqlite
 ssh
+standard

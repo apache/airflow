@@ -383,7 +383,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
+      var = Variable.get("foo")  # This is ok since my_task is called only during task run, not during DAG scan.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
@@ -480,7 +480,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from airflow import DAG
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.utils.trigger_rule import TriggerRule
 
 
@@ -824,7 +824,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-        assert "cat" == Connection.get("my_conn").login
+        assert "cat" == Connection.get_connection_from_secrets("my_conn").login
 
 Metadata DB maintenance
 ^^^^^^^^^^^^^^^^^^^^^^^

@@ -307,7 +307,7 @@ Below is an example of using the ``@task.docker`` decorator to run a Python task
 
 .. _taskflow/docker_example:
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
+.. exampleinclude:: /../../providers/tests/system/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -338,7 +338,7 @@ Below is an example of using the ``@task.kubernetes`` decorator to run a Python 
 
 .. _taskflow/kubernetes_example:
 
-.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_decorator.py
+.. exampleinclude:: /../../providers/tests/system/cncf/kubernetes/example_kubernetes_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_kubernetes]
@@ -437,7 +437,7 @@ the parameter value is used.
 Adding dependencies between decorated and traditional tasks
 -----------------------------------------------------------
 The above tutorial shows how to create dependencies between TaskFlow functions. However, dependencies can also
-be set between traditional tasks (such as :class:`~airflow.operators.bash.BashOperator`
+be set between traditional tasks (such as :class:`~airflow.providers.standard.operators.bash.BashOperator`
 or :class:`~airflow.sensors.filesystem.FileSensor`) and TaskFlow functions.
 
 Building this dependency is shown in the code below:
@@ -629,6 +629,116 @@ method.
 Current context is accessible only during the task execution. The context is not accessible during
 ``pre_execute`` or ``post_execute``. Calling this method outside execution context will raise an error.
 
+Using templates in decorated tasks
+----------------------------------------------
+
+Arguments passed to your decorated function are automatically templated.
+
+You can also use the ``templates_exts`` parameter to template entire files.
+
+.. code-block:: python
+
+    @task(templates_exts=[".sql"])
+    def template_test(sql):
+        print(f"sql: {sql}")
+
+
+    template_test(sql="sql/test.sql")
+
+This will read the content of ``sql/test.sql`` and replace all template variables. You can also pass a list of files and all of them will be templated.
+
+You can pass additional parameters to the template engine through `the params parameter </concepts/params.html>`_.
+
+However, the ``params`` parameter must be passed to the decorator and not to your function directly, such as ``@task(templates_exts=['.sql'], params={'my_param'})`` and can then be used with ``{{ params.my_param }}`` in your templated files and function parameters.
+
+Alternatively, you can also pass it using the ``.override()`` method:
+
+.. code-block:: python
+
+    @task()
+    def template_test(input_var):
+        print(f"input_var: {input_var}")
+
+
+    template_test.override(params={"my_param": "wow"})(
+        input_var="my param is: {{ params.my_param }}",
+    )
+
+Finally, you can also manually render templates:
+
+.. code-block:: python
+
+    @task(params={"my_param": "wow"})
+    def template_test():
+        template_str = "run_id: {{ run_id }}; params.my_param: {{ params.my_param }}"
+
+        context = get_current_context()
+        rendered_template = context["task"].render_template(
+            template_str,
+            context,
+        )
+
+Here is a full example that demonstrates everything above:
+
+.. exampleinclude:: /../../airflow/example_dags/tutorial_taskflow_templates.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
+
+Conditionally skipping tasks
+----------------------------
+
+The ``run_if()`` and ``skip_if()`` are syntactic sugar for TaskFlow
+that allows you to skip a ``Task`` based on a condition.
+You can use them to simply set execution conditions
+without changing the structure of the ``DAG`` or ``Task``.
+
+It also allows you to set conditions using ``Context``,
+which is essentially the same as using ``pre_execute``.
+
+An example usage of ``run_if()`` is as follows:
+
+.. code-block:: python
+
+    @task.run_if(lambda context: context["task_instance"].task_id == "run")
+    @task.bash()
+    def echo() -> str:
+        return "echo 'run'"
+
+The ``echo`` defined in the above code is only executed when the ``task_id`` is ``run``.
+
+If you want to leave a log when you skip a task, you have two options.
+
+.. tab-set::
+
+    .. tab-item:: Static message
+
+        .. code-block:: python
+
+            @task.run_if(lambda context: context["task_instance"].task_id == "run", skip_message="only task_id is 'run'")
+            @task.bash()
+            def echo() -> str:
+                return "echo 'run'"
+
+    .. tab-item:: using Context
+
+        .. code-block:: python
+
+            @task.run_if(
+                lambda context: (context["task_instance"].task_id == "run", f"{context['ts']}: only task_id is 'run'")
+            )
+            @task.bash()
+            def echo() -> str:
+                return "echo 'run'"
+
+There is also a ``skip_if()`` that works the opposite of ``run_if()``, and is used in the same way.
+
+.. code-block:: python
+
+    @task.skip_if(lambda context: context["task_instance"].task_id == "skip")
+    @task.bash()
+    def echo() -> str:
+        return "echo 'run'"
 
 What's Next?
 ------------

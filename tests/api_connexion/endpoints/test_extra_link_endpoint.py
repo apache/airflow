@@ -22,22 +22,25 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.google.cloud.operators.bigquery import BigQueryExecuteQueryOperator
-from airflow.security import permissions
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -45,21 +48,16 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestGetExtraLinks:
@@ -75,9 +73,10 @@ class TestGetExtraLinks:
         self.dag = self._create_dag()
 
         self.app.dag_bag = DagBag(os.devnull, include_examples=False)
-        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
-        self.app.dag_bag.sync_to_db()  # type: ignore
+        self.app.dag_bag.dags = {self.dag.dag_id: self.dag}
+        self.app.dag_bag.sync_to_db()
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
@@ -85,6 +84,7 @@ class TestGetExtraLinks:
             state=DagRunState.SUCCESS,
             session=session,
             data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
+            **triggered_by_kwargs,
         )
         session.flush()
 
@@ -95,22 +95,24 @@ class TestGetExtraLinks:
         clear_db_xcom()
 
     def _create_dag(self):
-        with DAG(dag_id="TEST_DAG_ID", default_args={"start_date": self.default_time}) as dag:
-            BigQueryExecuteQueryOperator(task_id="TEST_SINGLE_QUERY", sql="SELECT 1")
-            BigQueryExecuteQueryOperator(task_id="TEST_MULTIPLE_QUERY", sql=["SELECT 1", "SELECT 2"])
+        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
+            CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
+            CustomOperator(
+                task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]
+            )
         return dag
 
     @pytest.mark.parametrize(
         "url, expected_title, expected_detail",
         [
             pytest.param(
-                "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+                "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
                 "DAG not found",
                 'DAG with ID = "INVALID" not found',
                 id="missing_dag",
             ),
             pytest.param(
-                "/api/v1/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_QUERY/links",
+                "/api/v1/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_LINK/links",
                 "DAG Run not found",
                 'DAG Run with ID = "INVALID" not found',
                 id="missing_dag_run",
@@ -136,7 +138,7 @@ class TestGetExtraLinks:
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
@@ -144,56 +146,54 @@ class TestGetExtraLinks:
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200(self):
         XCom.set(
-            key="job_id_path",
-            value="TEST_JOB_ID",
-            task_id="TEST_SINGLE_QUERY",
+            key="search_query",
+            value="TEST_LINK_VALUE",
+            task_id="TEST_SINGLE_LINK",
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
         )
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
             environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
-        assert {
-            "BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID"
-        } == response.json
+        assert {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"} == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
             environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
-        assert {"BigQuery Console": None} == response.json
+        assert {"Google Custom": None} == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
         XCom.set(
-            key="job_id_path",
-            value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
-            task_id="TEST_MULTIPLE_QUERY",
+            key="search_query",
+            value=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"],
+            task_id="TEST_MULTIPLE_LINK",
             dag_id=self.dag.dag_id,
             run_id="TEST_DAG_RUN_ID",
         )
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_LINK/links",
             environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code, response.data
         assert {
-            "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_1",
-            "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_2",
+            "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
+            "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
         } == response.json
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
         response = self.client.get(
-            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
+            "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_LINK/links",
             environ_overrides={"REMOTE_USER": "test"},
         )
 
@@ -209,7 +209,7 @@ class TestGetExtraLinks:
 
         class S3LogLink(BaseOperatorLink):
             name = "S3"
-            operators = [BigQueryExecuteQueryOperator]
+            operators = [CustomOperator]
 
             def get_link(self, operator, dttm):
                 return (
@@ -228,16 +228,16 @@ class TestGetExtraLinks:
 
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
-                "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
+                "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_LINK/links",
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
             assert 200 == response.status_code, response.data
             assert {
-                "BigQuery Console": None,
+                "Google Custom": None,
                 "Google": "https://www.google.com",
                 "S3": (
                     "https://s3.amazonaws.com/airflow-logs/"
-                    "TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00"
+                    "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
             } == response.json

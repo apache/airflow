@@ -42,14 +42,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/docker/index>
+    System Tests <_api/tests/system/docker/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/tests/system/providers/docker>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/providers/tests/system/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -70,7 +70,7 @@ apache-airflow-providers-docker package
 `Docker <https://www.docker.com/>`__
 
 
-Release: 3.11.0
+Release: 3.14.0
 
 Provider package
 ----------------
@@ -88,12 +88,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
-``docker``          ``>=6``
+``apache-airflow``  ``>=2.8.0``
+``docker``          ``>=7.1.0``
 ``python-dotenv``   ``>=0.21.0``
 ==================  ==================

@@ -20,10 +20,8 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -55,22 +53,6 @@ class BaseHook(LoggingMixin):
         self._logger_name = logger_name
 
     @classmethod
-    def get_connections(cls, conn_id: str) -> list[Connection]:
-        """
-        Get all connections as an iterable, given the connection id.
-
-        :param conn_id: connection id
-        :return: array of connections
-        """
-        warnings.warn(
-            "`BaseHook.get_connections` method will be deprecated in the future."
-            "Please use `BaseHook.get_connection` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return [cls.get_connection(conn_id)]
-
-    @classmethod
     def get_connection(cls, conn_id: str) -> Connection:
         """
         Get connection, given connection id.
@@ -81,19 +63,20 @@ class BaseHook(LoggingMixin):
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)
-        log.info("Using connection ID '%s' for task execution.", conn.conn_id)
+        log.info("Retrieving connection '%s'", conn.conn_id)
         return conn
 
     @classmethod
-    def get_hook(cls, conn_id: str) -> BaseHook:
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
         """
         Return default hook for this connection id.
 
         :param conn_id: connection id
+        :param hook_params: hook parameters
         :return: default hook for this connection
         """
         connection = cls.get_connection(conn_id)
-        return connection.get_hook()
+        return connection.get_hook(hook_params=hook_params)
 
     def get_conn(self) -> Any:
         """Return connection for the hook."""

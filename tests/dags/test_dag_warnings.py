@@ -20,7 +20,6 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 
@@ -31,7 +30,7 @@ class TestOperator(BaseOperator):
     def __init__(self, *, parameter: str | None = None, deprecated_parameter: str | None = None, **kwargs):
         super().__init__(**kwargs)
         if deprecated_parameter:
-            warnings.warn("Deprecated Parameter", category=RemovedInAirflow3Warning, stacklevel=2)
+            warnings.warn("Deprecated Parameter", category=DeprecationWarning, stacklevel=2)
             parameter = deprecated_parameter
         self.parameter = parameter
 

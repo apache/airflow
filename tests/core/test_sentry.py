@@ -30,7 +30,8 @@ from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 EXECUTION_DATE = timezone.utcnow()
 SCHEDULE_INTERVAL = datetime.timedelta(days=1)
@@ -38,7 +39,7 @@ DATA_INTERVAL = (EXECUTION_DATE, EXECUTION_DATE + SCHEDULE_INTERVAL)
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 OPERATOR = "PythonOperator"
-TRY_NUMBER = 1
+TRY_NUMBER = 0
 STATE = State.SUCCESS
 TEST_SCOPE = {
     "dag_id": DAG_ID,
@@ -78,14 +79,14 @@ class TestSentryHook:
     @pytest.fixture
     def task_instance(self, dag_maker):
         # Mock the Dag
-        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL):
+        with dag_maker(DAG_ID, schedule=SCHEDULE_INTERVAL, serialized=True):
             task = PythonOperator(task_id=TASK_ID, python_callable=int)
 
         dr = dag_maker.create_dagrun(data_interval=DATA_INTERVAL, execution_date=EXECUTION_DATE)
         ti = dr.task_instances[0]
         ti.state = STATE
         ti.task = task
-        dag_maker.session.flush()
+        dag_maker.session.commit()
 
         yield ti
 
@@ -141,6 +142,7 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_add_tagging(self, sentry, task_instance):
         """
@@ -149,8 +151,9 @@ class TestSentryHook:
         sentry.add_tagging(task_instance=task_instance)
         with configure_scope() as scope:
             for key, value in scope._tags.items():
-                assert TEST_SCOPE[key] == value
+                assert value == TEST_SCOPE[key]
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):
@@ -162,7 +165,13 @@ class TestSentryHook:
 
         with configure_scope() as scope:
             test_crumb = scope._breadcrumbs.pop()
-            assert CRUMB == test_crumb
+            for item in CRUMB:
+                if item == "timestamp":
+                    pass
+                elif item == "state":
+                    assert str(CRUMB[item]) == str(test_crumb[item])
+                else:
+                    assert CRUMB[item] == test_crumb[item]
 
     def test_before_send(self, sentry_sdk, sentry):
         """

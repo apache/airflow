@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/livy/index>
+    System Tests <_api/tests/system/apache/livy/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/tests/system/providers/apache/livy/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-livy/|version|/providers/tests/system/apache/livy/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-livy/>
     Installing from sources <installing-providers-from-sources>
 
@@ -76,7 +76,7 @@ apache-airflow-providers-apache-livy package
 `Apache Livy <https://livy.apache.org/>`__
 
 
-Release: 3.8.0
+Release: 3.9.2
 
 Provider package
 ----------------
@@ -94,15 +94,15 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =================================  ==================
 PIP package                        Version required
 =================================  ==================
-``apache-airflow``                 ``>=2.7.0``
+``apache-airflow``                 ``>=2.8.0``
 ``apache-airflow-providers-http``
 ``aiohttp``                        ``>=3.9.2``
-``asgiref``
+``asgiref``                        ``>=2.3.0``
 =================================  ==================
 
 Cross provider package dependencies
@@ -130,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-livy 3.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-3.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-3.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-livy-3.8.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-livy 3.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.8.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-livy 3.9.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-livy 3.9.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_livy-3.9.2-py3-none-any.whl.sha512>`__)

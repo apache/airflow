@@ -49,14 +49,12 @@ const LogLink = ({
     taskId
   )}&execution_date=${encodeURIComponent(
     executionDate
-  )}&map_index=${encodeURIComponent(mapIndex?.toString() ?? "-1")}`;
+  )}&map_index=${encodeURIComponent(
+    mapIndex?.toString() ?? "-1"
+  )}&try_number=${tryNumber}`;
 
-  if (isInternal && tryNumber) {
-    fullMetadataUrl += `&format=file${
-      tryNumber > 0 && `&try_number=${tryNumber}`
-    }`;
-  } else {
-    fullMetadataUrl += `&try_number=${tryNumber}`;
+  if (isInternal) {
+    fullMetadataUrl += "&format=file";
   }
   return (
     <LinkButton

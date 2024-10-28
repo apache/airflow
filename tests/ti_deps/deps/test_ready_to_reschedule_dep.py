@@ -30,9 +30,10 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
-from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils import db
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

@@ -44,7 +44,7 @@ Typical command to install airflow from scratch in a reproducible way from PyPI 
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
 
 
 Typically, you can add other dependencies and providers as separate command after the reproducible
@@ -63,7 +63,7 @@ Those are just examples, see further for more explanation why those are the best
 .. note::
 
    Generally speaking, Python community established practice is to perform application installation in a
-   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow™ in a
+   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow® in a
    application dedicated virtual environment created for you. There are also other tools that can be used
    to manage your virtualenv installation and you are free to choose how you are managing the environments.
    Airflow has no limitation regarding to the tool of your choice when it comes to virtual environment.
@@ -80,7 +80,7 @@ Constraints files
 Why we need constraints
 =======================
 
-Airflow™ installation can be tricky because Airflow is both a library and an application.
+Airflow® installation can be tricky because Airflow is both a library and an application.
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
@@ -109,14 +109,14 @@ You can create the URL to the file substituting the variables in the template be
 where:
 
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
-- ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.9``
+- ``PYTHON_VERSION`` Python version e.g. ``3.9``, ``3.10``
 
 The examples below assume that you want to use install airflow in a reproducible way with the ``celery`` extra,
 but you can pick your own set of extras and providers to install.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
 
 
 .. note::
@@ -147,7 +147,7 @@ performing dependency resolution.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
     pip install "apache-airflow==|version|" apache-airflow-providers-google==10.1.1
 
 You can also downgrade or upgrade other dependencies this way - even if they are not compatible with
@@ -155,7 +155,7 @@ those dependencies that are stored in the original constraints file:
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
     pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
 
 .. warning::
@@ -198,7 +198,7 @@ one provided by the community.
 
 .. code-block:: bash
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
     pip install "apache-airflow==|version|" dbt-core==0.20.0
     pip freeze > my-constraints.txt
 
@@ -239,10 +239,10 @@ Installation and upgrade scenarios
 
 In order to simplify the installation, we have prepared examples of how to upgrade Airflow and providers.
 
-Installing Airflow™ with extras and providers
+Installing Airflow® with extras and providers
 =============================================
 
-If you need to install extra dependencies of Airflow™, you can use the script below to make an installation
+If you need to install extra dependencies of Airflow®, you can use the script below to make an installation
 a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
@@ -325,11 +325,16 @@ dependencies compatible with just airflow core at the moment Airflow was release
 
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
-    # For example: 3.8
+    # For example: 3.9
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.8.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.9.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
+
+.. note::
+
+    Airflow uses `Scarf <https://about.scarf.sh/>`__ to collect basic usage data during operation.
+    Check the :ref:`Usage data collection FAQ <usage-data-collection>` for more information about the data collected and how to opt-out.
 
 Troubleshooting
 '''''''''''''''
@@ -352,7 +357,7 @@ Symbol not found: ``_Py_GetArgcArgv``
 =====================================
 
 If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing ``airflow``, this may mean that you are using an incompatible version of Python.
-For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.8``: ``/usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8``).
+For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.9``: ``/usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9``).
 
 The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
 which is not available from the standard installation ``/usr/local/opt/`` (which symlinks to a path under ``/usr/local/Cellar``).
@@ -361,9 +366,9 @@ An easy fix is just to ensure you use a version of Python that has a dylib of th
 
 .. code-block:: bash
 
-  # Note: these instructions are for python3.8 but can be loosely modified for other versions
-  brew install python@3.8
-  virtualenv -p /usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8/bin/python3 .toy-venv
+  # Note: these instructions are for python3.9 but can be loosely modified for other versions
+  brew install python@3.9
+  virtualenv -p /usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9/bin/python3 .toy-venv
   source .toy-venv/bin/activate
   pip install apache-airflow
   python

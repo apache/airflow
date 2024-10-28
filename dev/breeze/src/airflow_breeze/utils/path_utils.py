@@ -27,7 +27,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 from airflow_breeze import NAME
@@ -221,7 +221,7 @@ def get_used_airflow_sources() -> Path:
     return current_sources
 
 
-@lru_cache(maxsize=None)
+@cache
 def find_airflow_sources_root_to_operate_on() -> Path:
     """
     Find the root of airflow sources we operate on. Handle the case when Breeze is installed via `pipx` from
@@ -280,9 +280,13 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 AIRFLOW_WWW_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www"
-TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
-SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
-AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_UI_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui"
+AIRFLOW_OLD_PROVIDERS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+AIRFLOW_PROVIDERS_PROJECT = AIRFLOW_SOURCES_ROOT / "providers"
+AIRFLOW_PROVIDERS_SRC = AIRFLOW_PROVIDERS_PROJECT / "src"
+AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
+TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests"
+SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_PROVIDERS_PROJECT / "tests" / "system"
 DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
 GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
@@ -290,6 +294,7 @@ CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"
 PROVIDER_DEPENDENCIES_JSON_FILE_PATH = GENERATED_DIR / "provider_dependencies.json"
 PROVIDER_METADATA_JSON_FILE_PATH = GENERATED_DIR / "provider_metadata.json"
 WWW_CACHE_DIR = BUILD_CACHE_DIR / "www"
+UI_CACHE_DIR = BUILD_CACHE_DIR / "ui"
 AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
 WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
 WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
@@ -297,6 +302,12 @@ WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"
 WWW_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "www" / "hash.txt"
 WWW_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "node_modules"
 WWW_STATIC_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" / "dist"
+UI_ASSET_COMPILE_LOCK = UI_CACHE_DIR / ".asset_compile.lock"
+UI_ASSET_OUT_FILE = UI_CACHE_DIR / "asset_compile.out"
+UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_DIR / "asset_compile_dev_mode.out"
+UI_ASSET_HASH_FILE = AIRFLOW_SOURCES_ROOT / ".build" / "ui" / "hash.txt"
+UI_NODE_MODULES_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui" / "node_modules"
+UI_DIST_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "ui" / "dist"
 DAGS_DIR = AIRFLOW_SOURCES_ROOT / "dags"
 FILES_DIR = AIRFLOW_SOURCES_ROOT / "files"
 FILES_SBOM_DIR = FILES_DIR / "sbom"

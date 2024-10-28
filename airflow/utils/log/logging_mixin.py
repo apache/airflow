@@ -36,7 +36,8 @@ ANSI_ESCAPE = re2.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 # Private: A sentinel objects
 class SetContextPropagate(enum.Enum):
-    """Sentinel objects for log propagation contexts.
+    """
+    Sentinel objects for log propagation contexts.
 
     :meta private:
     """
@@ -85,7 +86,8 @@ class LoggingMixin:
         log_config_logger_name: str | None = None,
         class_logger_name: str | None = None,
     ) -> str:
-        """Generate a logger name for the given `logged_class`.
+        """
+        Generate a logger name for the given `logged_class`.
 
         By default, this function returns the `class_logger_name` as logger name. If it is not provided,
         the {class.__module__}.{class.__name__} is returned instead. When a `parent_logger_name` is provided,

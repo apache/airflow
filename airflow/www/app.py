@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
+from os.path import isabs
 
 from flask import Flask
 from flask_appbuilder import SQLA
@@ -29,22 +29,21 @@ from sqlalchemy.engine.url import make_url
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
-    init_api_experimental_auth,
-    init_check_user_active,
+    init_api_auth,
+    init_cache_control,
     init_xframe_protection,
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
@@ -52,7 +51,6 @@ from airflow.www.extensions.init_views import (
     init_api_auth_provider,
     init_api_connexion,
     init_api_error_handlers,
-    init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
     init_error_handlers,
@@ -99,7 +97,7 @@ def create_app(config=None, testing=False):
     flask_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"] = require_confirmation_dag_change
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
-    if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
+    if url.drivername == "sqlite" and url.database and not isabs(url.database):
         raise AirflowConfigException(
             f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
@@ -110,16 +108,8 @@ def create_app(config=None, testing=False):
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
     flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
 
-    cookie_samesite_config = conf.get("webserver", "COOKIE_SAMESITE")
-    if cookie_samesite_config == "":
-        warnings.warn(
-            "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
-            "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        cookie_samesite_config = "Lax"
-    flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
+    # Note: Ensure "Lax" is the default if config not specified
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("webserver", "COOKIE_SAMESITE") or "Lax"
 
     # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
     # for static file caching, it needs to set value explicitly.
@@ -135,7 +125,8 @@ def create_app(config=None, testing=False):
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
 
-    InternalApiConfig.force_database_direct_access()
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
 
     csrf.init_app(flask_app)
 
@@ -147,7 +138,7 @@ def create_app(config=None, testing=False):
 
     init_dagbag(flask_app)
 
-    init_api_experimental_auth(flask_app)
+    init_api_auth(flask_app)
 
     init_robots(flask_app)
 
@@ -172,16 +163,12 @@ def create_app(config=None, testing=False):
             if not _ENABLE_AIP_44:
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(flask_app)
-        init_api_experimental(flask_app)
         init_api_auth_provider(flask_app)
         init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
-
-        get_auth_manager().init()
-
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
+        init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
-        init_check_user_active(flask_app)
     return flask_app
 
 

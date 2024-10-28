@@ -1,0 +1,259 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow rpc-server Deployment
+#################################
+{{- if .Values._rpcServer.enabled }}
+{{- $nodeSelector := or .Values._rpcServer.nodeSelector .Values.nodeSelector }}
+{{- $affinity := or .Values._rpcServer.affinity .Values.affinity }}
+{{- $tolerations := or .Values._rpcServer.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values._rpcServer.topologySpreadConstraints .Values.topologySpreadConstraints }}
+{{- $revisionHistoryLimit := or .Values._rpcServer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values._rpcServer) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values._rpcServer) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values._rpcServer.waitForMigrations) }}
+{{- $containerLifecycleHooks := or .Values._rpcServer.containerLifecycleHooks .Values.containerLifecycleHooks }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "airflow.fullname" . }}-rpc-server
+  labels:
+    tier: airflow
+    component: rpc-server
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if .Values._rpcServer.annotations }}
+  annotations: {{- toYaml .Values._rpcServer.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values._rpcServer.replicas }}
+  {{- if $revisionHistoryLimit }}
+  revisionHistoryLimit: {{ $revisionHistoryLimit }}
+  {{- end }}
+  strategy:
+    {{- if .Values._rpcServer.strategy }}
+    {{- toYaml .Values._rpcServer.strategy | nindent 4 }}
+    {{- else }}
+    {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+    # Here we define the rolling update strategy
+    # - maxSurge define how many pod we can add at a time
+    # - maxUnavailable define how many pod can be unavailable
+    #   during the rolling update
+    # Setting maxUnavailable to 0 would make sure we have the appropriate
+    # capacity during the rolling update.
+    # You can also use percentage based value instead of integer.
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    {{- else }}
+    type: Recreate
+    {{- end }}
+    {{- end }}
+  selector:
+    matchLabels:
+      tier: airflow
+      component: rpc-server
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        tier: airflow
+        component: rpc-server
+        release: {{ .Release.Name }}
+        {{- if or (.Values.labels) (.Values._rpcServer.labels) }}
+          {{- mustMerge .Values._rpcServer.labels .Values.labels | toYaml | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
+        checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
+        checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
+        checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if .Values.airflowPodAnnotations }}
+          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values._rpcServer.podAnnotations }}
+          {{- toYaml .Values._rpcServer.podAnnotations | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values._rpcServer.hostAliases }}
+      hostAliases: {{- toYaml .Values._rpcServer.hostAliases | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "rpcServer.serviceAccountName" . }}
+      {{- if .Values._rpcServer.priorityClassName }}
+      priorityClassName: {{ .Values._rpcServer.priorityClassName }}
+      {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
+      nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      affinity:
+        {{- if $affinity }}
+          {{- toYaml $affinity | nindent 8 }}
+        {{- else }}
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  component: rpc-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+        {{- end }}
+      tolerations: {{- toYaml $tolerations | nindent 8 }}
+      topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      restartPolicy: Always
+      securityContext: {{ $securityContext | nindent 8 }}
+      {{- if or .Values.registry.secretName .Values.registry.connection }}
+      imagePullSecrets:
+        - name: {{ template "registry_secret" . }}
+      {{- end }}
+      initContainers:
+        {{- if .Values._rpcServer.waitForMigrations.enabled }}
+        - name: wait-for-airflow-migrations
+          resources: {{- toYaml .Values._rpcServer.resources | nindent 12 }}
+          image: {{ template "airflow_image_for_migrations" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          volumeMounts:
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values._rpcServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+          args: {{- include "wait-for-migrations-command" . | indent 10 }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- if .Values._rpcServer.waitForMigrations.env }}
+              {{- tpl (toYaml .Values._rpcServer.waitForMigrations.env) $ | nindent 12 }}
+            {{- end }}
+        {{- end }}
+        {{- if .Values._rpcServer.extraInitContainers }}
+          {{- toYaml .Values._rpcServer.extraInitContainers | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: rpc-server
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values._rpcServer.command }}
+          command: {{ tpl (toYaml .Values._rpcServer.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values._rpcServer.args }}
+          args: {{- tpl (toYaml .Values._rpcServer.args) . | nindent 12 }}
+          {{- end }}
+          resources: {{- toYaml .Values._rpcServer.resources | nindent 12 }}
+          volumeMounts:
+            {{- include "airflow_config_mount" . | nindent 12 }}
+            {{- if .Values.logs.persistence.enabled }}
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            {{- end }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values._rpcServer.extraVolumeMounts }}
+              {{- tpl (toYaml .Values._rpcServer.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: rpc-server
+              containerPort: {{ .Values.ports._rpcServer }}
+          livenessProbe:
+            httpGet:
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
+              {{- end }}
+              scheme: {{ .Values._rpcServer.livenessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._rpcServer.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._rpcServer.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.livenessProbe.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url }}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
+              {{- end }}
+              scheme: {{ .Values._rpcServer.readinessProbe.scheme | default "http" }}
+            initialDelaySeconds: {{ .Values._rpcServer.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values._rpcServer.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.readinessProbe.periodSeconds }}
+          startupProbe:
+            httpGet:
+              path: {{ if .Values.config.core.internal_api_url }}{{- with urlParse (tpl .Values.config.core.internal_api_url .) }}{{ .path }}{{ end }}{{ end }}/internal_api/v1/health
+              port: {{ .Values.ports._rpcServer }}
+              {{- if .Values.config.core.internal_api_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.core.internal_api_url .)).host  "" }}
+              {{- end }}
+              scheme: {{ .Values._rpcServer.startupProbe.scheme | default "http" }}
+            timeoutSeconds: {{ .Values._rpcServer.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values._rpcServer.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values._rpcServer.startupProbe.periodSeconds }}
+          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
+          env:
+            {{- include "custom_airflow_environment" . | indent 10 }}
+            {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "container_extra_envs" (list . .Values._rpcServer.env) | indent 10 }}
+        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+          {{- include "git_sync_container" . | nindent 8 }}
+        {{- end }}
+        {{- if .Values._rpcServer.extraContainers }}
+          {{- tpl (toYaml .Values._rpcServer.extraContainers) . | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ template "airflow_config" . }}
+        {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- end }}
+        {{- if .Values.logs.persistence.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_logs_volume_claim" . }}
+        {{- end }}
+        {{- if .Values.volumes }}
+          {{- toYaml .Values.volumes | nindent 8 }}
+        {{- end }}
+        {{- if .Values._rpcServer.extraVolumes }}
+          {{- tpl (toYaml .Values._rpcServer.extraVolumes) . | nindent 8 }}
+        {{- end }}
+{{- end }}

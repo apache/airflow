@@ -25,7 +25,7 @@ This index of linked documents aims to explain the subject of contributions if y
 any Open Source project, but it will also help people who have contributed to other projects learn about the
 rules of that community.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 New Contributor
 ---------------

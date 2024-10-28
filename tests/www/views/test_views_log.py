@@ -40,10 +40,15 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from airflow.www.app import create_app
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.www import client_with_login
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -113,7 +118,7 @@ def log_app(backup_modules, log_path):
 
 
 @pytest.fixture(autouse=True)
-def reset_modules_after_every_test(backup_modules):
+def _reset_modules_after_every_test(backup_modules):
     yield
     # Remove any new modules imported during the test run.
     # This lets us import the same source files for more than one test.
@@ -139,8 +144,8 @@ def dags(log_app, create_dummy_dag, session):
     )
 
     bag = DagBag(include_examples=False)
-    bag.bag_dag(dag=dag, root_dag=dag)
-    bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
+    bag.bag_dag(dag=dag)
+    bag.bag_dag(dag=dag_removed)
     bag.sync_to_db(session=session)
     log_app.dag_bag = bag
 
@@ -152,6 +157,7 @@ def dags(log_app, create_dummy_dag, session):
 @pytest.fixture(autouse=True)
 def tis(dags, session):
     dag, dag_removed = dags
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -159,6 +165,7 @@ def tis(dags, session):
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
+        **triggered_by_kwargs,
     )
     (ti,) = dagrun.task_instances
     ti.try_number = 1
@@ -170,6 +177,7 @@ def tis(dags, session):
         start_date=DEFAULT_DATE,
         state=DagRunState.RUNNING,
         session=session,
+        **triggered_by_kwargs,
     )
     (ti_removed_dag,) = dagrun_removed.task_instances
     ti_removed_dag.try_number = 1
@@ -185,7 +193,7 @@ def create_expected_log_file(log_path, tis):
     handler = FileTaskHandler(log_path)
 
     def create_expected_log_file(try_number):
-        ti.try_number = try_number - 1
+        ti.try_number = 1
         handler.set_context(ti)
         handler.emit(logging.makeLogRecord({"msg": "Log for testing."}))
         handler.flush()
@@ -208,8 +216,8 @@ def log_admin_client(log_app):
     [
         (None, 0, 0),
         (TaskInstanceState.UP_FOR_RETRY, 2, 2),
-        (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 1),
-        (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 2),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 0, 0),
+        (TaskInstanceState.UP_FOR_RESCHEDULE, 1, 1),
         (TaskInstanceState.RUNNING, 1, 1),
         (TaskInstanceState.SUCCESS, 1, 1),
         (TaskInstanceState.FAILED, 3, 3),
@@ -271,8 +279,9 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
         in content_disposition
     )
     assert 200 == response.status_code
-    assert "Log for testing." in response.data.decode("utf-8")
-    assert "localhost\n" in response.data.decode("utf-8")
+    content = response.data.decode("utf-8")
+    assert "Log for testing." in content
+    assert "localhost\n" in content
 
 
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"

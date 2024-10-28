@@ -44,6 +44,10 @@ to define values dynamically.
 
 You may use the parameter ``selected_fields`` to limit the fields to be copied (all fields by default),
 as well as the parameter ``replace`` to overwrite the destination table instead of appending to it.
+If the ``replace`` parameter is used, then both ``selected_fields`` and ``replace_index`` parameters will
+need to be specified due to constraints of the PostgreSQL's ON CONFLICT clause in the underlying INSERT
+command.
+
 For more information, please refer to the links above.
 
 Transferring data
@@ -51,11 +55,19 @@ Transferring data
 
 The following Operator copies data from a BigQuery table to PostgreSQL.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_postgres.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_postgres.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_postgres]
     :end-before: [END howto_operator_bigquery_to_postgres]
+
+The Operator can also replace data in a PostgreSQL table with matching data from a BigQuery table.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_postgres.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_bigquery_to_postgres_upsert]
+    :end-before: [END howto_operator_bigquery_to_postgres_upsert]
 
 
 Reference

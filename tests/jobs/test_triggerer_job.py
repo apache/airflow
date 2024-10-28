@@ -46,8 +46,10 @@ from airflow.utils.log.trigger_handler import LocalQueueHandler
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
 from tests.core.test_logging_config import reset_logging
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.log_handlers import non_pytest_handlers
 
 pytestmark = pytest.mark.db_test
 
@@ -90,7 +92,7 @@ def session():
 
 def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag")
-    dag = DAG(dag_id=dag_model.dag_id, start_date=pendulum.datetime(2023, 1, 1))
+    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -103,7 +105,7 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, execution_date=run.execution_date, run_id=run.run_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id)
     task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)
@@ -113,6 +115,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_logging_sensitive_info(session, caplog):
     """
     Checks that when a trigger fires, it doesn't log any sensitive
@@ -152,7 +155,7 @@ def test_trigger_logging_sensitive_info(session, caplog):
     # give it more time for the trigger event to write the log.
     time.sleep(0.5)
 
-    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in caplog.text
+    assert "test_dag/test_run/sensitive_arg_task/-1/0 (ID 1) starting" in caplog.text
     assert "some_password" not in caplog.text
 
 
@@ -176,6 +179,7 @@ def test_is_alive():
     assert not triggerer_job.is_alive(), "Completed jobs even with recent heartbeat should not be alive"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
@@ -219,6 +223,7 @@ def test_capacity_decode():
             TriggererJobRunner(job=job, capacity=input_str)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_lifecycle(session):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -309,6 +314,88 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+@pytest.mark.asyncio
+async def test_trigger_create_race_condition_38599(session, tmp_path):
+    """
+    This verifies the resolution of race condition documented in github issue #38599.
+    More details in the issue description.
+
+    The race condition may occur in the following scenario:
+        1. TaskInstance TI1 defers itself, which creates Trigger T1, which holds a
+            reference to TI1.
+        2. T1 gets picked up by TriggererJobRunner TJR1 and starts running T1.
+        3. TJR1 misses a heartbeat, most likely due to high host load causing delays in
+            each TriggererJobRunner._run_trigger_loop loop.
+        4. A second TriggererJobRunner TJR2 notices that T1 has missed its heartbeat,
+            so it starts the process of picking up any Triggers that TJR1 may have had,
+            including T1.
+        5. Before TJR2 starts executing T1, TJR1 finishes execution of T1 and cleans it
+            up by clearing the trigger_id of TI1.
+        6. TJR2 tries to execute T1, but it crashes (with the above error) while trying to
+            look up TI1 (because T1 no longer has a TaskInstance linked to it).
+    """
+    path = tmp_path / "test_trigger_create_after_completion.txt"
+    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+
+    dag = DagModel(dag_id="test-dag")
+    dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none")
+    ti = TaskInstance(
+        PythonOperator(task_id="dummy-task", python_callable=print),
+        run_id=dag_run.run_id,
+        state=TaskInstanceState.DEFERRED,
+    )
+    ti.dag_id = dag.dag_id
+    ti.trigger_id = 1
+    session.add(dag)
+    session.add(dag_run)
+    session.add(ti)
+
+    job1 = Job()
+    job2 = Job()
+    session.add(job1)
+    session.add(job2)
+
+    session.commit()
+
+    job_runner1 = TriggererJobRunner(job1)
+    job_runner2 = TriggererJobRunner(job2)
+
+    # Assign and run the trigger on the first TriggererJobRunner
+    # Instead of running job_runner1._execute, we will run the individual methods
+    # to control the timing of the execution.
+    job_runner1.load_triggers()
+    assert len(job_runner1.trigger_runner.to_create) == 1
+    # Before calling job_runner1.handle_events, run the trigger synchronously
+    await job_runner1.trigger_runner.create_triggers()
+    assert len(job_runner1.trigger_runner.triggers) == 1
+    _, trigger_task_info = next(iter(job_runner1.trigger_runner.triggers.items()))
+    await trigger_task_info["task"]
+    assert trigger_task_info["task"].done()
+
+    # In a real execution environment, a missed heartbeat would cause the trigger to be picked up
+    # by another TriggererJobRunner.
+    # In this test, however, this is not necessary because we are controlling the execution
+    # of the TriggererJobRunner.
+    # job1.latest_heartbeat = timezone.utcnow() - datetime.timedelta(hours=1)
+    # session.commit()
+
+    # This calls Trigger.submit_event, which will unlink the trigger from the task instance
+    job_runner1.handle_events()
+
+    # Simulate the second TriggererJobRunner picking up the trigger
+    job_runner2.trigger_runner.update_triggers({trigger_orm.id})
+    # The race condition happens here.
+    # AttributeError: 'NoneType' object has no attribute 'dag_id'
+    await job_runner2.trigger_runner.create_triggers()
+
+    assert path.read_text() == "hi\n"
+
+
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_create_race_condition_18392(session, tmp_path):
     """
     This verifies the resolution of race condition documented in github issue #18392.
@@ -419,6 +506,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
     assert len(instances) == 1
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_from_dead_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -446,6 +534,7 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_from_expired_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -480,6 +569,7 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_runner_exception_stops_triggerer(session):
     """
     Checks that if an exception occurs when creating triggers, that the triggerer
@@ -523,6 +613,7 @@ def test_trigger_runner_exception_stops_triggerer(session):
         thread.join()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_firing(session):
     """
     Checks that when a trigger fires, it correctly makes it into the
@@ -553,6 +644,7 @@ def test_trigger_firing(session):
         job_runner.trigger_runner.join(30)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_failing(session):
     """
     Checks that when a trigger fails, it correctly makes it into the
@@ -587,6 +679,7 @@ def test_trigger_failing(session):
         job_runner.trigger_runner.join(30)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_trigger_cleanup(session):
     """
     Checks that the triggerer will correctly clean up triggers that do not
@@ -606,6 +699,7 @@ def test_trigger_cleanup(session):
     assert session.query(Trigger).count() == 0
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_invalid_trigger(session, dag_maker):
     """
     Checks that the triggerer will correctly fail task instances that depend on
@@ -678,9 +772,6 @@ def test_queue_listener():
     reset_logging()
     importlib.reload(airflow_local_settings)
     configure_logging()
-
-    def non_pytest_handlers(val):
-        return [h for h in val if "pytest" not in h.__module__]
 
     import logging
 

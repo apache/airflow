@@ -19,7 +19,7 @@
 Apache Airflow Providers
 ************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 What is a provider?
 ===================
@@ -123,6 +123,15 @@ the community. Also it is often easier to advertise and promote usage of the pro
 themselves when they own, manage and release their provider, especially when they can synchronize releases
 of their provider with new feature, the service might get added.
 
+Examples:
+
+Huawei Cloud provider - `Discussion <https://lists.apache.org/thread/f5tk9c734wlyv616vyy8r34ymth3dqbc>`_
+Cloudera provider - `Discussion <https://lists.apache.org/thread/2z0lvgj466ksxxrbvofx41qvn03jrwwb>`_, `Vote <https://lists.apache.org/thread/8b1jvld3npgzz2z0o3gv14lvtornbdrm>`_
+PgVector / Weaviate/ OpenAI provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Lazy Consensus vote <https://lists.apache.org/thread/zrq6554lwobhngtwyzp7tpgnyfsxxybh>`_
+Pinecone / OpenAI / Cohere provider - `Discussion <https://lists.apache.org/thread/0d669fmy4hn29h5c0wj0ottdskd77ktp>`_, `Vote <https://lists.apache.org/thread/skh32jksvcf4yx4fhhsfz8lq6w5nhfjc>`_, `VOTE Result <https://lists.apache.org/thread/oq7h2n88zfo3dzldy5w8xlp9kyngs7x8>`_
+
+Note that some providers have regular vote and some lazy consensus, please refer to the above sections for explanation why it's not the same for all providers
+
 Community providers release process
 -----------------------------------
 
@@ -144,8 +153,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.8.0 in the first Provider's release after 18th of August 2024. 18th of August 2023 is the date when the
-first ``PATCHLEVEL`` of 2.7 (2.7.0) has been released.
+to 2.8.0 in the first Provider's release after 18th of December 2024. 18th of December 2023 is the date when the
+first ``PATCHLEVEL`` of 2.8 (2.8.0) has been released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -155,7 +164,7 @@ will be able to use the new version without breaking their workflows. When we up
 2.2+, our approach was different but as of 2.3+ upgrade (November 2022) we only bump ``MINOR`` version of the
 provider when we increase minimum Airflow version.
 
-Increasing the minimum version ot the Providers is one of the reasons why 3rd-party provider maintainers
+Increasing the minimum version of the Providers is one of the reasons why 3rd-party provider maintainers
 might want to maintain their own providers - as they can decide to support older versions of Airflow.
 
 3rd-parties relation to community providers
@@ -326,3 +335,14 @@ There are the following consequences (or lack of them) of removing the provider:
     last released. This however, should only be done in case there are no viable alternatives for the users.
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
+
+Provider Dependencies
+=====================
+
+The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+
+All provider dependencies, including versions and constraints, are listed in this file.
+When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+
+To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
+Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.

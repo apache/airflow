@@ -196,9 +196,9 @@
                 "type": "string"
             }
         },
-        "dataset-uris": {
+        "asset-uris": {
             "type": "array",
-            "description": "Dataset URI formats",
+            "description": "Asset URI formats",
             "items": {
                 "type": "object",
                 "properties": {
@@ -212,6 +212,42 @@
                     "handler": {
                         "type": ["string", "null"],
                         "description": "Normalization function for specified URI schemes. Import path to a callable taking and returning a SplitResult. 'null' specifies a no-op."
+                    },
+                    "factory": {
+                        "type": ["string", "null"],
+                        "description": "Asset factory for specified URI. Creates AIP-60 compliant Asset."
+                    },
+                    "to_openlineage_converter": {
+                        "type": ["string", "null"],
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting an Asset and LineageContext and returning OpenLineage dataset."
+                    }
+                }
+            }
+        },
+        "dataset-uris": {
+            "type": "array",
+            "description": "Dataset URI formats (will be removed in Airflow 3.0)",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "schemes": {
+                        "type": "array",
+                        "description": "List of supported URI schemes",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "handler": {
+                        "type": ["string", "null"],
+                        "description": "Normalization function for specified URI schemes. Import path to a callable taking and returning a SplitResult. 'null' specifies a no-op."
+                    },
+                    "factory": {
+                        "type": ["string", "null"],
+                        "description": "Dataset factory for specified URI. Creates AIP-60 compliant Dataset."
+                    },
+                    "to_openlineage_converter": {
+                        "type": ["string", "null"],
+                        "description": "OpenLineage converter function for specified URI schemes. Import path to a callable accepting a Dataset and LineageContext and returning OpenLineage dataset."
                     }
                 }
             }
@@ -427,7 +463,6 @@
         "source-date-epoch": {
             "type": "integer",
             "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",
-
             "minimum": 0,
             "default": 0,
             "examples": [

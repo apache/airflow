@@ -110,6 +110,21 @@ class TestDagProcessor:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -127,6 +142,21 @@ class TestDagProcessor:
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-test-init-container"}],
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"name": "release-name-test-init-container"} == jmespath.search(
+            "spec.template.spec.initContainers[-1]", docs[0]
+        )
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -173,7 +203,17 @@ class TestDagProcessor:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
                 },
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
@@ -182,6 +222,14 @@ class TestDagProcessor:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
@@ -658,6 +706,44 @@ class TestDagProcessor:
         else:
             assert expected_volume not in created_volumes
             assert expected_volume_mount not in created_volume_mounts
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {"enabled": True},
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "sshKey": "my-ssh-key",
+                    },
+                    "persistence": {"enabled": False},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
 
 
 class TestDagProcessorLogGroomer(LogGroomerTestBase):

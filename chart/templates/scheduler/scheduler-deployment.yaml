@@ -71,6 +71,9 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
+  {{- if and $stateful .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
   {{- end }}
@@ -128,7 +131,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       restartPolicy: Always
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: {{ .Values.scheduler.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
@@ -169,7 +172,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
-          {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         # Always run the main scheduler container.
@@ -301,7 +304,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
@@ -321,7 +324,9 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: logs
         {{- if .Values.workers.persistence.annotations }}
         annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}

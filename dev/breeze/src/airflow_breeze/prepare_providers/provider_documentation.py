@@ -36,11 +36,12 @@ import semver
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
-from airflow_breeze.utils.confirm import Answer, user_confirm
+from airflow_breeze.utils.confirm import Answer, confirm_action, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
     ProviderPackageDetails,
+    clear_cache_for_provider_metadata,
     get_provider_details,
     get_provider_jinja_context,
     get_source_package_path,
@@ -48,6 +49,7 @@ from airflow_breeze.utils.packages import (
     refresh_provider_metadata_with_provider_id,
     render_template,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 from airflow_breeze.utils.versions import get_version_tag
@@ -63,7 +65,6 @@ AUTOMATICALLY_GENERATED_CONTENT = (
 # Taken from pygrep hooks we are using in pre-commit
 # https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
 BACKTICKS_CHECK = re.compile(r"^(?! {4}).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
-
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -99,6 +100,29 @@ Changelog
 Initial version of the provider.
 """
 
+SHORT_HASH_TO_TYPE_DICT = {}
+
+
+class TypeOfChange(Enum):
+    DOCUMENTATION = "d"
+    BUGFIX = "b"
+    FEATURE = "f"
+    BREAKING_CHANGE = "x"
+    SKIP = "s"
+    MISC = "m"
+
+
+# defines the precedence order for provider version bumps
+# BREAKING_CHANGE > FEATURE > BUGFIX > MISC > DOCUMENTATION > SKIP
+precedence_order = {
+    TypeOfChange.SKIP: 0,
+    TypeOfChange.DOCUMENTATION: 1,
+    TypeOfChange.MISC: 2,
+    TypeOfChange.BUGFIX: 3,
+    TypeOfChange.FEATURE: 4,
+    TypeOfChange.BREAKING_CHANGE: 5,
+}
+
 
 class Change(NamedTuple):
     """Stores details about commits"""
@@ -112,12 +136,14 @@ class Change(NamedTuple):
     pr: str | None
 
 
-class TypeOfChange(Enum):
-    DOCUMENTATION = "d"
-    BUGFIX = "b"
-    FEATURE = "f"
-    BREAKING_CHANGE = "x"
-    SKIP = "s"
+def get_most_impactful_change(changes: list[TypeOfChange]):
+    return max(changes, key=lambda change: precedence_order[change])
+
+
+def format_message_for_classification(message):
+    num = re.search(r"#(\d+)", message).group(1)
+    new_message = re.sub(r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message)
+    return new_message
 
 
 class ClassifiedChanges:
@@ -154,17 +180,21 @@ class PrepareReleaseDocsUserQuitException(Exception):
 TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.DOCUMENTATION: "Documentation only changes - no version change needed, "
     "only documentation needs to be updated",
-    TypeOfChange.BUGFIX: "Bugfix/Misc changes only - bump in PATCHLEVEL version needed",
+    TypeOfChange.BUGFIX: "Bugfix changes only - bump in PATCHLEVEL version needed",
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
+    TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
 }
 
 
-def _get_git_log_command(from_commit: str | None = None, to_commit: str | None = None) -> list[str]:
+def _get_git_log_command(
+    folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
+) -> list[str]:
     """Get git command to run for the current repo from the current folder.
 
     The current directory should always be the package folder.
 
+    :param folder_paths: list of folder paths to check for changes
     :param from_commit: if present - base commit from which to start the log from
     :param to_commit: if present - final commit which should be the start of the log
     :return: git command to run
@@ -181,7 +211,8 @@ def _get_git_log_command(from_commit: str | None = None, to_commit: str | None =
         git_cmd.append(from_commit)
     elif to_commit:
         raise ValueError("It makes no sense to specify to_commit without from_commit.")
-    git_cmd.extend(["--", "."])
+    folders = [folder_path.as_posix() for folder_path in folder_paths] if folder_paths else ["."]
+    git_cmd.extend(["--", *folders])
     return git_cmd
 
 
@@ -262,6 +293,7 @@ def _get_all_changes_for_package(
     provider_package_id: str,
     base_branch: str,
     reapply_templates_only: bool,
+    only_min_version_update: bool,
 ) -> tuple[bool, list[list[Change]], str]:
     """Retrieves all changes for the package.
 
@@ -280,18 +312,24 @@ def _get_all_changes_for_package(
         get_console().print(f"[info]Checking if tag '{current_tag_no_suffix}' exist.")
     result = run_command(
         ["git", "rev-parse", current_tag_no_suffix],
-        cwd=provider_details.source_provider_package_path,
+        cwd=AIRFLOW_SOURCES_ROOT,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         check=False,
     )
+    providers_folder_paths = [
+        provider_details.source_provider_package_path,
+        provider_details.old_source_provider_package_path,
+    ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
             get_console().print(f"[info]The tag {current_tag_no_suffix} exists.")
         # The tag already exists
         result = run_command(
-            _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(
+                providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", current_tag_no_suffix
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -306,8 +344,10 @@ def _get_all_changes_for_package(
                 last_doc_only_hash = doc_only_change_file.read_text().strip()
                 try:
                     result = run_command(
-                        _get_git_log_command(f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash),
-                        cwd=provider_details.source_provider_package_path,
+                        _get_git_log_command(
+                            providers_folder_paths, f"{HTTPS_REMOTE}/{base_branch}", last_doc_only_hash
+                        ),
+                        cwd=AIRFLOW_SOURCES_ROOT,
                         capture_output=True,
                         text=True,
                         check=True,
@@ -325,21 +365,24 @@ def _get_all_changes_for_package(
                 except subprocess.CalledProcessError:
                     # ignore when the commit mentioned as last doc-only change is obsolete
                     pass
-            get_console().print(
-                f"[warning]The provider {provider_package_id} has {len(changes.splitlines())} "
-                f"changes since last release[/]"
-            )
-            get_console().print(f"\n[info]Provider: {provider_package_id}[/]\n")
+            if not only_min_version_update:
+                get_console().print(
+                    f"[warning]The provider {provider_package_id} has {len(changes.splitlines())} "
+                    f"changes since last release[/]"
+                )
+                get_console().print(f"\n[info]Provider: {provider_package_id}[/]\n")
             changes_table, array_of_changes = _convert_git_changes_to_table(
                 f"NEXT VERSION AFTER + {provider_details.versions[0]}",
                 changes,
                 base_url="https://github.com/apache/airflow/commit/",
                 markdown=False,
             )
-            _print_changes_table(changes_table)
+            if not only_min_version_update:
+                _print_changes_table(changes_table)
             return False, [array_of_changes], changes_table
         else:
-            get_console().print(f"[info]No changes for {provider_package_id}")
+            if not only_min_version_update:
+                get_console().print(f"[info]No changes for {provider_package_id}")
             return False, [], ""
     if len(provider_details.versions) == 1:
         get_console().print(
@@ -357,8 +400,8 @@ def _get_all_changes_for_package(
     for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         result = run_command(
-            _get_git_log_command(next_version_tag, version_tag),
-            cwd=provider_details.source_provider_package_path,
+            _get_git_log_command(providers_folder_paths, next_version_tag, version_tag),
+            cwd=AIRFLOW_SOURCES_ROOT,
             capture_output=True,
             text=True,
             check=True,
@@ -372,7 +415,7 @@ def _get_all_changes_for_package(
         next_version_tag = version_tag
         current_version = version
     result = run_command(
-        _get_git_log_command(next_version_tag),
+        _get_git_log_command(providers_folder_paths, next_version_tag),
         cwd=provider_details.source_provider_package_path,
         capture_output=True,
         text=True,
@@ -400,8 +443,8 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         get_console().print(
-            "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
-            f"change, (s)kip, (q)uit [{display_answers}]?[/] ",
+            "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
+            f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
         try:
@@ -435,12 +478,12 @@ def _mark_latest_changes_as_documentation_only(
 def _update_version_in_provider_yaml(
     provider_package_id: str,
     type_of_change: TypeOfChange,
-) -> tuple[bool, bool]:
+) -> tuple[bool, bool, str]:
     """
     Updates provider version based on the type of change selected by the user
     :param type_of_change: type of change selected
     :param provider_package_id: provider package
-    :return: tuple of two bools: (with_breaking_change, maybe_with_new_features)
+    :return: tuple of two bools: (with_breaking_change, maybe_with_new_features, original_text)
     """
     provider_details = get_provider_details(provider_package_id)
     version = provider_details.versions[0]
@@ -457,12 +500,16 @@ def _update_version_in_provider_yaml(
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.BUGFIX:
         v = v.bump_patch()
+    elif type_of_change == TypeOfChange.MISC:
+        v = v.bump_patch()
     provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
-    original_text = provider_yaml_path.read_text()
-    new_text = re.sub(r"^versions:", f"versions:\n  - {v}", original_text, 1, re.MULTILINE)
-    provider_yaml_path.write_text(new_text)
+    original_provider_yaml_content = provider_yaml_path.read_text()
+    new_provider_yaml_content = re.sub(
+        r"^versions:", f"versions:\n  - {v}", original_provider_yaml_content, 1, re.MULTILINE
+    )
+    provider_yaml_path.write_text(new_provider_yaml_content)
     get_console().print(f"[special]Bumped version to {v}\n")
-    return with_breaking_changes, maybe_with_new_features
+    return with_breaking_changes, maybe_with_new_features, original_provider_yaml_content
 
 
 def _update_source_date_epoch_in_provider_yaml(
@@ -653,6 +700,7 @@ def update_release_notes(
     base_branch: str,
     regenerate_missing_docs: bool,
     non_interactive: bool,
+    only_min_version_update: bool,
 ) -> tuple[bool, bool]:
     """Updates generated files.
 
@@ -669,15 +717,24 @@ def update_release_notes(
         provider_package_id=provider_package_id,
         base_branch=base_branch,
         reapply_templates_only=reapply_templates_only,
+        only_min_version_update=only_min_version_update,
     )
     with_breaking_changes = False
     maybe_with_new_features = False
+    original_provider_yaml_content: str | None = None
+    marked_for_release = False
     if not reapply_templates_only:
         if proceed:
             if non_interactive:
                 answer = Answer.YES
             else:
-                answer = user_confirm(f"Provider {provider_package_id} marked for release. Proceed?")
+                provider_details = get_provider_details(provider_package_id)
+                current_release_version = provider_details.versions[0]
+                answer = user_confirm(
+                    f"Provider {provider_package_id} with "
+                    f"version: {current_release_version} marked for release. Proceed?"
+                )
+                marked_for_release = answer == Answer.YES
             if answer == Answer.NO:
                 get_console().print(
                     f"\n[warning]Skipping provider: {provider_package_id} on user request![/]\n"
@@ -692,7 +749,37 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+            answer = confirm_action(
+                f"Does the provider: {provider_package_id} have any changes apart from 'doc-only'?"
+            )
+            if answer == Answer.NO:
+                _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+                return with_breaking_changes, maybe_with_new_features
+            change_table_len = len(list_of_list_of_changes[0])
+            table_iter = 0
+            global SHORT_HASH_TO_TYPE_DICT
+            type_of_current_package_changes: list[TypeOfChange] = []
+            while table_iter < change_table_len:
+                get_console().print()
+                formatted_message = format_message_for_classification(
+                    list_of_list_of_changes[0][table_iter].message_without_backticks
+                )
+                get_console().print(
+                    f"[green]Define the type of change for "
+                    f"`{formatted_message}`"
+                    f" by referring to the above table[/]"
+                )
+                type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=non_interactive)
+                change_hash = list_of_list_of_changes[0][table_iter].short_hash
+                SHORT_HASH_TO_TYPE_DICT[change_hash] = type_of_change
+                type_of_current_package_changes.append(type_of_change)
+                table_iter += 1
+                print()
+            most_impactful = get_most_impactful_change(type_of_current_package_changes)
+            get_console().print(
+                f"[info]The version will be bumped because of {most_impactful} kind of change"
+            )
+            type_of_change = most_impactful
             if type_of_change == TypeOfChange.SKIP:
                 raise PrepareReleaseDocsUserSkippedException()
             get_console().print(
@@ -700,20 +787,76 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
-            if type_of_change == TypeOfChange.DOCUMENTATION:
-                _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
-            elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
-                with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
-                    provider_package_id=provider_package_id, type_of_change=type_of_change
+            if type_of_change in [
+                TypeOfChange.BUGFIX,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+                TypeOfChange.MISC,
+            ]:
+                with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
+                    _update_version_in_provider_yaml(
+                        provider_package_id=provider_package_id, type_of_change=type_of_change
+                    )
                 )
                 _update_source_date_epoch_in_provider_yaml(provider_package_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_package_id=provider_package_id,
                 base_branch=base_branch,
                 reapply_templates_only=reapply_templates_only,
+                only_min_version_update=only_min_version_update,
             )
     else:
         _update_source_date_epoch_in_provider_yaml(provider_package_id)
+
+    provider_details = get_provider_details(provider_package_id)
+    current_release_version = provider_details.versions[0]
+    if (not non_interactive) and (not marked_for_release):
+        answer = user_confirm(
+            f"Do you want to leave the version for {provider_package_id} with version: "
+            f"{current_release_version} as is for the release?"
+        )
+    else:
+        answer = Answer.YES
+
+    if answer == Answer.NO:
+        if original_provider_yaml_content is not None:
+            # Restore original content of the provider.yaml
+            (get_source_package_path(provider_package_id) / "provider.yaml").write_text(
+                original_provider_yaml_content
+            )
+            clear_cache_for_provider_metadata(provider_package_id)
+
+        type_of_change = _ask_the_user_for_the_type_of_changes(non_interactive=False)
+        if type_of_change == TypeOfChange.SKIP:
+            raise PrepareReleaseDocsUserSkippedException()
+        get_console().print(
+            f"[info]Provider {provider_package_id} has been classified as:[/]\n\n"
+            f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
+        )
+        get_console().print()
+        if type_of_change == TypeOfChange.DOCUMENTATION:
+            _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
+        elif type_of_change in [
+            TypeOfChange.BUGFIX,
+            TypeOfChange.FEATURE,
+            TypeOfChange.BREAKING_CHANGE,
+            TypeOfChange.MISC,
+        ]:
+            with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
+                provider_package_id=provider_package_id,
+                type_of_change=type_of_change,
+            )
+            _update_source_date_epoch_in_provider_yaml(provider_package_id)
+            proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
+                provider_package_id=provider_package_id,
+                base_branch=base_branch,
+                reapply_templates_only=reapply_templates_only,
+                only_min_version_update=only_min_version_update,
+            )
+    else:
+        get_console().print(
+            f"[info] Proceeding with provider: {provider_package_id} version as {current_release_version}"
+        )
     provider_details = get_provider_details(provider_package_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(
@@ -765,30 +908,32 @@ def _find_insertion_index_for_version(content: list[str], version: str) -> tuple
 def _get_changes_classified(
     changes: list[Change], with_breaking_changes: bool, maybe_with_new_features: bool
 ) -> ClassifiedChanges:
-    """Pre-classifies changes based on commit message, it's wildly guessing now,
+    """
+    Pre-classifies changes based on their type_of_change attribute derived based on release manager's call.
 
-    The classification also includes the decision made by the release manager when classifying the release.
+    The classification is based on the decision made by the release manager when classifying the release.
+    If we switch to semantic commits, this process could be automated. This list is still supposed to be
+    manually reviewed and re-classified by the release manager if needed.
 
-    However, if we switch to semantic commits, it could be automated. This list
-    is supposed to be manually reviewed and re-classified by release manager
-    anyway.
-
-    :param changes: list of changes
-    :return: list of changes classified semi-automatically to the fix/feature/breaking/other buckets
+    :param changes: list of changes to be classified
+    :param with_breaking_changes: whether to include breaking changes in the classification
+    :param maybe_with_new_features: whether to include new features in the classification
+    :return: ClassifiedChanges object containing changes classified into fixes, features, breaking changes,
+    misc.
     """
     classified_changes = ClassifiedChanges()
     for change in changes:
-        # Special cases
-        if "bump minimum Airflow version in providers" in change.message.lower():
-            classified_changes.misc.append(change)
-        # General cases
-        elif "fix" in change.message.lower():
+        type_of_change = None
+        if change.short_hash in SHORT_HASH_TO_TYPE_DICT:
+            type_of_change = SHORT_HASH_TO_TYPE_DICT[change.short_hash]
+
+        if type_of_change == TypeOfChange.BUGFIX:
             classified_changes.fixes.append(change)
-        elif "misc" in change.message.lower():
+        elif type_of_change == TypeOfChange.MISC:
             classified_changes.misc.append(change)
-        elif "add" in change.message.lower() and maybe_with_new_features:
+        elif type_of_change == TypeOfChange.FEATURE and maybe_with_new_features:
             classified_changes.features.append(change)
-        elif "breaking" in change.message.lower() and with_breaking_changes:
+        elif type_of_change == TypeOfChange.BREAKING_CHANGE and with_breaking_changes:
             classified_changes.breaking_changes.append(change)
         else:
             classified_changes.other.append(change)
@@ -913,6 +1058,7 @@ def update_changelog(
     reapply_templates_only: bool,
     with_breaking_changes: bool,
     maybe_with_new_features: bool,
+    only_min_version_update: bool,
 ):
     """Internal update changelog method.
 
@@ -929,12 +1075,16 @@ def update_changelog(
         maybe_with_new_features=maybe_with_new_features,
     )
     proceed, changes, _ = _get_all_changes_for_package(
-        provider_package_id=package_id, base_branch=base_branch, reapply_templates_only=reapply_templates_only
+        provider_package_id=package_id,
+        base_branch=base_branch,
+        reapply_templates_only=reapply_templates_only,
+        only_min_version_update=only_min_version_update,
     )
     if not proceed:
-        get_console().print(
-            f"[warning]The provider {package_id} is not being released. Skipping the package.[/]"
-        )
+        if not only_min_version_update:
+            get_console().print(
+                f"[warning]The provider {package_id} is not being released. Skipping the package.[/]"
+            )
         raise PrepareReleaseDocsNoChangesException()
     if reapply_templates_only:
         get_console().print("[info]Only reapply templates, no changelog update[/]")

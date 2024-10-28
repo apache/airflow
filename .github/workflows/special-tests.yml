@@ -40,6 +40,14 @@ on:  # yamllint disable-line rule:truthy
         description: "Which version of python should be used by default"
         required: true
         type: string
+      excluded-providers-as-string:
+        description: "Excluded providers (per Python version) as json string"
+        required: true
+        type: string
+      python-versions:
+        description: "The list of python versions (stringified JSON array) to run the tests on."
+        required: true
+        type: string
       default-postgres-version:
         description: "The default version of the postgres to use"
         required: true
@@ -73,6 +81,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -95,50 +104,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-
-  tests-pydantic-v1:
-    name: "Pydantic v1 test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      pydantic: "v1"
-      test-name: "Pydantic-V1-Postgres"
-      test-scope: "All"
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-
-  tests-pydantic-none:
-    name: "Pydantic removed test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      pydantic: "none"
-      test-name: "Pydantic-Removed-Postgres"
-      test-scope: "All"
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -161,6 +127,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -183,6 +150,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -204,6 +172,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -225,6 +194,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
@@ -246,6 +216,7 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
       backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}

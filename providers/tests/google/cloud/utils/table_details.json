@@ -1,0 +1,53 @@
+{
+  "kind": "bigquery#table",
+  "etag": "L7YwMYGtkofoiqqF8tXSDA==",
+  "id": "bigquery-public-data:usa_names.usa_1910_2013",
+  "selfLink": "https://bigquery.googleapis.com/bigquery/v2/projects/bigquery-public-data/datasets/usa_names/tables/usa_1910_2013",
+  "tableReference": {
+    "projectId": "bigquery-public-data",
+    "datasetId": "usa_names",
+    "tableId": "usa_1910_2013"
+  },
+  "description": "The table contains the number of applicants for a Social Security card by year of birth and sex. The number of such applicants is restricted to U.S. births where the year of birth, sex, State of birth (50 States and District of Columbia) are known, and where the given name is at least 2 characters long.\n\nsource: http://www.ssa.gov/OACT/babynames/limits.html",
+  "schema": {
+    "fields": [
+      {
+        "name": "state",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "2-digit state code"
+      },
+      {
+        "name": "gender",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Sex (M=male or F=female)"
+      },
+      {
+        "name": "year",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+        "description": "4-digit year of birth"
+      },
+      {
+        "name": "name",
+        "type": "STRING",
+        "mode": "NULLABLE",
+        "description": "Given name of a person at birth"
+      },
+      {
+        "name": "number",
+        "type": "INTEGER",
+        "mode": "NULLABLE",
+        "description": "Number of occurrences of the name"
+      }
+    ]
+  },
+  "numBytes": "171432506",
+  "numLongTermBytes": "171432506",
+  "numRows": "5552452",
+  "creationTime": "1457744542425",
+  "lastModifiedTime": "1457746213452",
+  "type": "TABLE",
+  "location": "US"
+}

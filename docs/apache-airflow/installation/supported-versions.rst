@@ -21,7 +21,7 @@ Supported versions
 Version Life Cycle
 ``````````````````
 
-Apache Airflow™ version life cycle:
+Apache Airflow® version life cycle:
 
  .. This table is automatically updated by pre-commit scripts/ci/pre_commit/supported_versions.py
  .. Beginning of auto-generated table
@@ -29,7 +29,7 @@ Apache Airflow™ version life cycle:
 =========  =====================  =========  ===============  =================  ================
 Version    Current Patch/Minor    State      First Release    Limited Support    EOL/Terminated
 =========  =====================  =========  ===============  =================  ================
-2          2.9.0                  Supported  Dec 17, 2020     TBD                TBD
+2          2.10.2                 Supported  Dec 17, 2020     TBD                TBD
 1.10       1.10.15                EOL        Aug 27, 2018     Dec 17, 2020       June 17, 2021
 1.9        1.9.0                  EOL        Jan 03, 2018     Aug 27, 2018       Aug 27, 2018
 1.8        1.8.2                  EOL        Mar 19, 2017     Jan 03, 2018       Jan 03, 2018
@@ -60,8 +60,8 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 
 2. The "oldest" supported version of Python/Kubernetes is the default one. "Default" is only meaningful
    in terms of "smoke tests" in CI PRs which are run using this default version and default reference
-   image available in DockerHub. Currently the ``apache/airflow:latest`` and ``apache/airflow:2.5.2`` images
-   are Python 3.8 images, however, in the first MINOR/MAJOR release of Airflow released after 14.09.2023,
+   image available in DockerHub. Currently the ``apache/airflow:latest`` and ``apache/airflow:2.10.2`` images
+   are Python 3.8 images, however, in the first MINOR/MAJOR release of Airflow released after 2024-10-14,
    they will become Python 3.9 images.
 
 3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we

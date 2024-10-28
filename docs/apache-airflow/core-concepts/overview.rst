@@ -52,7 +52,7 @@ A minimal Airflow installation consists of the following components:
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
   DAGs and tasks.
 
-* A folder of *DAG files* is read by the *scheduler* to figure out what tasks to run and when and to
+* A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
 * A *metadata database*, which airflow components use to store state of workflows and tasks.
@@ -163,7 +163,7 @@ DAGs and tasks, but cannot author DAGs.
 
 The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
 *triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
-ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` ot our
+ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
@@ -232,7 +232,7 @@ To pass data between tasks you have three options:
 
 Airflow sends out Tasks to run on Workers as space becomes available, so there's no guarantee all the tasks in your DAG will run on the same worker or the same machine.
 
-As you build out your DAGs, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable - :ref:`SubDAGs <concepts:subdags>` let you make "reusable" DAGs you can embed into other ones, and :ref:`concepts:taskgroups` let you visually group tasks in the UI.
+As you build out your DAGs, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable, example :ref:`concepts:taskgroups` let you visually group tasks in the UI.
 
 There are also features for letting you easily pre-configure access to a central resource, like a datastore, in the form of :doc:`../authoring-and-scheduling/connections`, and for limiting concurrency, via :doc:`../administration-and-deployment/pools`.
 

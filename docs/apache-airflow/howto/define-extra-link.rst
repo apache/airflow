@@ -99,7 +99,11 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       operators = [GCSToS3Operator]
 
       def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
+          # Invalid bucket name because upper case letters and underscores are used
+          # This will not be a valid bucket in any region
+          bucket_name = "Invalid_Bucket_Name"
+          return "https://s3.amazonaws.com/airflow-logs/{bucket_name}/{dag_id}/{task_id}/{run_id}".format(
+              bucket_name=bucket_name,
               dag_id=operator.dag_id,
               task_id=operator.task_id,
               run_id=ti_key.run_id,

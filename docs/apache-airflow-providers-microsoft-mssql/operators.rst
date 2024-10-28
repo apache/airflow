@@ -17,18 +17,21 @@
 
 .. _howto/operator:MsSqlOperator:
 
-MsSqlOperator
-=============
+Connect to MSSQL using SQLExecuteQueryOperator
+==============================================
 
-The purpose of MSSQL Operator is to define tasks involving interactions with the MSSQL database.
+The purpose of this guide is to define tasks involving interactions with the MSSQL database using SQLExecuteQueryOperator.
 
-Use the :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator` to execute
+Use the :class:`SQLExecuteQueryOperator <airflow.providers.common.sql.operators.sql>` to execute
 SQL commands in MSSQL database.
 
-Common Database Operations with MsSqlOperator
-------------------------------------------------
+.. warning::
+    Previously, MsSqlOperator was used to perform this kind of operation. But at the moment MsSqlOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
 
-To use the mssql operator to carry out SQL request, two parameters are required: ``sql`` and ``mssql_conn_id``.
+Common Database Operations with SQLExecuteQueryOperator
+-------------------------------------------------------
+
+To use the SQLExecuteQueryOperator to execute SQL queries against an MSSQL database, two parameters are required: ``sql`` and ``conn_id``.
 These two parameters are eventually fed to the MSSQL hook object that interacts directly with the MSSQL database.
 
 Creating a MSSQL database table
@@ -36,9 +39,9 @@ Creating a MSSQL database table
 
 The code snippets below are based on Airflow-2.2
 
-An example usage of the MsSqlOperator is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to MSSQL is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START howto_operator_mssql]
     :end-before: [END howto_operator_mssql]
@@ -46,7 +49,7 @@ An example usage of the MsSqlOperator is as follows:
 You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 This way you can easily maintain the SQL queries separated from the code.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START mssql_operator_howto_guide_create_table_mssql_from_external_file]
     :end-before: [END mssql_operator_howto_guide_create_table_mssql_from_external_file]
@@ -66,9 +69,9 @@ Your ``dags/create_table.sql`` should look like this:
 
 Inserting data into a MSSQL database table
 ---------------------------------------------
-We can then create a MsSqlOperator task that populate the ``Users`` table.
+We can then create a SQLExecuteQueryOperator task that populate the ``Users`` table.
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START mssql_operator_howto_guide_populate_user_table]
     :end-before: [END mssql_operator_howto_guide_populate_user_table]
@@ -79,32 +82,32 @@ Fetching records from your MSSQL database table
 
 Fetching records from your MSSQL database table can be as simple as:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START mssql_operator_howto_guide_get_all_countries]
     :end-before: [END mssql_operator_howto_guide_get_all_countries]
 
 
-Passing Parameters into MsSqlOperator
-----------------------------------------
+Passing Parameters into SQLExecuteQueryOperator
+-----------------------------------------------
 
-MsSqlOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
+SQLExecuteQueryOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
 SQL requests during runtime.
 
 To find the countries in Asian continent:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START mssql_operator_howto_guide_params_passing_get_query]
     :end-before: [END mssql_operator_howto_guide_params_passing_get_query]
 
 
-The complete MSSQL Operator DAG
-----------------------------------
+The complete SQLExecuteQueryOperator DAG to connect to MSSQL
+------------------------------------------------------------
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/mssql/example_mssql.py
     :language: python
     :start-after: [START mssql_operator_howto_guide]
     :end-before: [END mssql_operator_howto_guide]

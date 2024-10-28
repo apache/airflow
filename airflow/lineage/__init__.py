@@ -104,7 +104,7 @@ def prepare_lineage(func: T) -> T:
     * "auto" -> picks up any outlets from direct upstream tasks that have outlets defined, as such that
       if A -> B -> C and B does not have outlets but A does, these are provided as inlets.
     * "list of task_ids" -> picks up outlets from the upstream task_ids
-    * "list of datasets" -> manually defined list of data
+    * "list of datasets" -> manually defined list of dataset
 
     """
 
@@ -130,10 +130,10 @@ def prepare_lineage(func: T) -> T:
             # Remove auto and task_ids
             self.inlets = [i for i in self.inlets if not isinstance(i, str)]
 
-            # We manually create a session here since xcom_pull returns a LazyXComAccess iterator.
-            # If we do not pass a session a new session will be created, however that session will not be
-            # properly closed and will remain open. After we are done iterating we can safely close this
-            # session.
+            # We manually create a session here since xcom_pull returns a
+            # LazySelectSequence proxy. If we do not pass a session, a new one
+            # will be created, but that session will not be properly closed.
+            # After we are done iterating, we can safely close this session.
             with create_session() as session:
                 _inlets = self.xcom_pull(
                     context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session

@@ -17,8 +17,27 @@
  under the License.
 #}
 
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
 {% extends base_template %}
-{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
+{% from 'airflow/asset_next_run_modal.html' import asset_next_run_modal %}
 {% from 'appbuilder/dag_docs.html' import dag_docs %}
 
 {% block page_title %}{{ dag.dag_display_name }} - {{ appbuilder.app_name }}{% endblock %}
@@ -58,9 +77,10 @@
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="graph_data_url" content="{{ url_for('Airflow.graph_data') }}">
   <meta name="calendar_data_url" content="{{ url_for('Airflow.calendar_data') }}">
-  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
+  <meta name="next_run_assets_url" content="{{ url_for('Airflow.next_run_assets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
-  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
+  <meta name="task_tries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance_tries', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
+  <meta name="assets_url" content="{{ url_for('Airflow.assets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
@@ -72,18 +92,21 @@
   <meta name="task_log_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_log_endpoint_get_log', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', task_try_number='-1') }}">
   <meta name="task_xcom_entries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entries', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="task_xcom_entry_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entry', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', xcom_key='_XCOM_KEY_') }}">
-  <meta name="upstream_dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_dataset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
-  <meta name="task_instance_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
+  <meta name="upstream_asset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_asset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
+  <meta name="task_instance_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="set_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_' ) }}">
   <meta name="set_mapped_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_mapped_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0 ) }}">
   <meta name="set_dag_run_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_set_dag_run_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
   <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
   <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
   <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
-  <meta name="datasets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_datasets') }}">
+  <meta name="assets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_assets') }}">
   <meta name="event_logs_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_event_log_endpoint_get_event_logs') }}">
   <meta name="audit_log_url" content="{{ url_for('LogModelView.list') }}">
   <meta name="dag_run_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_dag_run', dag_id='__DAG_ID__', dag_run_id='__DAG_RUN_ID__') }}">
+  <meta name="task_dependency_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance_dependencies', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
+  <meta name="mapped_task_dependency_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instance_dependencies', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0) }}">
+  <meta name="task_detail_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_endpoint_get_task', dag_id=dag.dag_id, task_id='_TASK_ID_') }}">
 
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">
@@ -106,78 +129,68 @@
 {% endblock %}
 
 {% block content %}
-  {% if dag.parent_dag is defined and dag.parent_dag %}
-    <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
-      <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
-      DAG: <span title="{{ dag.parent_dag.dag_id }}">{{ dag.parent_dag.dag_display_name }}</span></a>
-  {% endif %}
-
   <div style="display: flex; align-items: center; justify-content: space-between;">
     <div>
       <h3>
-        {% if dag.parent_dag is defined and dag.parent_dag %}
-          <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
+        {% if can_edit_dag %}
+          {% set switch_tooltip = 'Pause/Unpause DAG' %}
         {% else %}
-          {% if can_edit_dag %}
-            {% set switch_tooltip = 'Pause/Unpause DAG' %}
-          {% else %}
-            {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
-          {% endif %}
-          <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
-            <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                   data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
-                   type="checkbox"{{ " checked" if not dag_is_paused else "" }}
-                   {{ " disabled" if not can_edit_dag else "" }}>
-            <span class="switch" aria-hidden="true"></span>
-          </label>
-          <span class="text-muted">DAG:</span> <span title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</span>
-          <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
-          {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
-           <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
-            {% endif %}
+          {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
+        {% endif %}
+        <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
+                  {{ "data-require-confirmation" if appbuilder.require_confirmation_dag_change else "" }}
+                  type="checkbox"{{ " checked" if not dag_is_paused else "" }}
+                  {{ " disabled" if not can_edit_dag else "" }}>
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <span class="text-muted">DAG:</span> <span title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</span>
+        <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
+        {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
+          <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
         {% endif %}
       </h3>
     </div>
     <div>
-      <h4 class="js-dataset-triggered" style="user-select: none;-moz-user-select: auto; display: inline-block;">
+      <h4 class="js-asset-triggered" style="user-select: none;-moz-user-select: auto; display: inline-block;">
         {% if state_token is defined and state_token %}
           {{ state_token }}
         {% endif %}
         <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-          Schedule: {{ dag_model is defined and dag_model and dag_model.schedule_interval }}
+          Schedule: {{ dag_model is defined and dag_model and dag_model.timetable_summary }}
         </a>
         {% if dag_model is defined and dag_model and dag_model.timetable_description %}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag_model.timetable_description|string }}">info</span>
         {% endif %}
-        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.schedule_interval != 'Dataset' %}
+        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.asset_expression != None %}
           <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
             Next Run ID: <time datetime="{{ dag_model.next_dagrun }}" data-with-tz="true">{{ dag_model.next_dagrun }}</time>
           </p>
         {% endif %}
-        {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
-          {%- with ds_info = dag_model.get_dataset_triggered_next_run_info() -%}
+        {% if dag_model is defined and dag_model.asset_expression is defined and dag_model.asset_expression != None %}
+          {%- with asset_info = dag_model.get_asset_triggered_next_run_info() -%}
             <span
-              id="next-dataset-tooltip"
+              id="next-asset-tooltip"
               class="js-tooltip"
-              title="Click to see dataset details."
+              title="Click to see asset details."
               data-html="true"
               data-placement="bottom"
-              data-uri="{{ ds_info.uri }}"
+              data-uri="{{ asset_info.uri }}"
             >
                 <p
-                  class="label label-default next-dataset-triggered"
+                  class="label label-default next-asset-triggered"
                   style="margin-left: 5px;"
                   data-summary="
-                    {%- if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                    {%- if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                     {%- else -%}
-                    {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                    {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                     {%- endif -%}"
                   >
-                  {% if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                  {% if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                   {%- else -%}
-                  {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                  {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                   {%- endif %}
                 </p>
             </span>
@@ -228,6 +241,12 @@
             <span class="material-icons" aria-hidden="true">play_arrow</span>
         </a>
         {% endif %}
+        <a href="{{ url_for('Airflow.parse_dag', file_token=dag_file_token, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}"
+           title="Reparse&nbsp;DAG"
+           aria-label="Reparse DAG"
+           class="btn btn-default btn-icon-only {{ ' disabled' if not dag.can_edit }}">
+          <span class="material-icons">restore_page</span>
+        </a>
         <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}"
           title="Delete&nbsp;DAG"
           aria-label="Delete DAG"
@@ -240,8 +259,8 @@
   </div>
   <div class="clearfix"></div>
   {{ dag_docs(doc_md) }}
-  <!-- Modal for dataset-triggered next run -->
-  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
+  <!-- Modal for asset-triggered next run -->
+  {{ asset_next_run_modal(id='asset-next-run-modal') }}
 {% endblock %}
 {% block tail %}
   {{ super() }}

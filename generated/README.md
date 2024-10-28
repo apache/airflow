@@ -36,3 +36,20 @@ You can read more about pre-commit hooks [here](../contributing-docs/08_static_c
   focusing on select sections. This subset is produced by the `generate-pypi-readme` pre-commit hook specified in
   the `.pre-commit-config.yaml` file. This hook triggers automatically whenever the related sections in the
   `README.md` change, ensuring alignment between the two files.
+
+* `devel_deps.txt` is a file containing development-only dependencies of Airflow. They were generated
+  for Airflow 2.9.3 by running `./dev/get_devel_deps.sh` script.
+
+* `dep_tree.txt` is a file containing the dependency tree of Airflow. It was generated for Airflow 2.9.3
+  by running this inside breeze:
+
+```bash
+uv tree --no-dedupe  > /opt/airflow/generated/dep_tree.txt
+```
+
+* `dependency_depth.json` is a fie containing the dependency depth of Airflow. It was generated for Airflow 2.9.3
+  by running this inside breeze:
+
+```bash
+cat /opt/airflow/generated/dep_tree.txt | python /opt/airflow/scripts/in_container/get_dependency_status.py >/opt/airflow/generated/dependency_depth.json
+```

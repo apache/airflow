@@ -36,7 +36,7 @@ from airflow.exceptions import (
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.helpers import validate_group_key
+from airflow.utils.helpers import validate_group_key, validate_instance_args
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -48,6 +48,21 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DependencyMixin
     from airflow.utils.edgemodifier import EdgeModifier
+
+# TODO: The following mapping is used to validate that the arguments passed to the TaskGroup are of the
+#  correct type. This is a temporary solution until we find a more sophisticated method for argument
+#  validation. One potential method is to use get_type_hints from the typing module. However, this is not
+#  fully compatible with future annotations for Python versions below 3.10. Once we require a minimum Python
+#  version that supports `get_type_hints` effectively or find a better approach, we can replace this
+#  manual type-checking method.
+TASKGROUP_ARGS_EXPECTED_TYPES = {
+    "group_id": str,
+    "prefix_group_id": bool,
+    "tooltip": str,
+    "ui_color": str,
+    "ui_fgcolor": str,
+    "add_suffix_on_collision": bool,
+}
 
 
 class TaskGroup(DAGNode):
@@ -160,6 +175,8 @@ class TaskGroup(DAGNode):
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
 
+        validate_instance_args(self, TASKGROUP_ARGS_EXPECTED_TYPES)
+
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
             return
@@ -209,7 +226,8 @@ class TaskGroup(DAGNode):
                 yield child
 
     def add(self, task: DAGNode) -> DAGNode:
-        """Add a task to this TaskGroup.
+        """
+        Add a task to this TaskGroup.
 
         :meta private:
         """
@@ -351,12 +369,12 @@ class TaskGroup(DAGNode):
 
     @property
     def roots(self) -> list[BaseOperator]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return list(self.get_roots())
 
     @property
     def leaves(self) -> list[BaseOperator]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
@@ -473,7 +491,7 @@ class TaskGroup(DAGNode):
             self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
         )
 
-    def topological_sort(self, _include_subdag_tasks: bool = False):
+    def topological_sort(self):
         """
         Sorts children in topographical order, such that a task comes after any of its upstream dependencies.
 
@@ -481,8 +499,6 @@ class TaskGroup(DAGNode):
         """
         # This uses a modified version of Kahn's Topological Sort algorithm to
         # not have to pre-compute the "in-degree" of the nodes.
-        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
-
         graph_unsorted = copy.copy(self.children)
 
         graph_sorted: list[DAGNode] = []
@@ -521,10 +537,6 @@ class TaskGroup(DAGNode):
                     acyclic = True
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
-                    if _include_subdag_tasks and isinstance(node, SubDagOperator):
-                        graph_sorted.extend(
-                            node.subdag.task_group.topological_sort(_include_subdag_tasks=True)
-                        )
 
             if not acyclic:
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
@@ -532,7 +544,8 @@ class TaskGroup(DAGNode):
         return graph_sorted
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
-        """Return mapped task groups in the hierarchy.
+        """
+        Return mapped task groups in the hierarchy.
 
         Groups are returned from the closest to the outmost. If *self* is a
         mapped task group, it is returned first.
@@ -566,7 +579,8 @@ class TaskGroup(DAGNode):
 
 
 class MappedTaskGroup(TaskGroup):
-    """A mapped task group.
+    """
+    A mapped task group.
 
     This doesn't really do anything special, just holds some additional metadata
     for expansion later.

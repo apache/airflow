@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   qdrant:
-    image: qdrant/qdrant:v1.9.0
+    image: qdrant/qdrant:v1.10.1
     labels:
       breeze.description: "Integration required for Qdrant tests."
     ports:

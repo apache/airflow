@@ -164,7 +164,7 @@ This is equivalent to the :doc:`Viewer role in Flask AppBuilder <apache-airflow-
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
       Airflow::Action::"Variable.GET",
-      Airflow::Action::"Dataset.GET",
+      Airflow::Action::"Asset.GET",
       Airflow::Action::"View.GET"
     ],
     resource
@@ -187,7 +187,7 @@ This is equivalent to the :doc:`User role in Flask AppBuilder <apache-airflow-pr
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
       Airflow::Action::"Variable.GET",
-      Airflow::Action::"Dataset.GET",
+      Airflow::Action::"Asset.GET",
       Airflow::Action::"View.GET",
       Airflow::Action::"Dag.POST",
       Airflow::Action::"Dag.PUT",
@@ -213,7 +213,7 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
       Airflow::Action::"Menu.MENU",
       Airflow::Action::"Pool.GET",
       Airflow::Action::"Variable.GET",
-      Airflow::Action::"Dataset.GET",
+      Airflow::Action::"Asset.GET",
       Airflow::Action::"View.GET",
       Airflow::Action::"Dag.POST",
       Airflow::Action::"Dag.PUT",
@@ -227,9 +227,9 @@ This is equivalent to the :doc:`Op role in Flask AppBuilder <apache-airflow-prov
       Airflow::Action::"Variable.POST",
       Airflow::Action::"Variable.PUT",
       Airflow::Action::"Variable.DELETE",
-      Airflow::Action::"Dataset.POST",
-      Airflow::Action::"Dataset.PUT",
-      Airflow::Action::"Dataset.DELETE",
+      Airflow::Action::"Asset.POST",
+      Airflow::Action::"Asset.PUT",
+      Airflow::Action::"Asset.DELETE",
 
     ],
     resource

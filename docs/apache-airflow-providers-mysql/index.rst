@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/mysql/index>
+    System Tests <_api/tests/system/mysql/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-mysql/|version|/tests/system/providers/mysql/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-mysql/|version|/providers/tests/system/mysql/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-mysql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-mysql package
 `MySQL <https://www.mysql.com/>`__
 
 
-Release: 5.6.0
+Release: 5.7.3
 
 Provider package
 ----------------
@@ -95,14 +95,14 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.7.0``
-``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``mysqlclient``                          ``>=1.3.6``
+``apache-airflow``                       ``>=2.8.0``
+``apache-airflow-providers-common-sql``  ``>=1.17.0``
+``mysqlclient``                          ``>=1.4.0``
 ``mysql-connector-python``               ``>=8.0.29``
 =======================================  ==================
 
@@ -136,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 5.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.6.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 5.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.6.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 5.7.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 5.7.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.7.3-py3-none-any.whl.sha512>`__)

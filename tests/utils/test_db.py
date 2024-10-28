@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import re
 from contextlib import redirect_stdout
@@ -31,15 +32,12 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import MetaData, Table
-from sqlalchemy.sql import Select
+from sqlalchemy import MetaData
 
-from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
     _get_alembic_config,
-    check_bad_references,
     check_migrations,
     compare_server_default,
     compare_type,
@@ -51,9 +49,11 @@ from airflow.utils.db import (
     resetdb,
     upgradedb,
 )
-from airflow.utils.session import NEW_SESSION
+from airflow.utils.db_manager import RunDBManager
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.config import conf_vars
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDb:
@@ -62,8 +62,14 @@ class TestDb:
 
         airflow.models.import_all_models()
         all_meta_data = MetaData()
+        # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
+        # External DB Managers
+        external_db_managers = RunDBManager()
+        for dbmanager in external_db_managers._managers:
+            for table_name, table in dbmanager.metadata.tables.items():
+                all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
@@ -71,6 +77,7 @@ class TestDb:
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
         )
         diff = compare_metadata(mctx, all_meta_data)
+
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
@@ -87,6 +94,8 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
+            # fab version table
+            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
         ]
 
         for ignore in ignores:
@@ -125,7 +134,8 @@ class TestDb:
     @mock.patch("alembic.command")
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
+        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+        assert mock_alembic_command.upgrade.call_count == 2
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
@@ -134,7 +144,7 @@ class TestDb:
     def test_offline_upgrade_wrong_order(self, from_revision, to_revision):
         with mock.patch("airflow.utils.db.settings.engine.dialect"):
             with mock.patch("alembic.command.upgrade"):
-                with pytest.raises(ValueError, match="to.* revision .* older than .*from"):
+                with pytest.raises(ValueError, match="Error while checking history for revision range *:*"):
                     upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
 
     @pytest.mark.parametrize(
@@ -151,43 +161,23 @@ class TestDb:
                 stdout = temp_stdout.getvalue()
                 assert "nothing to do" in stdout
 
-    @pytest.mark.parametrize(
-        "from_revision, to_revision",
-        [("90d1635d7b86", "54bebd308c5f"), ("e959f08ac86c", "587bdf053233")],
-    )
-    def test_offline_upgrade_revision(self, from_revision, to_revision):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with mock.patch("alembic.command.upgrade") as mock_alembic_upgrade:
-                upgradedb(from_revision=from_revision, to_revision=to_revision, show_sql_only=True)
-        mock_alembic_upgrade.assert_called_once_with(mock.ANY, f"{from_revision}:{to_revision}", sql=True)
-
     @mock.patch("airflow.utils.db._offline_migration")
     @mock.patch("airflow.utils.db._get_current_revision")
-    def test_offline_upgrade_no_versions(self, mock_gcr, mock_om):
+    def test_offline_upgrade_no_versions(self, mock_gcr, mock_om, caplog):
         """Offline upgrade should work with no version / revision options."""
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
-            dialect.name = "postgresql"  # offline migration not supported with postgres
-            mock_gcr.return_value = "90d1635d7b86"
+            dialect.name = "postgresql"  # offline migration supported with postgres
+            mock_gcr.return_value = "22ed7efa9da2"
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
             actual = mock_om.call_args.args[2]
-            assert re.match(r"90d1635d7b86:[a-z0-9]+", actual) is not None
+            assert re.match(r"22ed7efa9da2:[a-z0-9]+", actual) is not None
 
-    def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect"):
-            with pytest.raises(ValueError, match="Check that e1a11ece99cc is a valid revision"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
-
-    def test_sqlite_offline_upgrade_raises_with_revision(self):
+    @mock.patch("airflow.utils.db._get_current_revision")
+    def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr):
         with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
             dialect.name = "sqlite"
-            with pytest.raises(AirflowException, match="Offline migration not supported for SQLite"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
-
-    def test_offline_upgrade_fails_for_migration_less_than_2_2_0_head_for_mssql(self):
-        with mock.patch("airflow.utils.db.settings.engine.dialect") as dialect:
-            dialect.name = "mssql"
-            with pytest.raises(ValueError, match="Check that .* is a valid .* For dialect 'mssql'"):
-                upgradedb(from_revision="e1a11ece99cc", to_revision="54bebd308c5f", show_sql_only=True)
+            with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
+                upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
 
     @mock.patch("airflow.utils.db._offline_migration")
     def test_downgrade_sql_no_from(self, mock_om):
@@ -214,6 +204,10 @@ class TestDb:
         assert actual == "abc"
 
     @pytest.mark.parametrize("skip_init", [False, True])
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
     @mock.patch("airflow.utils.db.drop_airflow_models")
     @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
@@ -225,6 +219,7 @@ class TestDb:
         mock_init,
         mock_drop_moved,
         mock_drop_airflow,
+        mock_fabdb_manager,
         skip_init,
     ):
         session_mock = MagicMock()
@@ -234,7 +229,15 @@ class TestDb:
         if skip_init:
             mock_init.assert_not_called()
         else:
-            mock_init.assert_called_once_with(session=session_mock, use_migration_files=False)
+            mock_init.assert_called_once_with(session=session_mock)
+
+    def test_resetdb_logging_level(self):
+        unset_logging_level = logging.root.level
+        logging.root.setLevel(logging.DEBUG)
+        set_logging_level = logging.root.level
+        resetdb()
+        assert logging.root.level == set_logging_level
+        assert logging.root.level != unset_logging_level
 
     def test_alembic_configuration(self):
         with mock.patch.dict(
@@ -248,82 +251,3 @@ class TestDb:
         import airflow
 
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
-
-    @mock.patch("airflow.utils.db._move_dangling_data_to_new_table")
-    @mock.patch("airflow.utils.db.get_query_count")
-    @mock.patch("airflow.utils.db._dangling_against_task_instance")
-    @mock.patch("airflow.utils.db._dangling_against_dag_run")
-    @mock.patch("airflow.utils.db.reflect_tables")
-    @mock.patch("airflow.utils.db.inspect")
-    def test_check_bad_references(
-        self,
-        mock_inspect: MagicMock,
-        mock_reflect_tables: MagicMock,
-        mock_dangling_against_dag_run: MagicMock,
-        mock_dangling_against_task_instance: MagicMock,
-        mock_get_query_count: MagicMock,
-        mock_move_dangling_data_to_new_table: MagicMock,
-    ):
-        from airflow.models.dagrun import DagRun
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-        from airflow.models.taskfail import TaskFail
-        from airflow.models.taskinstance import TaskInstance
-        from airflow.models.taskreschedule import TaskReschedule
-        from airflow.models.xcom import XCom
-
-        mock_session = MagicMock(spec=NEW_SESSION)
-        mock_bind = MagicMock()
-        mock_session.get_bind.return_value = mock_bind
-        task_instance_table = MagicMock(spec=Table)
-        task_instance_table.name = TaskInstance.__tablename__
-        dag_run_table = MagicMock(spec=Table)
-        task_fail_table = MagicMock(spec=Table)
-        task_fail_table.name = TaskFail.__tablename__
-
-        mock_reflect_tables.return_value = MagicMock(
-            tables={
-                DagRun.__tablename__: dag_run_table,
-                TaskInstance.__tablename__: task_instance_table,
-                TaskFail.__tablename__: task_fail_table,
-            }
-        )
-
-        # Simulate that there is a moved `task_instance` table from the
-        # previous run, but no moved `task_fail` table
-        dangling_task_instance_table_name = f"_airflow_moved__2_2__dangling__{task_instance_table.name}"
-        dangling_task_fail_table_name = f"_airflow_moved__2_3__dangling__{task_fail_table.name}"
-        mock_get_table_names = MagicMock(
-            return_value=[
-                TaskInstance.__tablename__,
-                DagRun.__tablename__,
-                TaskFail.__tablename__,
-                dangling_task_instance_table_name,
-            ]
-        )
-        mock_inspect.return_value = MagicMock(
-            get_table_names=mock_get_table_names,
-        )
-        mock_select = MagicMock(spec=Select)
-        mock_dangling_against_dag_run.return_value = mock_select
-        mock_dangling_against_task_instance.return_value = mock_select
-        mock_get_query_count.return_value = 1
-
-        # Should return a single error related to the dangling `task_instance` table
-        errs = list(check_bad_references(session=mock_session))
-        assert len(errs) == 1
-        assert dangling_task_instance_table_name in errs[0]
-
-        mock_reflect_tables.assert_called_once_with(
-            [TaskInstance, TaskReschedule, RenderedTaskInstanceFields, TaskFail, XCom, DagRun, TaskInstance],
-            mock_session,
-        )
-        mock_inspect.assert_called_once_with(mock_bind)
-        mock_get_table_names.assert_called_once()
-        mock_dangling_against_dag_run.assert_called_once_with(
-            mock_session, task_instance_table, dag_run=dag_run_table
-        )
-        mock_get_query_count.assert_called_once_with(mock_select, session=mock_session)
-        mock_move_dangling_data_to_new_table.assert_called_once_with(
-            mock_session, task_fail_table, mock_select, dangling_task_fail_table_name
-        )
-        mock_session.rollback.assert_called_once()

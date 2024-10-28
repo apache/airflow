@@ -105,7 +105,7 @@ Note that if the flag ``exact_match=False`` then the ``source_object`` will be c
 in the ``BUCKET_1_SRC`` GCS bucket. That's why if any will be found, they will be copied as well. To prevent this from
 happening, please use ``exact_match=False``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_single_file]
@@ -116,29 +116,12 @@ Copy multiple files
 
 There are several ways to copy multiple files, various examples of which are presented following.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_gcs_wildcard]
-    :end-before: [END howto_operator_gcs_to_gcs_wildcard]
-
-The ``source_object`` value may contain one wild card, denoted as "*". All files matching the wild card expression will
-be copied. In this example, all root level files ending with ``.txt`` in ``BUCKET_1_SRC`` will be copied to the ``data``
-folder in ``BUCKET_1_DST``, with file names unchanged.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcs_to_gcs_delimiter]
-    :end-before: [END howto_operator_gcs_to_gcs_delimiter]
-
-For source_objects with no wildcard, all files in source_objects would be listed, using provided delimiter if any.
-Then copy files from source_objects to destination_object and rename each source file.
-
 As previously stated, the ``delimiter`` field, as well as utilizing a wildcard (``*``) in the source object(s),
 are both deprecated. Thus, it is not recommended to use them - but to utilize ``match_glob`` instead, as follows:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+The following example would copy the files that matches the glob pattern in ``data/`` folder from ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bucket.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_match_glob]
@@ -147,25 +130,22 @@ are both deprecated. Thus, it is not recommended to use them - but to utilize ``
 The following example would copy all the files in ``subdir/`` folder (i.e subdir/a.csv, subdir/b.csv, subdir/c.csv) from
 the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bucket. (i.e backup/a.csv, backup/b.csv, backup/c.csv)
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_without_wildcard]
     :end-before: [END howto_operator_gcs_to_gcs_without_wildcard]
 
-The delimiter field may be specified to select any source files starting with ``source_object`` and ending with the
-value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
-prior example.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_list]
     :end-before: [END howto_operator_gcs_to_gcs_list]
 
 Lastly, files may be copied by omitting the ``source_object`` argument and instead supplying a list to ``source_objects``
-argument. In this example, ``OBJECT_1`` and ``OBJECT_2`` will be copied from ``BUCKET_1_SRC`` to ``BUCKET_1_DST``. Instead
-of specific file names, the list can contain one or more wild card expressions, each with no more than one wild card.
+argument. In this example, ``OBJECT_1`` and ``OBJECT_2`` will be copied from ``BUCKET_1_SRC`` to ``BUCKET_1_DST``.
 Supplying a list of size 1 functions the same as supplying a value to the ``source_object`` argument.
 
 Move single file
@@ -176,7 +156,7 @@ Note that if the flag ``exact_match=False`` then the ``source_object`` will be c
 in the ``BUCKET_1_SRC`` GCS bucket. That's why if any will be found, they will be copied as well. To prevent this from
 happening, please use ``exact_match=False``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_single_file_move]
@@ -188,7 +168,7 @@ Move multiple files
 Multiple files may be moved by supplying ``True`` to the ``move`` argument. The same rules concerning wild cards and
 the ``delimiter`` argument apply to moves as well as copies.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gcs_list_move]
@@ -221,7 +201,7 @@ The following example will ensure all files in ``BUCKET_1_SRC``, including any i
 ``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST`` if they already exist. It will not
 delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_synch_bucket]
@@ -234,7 +214,7 @@ This example will ensure all files in ``BUCKET_1_SRC``, including any in subdire
 ``BUCKET_1_DST``. It will overwrite identically named files in ``BUCKET_1_DST`` if they already exist. It will
 delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_synch_full_bucket]
@@ -247,7 +227,7 @@ The following example will ensure all files in ``BUCKET_1_SRC``, including any i
 ``subdir`` folder in ``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST/subdir`` if they
 already exist and it will not delete any files in ``BUCKET_1_DST/subdir`` not in ``BUCKET_1_SRC``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_synch_to_subdir]
@@ -260,7 +240,7 @@ This example will ensure all files in ``BUCKET_1_SRC/subdir``, including any in 
 in ``BUCKET_1_DST``. It will not overwrite identically named files in ``BUCKET_1_DST`` if they
 already exist and it will not delete any files in ``BUCKET_1_DST`` not in ``BUCKET_1_SRC/subdir``.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sync_from_subdir]

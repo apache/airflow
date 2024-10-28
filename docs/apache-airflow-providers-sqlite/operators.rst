@@ -19,17 +19,19 @@
 
 .. _howto/operator:SqliteOperator:
 
-SqliteOperator
-==============
+SQLExecuteQueryOperator to connect to Sqlite
+============================================
 
-Use the :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` to execute
+Use the :class:`SQLExecuteQueryOperator<airflow.providers.common.sql.operators.sql>` to execute
 Sqlite commands in a `Sqlite <https://sqlite.org/lang.html>`__ database.
 
+.. warning::
+    Previously, SqliteOperator was used to perform this kind of operation. But at the moment SqliteOperator is deprecated and will be removed in future versions of the provider. Please consider to switch to SQLExecuteQueryOperator as soon as possible.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-Use the ``sqlite_conn_id`` argument to connect to your Sqlite instance where
+Use the ``conn_id`` argument to connect to your Sqlite instance where
 the connection metadata is structured as follows:
 
 .. list-table:: Sqlite Airflow Connection Metadata
@@ -41,16 +43,16 @@ the connection metadata is structured as follows:
    * - Host: string
      - Sqlite database file
 
-An example usage of the SqliteOperator is as follows:
+An example usage of the SQLExecuteQueryOperator to connect to Sqlite is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/sqlite/example_sqlite.py
+.. exampleinclude:: /../../providers/tests/system/sqlite/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite]
     :end-before: [END howto_operator_sqlite]
 
 Furthermore, you can use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 
-.. exampleinclude:: /../../tests/system/providers/sqlite/example_sqlite.py
+.. exampleinclude:: /../../providers/tests/system/sqlite/example_sqlite.py
     :language: python
     :start-after: [START howto_operator_sqlite_external_file]
     :end-before: [END howto_operator_sqlite_external_file]
@@ -63,5 +65,5 @@ For further information, look at:
 
 .. note::
 
-  Parameters given via SqliteOperator() are given first-place priority
+  Parameters given via SQLExecuteQueryOperator() are given first-place priority
   relative to parameters set via Airflow connection metadata (such as ``schema``, ``login``, ``password`` etc).

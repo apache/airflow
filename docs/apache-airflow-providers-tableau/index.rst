@@ -43,14 +43,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/tableau/index>
+    System Tests <_api/tests/system/tableau/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/tests/system/providers/tableau>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/providers/tests/system/tableau>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
     Installing from sources <installing-providers-from-sources>
 
@@ -71,7 +71,7 @@ apache-airflow-providers-tableau package
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 4.5.0
+Release: 4.6.1
 
 Provider package
 ----------------
@@ -89,11 +89,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =======================  ==================
 PIP package              Version required
 =======================  ==================
-``apache-airflow``       ``>=2.7.0``
-``tableauserverclient``
+``apache-airflow``       ``>=2.8.0``
+``tableauserverclient``  ``>=0.25``
 =======================  ==================

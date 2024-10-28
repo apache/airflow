@@ -221,7 +221,7 @@ a global ``start_date`` for your tasks. This can be done by declaring your
 ``start_date`` directly in the ``DAG()`` object. A DAG's first
 DagRun will be created based on the first complete ``data_interval``
 after ``start_date``. For example, for a DAG with
-``start_date=``datetime(2024, 1, 1)`` and ``schedule="0 0 3 * *"``, the
+``start_date=datetime(2024, 1, 1)`` and ``schedule="0 0 3 * *"``, the
 first DAG run will be triggered at midnight on 2024-02-03 with
 ``data_interval_start=datetime(2024, 1, 3)`` and
 ``data_interval_end=datetime(2024, 2, 3)``. From that point on, the scheduler
@@ -466,7 +466,7 @@ Setting retries for each task drastically reduces the chance that either of thes
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
-Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
+Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
 How to reduce the airflow UI page load time?
@@ -494,7 +494,7 @@ What does "MySQL Server has gone away" mean?
 
 You may occasionally experience ``OperationalError`` with the message "MySQL Server has gone away". This is due to the
 connection pool keeping connections open too long and you are given an old connection that has expired. To ensure a
-valid connection, you can set :ref:`config:core__sql_alchemy_pool_recycle` to ensure connections are invalidated after
+valid connection, you can set :ref:`config:database__sql_alchemy_pool_recycle` to ensure connections are invalidated after
 that many seconds and new ones are created.
 
 
@@ -522,3 +522,26 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 
 #. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
+
+Does Airflow collect any telemetry data?
+----------------------------------------
+
+.. _usage-data-collection:
+
+Airflow integrates `Scarf <https://about.scarf.sh/>`__ to collect basic usage data during operation.
+This data assists Airflow maintainers in better understanding how Airflow is used.
+Insights gained from this data are helpful for prioritizing patches, minor releases, and
+security fixes. Additionally, this information supports key decisions related to the development road map.
+
+Deployments can opt-out of data collection by setting the :ref:`[usage_data_collection] enabled <config:usage_data_collection__enabled>`
+option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+Individual users can easily opt-out of analytics in various ways documented in the
+`Scarf Do Not Track docs <https://docs.scarf.sh/gateway/#do-not-track>`__.
+
+The telemetry data collected is limited to the following:
+
+- Airflow version
+- Python version
+- Operating system & machine architecture
+- Executor
+- Metadata DB type & its version

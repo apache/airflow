@@ -1,0 +1,18 @@
+**Breaking Change**
+
+The ``use_task_execution_day`` parameter has been removed from the ``DayOfWeekSensor`` class.
+This parameter was previously deprecated in favor of ``use_task_logical_date``.
+
+If your code still uses ``use_task_execution_day``, you should update it to use ``use_task_logical_date``
+instead to ensure compatibility with future Airflow versions.
+
+Example update:
+
+.. code-block:: python
+
+    sensor = DayOfWeekSensor(
+        task_id="example",
+        week_day="Tuesday",
+        use_task_logical_date=True,
+        dag=dag,
+    )

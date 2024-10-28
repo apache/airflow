@@ -54,14 +54,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/microsoft/azure/index>
+    System Tests <_api/tests/system/microsoft/azure/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/tests/system/providers/microsoft/azure>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-azure/|version|/providers/tests/system/microsoft/azure>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-azure/>
     Installing from sources <installing-providers-from-sources>
 
@@ -82,7 +82,7 @@ apache-airflow-providers-microsoft-azure package
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 10.1.0
+Release: 11.0.0
 
 Provider package
 ----------------
@@ -100,35 +100,39 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-================================  ==================
-PIP package                       Version required
-================================  ==================
-``apache-airflow``                ``>=2.7.0``
-``adlfs``                         ``>=2023.10.0``
-``azure-batch``                   ``>=8.0.0``
-``azure-cosmos``                  ``>=4.6.0``
-``azure-mgmt-cosmosdb``
-``azure-datalake-store``          ``>=0.0.45``
-``azure-identity``                ``>=1.3.1``
-``azure-keyvault-secrets``        ``>=4.1.0``
-``azure-mgmt-datalake-store``     ``>=0.5.0``
-``azure-mgmt-resource``           ``>=2.2.0``
-``azure-storage-blob``            ``>=12.14.0``
-``azure-mgmt-storage``            ``>=16.0.0``
-``azure-storage-file-share``
-``azure-servicebus``              ``>=7.12.1``
-``azure-synapse-spark``
-``azure-synapse-artifacts``       ``>=0.17.0``
-``adal``                          ``>=1.2.7``
-``azure-storage-file-datalake``   ``>=12.9.1``
-``azure-kusto-data``              ``>=4.1.0``
-``azure-mgmt-datafactory``        ``>=2.0.0``
-``azure-mgmt-containerregistry``  ``>=8.0.0``
-``azure-mgmt-containerinstance``  ``>=9.0.0``
-``msgraph-core``                  ``>=1.0.0``
-================================  ==================
+======================================  ===================
+PIP package                             Version required
+======================================  ===================
+``apache-airflow``                      ``>=2.8.0``
+``adlfs``                               ``>=2023.10.0``
+``azure-batch``                         ``>=8.0.0``
+``azure-cosmos``                        ``>=4.6.0``
+``azure-mgmt-cosmosdb``                 ``>=3.0.0``
+``azure-datalake-store``                ``>=0.0.45``
+``azure-identity``                      ``>=1.3.1``
+``azure-keyvault-secrets``              ``>=4.1.0``
+``azure-mgmt-datalake-store``           ``>=0.5.0``
+``azure-mgmt-resource``                 ``>=2.2.0``
+``azure-storage-blob``                  ``>=12.14.0``
+``azure-mgmt-storage``                  ``>=16.0.0``
+``azure-storage-file-share``            ``>=12.7.0``
+``azure-servicebus``                    ``>=7.12.1``
+``azure-synapse-spark``                 ``>=0.2.0``
+``azure-synapse-artifacts``             ``>=0.17.0``
+``adal``                                ``>=1.2.7``
+``azure-storage-file-datalake``         ``>=12.9.1``
+``azure-kusto-data``                    ``>=4.1.0,!=4.6.0``
+``azure-mgmt-datafactory``              ``>=2.0.0``
+``azure-mgmt-containerregistry``        ``>=8.0.0``
+``azure-mgmt-containerinstance``        ``>=10.1.0``
+``msgraph-core``                        ``>=1.0.0``
+``microsoft-kiota-http``                ``>=1.3.0,!=1.3.4``
+``microsoft-kiota-serialization-json``  ``==1.0.0``
+``microsoft-kiota-serialization-text``  ``==1.0.0``
+``microsoft-kiota-abstractions``        ``<1.4.0``
+======================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
@@ -140,12 +144,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-microsoft-azure[google]
+    pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
 ====================================================================================================  ==========
 Dependent package                                                                                     Extra
 ====================================================================================================  ==========
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_  ``amazon``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_  ``oracle``
 `apache-airflow-providers-sftp <https://airflow.apache.org/docs/apache-airflow-providers-sftp>`_      ``sftp``
@@ -157,5 +162,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 10.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-10.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 10.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-10.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 11.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 11.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-11.0.0-py3-none-any.whl.sha512>`__)

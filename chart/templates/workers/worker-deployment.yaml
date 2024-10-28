@@ -66,11 +66,17 @@ spec:
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
+  {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+  {{- if and $persistence .Values.workers.podManagementPolicy }}
+  podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
+  {{- end }}
   {{- if and $persistence .Values.workers.updateStrategy }}
   updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
@@ -220,7 +226,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
-          {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         - name: worker
@@ -412,7 +418,7 @@ spec:
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
           emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if  .Values.dags.gitSync.sshKeySecret }}
+        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- end }}
@@ -425,7 +431,9 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: logs
         {{- if .Values.workers.persistence.annotations }}
         annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}

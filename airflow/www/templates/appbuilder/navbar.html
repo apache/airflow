@@ -47,9 +47,21 @@
     </div>
     <div class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
+        {%- if disable_nav_bar is not defined or not disable_nav_bar -%}
         {% include 'appbuilder/navbar_menu.html' %}
+        {%- endif -%}
       </ul>
       <ul class="nav navbar-nav navbar-right">
+        <li class="active">
+          <div title="Toggle Dark Mode (experimental)" aria-label="Toggle Dark Mode (experimental)" style="padding: 20px; cursor: pointer" id="themeToggleButton">
+            <div id="dark_icon">
+              <i class="fa-regular fa-moon fa-lg" id="themeToggleButton"></i>
+            </div>
+            <div id="light_icon">
+              <i class="fa-regular fa-sun fa-lg" id="themeToggleButton"></i>
+            </div>
+          </div>
+        </li>
         {% include 'appbuilder/navbar_right.html' %}
       </ul>
     </div>

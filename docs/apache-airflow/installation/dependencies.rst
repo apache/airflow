@@ -82,27 +82,7 @@ for development and testing as well as production use.
 
 .. code-block:: bash
 
-  sudo apt install -y --no-install-recommends apt-transport-https apt-utils ca-certificates \
+  sudo apt install -y --no-install-recommends apt-utils ca-certificates \
     curl dumb-init freetds-bin krb5-user libgeos-dev \
     ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales libffi8 libldap-2.5-0 libssl3 netcat-openbsd \
     lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc
-
-Debian Bullseye (11)
-====================
-
-Debian Bullseye is the previous Debian distribution. It is still supported by Airflow and it is
-the one we also recommend for production use, however we only build images in the CI and we do not
-run any tests there (we do not expect problems though). In Airflow 2.9 we are going to stop building images
-for Bullseye and we will only build images and explain system level dependencies for Bookworm.
-
-.. code-block:: bash
-
-  sudo apt install -y --no-install-recommends apt-transport-https apt-utils ca-certificates \
-    curl dumb-init freetds-bin krb5-user libgeos-dev \
-    ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales libffi7 libldap-2.4-2 libssl1.1 netcat \
-    lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc
-
-You also need database client packages (Postgres or MySQL) if you want to use those databases.
-
-
-If you use a different distribution, you will need to adapt the commands accordingly.

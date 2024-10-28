@@ -69,7 +69,7 @@ apache-airflow-providers-pagerduty package
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 3.7.0
+Release: 3.8.0
 
 Provider package
 ----------------
@@ -87,11 +87,11 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
-``pdpyras``         ``>=4.1.2``
+``apache-airflow``  ``>=2.8.0``
+``pdpyras``         ``>=4.2.0``
 ==================  ==================

@@ -41,6 +41,7 @@ from airflow_breeze.commands.common_image_options import (
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
+    option_disable_airflow_repo_cache,
     option_docker_cache,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
@@ -296,6 +297,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_disable_airflow_repo_cache
 @option_docker_cache
 @option_docker_host
 @option_dry_run
@@ -339,6 +341,7 @@ def build(
     debug_resources: bool,
     dev_apt_command: str | None,
     dev_apt_deps: str | None,
+    disable_airflow_repo_cache: bool,
     docker_cache: str,
     docker_host: str | None,
     eager_upgrade_additional_requirements: str | None,
@@ -413,6 +416,7 @@ def build(
         debian_version=debian_version,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
+        disable_airflow_repo_cache=disable_airflow_repo_cache,
         docker_cache=docker_cache,
         docker_host=docker_host,
         eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
@@ -788,7 +792,7 @@ def run_build_ci_image(
         )
     else:
         env = get_docker_build_env(ci_image_params)
-        subprocess.run(
+        process = subprocess.run(
             [
                 sys.executable,
                 os.fspath(
@@ -801,6 +805,8 @@ def run_build_ci_image(
             ],
             check=False,
         )
+        if process.returncode != 0:
+            sys.exit(process.returncode)
         get_console(output=output).print(f"\n[info]Building CI Image for {param_description}\n")
         build_command_result = run_command(
             prepare_docker_build_command(

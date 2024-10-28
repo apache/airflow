@@ -1,0 +1,37 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+services:
+  airflow:
+    stdin_open: true  # docker run -i
+    tty: true  # docker run -t
+    environment:
+      - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
+    # We only mount tests folder
+    volumes:
+      - ../../../.bash_aliases:/root/.bash_aliases:cached
+      - ../../../.bash_history:/root/.bash_history:cached
+      - ../../../.inputrc:/root/.inputrc:cached
+      # Remove airflow sources from container
+      - ../../../empty:/opt/airflow/airflow
+      # but keep tests
+      - ../../../tests/:/opt/airflow/tests:cached
+      # and providers
+      - ../../../providers/src/airflow/providers:/opt/airflow/airflow/providers:cached
+      # and entrypoint and in_container scripts for testing
+      - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
+      - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

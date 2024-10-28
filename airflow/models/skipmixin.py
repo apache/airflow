@@ -17,21 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from types import GeneratorType
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import update
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dagrun import DagRun
@@ -60,8 +60,8 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances."""
 
+    @staticmethod
     def _set_state_to_skipped(
-        self,
         dag_run: DagRun | DagRunPydantic,
         tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
@@ -93,11 +93,23 @@ class SkipMixin(LoggingMixin):
                     .execution_options(synchronize_session=False)
                 )
 
-    @provide_session
     def skip(
         self,
         dag_run: DagRun | DagRunPydantic,
-        execution_date: DateTime,
+        tasks: Iterable[DAGNode],
+        map_index: int = -1,
+    ):
+        """Facade for compatibility for call to internal API."""
+        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
+        task_id: str | None = getattr(self, "task_id", None)
+        SkipMixin._skip(dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _skip(
+        dag_run: DagRun | DagRunPydantic,
+        task_id: str | None,
         tasks: Iterable[DAGNode],
         session: Session = NEW_SESSION,
         map_index: int = -1,
@@ -110,7 +122,6 @@ class SkipMixin(LoggingMixin):
         are cleared.
 
         :param dag_run: the DagRun for which to set the tasks to skipped
-        :param execution_date: execution_date
         :param tasks: tasks to skip (not task_ids)
         :param session: db session to use
         :param map_index: map_index of the current task instance
@@ -119,35 +130,13 @@ class SkipMixin(LoggingMixin):
         if not task_list:
             return
 
-        if execution_date and not dag_run:
-            from airflow.models.dagrun import DagRun
-
-            warnings.warn(
-                "Passing an execution_date to `skip()` is deprecated in favour of passing a dag_run",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
-            dag_run = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == task_list[0].dag_id, DagRun.execution_date == execution_date
-                )
-            ).one()
-
-        elif execution_date and dag_run and execution_date != dag_run.execution_date:
-            raise ValueError(
-                "execution_date has a different value to  dag_run.execution_date -- please only pass dag_run"
-            )
-
         if dag_run is None:
             raise ValueError("dag_run is required")
 
         task_ids_list = [d.task_id for d in task_list]
-        self._set_state_to_skipped(dag_run, task_ids_list, session)
+        SkipMixin._set_state_to_skipped(dag_run, task_ids_list, session)
         session.commit()
 
-        # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
-        task_id: str | None = getattr(self, "task_id", None)
         if task_id is not None:
             from airflow.models.xcom import XCom
 
@@ -166,6 +155,21 @@ class SkipMixin(LoggingMixin):
         ti: TaskInstance | TaskInstancePydantic,
         branch_task_ids: None | str | Iterable[str],
     ):
+        """Facade for compatibility for call to internal API."""
+        # Ensure we don't serialize a generator object
+        if branch_task_ids and isinstance(branch_task_ids, GeneratorType):
+            branch_task_ids = list(branch_task_ids)
+        SkipMixin._skip_all_except(ti=ti, branch_task_ids=branch_task_ids)
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def _skip_all_except(
+        cls,
+        ti: TaskInstance | TaskInstancePydantic,
+        branch_task_ids: None | str | Iterable[str],
+        session: Session = NEW_SESSION,
+    ):
         """
         Implement the logic for a branching operator.
 
@@ -175,13 +179,13 @@ class SkipMixin(LoggingMixin):
         branch_task_ids is stored to XCom so that NotPreviouslySkippedDep knows skipped tasks or
         newly added tasks should be skipped when they are cleared.
         """
-        self.log.info("Following branch %s", branch_task_ids)
+        log = cls().log  # Note: need to catch logger form instance, static logger breaks pytest
         if isinstance(branch_task_ids, str):
             branch_task_id_set = {branch_task_ids}
         elif isinstance(branch_task_ids, Iterable):
             branch_task_id_set = set(branch_task_ids)
             invalid_task_ids_type = {
-                (bti, type(bti).__name__) for bti in branch_task_ids if not isinstance(bti, str)
+                (bti, type(bti).__name__) for bti in branch_task_id_set if not isinstance(bti, str)
             }
             if invalid_task_ids_type:
                 raise AirflowException(
@@ -196,18 +200,15 @@ class SkipMixin(LoggingMixin):
                 f"but got {type(branch_task_ids).__name__!r}."
             )
 
-        dag_run = ti.get_dagrun()
+        log.info("Following branch %s", branch_task_id_set)
+
+        dag_run = ti.get_dagrun(session=session)
         if TYPE_CHECKING:
             assert isinstance(dag_run, DagRun)
             assert ti.task
 
-        # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
-        # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
-        # does not attempt to serialize the field from/to ORM
         task = ti.task
-        dag = task.dag
-        if TYPE_CHECKING:
-            assert dag
+        dag = TaskInstance.ensure_dag(ti, session=session)
 
         valid_task_ids = set(dag.task_ids)
         invalid_task_ids = branch_task_id_set - valid_task_ids
@@ -238,15 +239,17 @@ class SkipMixin(LoggingMixin):
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
                 for t in downstream_tasks
-                if (downstream_ti := dag_run.get_task_instance(t.task_id, map_index=ti.map_index))
+                if (
+                    downstream_ti := dag_run.get_task_instance(
+                        t.task_id, map_index=ti.map_index, session=session
+                    )
+                )
                 and t.task_id not in branch_task_id_set
             ]
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
-            self.log.info("Skipping tasks %s", skip_tasks)
-            with create_session() as session:
-                self._set_state_to_skipped(dag_run, skip_tasks, session=session)
-                # For some reason, session.commit() needs to happen before xcom_push.
-                # Otherwise the session is not committed.
-                session.commit()
-                ti.xcom_push(key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids})
+            log.info("Skipping tasks %s", skip_tasks)
+            SkipMixin._set_state_to_skipped(dag_run, skip_tasks, session=session)
+            ti.xcom_push(
+                key=XCOM_SKIPMIXIN_KEY, value={XCOM_SKIPMIXIN_FOLLOWED: follow_task_ids}, session=session
+            )

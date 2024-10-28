@@ -20,7 +20,7 @@ Documentation
 
 This directory contains documentation for the `Apache Airflow project <https://airflow.apache.org/docs/>`__ and the providers packages that are closely related to it. You can contribute to the Airflow Docs in the same way and for the same reasons as contributing code; Docs contributions that improve existing content, fix bugs, and create new content are welcomed and encouraged.
 
-This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions for how to make Docs changes locally or with the GitHub UI.
+This README gives an overview about how Airflow uses `Sphinx <https://www.sphinx-doc.org/>`__ to write and build docs. It also includes instructions on how to make Docs changes locally or with the GitHub UI.
 
 Development documentation preview
 ==================================
@@ -272,7 +272,7 @@ In this example error, You should change the line with error so that the whole p
     Line with Error: ' airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated'
 
 Support
-=======
+========
 
 If you need help, write to `#documentation <https://apache-airflow.slack.com/archives/CJ1LVREHX>`__ channel on `Airflow's Slack <https://s.apache.org/airflow-slack>`__.
 

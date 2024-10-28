@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/teradata/index>
+    System Tests <_api/tests/system/teradata/index>
     System Tests Dashboard <https://teradata.github.io/airflow/index.html>
 
 .. toctree::
@@ -77,7 +77,7 @@ apache-airflow-providers-teradata package
 `Teradata <https://www.teradata.com/>`__
 
 
-Release: 2.1.0
+Release: 2.6.0
 
 Provider package
 ----------------
@@ -95,13 +95,13 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.7.0``
-``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``apache-airflow``                       ``>=2.8.0``
+``apache-airflow-providers-common-sql``  ``>=1.14.1``
 ``teradatasqlalchemy``                   ``>=17.20.0.0``
 ``teradatasql``                          ``>=17.20.0.28``
 =======================================  ==================
@@ -116,14 +116,16 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-teradata[common.sql]
+    pip install apache-airflow-providers-teradata[amazon]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+======================================================================================================================  ===================
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
+======================================================================================================================  ===================
 
 Downloading official packages
 -----------------------------
@@ -131,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-teradata 2.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-teradata-2.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-teradata-2.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-teradata-2.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-teradata 2.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-teradata 2.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-teradata 2.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_teradata-2.6.0-py3-none-any.whl.sha512>`__)

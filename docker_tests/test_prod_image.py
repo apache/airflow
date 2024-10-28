@@ -68,7 +68,7 @@ class TestCommands:
     def test_airflow_version(self, default_docker_image):
         """Checking 'airflow version' command. It should return zero exit code."""
         output = run_airflow_cmd_in_docker(["version"], image=default_docker_image)
-        assert "2." in output
+        assert "3." in output
 
     def test_python_version(self, default_docker_image):
         """Checking 'python --version' command. It should return zero exit code."""
@@ -90,7 +90,11 @@ class TestPythonPackages:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
             package_file = PROD_IMAGE_PROVIDERS_FILE_PATH
         assert len(packages_to_install) != 0
-        output = run_bash_in_docker("airflow providers list --output json", image=default_docker_image)
+        output = run_bash_in_docker(
+            "airflow providers list --output json",
+            image=default_docker_image,
+            envs={"AIRFLOW__LOGGING__LOGGING_LEVEL": "ERROR"},
+        )
         providers = json.loads(output)
         packages_installed = set(d["package_name"] for d in providers)
         assert len(packages_installed) != 0

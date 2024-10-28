@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 from unittest.mock import Mock, patch
 
-import pendulum
 import pytest
 
 from airflow import settings
@@ -32,12 +31,14 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+DEFAULT_DAG_RUN_ID = "test1"
 
 
 class TestSkipMixin:
@@ -52,6 +53,7 @@ class TestSkipMixin:
     def teardown_method(self):
         self.clean_db()
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.utils.timezone.utcnow")
     def test_skip(self, mock_now, dag_maker):
         session = settings.Session()
@@ -64,28 +66,7 @@ class TestSkipMixin:
             execution_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks, session=session)
-
-        session.query(TI).filter(
-            TI.dag_id == "dag",
-            TI.task_id == "task",
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    @patch("airflow.utils.timezone.utcnow")
-    def test_skip_none_dagrun(self, mock_now, dag_maker):
-        session = settings.Session()
-        now = datetime.datetime.now(tz=pendulum.timezone("UTC"))
-        mock_now.return_value = now
-        with dag_maker(
-            "dag",
-            session=session,
-        ):
-            tasks = [EmptyOperator(task_id="task")]
-        dag_maker.create_dagrun(execution_date=now)
-        SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks, session=session)
+        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
 
         session.query(TI).filter(
             TI.dag_id == "dag",
@@ -97,7 +78,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[], session=session)
+        SkipMixin().skip(dag_run=None, tasks=[])
         assert not session.query.called
         assert not session.commit.called
 
@@ -115,17 +96,18 @@ class TestSkipMixin:
     def test_skip_all_except(self, dag_maker, branch_task_ids, expected_states):
         with dag_maker(
             "dag_test_skip_all_except",
+            serialized=True,
         ):
             task1 = EmptyOperator(task_id="task1")
             task2 = EmptyOperator(task_id="task2")
             task3 = EmptyOperator(task_id="task3")
 
             task1 >> [task2, task3]
-        dag_maker.create_dagrun()
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
-        ti2 = TI(task2, execution_date=DEFAULT_DATE)
-        ti3 = TI(task3, execution_date=DEFAULT_DATE)
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
+        ti2 = TI(task2, run_id=DEFAULT_DAG_RUN_ID)
+        ti3 = TI(task3, run_id=DEFAULT_DAG_RUN_ID)
 
         SkipMixin().skip_all_except(ti=ti1, branch_task_ids=branch_task_ids)
 
@@ -137,6 +119,7 @@ class TestSkipMixin:
 
         assert executed_states == expected_states
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mapped_tasks_skip_all_except(self, dag_maker):
         with dag_maker("dag_test_skip_all_except") as dag:
 
@@ -151,13 +134,13 @@ class TestSkipMixin:
 
             task_group_op.expand(k=[0, 1])
 
-        dag_maker.create_dagrun()
-        branch_op_ti_0 = TI(dag.get_task("task_group_op.branch_op"), execution_date=DEFAULT_DATE, map_index=0)
-        branch_op_ti_1 = TI(dag.get_task("task_group_op.branch_op"), execution_date=DEFAULT_DATE, map_index=1)
-        branch_a_ti_0 = TI(dag.get_task("task_group_op.branch_a"), execution_date=DEFAULT_DATE, map_index=0)
-        branch_a_ti_1 = TI(dag.get_task("task_group_op.branch_a"), execution_date=DEFAULT_DATE, map_index=1)
-        branch_b_ti_0 = TI(dag.get_task("task_group_op.branch_b"), execution_date=DEFAULT_DATE, map_index=0)
-        branch_b_ti_1 = TI(dag.get_task("task_group_op.branch_b"), execution_date=DEFAULT_DATE, map_index=1)
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
+        branch_op_ti_0 = TI(dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
+        branch_op_ti_1 = TI(dag.get_task("task_group_op.branch_op"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
+        branch_a_ti_0 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
+        branch_a_ti_1 = TI(dag.get_task("task_group_op.branch_a"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
+        branch_b_ti_0 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=0)
+        branch_b_ti_1 = TI(dag.get_task("task_group_op.branch_b"), run_id=DEFAULT_DAG_RUN_ID, map_index=1)
 
         SkipMixin().skip_all_except(ti=branch_op_ti_0, branch_task_ids="task_group_op.branch_a")
         SkipMixin().skip_all_except(ti=branch_op_ti_1, branch_task_ids="task_group_op.branch_b")
@@ -174,8 +157,8 @@ class TestSkipMixin:
     def test_raise_exception_on_not_accepted_branch_task_ids_type(self, dag_maker):
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
-        dag_maker.create_dagrun()
-        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
         error_message = (
             r"'branch_task_ids' must be either None, a task ID, or an Iterable of IDs, but got 'int'\."
         )
@@ -185,8 +168,8 @@ class TestSkipMixin:
     def test_raise_exception_on_not_accepted_iterable_branch_task_ids_type(self, dag_maker):
         with dag_maker("dag_test_skip_all_except_wrong_type"):
             task = EmptyOperator(task_id="task")
-        dag_maker.create_dagrun()
-        ti1 = TI(task, execution_date=DEFAULT_DATE)
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
+        ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
         error_message = (
             r"'branch_task_ids' expected all task IDs are strings. "
             r"Invalid tasks found: \{\(42, 'int'\)\}\."
@@ -203,15 +186,15 @@ class TestSkipMixin:
         ],
     )
     def test_raise_exception_on_not_valid_branch_task_ids(self, dag_maker, branch_task_ids):
-        with dag_maker("dag_test_skip_all_except_wrong_type"):
+        with dag_maker("dag_test_skip_all_except_wrong_type", serialized=True):
             task1 = EmptyOperator(task_id="task1")
             task2 = EmptyOperator(task_id="task2")
             task3 = EmptyOperator(task_id="task3")
 
             task1 >> [task2, task3]
-        dag_maker.create_dagrun()
+        dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID)
 
-        ti1 = TI(task1, execution_date=DEFAULT_DATE)
+        ti1 = TI(task1, run_id=DEFAULT_DAG_RUN_ID)
 
         error_message = r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: .*"
         with pytest.raises(AirflowException, match=error_message):

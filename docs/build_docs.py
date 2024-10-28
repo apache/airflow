@@ -35,7 +35,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
 from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
 from docs.exts.docs_build.fetch_inventories import fetch_inventories
@@ -450,6 +450,15 @@ def main():
         for pkg in sorted(available_packages):
             console.print(f" - {pkg}")
 
+    for package in available_packages:
+        api_dir = os.path.join(DOCS_DIR, package, "_api")
+        if os.path.exists(api_dir):
+            if not os.listdir(api_dir):
+                console.print(
+                    f"[red]The toctree already contains a reference to a non-existing document for provider [green]'{package}'[/green]. Use the --clean-build option while building docs"
+                )
+                sys.exit(1)
+
     if package_filters:
         console.print("Current package filters: ", package_filters)
     packages_to_build = process_package_filters(available_packages, package_filters)
@@ -556,9 +565,6 @@ def main():
 
     if not package_filters:
         _promote_new_flags()
-
-    if os.path.exists(PROVIDER_INIT_FILE):
-        os.remove(PROVIDER_INIT_FILE)
 
     print_build_errors_and_exit(
         all_build_errors,

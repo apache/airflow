@@ -184,11 +184,19 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{/* User defined gitSync container environment from */}}
+{{- define "custom_git_sync_environment_from" }}
+  {{- $Global := . }}
+  {{- with .Values.dags.gitSync.envFrom }}
+    {{- tpl . $Global | nindent 2 }}
+  {{- end }}
+{{- end }}
+
 {{/*  Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
   secret:
-    secretName: {{ .Values.dags.gitSync.sshKeySecret }}
+    secretName: {{ template "git_sync_ssh_key" . }}
     defaultMode: 288
 {{- end }}
 
@@ -198,8 +206,9 @@ If release name contains chart name it will be used as a full name.
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
+  envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
-    {{- if .Values.dags.gitSync.sshKeySecret }}
+    {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
     - name: GIT_SSH_KEY_FILE
       value: "/etc/git-secret/ssh"
     - name: GITSYNC_SSH_KEY_FILE
@@ -294,7 +303,7 @@ If release name contains chart name it will be used as a full name.
   volumeMounts:
   - name: dags
     mountPath: /git
-  {{- if .Values.dags.gitSync.sshKeySecret }}
+  {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
   - name: git-sync-ssh-key
     mountPath: /etc/git-secret/ssh
     readOnly: true
@@ -308,6 +317,9 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
     {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.containerLifecycleHooks (not .is_init) }}
+  lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
   {{- end }}
 {{- end }}
 
@@ -425,6 +437,11 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "kerberos_ccache_path" -}}
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
+{{- end }}
+
+{{/* Create the name of the git sync ssh secret to use */}}
+{{- define "git_sync_ssh_key" -}}
+  {{- default (printf "%s-ssh-secret" (include "airflow.fullname" .)) .Values.dags.gitSync.sshKeySecret }}
 {{- end }}
 
 {{- define "celery_executor_namespace" -}}
@@ -579,6 +596,16 @@ server_tls_key_file = /etc/pgbouncer/server.key
     {{- default (printf "%s-webserver" (include "airflow.serviceAccountName" .)) .Values.webserver.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.webserver.serviceAccount.name }}
+  {{- end }}
+{{- end }}
+
+
+{{/* Create the name of the RPC server service account to use */}}
+{{- define "rpcServer.serviceAccountName" -}}
+  {{- if .Values._rpcServer.serviceAccount.create }}
+    {{- default (printf "%s-rpc-server" (include "airflow.serviceAccountName" .)) .Values._rpcServer.serviceAccount.name }}
+  {{- else }}
+    {{- default "default" .Values._rpcServer.serviceAccount.name }}
   {{- end }}
 {{- end }}
 
@@ -1015,10 +1042,36 @@ capabilities:
   {{- $env := index . 1 -}}
   {{- range $i, $config := $env }}
   - name: {{ $config.name }}
+    {{- if $config.value }}
     value: {{ $config.value | quote }}
+    {{- else if $config.valueFrom }}
+    valueFrom:
+      {{- if $config.valueFrom.secretKeyRef }}
+      secretKeyRef:
+        name: {{ $config.valueFrom.secretKeyRef.name }}
+        key: {{ $config.valueFrom.secretKeyRef.key }}
+      {{- else if $config.valueFrom.configMapKeyRef }}
+      configMapKeyRef:
+        name: {{ $config.valueFrom.configMapKeyRef.name }}
+        key: {{ $config.valueFrom.configMapKeyRef.key }}
+      {{- end }}
+    {{- end }}
     {{- if or (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
+    {{- if $config.value }}
     value: {{ $config.value | quote }}
+    {{- else if $config.valueFrom }}
+    valueFrom:
+      {{- if $config.valueFrom.secretKeyRef }}
+      secretKeyRef:
+        name: {{ $config.valueFrom.secretKeyRef.name }}
+        key: {{ $config.valueFrom.secretKeyRef.key }}
+      {{- else if $config.valueFrom.configMapKeyRef }}
+      configMapKeyRef:
+        name: {{ $config.valueFrom.configMapKeyRef.name }}
+        key: {{ $config.valueFrom.configMapKeyRef.key }}
+      {{- end }}
+    {{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

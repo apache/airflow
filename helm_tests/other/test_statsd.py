@@ -243,8 +243,9 @@ class TestStatsd:
         mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
         mappings_yml_obj = yaml.safe_load(mappings_yml)
 
-        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
-        assert "airflow_pool_starving_tasks" == mappings_yml_obj["mappings"][-1]["name"]
+        names = [mapping["name"] for mapping in mappings_yml_obj["mappings"]]
+        assert "airflow_dagrun_dependency_check" in names
+        assert "airflow_pool_starving_tasks" in names
 
     def test_statsd_configmap_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -336,6 +337,20 @@ class TestStatsd:
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "statsd_values, expected",
+        [
+            ({}, 30),
+            ({"statsd": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_statsd_termination_grace_period_seconds(self, statsd_values, expected):
+        docs = render_chart(
+            values=statsd_values,
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestStatsdServiceAccount:
     """Tests statsd service account."""
@@ -361,3 +376,34 @@ class TestStatsdServiceAccount:
             show_only=["templates/statsd/statsd-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestStatsdIngress:
+    """Tests Statsd Ingress."""
+
+    def test_statsd_ingress(self):
+        docs = render_chart(
+            values={
+                "statsd": {"enabled": True},
+                "ingress": {
+                    "statsd": {
+                        "enabled": True,
+                        "hosts": [
+                            {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
+                        ],
+                        "ingressClassName": "ingress-class",
+                    }
+                },
+            },
+            show_only=["templates/statsd/statsd-ingress.yaml"],
+        )
+
+        assert {"name": "release-name-statsd", "port": {"name": "statsd-scrape"}} == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service", docs[0]
+        )
+        assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
+        assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
+        assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
+            "spec.tls[0]", docs[0]
+        )
+        assert "ingress-class" == jmespath.search("spec.ingressClassName", docs[0])

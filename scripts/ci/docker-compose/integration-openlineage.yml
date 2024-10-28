@@ -15,10 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   marquez:
-    image: marquezproject/marquez:0.40.0
+    image: marquezproject/marquez:0.49.0
     labels:
       breeze.description: "Integration required for Openlineage hooks."
     environment:
@@ -34,7 +33,7 @@ services:
     entrypoint: ["./entrypoint.sh"]
 
   marquez_web:
-    image: marquezproject/marquez-web:0.40.0
+    image: marquezproject/marquez-web:0.49.0
     environment:
       - MARQUEZ_HOST=marquez
       - MARQUEZ_PORT=5000

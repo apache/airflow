@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 
 class FakeAppBuilder:
-    """Stand-in class to replace a Flask App Builder.
+    """
+    Stand-in class to replace a Flask App Builder.
 
     The only purpose is to provide the ``self.appbuilder.get_session`` interface
     for ``ApplessAirflowSecurityManager`` so it can be used without a real Flask

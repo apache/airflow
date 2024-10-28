@@ -43,6 +43,10 @@ class AirflowException(Exception):
 
     status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
+    def serialize(self):
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
@@ -76,7 +80,8 @@ class AirflowRescheduleException(AirflowException):
         self.reschedule_date = reschedule_date
 
     def serialize(self):
-        return "AirflowRescheduleException", (), {"reschedule_date": self.reschedule_date}
+        cls = self.__class__
+        return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
 
 class InvalidStatsNameException(AirflowException):
@@ -132,6 +137,14 @@ class XComNotFound(AirflowException):
     def __str__(self) -> str:
         return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
 
+    def serialize(self):
+        cls = self.__class__
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {"dag_id": self.dag_id, "task_id": self.task_id, "key": self.key},
+        )
+
 
 class UnmappableOperator(AirflowException):
     """Raise when an operator is not implemented to be mappable."""
@@ -186,10 +199,6 @@ class AirflowDagDuplicatedIdException(AirflowException):
         return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
-class AirflowDagInconsistent(AirflowException):
-    """Raise when a DAG has inconsistent attributes."""
-
-
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
 
@@ -226,6 +235,28 @@ class DagRunAlreadyExists(AirflowBadRequest):
             f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
         )
         self.dag_run = dag_run
+        self.execution_date = execution_date
+        self.run_id = run_id
+
+    def serialize(self):
+        cls = self.__class__
+        # Note the DagRun object will be detached here and fails serialization, we need to create a new one
+        from airflow.models import DagRun
+
+        dag_run = DagRun(
+            state=self.dag_run.state,
+            dag_id=self.dag_run.dag_id,
+            run_id=self.dag_run.run_id,
+            external_trigger=self.dag_run.external_trigger,
+            run_type=self.dag_run.run_type,
+            execution_date=self.dag_run.execution_date,
+        )
+        dag_run.id = self.dag_run.id
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {"dag_run": dag_run, "execution_date": self.execution_date, "run_id": self.run_id},
+        )
 
 
 class DagFileExists(AirflowBadRequest):
@@ -296,31 +327,6 @@ class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system."""
 
 
-class NoAvailablePoolSlot(AirflowException):
-    """Raise when there is not enough slots in pool."""
-
-
-class DagConcurrencyLimitReached(AirflowException):
-    """Raise when DAG max_active_tasks limit is reached."""
-
-
-class TaskConcurrencyLimitReached(AirflowException):
-    """Raise when task max_active_tasks limit is reached."""
-
-
-class BackfillUnfinished(AirflowException):
-    """
-    Raises when not all tasks succeed in backfill.
-
-    :param message: The human-readable description of the exception
-    :param ti_status: The information about all task statuses
-    """
-
-    def __init__(self, message, ti_status):
-        super().__init__(message)
-        self.ti_status = ti_status
-
-
 class FileSyntaxError(NamedTuple):
     """Information about a single error in a file."""
 
@@ -372,7 +378,10 @@ class TaskDeferred(BaseException):
     Signal an operator moving to deferred state.
 
     Special exception raised to signal that the operator it was raised from
-    wishes to defer until a trigger fires.
+    wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
+    directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
+    and can be None; otherwise, provide the name of the method that should be used when
+    resuming execution in the task.
     """
 
     def __init__(
@@ -393,8 +402,9 @@ class TaskDeferred(BaseException):
             raise ValueError("Timeout value must be a timedelta")
 
     def serialize(self):
+        cls = self.__class__
         return (
-            self.__class__.__name__,
+            f"{cls.__module__}.{cls.__name__}",
             (),
             {
                 "trigger": self.trigger,
@@ -458,3 +468,7 @@ class DeserializingResultError(ValueError):
             "Error deserializing result. Note that result deserialization "
             "is not supported across major Python versions. Cause: " + str(self.__cause__)
         )
+
+
+class UnknownExecutorException(ValueError):
+    """Raised when an attempt is made to load an executor which is not configured."""

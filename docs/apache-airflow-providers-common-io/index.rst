@@ -51,14 +51,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/common/io/index>
+    System Tests <_api/tests/system/common/io/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/tests/system/providers/common/io>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/providers/tests/system/common/io>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-io/>
     Installing from sources <installing-providers-from-sources>
 
@@ -79,7 +79,7 @@ apache-airflow-providers-common-io package
 ``Common IO Provider``
 
 
-Release: 1.3.1
+Release: 1.4.2
 
 Provider package
 ----------------
@@ -115,14 +115,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-io[openlineage]
+    pip install apache-airflow-providers-common-io[common.compat]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-==============================================================================================================  ===============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -130,5 +131,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-io 1.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-io 1.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-io 1.4.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-io 1.4.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.4.2-py3-none-any.whl.sha512>`__)

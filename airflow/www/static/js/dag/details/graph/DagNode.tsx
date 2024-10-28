@@ -25,7 +25,7 @@ import { SimpleStatus } from "src/dag/StatusBox";
 import useSelection from "src/dag/useSelection";
 import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
-import InstanceTooltip from "src/dag/InstanceTooltip";
+import InstanceTooltip from "src/components/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
 import TaskName from "src/dag/TaskName";
 
@@ -42,10 +42,10 @@ const DagNode = ({
     task,
     isSelected,
     latestDagRunId,
-    onToggleCollapse,
     isOpen,
     isActive,
     setupTeardownType,
+    onToggleCollapse,
     labelStyle,
     style,
     isZoomedOut,
@@ -139,8 +139,10 @@ const DagNode = ({
           isOpen={isOpen}
           isGroup={!!childCount}
           onClick={(e) => {
-            e.stopPropagation();
-            onToggleCollapse();
+            if (childCount) {
+              e.stopPropagation();
+              onToggleCollapse();
+            }
           }}
           setupTeardownType={setupTeardownType}
           isZoomedOut={isZoomedOut}

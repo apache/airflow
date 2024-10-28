@@ -36,6 +36,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
@@ -154,6 +155,23 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             self.rendered_fields[field] = redact(rendered, field)
 
     @classmethod
+    @internal_api_call
+    @provide_session
+    def _update_runtime_evaluated_template_fields(
+        cls, ti: TaskInstance, session: Session = NEW_SESSION
+    ) -> None:
+        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+        # Note: Need lazy import to break the partly loaded class loop
+        from airflow.models.taskinstance import TaskInstance
+
+        # If called via remote API the DAG needs to be re-loaded
+        TaskInstance.ensure_dag(ti, session=session)
+
+        rtif = RenderedTaskInstanceFields(ti)
+        RenderedTaskInstanceFields.write(rtif, session=session)
+        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
+
+    @classmethod
     @provide_session
     def get_templated_fields(
         cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
@@ -203,7 +221,8 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
     @provide_session
     @retry_db_transaction
     def write(self, session: Session = None):
-        """Write instance to database.
+        """
+        Write instance to database.
 
         :param session: SqlAlchemy Session
         """

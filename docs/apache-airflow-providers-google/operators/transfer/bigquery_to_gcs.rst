@@ -37,7 +37,7 @@ Prerequisite Tasks
 Operator
 ^^^^^^^^
 
-File transfer from GCS to BigQuery is performed with the
+Table export from BigQuery to GCS is performed with the
 :class:`~airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryToGCSOperator` operator.
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
@@ -48,12 +48,12 @@ You may define multiple destination URIs, as well as other settings such as ``co
 ``export_format``. For more information, please refer to the links above.
 
 
-Importing files
----------------
+Exporting tables
+----------------
 
-The following Operator imports one or more files from GCS into a BigQuery table.
+The following Operator exports BigQuery table into a GCS.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_gcs]

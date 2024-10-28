@@ -38,6 +38,28 @@ class TestWebserverDeployment:
 
         assert 0 == len(docs)
 
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    def test_should_not_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" in jmespath.search("spec", docs[0])
+
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
@@ -200,11 +222,36 @@ class TestWebserverDeployment:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "release-name-test-container",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
                 "webserver": {
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -213,6 +260,14 @@ class TestWebserverDeployment:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -313,6 +368,20 @@ class TestWebserverDeployment:
         assert {
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "extraInitContainers": [{"name": "{{ .Release.Name }}-init-container"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {
+            "name": "release-name-init-container",
         } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
 
     def test_should_add_component_specific_labels(self):
@@ -816,6 +885,20 @@ class TestWebserverDeployment:
 
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+    @pytest.mark.parametrize(
+        "webserver_values, expected",
+        [
+            ({}, 30),
+            ({"webserver": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_webserver_termination_grace_period_seconds(self, webserver_values, expected):
+        docs = render_chart(
+            values=webserver_values,
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
 class TestWebserverService:

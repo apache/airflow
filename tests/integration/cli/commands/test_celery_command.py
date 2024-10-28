@@ -25,11 +25,12 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
 from airflow.executors import executor_loader
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.integration("celery")
-@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.backend("postgres")
 class TestWorkerServeLogs:
     @classmethod
     def setup_class(cls):

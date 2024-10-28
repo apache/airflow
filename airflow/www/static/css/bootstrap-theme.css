@@ -36,6 +36,27 @@ html {
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
 }
+html[data-color-scheme="dark"] {
+  filter: invert(100%) hue-rotate(180deg) saturate(90%) contrast(85%);
+}
+
+/* Default icons to not display until the data-color-scheme has been set */
+#dark_icon,
+#light_icon {
+  display: none;
+}
+html[data-color-scheme="dark"] #dark_icon {
+  display: block;
+}
+html[data-color-scheme="dark"] #light_icon {
+  display: none;
+}
+html[data-color-scheme="light"] #dark_icon {
+  display: none;
+}
+html[data-color-scheme="light"] #light_icon {
+  display: block;
+}
 body {
   margin: 0;
 }
@@ -2768,7 +2789,9 @@ tbody.collapse.in {
   overflow: hidden;
   background-color: #e5e5e5;
 }
-.dropdown-menu > li > a {
+
+.dropdown-menu > li > a,
+.dropdown-menu > li > form > button {
   display: block;
   padding: 3px 20px;
   clear: both;
@@ -2776,9 +2799,14 @@ tbody.collapse.in {
   line-height: 1.428571429;
   color: #51504f;
   white-space: nowrap;
+  width: 100%;
+  max-width: 100%;
+  text-align: left;
 }
 .dropdown-menu > li > a:hover,
-.dropdown-menu > li > a:focus {
+.dropdown-menu > li > a:focus,
+.dropdown-menu > li > form > button:hover,
+.dropdown-menu > li > form > button:focus {
   text-decoration: none;
   color: #262626;
   background-color: #f5f5f5;
@@ -3569,13 +3597,17 @@ select[multiple].input-group-sm > .input-group-btn > .btn {
     box-shadow: none;
   }
   .navbar-nav .dropdown:hover > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > form > button,
   .navbar-nav .dropdown:hover > .dropdown-menu .dropdown-header,
   .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > form > button,
   .navbar-nav .dropdown:focus-within > .dropdown-menu .dropdown-header {
     padding: 5px 15px 5px 25px;
   }
   .navbar-nav .dropdown:hover > .dropdown-menu > li > a,
-  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a {
+  .navbar-nav .dropdown:hover > .dropdown-menu > li > form > button,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > a,
+  .navbar-nav .dropdown:focus-within > .dropdown-menu > li > form > button {
     line-height: 20px;
   }
   .navbar-nav .dropdown:hover > .dropdown-menu > li > a:hover,
