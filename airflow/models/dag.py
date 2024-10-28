@@ -2818,8 +2818,6 @@ class DagModel(Base):
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # Whether (one  of) the scheduler is scheduling this DAG at the moment
-    scheduler_lock = Column(Boolean)
     # Foreign key to the latest pickle_id
     pickle_id = Column(Integer)
     # The location of the file containing the DAG object
