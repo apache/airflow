@@ -36,6 +36,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
+import uuid6
 from sqlalchemy import select
 
 from airflow import settings
@@ -646,7 +647,7 @@ class TestTaskInstance:
         ti.task = task
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # first run -- up for retry
         run_with_error(ti)
@@ -654,7 +655,7 @@ class TestTaskInstance:
         assert ti.try_number == 1
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
         time_machine.coordinates.shift(3)
@@ -663,7 +664,7 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # third run -- failed
         time_machine.coordinates.shift(datetime.datetime.resolution)
@@ -698,7 +699,7 @@ class TestTaskInstance:
         ti.task = task
         assert ti.try_number == 0
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # first run -- up for retry
@@ -706,7 +707,7 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # second run -- fail
@@ -718,7 +719,7 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # third run -- up for retry
@@ -726,7 +727,7 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # fourth run -- fail
@@ -888,7 +889,7 @@ class TestTaskInstance:
 
         # We increment the try number because that's what the scheduler would do
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # After the retry the start date is reset, hence the duration is also reset.
 
@@ -900,7 +901,7 @@ class TestTaskInstance:
 
         # scheduler would create a new try here
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
@@ -993,7 +994,7 @@ class TestTaskInstance:
 
         # We increment the try number because that's what the scheduler would do
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # After the retry the start date is reset, hence the duration is also reset.
 
@@ -1004,7 +1005,7 @@ class TestTaskInstance:
         run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
@@ -3599,7 +3600,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.state = State.QUEUED
         session.merge(ti)
         session.flush()
@@ -3618,7 +3619,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id, session=session)
         ti.try_number += 1
         ti = session.merge(ti)
         ti.task = None
@@ -3789,7 +3790,7 @@ class TestTaskInstance:
             run_type=DagRunType.MANUAL,
             external_trigger=False,
         )
-        ti = TI(task=op, run_id=dr.run_id)
+        ti = dr.get_task_instance(op.task_id)
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -3817,7 +3818,7 @@ class TestTaskInstance:
             task = PythonOperator(task_id="mytask", python_callable=f)
 
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -3999,6 +4000,7 @@ class TestTaskInstance:
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
+            "id": str(uuid6.uuid7()),
             "unixname": "some_unique_unixname",
             "job_id": 1234,
             "pool": "some_fake_pool_id",
@@ -5398,7 +5400,7 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
         BashOperator(task_id="hello", bash_command="hi")
     dag_maker.create_dagrun(state="success")
     ti = session.scalar(select(TaskInstance))
-    session.get(TaskInstance, ti.key.primary).try_number += 1
+    session.get(TaskInstance, ti.id).try_number += 1
     session.commit()
     assert ti.task_id == "hello"  # just to confirm...
     assert ti.try_number == 1  # starts out as 1

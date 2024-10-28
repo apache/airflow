@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.13.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: HttpSensorTrigger to include 'method' when serializing (#42925)``
+* ``Use url_from_endpoint inside HttpHook. (#42785)``
+
+Misc
+~~~~
+
+* ``add lowerbount to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
+* ``Set lower bound to asgiref>=2.3.0 (#43001)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 4.13.1
 ......
 

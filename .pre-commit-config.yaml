@@ -234,7 +234,7 @@ repos:
         additional_dependencies: ["libcst>=1.1.0"]
         files: ^(providers/src/)?airflow/.*/(sensors|operators)/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.19.0
+    rev: 1.19.1
     hooks:
       - id: blacken-docs
         name: Run black on docs

@@ -170,7 +170,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.2"
+PIP_VERSION = "24.3.1"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -393,6 +393,7 @@ COMMITTERS = [
     "bolkedebruin",
     "criccomini",
     "dimberman",
+    "dirrao",
     "dstandish",
     "eladkal",
     "ephraimbuddy",
