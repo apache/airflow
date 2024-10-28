@@ -441,15 +441,20 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     # Count elements before joining extra columns
     total_entries = get_query_count(base_query, session=session)
     # Add join
-    base_query = base_query.join(
-        SlaMiss,
-        and_(
-            SlaMiss.dag_id == TI.dag_id,
-            SlaMiss.task_id == TI.task_id,
-            SlaMiss.execution_date == DR.execution_date,
-        ),
-        isouter=True,
-    ).add_columns(SlaMiss)
+    base_query = (
+        base_query.join(
+            SlaMiss,
+            and_(
+                SlaMiss.dag_id == TI.dag_id,
+                SlaMiss.task_id == TI.task_id,
+                SlaMiss.execution_date == DR.execution_date,
+            ),
+            isouter=True,
+        )
+        .add_columns(SlaMiss)
+        .offset(data["page_offset"])
+        .limit(data["page_limit"])
+    )
     ti_query = base_query.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
