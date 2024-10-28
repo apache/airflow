@@ -325,6 +325,11 @@ ARG_MAX_ACTIVE_RUNS = Arg(
     type=positive_int(allow_zero=False),
     help="Max active runs for this backfill.",
 )
+ARG_BACKFILL_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
 
 
 # misc
@@ -1030,6 +1035,7 @@ BACKFILL_COMMANDS = (
             ARG_DAG_RUN_CONF,
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_DRY_RUN,
         ),
     ),
 )

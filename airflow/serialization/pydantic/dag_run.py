@@ -55,7 +55,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[AssetEventPydantic]  # noqa: UP006
+    consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 

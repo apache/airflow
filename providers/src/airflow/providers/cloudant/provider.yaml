@@ -22,9 +22,10 @@ description: |
     `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 state: ready
-source-date-epoch: 1728484755
+source-date-epoch: 1730012213
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.0.2
   - 4.0.1
   - 4.0.0
   - 3.6.0
@@ -48,7 +49,12 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - ibmcloudant>=0.9.1
+  # Even though 3.9 is excluded below, we need to make this python_version aware so that `uv` (at least as of
+  # 0.4.25) can generate a full lock file when building lock file from provider sources. Seeing the duplicate
+  # dep makes the UV resolver correctly "fork" and try to come up with alternative solutions.
+  # https://github.com/astral-sh/uv/issues/4668
+  - 'ibmcloudant==0.9.1 ; python_version >= "3.10"'
+  - 'ibmcloudant==0.7.0 ; python_version < "3.10"'
 
 excluded-python-versions:
   # ibmcloudant transitively brings in urllib3 2.x, but the snowflake provider has a dependency that pins

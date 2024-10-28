@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Asset", "AssetAll", "AssetAny"]
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
 
 
 log = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return [asset.to_public() for asset in asset_alias_obj.datasets]
+        return [asset.to_public() for asset in asset_alias_obj.assets]
     return []
 
 
@@ -275,13 +275,14 @@ def _set_extra_default(extra: dict | None) -> dict:
 
 @attr.define(init=False, unsafe_hash=False)
 class Asset(os.PathLike, BaseAsset):
-    """A representation of data dependencies between workflows."""
+    """A representation of data asset dependencies between workflows."""
 
     name: str
     uri: str
     group: str
     extra: dict[str, Any]
 
+    asset_type: ClassVar[str] = ""
     __version__: ClassVar[int] = 1
 
     @overload
@@ -313,7 +314,7 @@ class Asset(os.PathLike, BaseAsset):
         fields = attr.fields_dict(Asset)
         self.name = _validate_non_empty_identifier(self, fields["name"], name)
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group)
+        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
         self.extra = _set_extra_default(extra)
 
     def __fspath__(self) -> str:
@@ -370,6 +371,18 @@ class Asset(os.PathLike, BaseAsset):
             dependency_type="asset",
             dependency_id=self.uri,
         )
+
+
+class Dataset(Asset):
+    """A representation of dataset dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "dataset"
+
+
+class Model(Asset):
+    """A representation of model dependencies between workflows."""
+
+    asset_type: ClassVar[str] = "model"
 
 
 class _AssetBooleanCondition(BaseAsset):

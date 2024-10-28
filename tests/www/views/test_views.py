@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 from markupsafe import Markup
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import (
     initialize_config,
     write_default_airflow_configuration_if_needed,
@@ -36,7 +35,6 @@ from airflow.utils.docs import get_doc_url_for_provider
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import (
     ProviderView,
-    build_scarf_url,
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
@@ -608,39 +606,3 @@ def test_invalid_dates(app, admin_client, url, content):
 
     assert resp.status_code == 400
     assert re.search(content, resp.get_data().decode())
-
-
-@pytest.mark.parametrize("enabled", [False, True])
-@patch("airflow.utils.usage_data_collection.get_platform_info", return_value=("Linux", "x86_64"))
-@patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
-@patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
-@patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
-@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.9")
-@patch("airflow.utils.usage_data_collection.get_plugin_counts")
-def test_build_scarf_url(
-    get_plugin_counts,
-    get_python_version,
-    get_executor,
-    get_database_name,
-    get_database_version,
-    get_platform_info,
-    enabled,
-):
-    get_plugin_counts.return_value = {
-        "plugins": 10,
-        "flask_blueprints": 15,
-        "appbuilder_views": 20,
-        "appbuilder_menu_items": 25,
-        "timetables": 30,
-    }
-    with patch("airflow.settings.is_usage_data_collection_enabled", return_value=enabled):
-        result = build_scarf_url(5)
-        expected_url = (
-            "https://apacheairflow.gateway.scarf.sh/webserver/"
-            f"{airflow_version}/3.9/Linux/x86_64/postgres/12.3/SequentialExecutor/1-5"
-            f"/6-10/15/20/25/21-50"
-        )
-        if enabled:
-            assert result == expected_url
-        else:
-            assert result == ""

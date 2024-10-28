@@ -22,8 +22,22 @@ from __future__ import annotations
 
 import json
 import platform
+import sys
 from enum import Enum
-from functools import cache
+
+from airflow_breeze.utils.console import get_console
+
+try:
+    from functools import cache
+except ImportError:
+    get_console().print(
+        "\n[error]Breeze doesn't support Python version <=3.8\n\n"
+        "[warning]Use Python 3.9 and force reinstall breeze with pipx\n\n"
+        "     pipx install --force -e ./dev/breeze\n"
+        "\nTo find out more, visit [info]https://github.com/apache/airflow/"
+        "blob/main/dev/breeze/doc/01_installation.rst#the-pipx-tool[/]\n"
+    )
+    sys.exit(1)
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
@@ -156,7 +170,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.0"
+PIP_VERSION = "24.3.1"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -194,7 +208,6 @@ class SelectiveUnitTestTypes(Enum):
     PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
     PYTHON_VENV = "PythonVenv"
-    TASK_SDK = "TaskSDK"
     WWW = "WWW"
 
 
@@ -535,7 +548,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["standard"])
+CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon"])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
