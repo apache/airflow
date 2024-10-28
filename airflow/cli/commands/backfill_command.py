@@ -21,7 +21,7 @@ import logging
 import signal
 
 from airflow import settings
-from airflow.models.backfill import _create_backfill, _get_info_list
+from airflow.models.backfill import ReprocessBehavior, _create_backfill, _get_info_list
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import sigint_handler
@@ -55,6 +55,11 @@ def create_backfill(args) -> None:
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
 
+    if args.reprocess_behavior is not None:
+        reprocess_behavior = ReprocessBehavior(args.reprocess_behavior)
+    else:
+        reprocess_behavior = None
+
     if args.dry_run:
         _do_dry_run(
             params=dict(
@@ -64,6 +69,7 @@ def create_backfill(args) -> None:
                 max_active_runs=args.max_active_runs,
                 reverse=args.run_backwards,
                 dag_run_conf=args.dag_run_conf,
+                reprocess_behavior=reprocess_behavior,
             ),
             dag_id=args.dag,
             from_date=args.from_date,
@@ -78,4 +84,5 @@ def create_backfill(args) -> None:
         max_active_runs=args.max_active_runs,
         reverse=args.run_backwards,
         dag_run_conf=args.dag_run_conf,
+        reprocess_behavior=reprocess_behavior,
     )

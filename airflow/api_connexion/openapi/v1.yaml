@@ -2902,6 +2902,16 @@ components:
           type: boolean
           nullable: true
           description: is_paused
+        reprocess_behavior:
+          type: string
+          default: none
+          enum:
+            - none
+            - failed
+            - completed
+          description: |
+            Controls whether new runs will be created when there's an existing run
+            for a given logical date.
         max_active_runs:
           type: integer
           nullable: true
