@@ -295,18 +295,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Expired",
     },
-    scheduler_lock: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Scheduler Lock",
-    },
     pickle_id: {
       anyOf: [
         {
@@ -607,7 +595,6 @@ export const $DAGDetailsResponse = {
     "last_parsed_time",
     "last_pickled",
     "last_expired",
-    "scheduler_lock",
     "pickle_id",
     "default_view",
     "fileloc",
@@ -711,18 +698,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    scheduler_lock: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Scheduler Lock",
     },
     pickle_id: {
       anyOf: [
@@ -889,7 +864,6 @@ export const $DAGResponse = {
     "last_parsed_time",
     "last_pickled",
     "last_expired",
-    "scheduler_lock",
     "pickle_id",
     "default_view",
     "fileloc",
@@ -1196,18 +1170,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Expired",
     },
-    scheduler_lock: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Scheduler Lock",
-    },
     pickle_id: {
       anyOf: [
         {
@@ -1380,7 +1342,6 @@ export const $DAGWithLatestDagRunsResponse = {
     "last_parsed_time",
     "last_pickled",
     "last_expired",
-    "scheduler_lock",
     "pickle_id",
     "default_view",
     "fileloc",
