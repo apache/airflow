@@ -282,14 +282,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "prod-image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
-                    "run-amazon-tests": "true",
+                    "run-amazon-tests": "false",
                     "docs-build": "true",
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google]",
-                    "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[amazon] Providers[apache.beam] Providers[apache.spark] Providers[docker] Providers[google] Providers[snowflake] Providers[standard]",
+                    "parallel-test-types-list-as-string": "Always Providers[common.compat,standard]",
+                    "providers-test-types-list-as-string": "Providers[common.compat,standard]",
+                    "separate-test-types-list-as-string": "Always Providers[common.compat] Providers[standard]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -362,7 +362,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("providers/tests/apache/beam/file.py",),
                 {
-                    "affected-providers-list-as-string": "apache.beam google standard",
+                    "affected-providers-list-as-string": "apache.beam common.compat google",
                     "all-python-versions": "['3.9']",
                     "all-python-versions-list-as-string": "3.9",
                     "python-versions": "['3.9']",
@@ -379,9 +379,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[apache.beam,standard] Providers[google]",
-                    "providers-test-types-list-as-string": "Providers[apache.beam,standard] Providers[google]",
-                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[google] Providers[standard]",
+                    "parallel-test-types-list-as-string": "Always Providers[apache.beam,common.compat] Providers[google]",
+                    "providers-test-types-list-as-string": "Providers[apache.beam,common.compat] Providers[google]",
+                    "separate-test-types-list-as-string": "Always Providers[apache.beam] Providers[common.compat] Providers[google]",
                     "needs-mypy": "true",
                     "mypy-checks": "['mypy-providers']",
                 },
@@ -643,7 +643,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh standard teradata",
+                "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -658,9 +658,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
-                "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,standard,teradata] Providers[google]",
+                "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -695,7 +693,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql openlineage postgres salesforce ssh standard teradata",
+                "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -710,9 +708,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                "Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,"
-                "imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,standard,teradata] Providers[google]",
+                "parallel-test-types-list-as-string": "Always Providers[amazon] Providers[apache.hive,cncf.kubernetes,common.compat,common.sql,exasol,ftp,http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -749,7 +745,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/src/airflow/providers/standard/operators/bash.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.spark docker google snowflake standard",
+                "affected-providers-list-as-string": "common.compat standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -758,13 +754,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
-                "run-amazon-tests": "true",
+                "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[common.compat,standard] Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -782,13 +778,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
-                "run-amazon-tests": "true",
+                "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Providers[amazon] Providers[apache.beam,apache.spark,docker,snowflake,standard] Providers[google] Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[common.compat,standard] Serialization",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-providers']",
             },
@@ -1304,7 +1300,7 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.compat common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
+                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "needs-helm-tests": "false",
@@ -1334,7 +1330,7 @@ def test_expected_output_full_tests_needed(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh standard trino",
+                "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1452,7 +1448,7 @@ def test_expected_output_pull_request_v2_7(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "ci-image-build": "true",
@@ -1463,15 +1459,15 @@ def test_expected_output_pull_request_v2_7(
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh standard trino",
-                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-ui,ts-compile-format-lint-www",
+                "presto salesforce samba sftp ssh trino",
+                "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Always CLI Providers[amazon] "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.compat,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,samba,sftp,ssh,standard,trino] Providers[google]",
+                "salesforce,samba,sftp,ssh,trino] Providers[google]",
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow', 'mypy-providers']",
             },
@@ -1771,7 +1767,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
-                "postgres presto salesforce samba sftp ssh standard trino",
+                "postgres presto salesforce samba sftp ssh trino",
             },
             id="Google provider docs changed",
         ),

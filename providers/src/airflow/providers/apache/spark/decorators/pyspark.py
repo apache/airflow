@@ -23,11 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.hooks.base import BaseHook
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
-
-try:
-    from airflow.providers.standard.operators.python import PythonOperator
-except ImportError:
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
+from airflow.providers.common.compat.standard.operators import PythonOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

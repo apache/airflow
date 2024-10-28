@@ -25,11 +25,7 @@ from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, aws_template_fields
-
-try:
-    from airflow.providers.standard.operators.python import ShortCircuitOperator
-except ImportError:
-    from airflow.operators.python import ShortCircuitOperator  # type: ignore[no-redef,attr-defined]
+from airflow.providers.common.compat.standard.operators import ShortCircuitOperator
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (

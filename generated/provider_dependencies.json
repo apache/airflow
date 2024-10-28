@@ -67,8 +67,7 @@
       "mongo",
       "openlineage",
       "salesforce",
-      "ssh",
-      "standard"
+      "ssh"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -82,8 +81,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "google",
-      "standard"
+      "common.compat",
+      "google"
     ],
     "excluded-python-versions": [
       "3.12"
@@ -288,7 +287,7 @@
     "plugins": [],
     "cross-providers-deps": [
       "cncf.kubernetes",
-      "standard"
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -399,7 +398,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "openlineage"
+      "openlineage",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -520,7 +520,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "standard"
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -537,7 +537,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -716,7 +718,6 @@
       "salesforce",
       "sftp",
       "ssh",
-      "standard",
       "trino"
     ],
     "excluded-python-versions": [],
@@ -1252,8 +1253,7 @@
     "cross-providers-deps": [
       "common.compat",
       "common.sql",
-      "openlineage",
-      "standard"
+      "openlineage"
     ],
     "excluded-python-versions": [],
     "state": "ready"
