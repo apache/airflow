@@ -147,7 +147,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
     class SetStateReturn(BaseModel):
         """Defines return type of set_state function."""
 
-        queues: list[str] | None = None
+        queues: Optional[List[str]] = None  # noqa: UP006,UP007 - prevent Sphinx failing
         version_mismatch: bool = False
 
     @staticmethod
