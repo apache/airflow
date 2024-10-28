@@ -79,7 +79,7 @@ So for example the following configuration will store anything above 1MB in S3 a
       [common.io]
       xcom_objectstorage_path = s3://conn_id@mybucket/key
       xcom_objectstorage_threshold = 1048576
-      xcom_objectstoragee_compression = gzip
+      xcom_objectstorage_compression = gzip
 
 
 .. note::

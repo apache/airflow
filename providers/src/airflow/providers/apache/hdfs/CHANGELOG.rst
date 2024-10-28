@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``added MultipleFilesWebHdfsSensor (#43045)``
+
+Misc
+~~~~
+
+* ``Fixed failing static checks & provider tests (#43122)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 4.5.1
 .....
 

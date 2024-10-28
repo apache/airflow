@@ -55,6 +55,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -65,6 +66,7 @@ def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     return pool_schema.dump(obj)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -85,6 +87,7 @@ def get_pools(
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("PUT")
 @action_logging
 @provide_session
@@ -144,6 +147,7 @@ def patch_pool(
     return pool_schema.dump(pool)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_pool("POST")
 @action_logging
 @provide_session

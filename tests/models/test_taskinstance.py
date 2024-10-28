@@ -36,6 +36,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
+import uuid6
 from sqlalchemy import select
 
 from airflow import settings
@@ -77,7 +78,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
@@ -646,7 +647,7 @@ class TestTaskInstance:
         ti.task = task
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # first run -- up for retry
         run_with_error(ti)
@@ -654,7 +655,7 @@ class TestTaskInstance:
         assert ti.try_number == 1
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # second run -- still up for retry because retry_delay hasn't expired
         time_machine.coordinates.shift(3)
@@ -663,7 +664,7 @@ class TestTaskInstance:
         assert ti.try_number == 2
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # third run -- failed
         time_machine.coordinates.shift(datetime.datetime.resolution)
@@ -698,7 +699,7 @@ class TestTaskInstance:
         ti.task = task
         assert ti.try_number == 0
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # first run -- up for retry
@@ -706,7 +707,7 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # second run -- fail
@@ -718,7 +719,7 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # third run -- up for retry
@@ -726,7 +727,7 @@ class TestTaskInstance:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
-        session.get(TaskInstance, ti.key.primary).try_number += 1
+        session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # fourth run -- fail
@@ -888,7 +889,7 @@ class TestTaskInstance:
 
         # We increment the try number because that's what the scheduler would do
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # After the retry the start date is reset, hence the duration is also reset.
 
@@ -900,7 +901,7 @@ class TestTaskInstance:
 
         # scheduler would create a new try here
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
@@ -993,7 +994,7 @@ class TestTaskInstance:
 
         # We increment the try number because that's what the scheduler would do
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         # After the retry the start date is reset, hence the duration is also reset.
 
@@ -1004,7 +1005,7 @@ class TestTaskInstance:
         run_ti_and_assert(date2, date1, date2, 60, State.UP_FOR_RETRY, 1, 1)
 
         with create_session() as session:
-            session.get(TaskInstance, ti.key.primary).try_number += 1
+            session.get(TaskInstance, ti.id).try_number += 1
 
         done, fail = False, False
         run_ti_and_assert(date3, date3, date3, 0, State.UP_FOR_RESCHEDULE, 2, 1)
@@ -2273,7 +2274,7 @@ class TestTaskInstance:
     def test_outlet_assets(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        completes successfully, a AssetDagRunQueue is logged.
+        completes successfully, an AssetDagRunQueue is logged.
         """
         from airflow.example_dags import example_assets
         from airflow.example_dags.example_assets import dag1
@@ -2332,7 +2333,7 @@ class TestTaskInstance:
     def test_outlet_assets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet asset on a task, and the task
-        failed, a AssetDagRunQueue is not logged, and an AssetEvent is
+        failed, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets
@@ -2388,7 +2389,7 @@ class TestTaskInstance:
     def test_outlet_assets_skipped(self):
         """
         Verify that when we have an outlet asset on a task, and the task
-        is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
+        is skipped, an AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_assets
@@ -3599,7 +3600,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.state = State.QUEUED
         session.merge(ti)
         session.flush()
@@ -3618,7 +3619,7 @@ class TestTaskInstance:
         with dag_maker():
             task = EmptyOperator(task_id="mytask", retries=1)
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id, session=session)
         ti.try_number += 1
         ti = session.merge(ti)
         ti.task = None
@@ -3789,7 +3790,7 @@ class TestTaskInstance:
             run_type=DagRunType.MANUAL,
             external_trigger=False,
         )
-        ti = TI(task=op, run_id=dr.run_id)
+        ti = dr.get_task_instance(op.task_id)
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -3817,7 +3818,7 @@ class TestTaskInstance:
             task = PythonOperator(task_id="mytask", python_callable=f)
 
         dr = dag_maker.create_dagrun()
-        ti = TI(task=task, run_id=dr.run_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.state = State.RUNNING
         session = settings.Session()
         session.merge(ti)
@@ -3999,6 +4000,7 @@ class TestTaskInstance:
             "try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
+            "id": str(uuid6.uuid7()),
             "unixname": "some_unique_unixname",
             "job_id": 1234,
             "pool": "some_fake_pool_id",
@@ -5258,6 +5260,80 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
 
 
+@pytest.mark.skip_if_database_isolation_mode
+def test_one_success_task_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
+    """Test that mini scheduler with one_success task"""
+    with dag_maker() as dag:
+        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "task_run")
+        task_run = BashOperator(task_id="task_run", bash_command="echo 0")
+        task_skip = BashOperator(task_id="task_skip", bash_command="echo 0")
+        task_1 = BashOperator(task_id="task_1", bash_command="echo 0")
+        task_one_success = BashOperator(
+            task_id="task_one_success", bash_command="echo 0", trigger_rule="one_success"
+        )
+        task_2 = BashOperator(task_id="task_2", bash_command="echo 0")
+
+        task_1 >> task_2
+        branch >> task_skip
+        branch >> task_run
+        task_run >> task_one_success
+        task_skip >> task_one_success
+        task_one_success >> task_2
+        task_skip >> task_2
+
+    dr = dag_maker.create_dagrun()
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    branch.state = State.SUCCESS
+    task_1.state = State.SUCCESS
+    task_skip.state = State.SKIPPED
+    session.merge(branch)
+    session.merge(task_1)
+    session.merge(task_skip)
+    session.commit()
+    task_1.refresh_from_task(dag.get_task("task_1"))
+    task_1.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.NONE
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.NONE
+    assert task_2.state == State.SKIPPED
+    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_run.state = State.SUCCESS
+    session.merge(task_run)
+    session.commit()
+    task_run.refresh_from_task(dag.get_task("task_run"))
+    task_run.schedule_downstream_tasks(session=session)
+
+    branch = dr.get_task_instance(task_id="branch")
+    task_run = dr.get_task_instance(task_id="task_run")
+    task_skip = dr.get_task_instance(task_id="task_skip")
+    task_1 = dr.get_task_instance(task_id="task_1")
+    task_one_success = dr.get_task_instance(task_id="task_one_success")
+    task_2 = dr.get_task_instance(task_id="task_2")
+    assert branch.state == State.SUCCESS
+    assert task_run.state == State.SUCCESS
+    assert task_skip.state == State.SKIPPED
+    assert task_1.state == State.SUCCESS
+    # task_one_success should not be scheduled
+    assert task_one_success.state == State.SCHEDULED
+    assert task_2.state == State.SKIPPED
+    assert "1 downstream tasks scheduled from follow-on schedule" in caplog.text
+
+
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(dag_maker, session):
     with dag_maker(session=session):
@@ -5324,7 +5400,7 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
         BashOperator(task_id="hello", bash_command="hi")
     dag_maker.create_dagrun(state="success")
     ti = session.scalar(select(TaskInstance))
-    session.get(TaskInstance, ti.key.primary).try_number += 1
+    session.get(TaskInstance, ti.id).try_number += 1
     session.commit()
     assert ti.task_id == "hello"  # just to confirm...
     assert ti.try_number == 1  # starts out as 1

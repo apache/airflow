@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.0
+.....
+
+Latest change: 2024-10-25
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`1f4b306c80 <https://github.com/apache/airflow/commit/1f4b306c804d7611fc95685d59163ef9fd217bba>`_  2024-10-25   ``Fix revoke Dag stale permission on airflow < 2.10 (#42844)``
+`d7f50baa6f <https://github.com/apache/airflow/commit/d7f50baa6fa74eb6d7493e3abadb687b39ca0b5d>`_  2024-10-23   ``Bump Flask-AppBuilder to ''4.5.2'' (#43309)``
+`84ff10bf06 <https://github.com/apache/airflow/commit/84ff10bf06cf1a529169990d25c00a33d06e740e>`_  2024-10-23   ``Upgrade FAB to 4.5.1 (#43251)``
+`7324cdaa91 <https://github.com/apache/airflow/commit/7324cdaa917f94b86651ddb0b9ee2a6102402448>`_  2024-10-17   ``feat(providers/fab): Use asset in common provider (#43112)``
+`c7104f53b9 <https://github.com/apache/airflow/commit/c7104f53b9fbb0795822745848824fe322acd2f7>`_  2024-10-10   ``Move user and roles schemas to fab provider (#42869)``
+`978bb0c6b6 <https://github.com/apache/airflow/commit/978bb0c6b6a753edae0ef9c45e613d5be2e01672>`_  2024-10-10   ``Move the session auth backend to FAB auth manager (#42878)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 1.4.1
 .....
 
-Latest change: 2024-10-01
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `9536c98a43 <https://github.com/apache/airflow/commit/9536c98a439fc028542bb9b8eb9b76c24e2ee02b>`_  2024-10-01   ``Update Rest API tests to no longer rely on FAB auth manager. Move tests specific to FAB permissions to FAB provider (#42523)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
 `2beb6a765d <https://github.com/apache/airflow/commit/2beb6a765d9af94115a7c010cfbc6f802d28da24>`_  2024-09-25   ``Simplify expression for get_permitted_dag_ids query (#42484)``

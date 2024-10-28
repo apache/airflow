@@ -854,7 +854,9 @@ class TestDagRun:
         )
 
         prev_ti = TI(task, run_id=dag_run_1.run_id)
+        prev_ti.refresh_from_db()
         ti = TI(task, run_id=dag_run_2.run_id)
+        ti.refresh_from_db()
 
         prev_ti.set_state(prev_ti_state)
         ti.set_state(TaskInstanceState.QUEUED)
@@ -892,7 +894,9 @@ class TestDagRun:
         )
 
         prev_ti_downstream = TI(task=downstream, run_id=dag_run_1.run_id)
+        prev_ti_downstream.refresh_from_db()
         ti = TI(task=upstream, run_id=dag_run_2.run_id)
+        ti.refresh_from_db()
         prev_ti = ti.get_previous_ti()
         prev_ti.set_state(TaskInstanceState.SUCCESS)
         assert prev_ti.state == TaskInstanceState.SUCCESS

@@ -368,7 +368,7 @@ export interface paths {
      */
     get: operations["get_asset_queued_events"];
     /**
-     * Delete queued Asset events for a Asset.
+     * Delete queued Asset events for an Asset.
      *
      * *New in version 2.9.0*
      * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
@@ -1058,12 +1058,6 @@ export interface components {
        * *New in version 2.3.0*
        */
       last_expired?: string | null;
-      /**
-       * @description Whether (one of) the scheduler is scheduling this DAG at the moment
-       *
-       * *New in version 2.3.0*
-       */
-      scheduler_lock?: boolean | null;
       /**
        * @description Foreign key to the latest pickle_id
        *
@@ -2256,6 +2250,13 @@ export interface components {
       end_date_lte?: string;
     };
     ListTaskInstanceForm: {
+      /** @description The number of items to skip before starting to collect the result set. */
+      page_offset?: number;
+      /**
+       * @description The numbers of items to return.
+       * @default 100
+       */
+      page_limit?: number;
       /**
        * @description Return objects with specific DAG IDs.
        * The value can be repeated to retrieve multiple matching values (OR condition).
@@ -3886,7 +3887,7 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Asset events for a Asset.
+   * Delete queued Asset events for an Asset.
    *
    * *New in version 2.9.0*
    * *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"

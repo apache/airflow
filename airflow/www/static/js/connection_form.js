@@ -77,9 +77,9 @@ function restoreFieldBehaviours() {
   Array.from(document.querySelectorAll("label[data-orig-text]")).forEach(
     (elem) => {
       // eslint-disable-next-line no-param-reassign
-      elem.innerText = elem.dataset.origText;
+      elem.innerText = elem.asset.origText;
       // eslint-disable-next-line no-param-reassign
-      delete elem.dataset.origText;
+      delete elem.asset.origText;
     }
   );
 
@@ -109,7 +109,7 @@ function applyFieldBehaviours(connection) {
     if (connection.relabeling) {
       Object.keys(connection.relabeling).forEach((field) => {
         const label = document.querySelector(`label[for='${field}']`);
-        label.dataset.origText = label.innerText;
+        label.asset.origText = label.innerText;
         label.innerText = connection.relabeling[field];
       });
     }

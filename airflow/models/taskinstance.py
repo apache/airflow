@@ -39,6 +39,7 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -50,6 +51,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     and_,
     delete,
     false,
@@ -59,6 +61,7 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -794,6 +797,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 def _set_ti_attrs(target, source, include_dag_run=False):
     # Fields ordered per model definition
+    target.id = source.id
     target.start_date = source.start_date
     target.end_date = source.end_date
     target.duration = source.duration
@@ -1793,6 +1797,11 @@ def _handle_reschedule(
     return ti
 
 
+def uuid7() -> str:
+    """Generate a new UUID7 string."""
+    return str(uuid6.uuid7())
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1813,10 +1822,16 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        default=uuid7,
+        nullable=False,
+    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -1869,7 +1884,8 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
+        PrimaryKeyConstraint("id", name="task_instance_pkey"),
+        UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -1938,6 +1954,8 @@ class TaskInstance(Base, LoggingMixin):
         self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
+        if not self.id:
+            self.id = uuid7()
         self.unixname = getuser()
         if state:
             self.state = state
@@ -3673,21 +3691,15 @@ class TaskInstance(Base, LoggingMixin):
                 assert task
                 assert task.dag
 
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=False,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
+            # Previously, this section used task.dag.partial_subset to retrieve a partial DAG.
+            # However, this approach is unsafe as it can result in incomplete or incorrect task execution,
+            # leading to potential bad cases. As a result, the operation has been removed.
+            # For more details, refer to the discussion in PR #[https://github.com/apache/airflow/pull/42582].
+            dag_run.dag = task.dag
             info = dag_run.task_instance_scheduling_decisions(session)
 
             skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
+                task_id for task_id in task.dag.task_ids if task_id not in task.downstream_task_ids
             }
 
             schedulable_tis = [

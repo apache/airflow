@@ -114,7 +114,15 @@ def get_python_excluded_providers_folders() -> list[str]:
 
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
-    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/**/example_*.py"]
+    example_dirs = [
+        "airflow/**/example_dags/example_*.py",
+        "tests/system/**/example_*.py",
+        "providers/**/example_*.py",
+    ]
+
+    default_branch = os.environ.get("DEFAULT_BRANCH", "main")
+    include_providers = default_branch == "main"
+
     suspended_providers_folders = get_suspended_providers_folders()
     current_python_excluded_providers_folders = get_python_excluded_providers_folders()
     suspended_providers_folders = [
@@ -128,7 +136,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for provider in current_python_excluded_providers_folders
     ]
     providers_folders = tuple([AIRFLOW_SOURCES_ROOT.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
-
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in sorted(candidates):
@@ -150,6 +157,11 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                             param_marks.append(pytest.mark.skip(reason=reason))
 
             if candidate.startswith(providers_folders):
+                if not include_providers:
+                    print(
+                        f"Skipping {candidate} because providers are not included for {default_branch} branch."
+                    )
+                    continue
                 # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
                 # We should not rush to enforce new syntax updates in providers
                 # because a version of Airflow that deprecates certain features may not yet be released.

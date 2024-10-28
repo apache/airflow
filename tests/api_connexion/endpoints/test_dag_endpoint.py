@@ -188,7 +188,6 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
             "pickle_id": None,
@@ -229,7 +228,6 @@ class TestGetDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
             "pickle_id": None,
@@ -336,7 +334,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -399,7 +396,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -450,7 +446,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -501,7 +496,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": None,
             "tags": [],
             "template_searchpath": None,
@@ -561,7 +555,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -622,7 +615,6 @@ class TestGetDagDetails(TestDagEndpoint):
             "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": "2 2 * * *",
-            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
             "template_searchpath": None,
@@ -718,7 +710,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -746,7 +737,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -786,7 +776,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -827,7 +816,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -855,7 +843,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1012,7 +999,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1052,7 +1038,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1092,7 +1077,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1120,7 +1104,6 @@ class TestGetDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1140,6 +1123,26 @@ class TestGetDags(TestDagEndpoint):
         assert response.status_code == 200
 
         res_json = response.json
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
+    def test_should_return_specified_fields_and_total_entries(self):
+        total = 4
+        self._create_dag_models(total)
+        self._create_deactivated_dag()
+
+        limit = 2
+        fields = ["dag_id"]
+        response = self.client.get(
+            f"api/v1/dags?limit={limit}&fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        assert res_json["total_entries"] == total
+        assert len(res_json["dags"]) == limit
         for dag in res_json["dags"]:
             assert len(dag.keys()) == len(fields)
             for field in fields:
@@ -1190,7 +1193,6 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
             "pickle_id": None,
@@ -1289,7 +1291,6 @@ class TestPatchDag(TestDagEndpoint):
             "last_pickled": None,
             "default_view": None,
             "last_parsed_time": None,
-            "scheduler_lock": None,
             "timetable_description": None,
             "has_import_errors": False,
             "pickle_id": None,
@@ -1384,7 +1385,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1412,7 +1412,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1465,7 +1464,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1493,7 +1491,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1586,7 +1583,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1635,7 +1631,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1663,7 +1658,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1862,7 +1856,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1890,7 +1883,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1939,7 +1931,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -1967,7 +1958,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -2018,7 +2008,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
@@ -2046,7 +2035,6 @@ class TestPatchDags(TestDagEndpoint):
                     "last_pickled": None,
                     "default_view": None,
                     "last_parsed_time": None,
-                    "scheduler_lock": None,
                     "timetable_description": None,
                     "has_import_errors": False,
                     "pickle_id": None,
