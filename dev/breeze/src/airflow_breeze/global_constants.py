@@ -393,6 +393,7 @@ COMMITTERS = [
     "bolkedebruin",
     "criccomini",
     "dimberman",
+    "dirrao",
     "dstandish",
     "eladkal",
     "ephraimbuddy",
