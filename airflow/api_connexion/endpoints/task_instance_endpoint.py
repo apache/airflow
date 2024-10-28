@@ -425,7 +425,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
-    task_instances = session.scalars(ti_query.offset(data["page_offset"]).limit(data["page_limit"]))
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
+    task_instances = session.scalars(ti_query)
 
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
