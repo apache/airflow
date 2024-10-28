@@ -52,7 +52,7 @@ def upgrade():
         sa.ForeignKeyConstraint(
             ("alias_id",),
             ["dataset_alias.id"],
-            name="dsdar_dataset_alias_fkey",
+            name="dsdar_dataset_fkey",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
