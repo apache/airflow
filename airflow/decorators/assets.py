@@ -96,7 +96,7 @@ class asset:
     """Create an asset by decorating a materialization function."""
 
     schedule: ScheduleArg
-    uri: str | ObjectStoragePath | None
+    uri: str | ObjectStoragePath | None = None
     group: str = attrs.field(
         kw_only=True,
         default="",
