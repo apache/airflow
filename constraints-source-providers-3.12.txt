@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-28T07:49:21.465356
+# This constraints file was automatically generated on 2024-10-28T13:53:56.381604
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -152,7 +152,7 @@ connexion==2.14.2
 coverage==7.6.4
 crcmod==1.7
 cron-descriptor==1.4.5
-croniter==3.0.4
+croniter==4.0.0
 cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
@@ -440,7 +440,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.5.6
 py4j==0.10.9.7
 pyOpenSSL==24.2.1
-pyarrow==17.0.0
+pyarrow==18.0.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
@@ -578,7 +578,7 @@ tomli_w==1.1.0
 tomlkit==0.13.2
 tornado==6.4.1
 towncrier==24.8.0
-tqdm==4.66.5
+tqdm==4.66.6
 traitlets==5.14.3
 trino==0.330.0
 trove-classifiers==2024.10.21.16
@@ -615,6 +615,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.3
 userpath==1.9.2
+uuid6==2024.7.10
 uv==0.4.27
 uvicorn==0.32.0
 uvloop==0.21.0
@@ -635,7 +636,7 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.322.0
+yandexcloud==0.323.0
 yarl==1.16.0
 ydb==3.18.6
 zeep==4.3.1
