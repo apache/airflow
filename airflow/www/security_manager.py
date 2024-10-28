@@ -183,18 +183,18 @@ class AirflowSecurityManagerV2(LoggingMixin):
         def get_connection_id(resource_pk):
             if not resource_pk:
                 return None
-            connection = session.scalar(select(Connection).where(Connection.id == resource_pk).limit(1))
-            if not connection:
+            conn_id = session.scalar(select(Connection.conn_id).where(Connection.id == resource_pk).limit(1))
+            if not conn_id:
                 raise AirflowException("Connection not found")
-            return connection.conn_id
+            return conn_id
 
         def get_dag_id_from_dagrun_id(resource_pk):
             if not resource_pk:
                 return None
-            dagrun = session.scalar(select(DagRun).where(DagRun.id == resource_pk).limit(1))
-            if not dagrun:
+            dag_id = session.scalar(select(DagRun.dag_id).where(DagRun.id == resource_pk).limit(1))
+            if not dag_id:
                 raise AirflowException("DagRun not found")
-            return dagrun.dag_id
+            return dag_id
 
         def get_dag_id_from_task_instance(resource_pk):
             if not resource_pk:
