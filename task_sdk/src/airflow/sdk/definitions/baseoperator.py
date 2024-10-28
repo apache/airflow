@@ -565,7 +565,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_fields: Collection[str] = ()
     template_ext: Sequence[str] = ()
 
-    template_fields_renderers: dict[str, str] = field(default_factory=dict, init=False)
+    template_fields_renderers: ClassVar[dict[str, str]] = {}
 
     # Defines the color in the UI
     ui_color: str = "#fff"
@@ -720,8 +720,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             task_group.add(self)
 
         super().__init__()
-        if dag is not None:
-            self.dag = dag
         self.task_group = task_group
 
         kwargs.pop("_airflow_mapped_validation_only", None)
@@ -863,6 +861,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
+
+        # We set self.dag right at the end as `_convert_dag` calls `dag.add_task` for us, and we need all the
+        # other properties to be set at that point
+        if dag is not None:
+            self.dag = dag
 
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
@@ -1050,6 +1053,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         from airflow.utils.operator_resources import Resources
 
+        if isinstance(resources, Resources):
+            return resources
+
         return Resources(**resources)
 
     def _convert_is_setup(self, value: bool) -> bool:
@@ -1177,14 +1183,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
-                    "_on_failure_fail_dagrun",
+                    "on_failure_fail_dagrun",
+                    "task_group",
+                    "_task_type",
                 }
-                | {  # Class level defaults need to be added to this list
+                | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
                     "end_date",
-                    "_task_type",
-                    "_operator_name",
-                    "subdag",
+                    "task_type",
                     "ui_color",
                     "ui_fgcolor",
                     "template_ext",
@@ -1198,6 +1204,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "start_trigger_args",
                     "_needs_expansion",
                     "start_from_trigger",
+                    "max_retry_delay",
                 }
             )
             DagContext.pop()

@@ -382,7 +382,6 @@ class DAG:
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
     schedule: ScheduleArg = attrs.field(default=None, on_setattr=attrs.setters.frozen)
     timetable: Timetable = attrs.field(init=False)
-    full_filepath: str | None = None
     template_searchpath: str | Iterable[str] | None = attrs.field(
         default=None, converter=_convert_str_to_tuple
     )
@@ -448,6 +447,10 @@ class DAG:
 
         self.start_date = timezone.convert_to_utc(self.start_date)
         self.end_date = timezone.convert_to_utc(self.end_date)
+        if "start_date" in self.default_args:
+            self.default_args["start_date"] = self.start_date
+        if "end_date" in self.default_args:
+            self.default_args["end_date"] = self.end_date
 
     @params.validator
     def _validate_params(self, _, params: ParamsDict):

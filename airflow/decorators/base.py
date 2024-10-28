@@ -41,7 +41,6 @@ import re2
 import typing_extensions
 
 from airflow.assets import Asset
-from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
     coerce_resources,
@@ -56,7 +55,6 @@ from airflow.models.expandinput import (
     is_mappable,
 )
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
-from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
@@ -460,32 +458,26 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             task_id = task_group.child_id(task_id)
 
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
-        if "task_concurrency" in partial_kwargs:
-            raise TypeError("unexpected argument: task_concurrency")
         if partial_kwargs.get("wait_for_downstream"):
             partial_kwargs["depends_on_past"] = True
         start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
         end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
-        if partial_kwargs.get("pool") is None:
-            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
         if "pool_slots" in partial_kwargs:
             if partial_kwargs["pool_slots"] < 1:
                 dag_str = ""
                 if dag:
                     dag_str = f" in dag {dag.dag_id}"
                 raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
-        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
-        partial_kwargs["retry_delay"] = coerce_timedelta(
-            partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
-            key="retry_delay",
-        )
-        max_retry_delay = partial_kwargs.get("max_retry_delay")
-        partial_kwargs["max_retry_delay"] = (
-            max_retry_delay
-            if max_retry_delay is None
-            else coerce_timedelta(max_retry_delay, key="max_retry_delay")
-        )
-        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
+
+        for fld, convert in (
+            ("retries", parse_retries),
+            ("retry_delay", coerce_timedelta),
+            ("max_retry_delay", coerce_timedelta),
+            ("resources", coerce_resources),
+        ):
+            if (v := partial_kwargs.get(fld, NOTSET)) is not NOTSET:
+                partial_kwargs[fld] = convert(v)  # type: ignore[operator]
+
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})

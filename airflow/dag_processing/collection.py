@@ -213,7 +213,7 @@ class DagModelOperation(NamedTuple):
             dm.default_view = dag.default_view
             if hasattr(dag, "_dag_display_property_value"):
                 dm._dag_display_property_value = dag._dag_display_property_value
-            else:
+            elif dag.dag_display_name != dag.dag_id:
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
             dm.max_active_tasks = dag.max_active_tasks

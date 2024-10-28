@@ -333,7 +333,8 @@ class MappedOperator(AbstractOperator):
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return frozenset(attr.fields_dict(MappedOperator)) - {
+        return (frozenset(attr.fields_dict(MappedOperator)) | {"task_type"}) - {
+            "_task_type",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.

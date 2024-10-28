@@ -69,6 +69,12 @@ def _default_parent_group() -> TaskGroup | None:
     return TaskGroupContext.get_current()
 
 
+def _parent_used_group_ids(tg: TaskGroup) -> set:
+    if tg.parent_group:
+        return tg.parent_group.used_group_ids
+    return set()
+
+
 # This could be achieved with `@dag.default` and make this a method, but for some unknown reason when we do
 # that it makes Mypy (1.9.0 and 1.13.0 tested) seem to entirely loose track that this is an Attrs class. So
 # we've gone with this and moved on with our lives, mypy is to much of a dark beast to battle over this.
@@ -124,7 +130,11 @@ class TaskGroup(DAGNode):
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
     downstream_task_ids: set[str] = attrs.field(factory=set, init=False)
 
-    used_group_ids: set[str] = attrs.field(factory=set, init=False, on_setattr=attrs.setters.frozen)
+    used_group_ids: set[str] = attrs.field(
+        default=attrs.Factory(_parent_used_group_ids, takes_self=True),
+        init=False,
+        on_setattr=attrs.setters.frozen,
+    )
 
     ui_color: str = "CornflowerBlue"
     ui_fgcolor: str = "#000"
@@ -142,7 +152,6 @@ class TaskGroup(DAGNode):
         self._check_for_group_id_collisions(self.add_suffix_on_collision)
 
         if self.parent_group:
-            object.__setattr__(self, "used_group_ids", self.parent_group.used_group_ids)
             self.parent_group.add(self)
             if self.parent_group.default_args:
                 self.default_args = {**self.parent_group.default_args, **self.default_args}
@@ -157,7 +166,7 @@ class TaskGroup(DAGNode):
             return
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
-        if self._group_id in self.used_group_ids:
+        if self.group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
             base = re2.split(r"__\d+$", self._group_id)[0]
@@ -178,7 +187,7 @@ class TaskGroup(DAGNode):
 
     @property
     def node_id(self):
-        return self._group_id
+        return self.group_id
 
     @property
     def is_root(self) -> bool:
@@ -250,9 +259,9 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group.node_id:
+        if self.parent_group and self.parent_group.prefix_group_id and self.parent_group._group_id:
             # defer to parent whether it adds a prefix
-            return self.parent_group.child_id(self.group_id)
+            return self.parent_group.child_id(self._group_id)
 
         return self._group_id
 

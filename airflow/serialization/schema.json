@@ -156,7 +156,6 @@
                 {"type": "string"}
             ]
         },
-        "orientation": { "type" : "string"},
         "dag_display_name": { "type" : "string"},
         "description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
@@ -168,8 +167,7 @@
         "end_date": { "$ref": "#/definitions/datetime" },
         "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
         "doc_md": { "type" : "string"},
-        "_default_view": { "type" : "string"},
-        "_access_control": {"$ref": "#/definitions/dict" },
+        "access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
         "has_on_success_callback":  { "type": "boolean" },
         "has_on_failure_callback":  { "type": "boolean" },
@@ -219,7 +217,7 @@
       "$comment": "A task/operator in a DAG",
       "type": "object",
       "required": [
-        "_task_type",
+        "task_type",
         "_task_module",
         "task_id",
         "ui_color",
@@ -227,7 +225,7 @@
         "template_fields"
       ],
       "properties": {
-        "_task_type": { "type": "string" },
+        "task_type": { "type": "string" },
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },

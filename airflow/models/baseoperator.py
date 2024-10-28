@@ -137,10 +137,12 @@ def parse_retries(retries: Any) -> int | None:
     return parsed_retries
 
 
-def coerce_timedelta(value: float | timedelta, *, key: str) -> timedelta:
+def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> timedelta:
     if isinstance(value, timedelta):
         return value
-    logger.debug("%s isn't a timedelta object, assuming secs", key)
+    # TODO: remove this log here
+    if key:
+        logger.debug("%s isn't a timedelta object, assuming secs", key)
     return timedelta(seconds=value)
 
 

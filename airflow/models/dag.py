@@ -44,6 +44,7 @@ from typing import (
 )
 
 import attrs
+import methodtools
 import pendulum
 import re2
 import sqlalchemy_jsonfield
@@ -301,6 +302,17 @@ else:
         return task_sdk_dag_decorator(dag_id, __DAG_class=DAG, __warnings_stacklevel_delta=3, **kwargs)
 
 
+def _convert_max_consecutive_failed_dag_runs(val: int) -> int:
+    if val == 0:
+        val = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
+    if val < 0:
+        raise ValueError(
+            f"Invalid max_consecutive_failed_dag_runs: {val}."
+            f"Requires max_consecutive_failed_dag_runs >= 0"
+        )
+    return val
+
+
 @functools.total_ordering
 @attrs.define(hash=False, repr=False, eq=False)
 class DAG(TaskSDKDag, LoggingMixin):
@@ -428,11 +440,15 @@ class DAG(TaskSDKDag, LoggingMixin):
     _processor_dags_folder: str | None = attrs.field(init=False, default=None)
 
     # Override the default from parent class to use config
-    max_consecutive_failed_dag_runs: int = attrs.field()
+    max_consecutive_failed_dag_runs: int = attrs.field(
+        default=0,
+        converter=_convert_max_consecutive_failed_dag_runs,
+        validator=attrs.validators.instance_of(int),
+    )
 
-    @max_consecutive_failed_dag_runs.default
-    def _max_consecutive_failed_dag_runs_default(self):
-        return airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
+    @property
+    def safe_dag_id(self):
+        return self.dag_id.replace(".", "__dot__")
 
     def validate(self):
         super().validate()
@@ -724,14 +740,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         return self.timetable.summary
 
     @property
-    def max_active_tasks(self) -> int:
-        return self._max_active_tasks
-
-    @max_active_tasks.setter
-    def max_active_tasks(self, value: int):
-        self._max_active_tasks = value
-
-    @property
     def pickle_id(self) -> int | None:
         return self._pickle_id
 
@@ -774,6 +782,14 @@ class DAG(TaskSDKDag, LoggingMixin):
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+
+    @methodtools.lru_cache(maxsize=None)
+    @classmethod
+    def get_serialized_fields(cls):
+        """Stringified DAGs and operators contain exactly these fields."""
+        return TaskSDKDag.get_serialized_fields() | {
+            "_processor_dags_folder",
+        }
 
     @staticmethod
     @internal_api_call
