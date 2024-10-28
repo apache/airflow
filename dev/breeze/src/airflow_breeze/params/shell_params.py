@@ -671,7 +671,8 @@ class ShellParams:
         if (
             self.backend
             and self.integration
-            and not (self.backend == POSTGRES_BACKEND and KEYCLOAK_INTEGRATION in self.integration)
+            and KEYCLOAK_INTEGRATION in self.integration
+            and not self.backend == POSTGRES_BACKEND
         ):
             get_console().print(
                 "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
