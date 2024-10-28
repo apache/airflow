@@ -28,7 +28,7 @@ import type { AssetEvent } from "src/types/api-generated";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
-import DatasetNode from "./DatasetNode";
+import AssetNode from "./AssetNode";
 import DagNode from "./DagNode";
 
 export interface CustomNodeProps {
@@ -94,7 +94,7 @@ const Node = (props: NodeProps<CustomNodeProps>) => {
     );
   }
 
-  if (data.class === "asset") return <DatasetNode {...props} />;
+  if (data.class === "asset") return <AssetNode {...props} />;
 
   return <DagNode {...props} />;
 };

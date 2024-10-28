@@ -16,12 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  createContext,
-  useState,
-  useMemo,
-  type PropsWithChildren,
-} from "react";
+import { createContext, useMemo, type PropsWithChildren } from "react";
+import { useLocalStorage } from "usehooks-ts";
 
 export type TimezoneContextType = {
   selectedTimezone: string;
@@ -35,20 +31,14 @@ export const TimezoneContext = createContext<TimezoneContextType | undefined>(
 const TIMEZONE_KEY = "timezone";
 
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
-  const [selectedTimezone, setSelectedTimezone] = useState(() => {
-    const timezone = localStorage.getItem(TIMEZONE_KEY);
-
-    return timezone ?? "UTC";
-  });
-
-  const selectTimezone = (tz: string) => {
-    localStorage.setItem(TIMEZONE_KEY, tz);
-    setSelectedTimezone(tz);
-  };
+  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(
+    TIMEZONE_KEY,
+    "UTC",
+  );
 
   const value = useMemo<TimezoneContextType>(
-    () => ({ selectedTimezone, setSelectedTimezone: selectTimezone }),
-    [selectedTimezone],
+    () => ({ selectedTimezone, setSelectedTimezone }),
+    [selectedTimezone, setSelectedTimezone],
   );
 
   return (

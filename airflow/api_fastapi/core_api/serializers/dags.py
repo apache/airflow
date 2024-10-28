@@ -112,7 +112,7 @@ class DAGDetailsResponse(DAGResponse):
 
     catchup: bool
     dag_run_timeout: timedelta | None
-    dataset_expression: dict | None
+    asset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None
@@ -156,3 +156,10 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
+
+
+class DAGTagCollectionResponse(BaseModel):
+    """DAG Tags Collection serializer for responses."""
+
+    tags: list[str]
+    total_entries: int

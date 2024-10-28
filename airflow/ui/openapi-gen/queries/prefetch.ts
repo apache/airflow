@@ -6,9 +6,14 @@ import {
   ConnectionService,
   DagRunService,
   DagService,
+  DagsService,
   DashboardService,
   MonitorService,
+  PluginService,
+  PoolService,
+  ProviderService,
   VariableService,
+  VersionService,
 } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
@@ -57,6 +62,76 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
       startDate,
     }),
     queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagsServiceRecentDagRuns = (
+  queryClient: QueryClient,
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn({
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      tags,
+    }),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      }),
   });
 /**
  * Get Dags
@@ -127,6 +202,41 @@ export const prefetchUseDagServiceGetDags = (
         paused,
         tags,
       }),
+  });
+/**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagTags = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
+      limit,
+      offset,
+      orderBy,
+      tagNamePattern,
+    }),
+    queryFn: () =>
+      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
   });
 /**
  * Get Dag
@@ -299,4 +409,106 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPool = (
+  queryClient: QueryClient,
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
+    queryFn: () => PoolService.getPool({ poolName }),
+  });
+/**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPools = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseProviderServiceGetProviders = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
+    queryFn: () => ProviderService.getProviders({ limit, offset }),
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceGetPlugins = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
+    queryFn: () => PluginService.getPlugins({ limit, offset }),
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
+    queryFn: () => VersionService.getVersion(),
   });

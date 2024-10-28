@@ -52,7 +52,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -3939,7 +3939,13 @@ class TestSchedulerJob:
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
             (DagRunType.BACKFILL_JOB, True),
-            (DagRunType.DATASET_TRIGGERED, False),
+            (DagRunType.ASSET_TRIGGERED, False),
+        ],
+        ids=[
+            DagRunType.MANUAL.name,
+            DagRunType.SCHEDULED.name,
+            DagRunType.BACKFILL_JOB.name,
+            DagRunType.ASSET_TRIGGERED.name,
         ],
     )
     def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
@@ -4025,7 +4031,7 @@ class TestSchedulerJob:
         asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
 
         event1 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4041,7 +4047,7 @@ class TestSchedulerJob:
         )
 
         event2 = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4059,8 +4065,8 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(asset_id=asset1_id, target_dag_id=dag3.dag_id),
             ]
         )
         session.flush()
@@ -4084,7 +4090,7 @@ class TestSchedulerJob:
 
         # we don't have __eq__ defined on AssetEvent because... given the fact that in the future
         # we may register events from other systems, asset_id + timestamp might not be enough PK
-        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
+        assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
             map(dict_from_obj, [event1, event2])
         )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
@@ -4116,9 +4122,9 @@ class TestSchedulerJob:
 
         asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
 
-        ase_q = select(AssetEvent).where(AssetEvent.dataset_id == asset_id).order_by(AssetEvent.timestamp)
+        ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
-            AssetDagRunQueue.dataset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
+            AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
 
         # Simulate the consumer DAG being disabled.
@@ -6154,84 +6160,102 @@ class TestSchedulerJob:
         (backfill_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.BACKFILL_JOB, session=session)
         assert backfill_run.state == State.SUCCESS
 
+    @staticmethod
+    def _find_assets_activation(session) -> tuple[list[AssetModel], list[AssetModel]]:
+        assets = session.execute(
+            select(AssetModel, AssetActive)
+            .outerjoin(
+                AssetActive,
+                (AssetModel.name == AssetActive.name) & (AssetModel.uri == AssetActive.uri),
+            )
+            .order_by(AssetModel.uri)
+        ).all()
+        return [a for a, v in assets if not v], [a for a, v in assets if v]
+
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
+
         asset1 = Asset(uri="ds1")
         asset2 = Asset(uri="ds2")
         asset3 = Asset(uri="ds3")
         asset4 = Asset(uri="ds4")
+        asset5 = Asset(uri="ds5")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-        assert non_orphaned_asset_count == 4
-        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-        assert orphaned_asset_count == 0
+        # Assets not activated yet; asset5 is not even registered (since it's not used anywhere).
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1, asset2, asset3, asset4]
 
-        # now remove 2 asset references
-        with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3])
-
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        # and find the orphans
-        non_orphaned_assets = [
-            asset.uri
-            for asset in session.query(AssetModel.uri)
-            .filter(AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        ]
-        assert non_orphaned_assets == ["ds1", "ds3"]
-        orphaned_assets = session.scalars(
-            select(AssetModel.uri).where(~AssetModel.active.has()).order_by(AssetModel.uri)
-        ).all()
-        assert orphaned_assets == ["ds2", "ds4"]
+        # Assets are activated after scheduler loop.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset2, asset3, asset4]
+        assert orphaned == []
 
+        # Now remove 2 asset references and add asset5.
+        with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset5])
+
+        # The DAG parser finds asset5, but it's not activated yet.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset2, asset3, asset4]
+        assert orphaned == [asset5]
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        # Now we get the updated result.
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1, asset3, asset5]
+        assert orphaned == [asset2, asset4]
+
+    @pytest.mark.want_activate_assets(False)
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
+        self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
+
         asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_asset_count = session.query(AssetModel).filter(AssetModel.active.has()).count()
-        assert non_orphaned_asset_count == 1
-        orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.active.has()).count()
-        assert orphaned_asset_count == 0
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+
+        self.job_runner._update_asset_orphanage(session=session)
+        session.flush()
+
+        orphaned, active = self._find_assets_activation(session)
+        assert active == [asset1]
+        assert orphaned == []
 
         # now remove asset1 reference
         with dag_maker(dag_id="assets-1", schedule=None, session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        orphaned_assets_before_rerun = (
-            session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(~AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        )
-        assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
-        updated_at_timestamps = [asset.updated_at for asset in orphaned_assets_before_rerun]
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+        updated_at_timestamps = [asset.updated_at for asset in orphaned]
 
         # when rerunning we should ignore the already orphaned assets and thus the updated_at timestamp
         # should remain the same
-        self.job_runner._orphan_unreferenced_assets(session=session)
+        self.job_runner._update_asset_orphanage(session=session)
         session.flush()
 
-        orphaned_assets_after_rerun = (
-            session.query(AssetModel.updated_at, AssetModel.uri)
-            .filter(~AssetModel.active.has())
-            .order_by(AssetModel.uri)
-        )
-        assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]
-        assert updated_at_timestamps == [asset.updated_at for asset in orphaned_assets_after_rerun]
+        orphaned, active = self._find_assets_activation(session)
+        assert active == []
+        assert orphaned == [asset1]
+        assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

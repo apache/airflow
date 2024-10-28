@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generator, Iterable
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, event
+from sqlalchemy import delete, event, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -533,7 +533,14 @@ class DagFileProcessor(LoggingMixin):
                     )
                 )
 
-        stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dag_ids)).all())
+        stored_warnings = set(
+            session.scalars(
+                select(DagWarning).where(
+                    DagWarning.dag_id.in_(dag_ids),
+                    DagWarning.warning_type == DagWarningType.NONEXISTENT_POOL,
+                )
+            )
+        )
 
         for warning_to_delete in stored_warnings - warnings:
             session.delete(warning_to_delete)

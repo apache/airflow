@@ -138,7 +138,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "uv>=0.1.32",
     ],
     "virtualenv": [
-        "virtualenv",
+        "virtualenv>=20.26.0",
     ],
 }
 
@@ -216,18 +216,18 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
         # when you upgrade it here !!!!
         "mypy==1.9.0",
-        "types-Deprecated",
-        "types-Markdown",
-        "types-PyMySQL",
-        "types-PyYAML",
-        "types-aiofiles",
-        "types-certifi",
-        "types-croniter",
-        "types-docutils",
-        "types-paramiko",
-        "types-protobuf",
-        "types-python-dateutil",
-        "types-python-slugify",
+        "types-Deprecated>=1.2.9.20240311",
+        "types-Markdown>=3.6.0.20240316",
+        "types-PyMySQL>=1.1.0.20240425",
+        "types-PyYAML>=6.0.12.20240724",
+        "types-aiofiles>=23.2.0.20240403",
+        "types-certifi>=2021.10.8.3",
+        "types-croniter>=2.0.0.20240423",
+        "types-docutils>=0.21.0.20240704",
+        "types-paramiko>=3.4.0.20240423",
+        "types-protobuf>=5.26.0.20240422",
+        "types-python-dateutil>=2.9.0.20240316",
+        "types-python-slugify>=8.0.2.20240310",
         "types-pytz",
         "types-redis",
         "types-requests",
@@ -243,7 +243,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.5.5",
+        "ruff==0.7.0",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -376,7 +376,7 @@ DEPENDENCIES = [
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking

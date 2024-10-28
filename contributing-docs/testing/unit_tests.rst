@@ -320,8 +320,7 @@ Method level:
 
 
    @pytest.mark.db_test
-   def test_add_tagging(self, sentry, task_instance):
-       ...
+   def test_add_tagging(self, sentry, task_instance): ...
 
 Class level:
 
@@ -332,8 +331,7 @@ Class level:
 
 
    @pytest.mark.db_test
-   class TestDatabricksHookAsyncAadTokenSpOutside:
-       ...
+   class TestDatabricksHookAsyncAadTokenSpOutside: ...
 
 Module level (at the top of the module):
 
@@ -437,8 +435,7 @@ The fix for that is to sort the parameters in ``parametrize``. For example inste
 .. code-block:: python
 
    @pytest.mark.parametrize("status", ALL_STATES)
-   def test_method():
-       ...
+   def test_method(): ...
 
 
 do that:
@@ -447,8 +444,7 @@ do that:
 .. code-block:: python
 
    @pytest.mark.parametrize("status", sorted(ALL_STATES))
-   def test_method():
-       ...
+   def test_method(): ...
 
 Similarly if your parameters are defined as result of utcnow() or other dynamic method - you should
 avoid that, or assign unique IDs for those parametrized tests. Instead of this:
@@ -470,8 +466,7 @@ avoid that, or assign unique IDs for those parametrized tests. Instead of this:
            ),
        ],
    )
-   def test_end_date_gte_lte(url, expected_dag_run_ids):
-       ...
+   def test_end_date_gte_lte(url, expected_dag_run_ids): ...
 
 Do this:
 
@@ -494,8 +489,7 @@ Do this:
            ),
        ],
    )
-   def test_end_date_gte_lte(url, expected_dag_run_ids):
-       ...
+   def test_end_date_gte_lte(url, expected_dag_run_ids): ...
 
 
 
@@ -558,8 +552,7 @@ the test is marked as DB test:
                ),
            ],
        )
-       def test_from_json(self, input, request_class):
-           ...
+       def test_from_json(self, input, request_class): ...
 
 
 Instead - this will not break collection. The TaskInstance is not initialized when the module is parsed,
@@ -658,8 +651,7 @@ parametrize specification is being parsed - even if test is marked as DB test.
             ),
         ],
     )
-    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-        ...
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected): ...
 
 
 You can make the code conditional and mock out the Variable to avoid hitting the database.
@@ -704,8 +696,7 @@ You can make the code conditional and mock out the Variable to avoid hitting the
             ),
         ],
     )
-    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
-        ...
+    def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected): ...
 
 You can also use fixture to create object that needs database just like this.
 
@@ -1056,8 +1047,7 @@ Example of the ``postgres`` only test:
 .. code-block:: python
 
     @pytest.mark.backend("postgres")
-    def test_copy_expert(self):
-        ...
+    def test_copy_expert(self): ...
 
 
 Example of the ``postgres,mysql`` test (they are skipped with the ``sqlite`` backend):
@@ -1065,8 +1055,7 @@ Example of the ``postgres,mysql`` test (they are skipped with the ``sqlite`` bac
 .. code-block:: python
 
     @pytest.mark.backend("postgres", "mysql")
-    def test_celery_executor(self):
-        ...
+    def test_celery_executor(self): ...
 
 
 You can use the custom ``--backend`` switch in pytest to only run tests specific for that backend.

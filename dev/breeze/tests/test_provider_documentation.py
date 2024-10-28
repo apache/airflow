@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import random
 import string
+from pathlib import Path
 
 import pytest
 
@@ -97,28 +98,47 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
 
 
 @pytest.mark.parametrize(
-    "from_commit, to_commit, git_command",
+    "folder_paths, from_commit, to_commit, git_command",
     [
-        (None, None, ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "--", "."]),
+        (None, None, None, ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "--", "."]),
         (
+            None,
             "from_tag",
             None,
             ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag", "--", "."],
         ),
         (
+            None,
             "from_tag",
             "to_tag",
             ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "from_tag...to_tag", "--", "."],
         ),
+        (
+            [Path("a"), Path("b")],
+            "from_tag",
+            "to_tag",
+            [
+                "git",
+                "log",
+                "--pretty=format:%H %h %cd %s",
+                "--date=short",
+                "from_tag...to_tag",
+                "--",
+                "a",
+                "b",
+            ],
+        ),
     ],
 )
-def test_get_git_log_command(from_commit: str | None, to_commit: str | None, git_command: list[str]):
-    assert _get_git_log_command(from_commit, to_commit) == git_command
+def test_get_git_log_command(
+    folder_paths: list[str] | None, from_commit: str | None, to_commit: str | None, git_command: list[str]
+):
+    assert _get_git_log_command(folder_paths, from_commit, to_commit) == git_command
 
 
 def test_get_git_log_command_wrong():
     with pytest.raises(ValueError, match=r"to_commit without from_commit"):
-        _get_git_log_command(None, "to_commit")
+        _get_git_log_command(None, None, "to_commit")
 
 
 @pytest.mark.parametrize(
