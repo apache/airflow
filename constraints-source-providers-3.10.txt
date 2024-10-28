@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-27T07:42:03.612165
+# This constraints file was automatically generated on 2024-10-28T07:49:21.329609
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -9,7 +9,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-Authlib==1.3.2
+Authlib==1.3.1
 ConfigUpdater==3.2
 Deprecated==1.2.14
 Events==0.5
@@ -58,14 +58,14 @@ airbyte-api==0.52.1
 alabaster==0.7.16
 alembic==1.13.3
 alibabacloud-adb20211201==2.0.0
+alibabacloud-credentials==0.3.6
+alibabacloud-endpoint-util==0.0.3
+alibabacloud-gateway-spi==0.0.2
+alibabacloud-openapi-util==0.2.2
+alibabacloud-tea-openapi==0.3.12
+alibabacloud-tea-util==0.3.13
+alibabacloud-tea-xml==0.0.2
 alibabacloud-tea==0.4.0
-alibabacloud_credentials==0.3.5
-alibabacloud_endpoint_util==0.0.3
-alibabacloud_gateway_spi==0.0.2
-alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.12
-alibabacloud_tea_util==0.3.13
-alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.2.0
@@ -190,7 +190,7 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==21.0.3
 fastapi-cli==0.0.5
-fastapi==0.115.3
+fastapi==0.115.4
 fastavro==1.9.7
 fasteners==0.19
 fastjsonschema==2.20.0
@@ -363,7 +363,7 @@ msal==1.31.0
 msgraph-core==1.1.6
 msrest==0.7.1
 msrestazure==0.6.4.post1
-multi_key_dict==2.0.3
+multi-key-dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.46
@@ -489,7 +489,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-multipart==0.0.12
+python-multipart==0.0.16
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.6
@@ -512,7 +512,7 @@ requests-toolbelt==1.0.0
 requests==2.32.3
 requests_ntlm==1.3.0
 responses==0.25.3
-restructuredtext_lint==1.4.0
+restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
@@ -569,7 +569,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.41.0
+starlette==0.41.2
 statsd==4.0.1
 std-uritemplate==2.0.0
 strictyaml==1.7.3
@@ -629,14 +629,14 @@ userpath==1.9.2
 uv==0.4.27
 uvicorn==0.32.0
 uvloop==0.21.0
-validators==0.33.0
+validators==0.34.0
 vertica-python==1.4.0
 vine==5.1.0
 virtualenv==20.27.0
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
-weaviate-client==4.8.0
+weaviate-client==4.9.0
 websocket-client==1.8.0
 websockets==13.1
 wirerope==0.4.7
@@ -647,7 +647,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.322.0
 yarl==1.16.0
-ydb==3.18.5
+ydb==3.18.6
 zeep==4.3.1
 zenpy==2.0.54
 zipp==3.20.2
