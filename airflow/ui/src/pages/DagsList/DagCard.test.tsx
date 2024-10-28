@@ -82,6 +82,6 @@ describe("DagCard", () => {
 
     render(<DagCard dag={expandedMockDag} />, { wrapper: Wrapper });
     expect(screen.getByTestId("dag-tag")).toBeInTheDocument();
-    expect(screen.getByText("+1 more")).toBeInTheDocument();
+    expect(screen.getByText(", +1 more")).toBeInTheDocument();
   });
 });
