@@ -202,6 +202,15 @@ class TestAthenaHook:
         assert result == "RUNNING"
 
     @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_poll_query_with_exception(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
+        result = self.athena.poll_query_status(
+            query_execution_id=MOCK_DATA["query_execution_id"], max_polling_attempts=1, sleep_time=0
+        )
+        mock_conn.return_value.get_query_execution.assert_called_once()
+        assert not result
+
+    @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_get_output_location(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
@@ -229,6 +238,18 @@ class TestAthenaHook:
             with pytest.raises(KeyError):
                 self.athena.get_output_location(query_execution_id="PLACEHOLDER")
             assert "Error retrieving OutputLocation" in caplog.text
+
+    @mock.patch.object(AthenaHook, "get_query_info")
+    def test_check_query_status_normal(self, mock_get_query_info):
+        mock_get_query_info.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
+        state = self.athena.check_query_status(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert state == "SUCCEEDED"
+
+    @mock.patch.object(AthenaHook, "get_query_info")
+    def test_check_query_status_exception(self, mock_get_query_info):
+        mock_get_query_info.return_value = MOCK_QUERY_EXECUTION_OUTPUT
+        state = self.athena.check_query_status(query_execution_id=MOCK_DATA["query_execution_id"])
+        assert not state
 
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_get_query_info_caching(self, mock_conn):
