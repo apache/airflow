@@ -1145,6 +1145,26 @@ class TestGetDags(TestDagEndpoint):
             for field in fields:
                 assert field in dag
 
+    def test_should_return_specified_fields_and_total_entries(self):
+        total = 4
+        self._create_dag_models(total)
+        self._create_deactivated_dag()
+
+        limit = 2
+        fields = ["dag_id"]
+        response = self.client.get(
+            f"api/v1/dags?limit={limit}&fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        assert res_json["total_entries"] == total
+        assert len(res_json["dags"]) == limit
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
     def test_should_respond_400_with_not_exists_fields(self):
         self._create_dag_models(1)
         self._create_deactivated_dag()
