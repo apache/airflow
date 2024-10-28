@@ -20,7 +20,7 @@
 Drop ab_user.id foreign key.
 
 Revision ID: 044f740568ec
-Revises: 22ed7efa9da2
+Revises: 5f2621c13b39
 Create Date: 2024-08-02 07:18:29.830521
 
 """
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "044f740568ec"
-down_revision = "22ed7efa9da2"
+down_revision = "5f2621c13b39"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
