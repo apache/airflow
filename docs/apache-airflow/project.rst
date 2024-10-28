@@ -57,6 +57,7 @@ Committers
 - Ephraim Anierobi (@ephraimbuddy)
 - Felix Uellendall (@feluelle)
 - Fokko Driesprong (@fokko)
+- Gopal Dirisala (@dirrao)
 - Hitesh Shah (@hiteshs)
 - Hussein Awala (@hussein-awala)
 - Jakob Homan (@jghoman)

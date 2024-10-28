@@ -17,12 +17,32 @@
 # under the License.
 from __future__ import annotations
 
+import typing
 from typing import NamedTuple
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, utils, validate
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior
+
+
+class ReprocessBehaviorField(fields.String):
+    """Schema for ReprocessBehavior enum."""
+
+    def __init__(self, **metadata):
+        super().__init__(**metadata)
+        self.validators = [validate.OneOf(ReprocessBehavior), *self.validators]
+
+    def _serialize(self, value, attr, obj, **kwargs) -> str | None:
+        if value is None:
+            return None
+        return utils.ensure_text_type(ReprocessBehavior(value).value)
+
+    def _deserialize(self, value, attr, data, **kwargs) -> typing.Any:
+        deser = super()._deserialize(value, attr, data, **kwargs)
+        if not deser:
+            return None
+        return ReprocessBehavior(deser)
 
 
 class BackfillSchema(SQLAlchemySchema):
@@ -40,6 +60,7 @@ class BackfillSchema(SQLAlchemySchema):
     dag_run_conf = fields.Dict(allow_none=True)
     reverse = fields.Boolean()
     is_paused = auto_field()
+    reprocess_behavior = ReprocessBehaviorField()
     max_active_runs = auto_field()
     created_at = auto_field()
     completed_at = auto_field()
