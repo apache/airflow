@@ -1147,6 +1147,7 @@ class TestAwsS3Hook:
             return_value=Connection(extra={"service_config": {"s3": {"bucket_name": "bucket_name"}}}),
         ):
 
+            # Create a fake S3Hook class to test the decorator's behavior
             class FakeS3Hook(S3Hook):
                 @provide_bucket_name
                 def test_function(self, bucket_name=None):
@@ -1154,11 +1155,21 @@ class TestAwsS3Hook:
 
             fake_s3_hook = FakeS3Hook()
 
+            # Test: `bucket_name` should fall back to `service_config` when missing
             test_bucket_name = fake_s3_hook.test_function()
-            assert test_bucket_name == "bucket_name"
+            assert test_bucket_name == "default_bucket", "Expected bucket_name to fall back to `service_config`"
 
-            test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
-            assert test_bucket_name == "bucket"
+            # Test: `bucket_name` should fall back to `service_config` when explicitly set to `None`
+            test_bucket_name = fake_s3_hook.test_function(bucket_name=None)
+            assert test_bucket_name == "default_bucket", "Expected bucket_name to fall back to `service_config` when None"
+
+            # Test: `bucket_name` should fall back to `service_config` when explicitly set to an empty string
+            test_bucket_name = fake_s3_hook.test_function(bucket_name="")
+            assert test_bucket_name == "default_bucket", "Expected bucket_name to fall back to `service_config` when empty"
+
+            # Test: `bucket_name` should use the explicitly provided value over `service_config`
+            test_bucket_name = fake_s3_hook.test_function(bucket_name="custom_bucket")
+            assert test_bucket_name == "custom_bucket", "Expected provided bucket_name to take precedence over fallback"
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
